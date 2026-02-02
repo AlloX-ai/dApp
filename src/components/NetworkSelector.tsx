@@ -44,16 +44,6 @@ export function NetworkSelector() {
       nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 },
     },
     {
-      name: 'Polygon',
-      icon: '🟣',
-      chainId: 137,
-      chainHex: '0x89',
-      chainName: 'Polygon Mainnet',
-      rpcUrls: ['https://polygon-rpc.com'],
-      blockExplorerUrls: ['https://polygonscan.com'],
-      nativeCurrency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 },
-    },
-    {
       name: 'Arbitrum',
       icon: '🔷',
       chainId: 42161,
@@ -133,12 +123,12 @@ export function NetworkSelector() {
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="glass-card px-4 py-2.5 flex items-center gap-3 hover:bg-white/80 transition-colors"
+        className="glass-card px-4 py-2 flex items-center gap-3 hover:bg-white/80 transition-colors"
       >
         <span className="text-lg">
           {selectedNetwork?.icon}
         </span>
-        <span className="font-medium text-sm">{selectedNetwork?.name}</span>
+        <span className="font-medium text-sm hidden md:block">{selectedNetwork?.name}</span>
         <ChevronDown
           size={16}
           className={`transition-transform ${isOpen ? 'rotate-180' : ''}`}
@@ -151,7 +141,7 @@ export function NetworkSelector() {
             className="fixed inset-0 z-10"
             onClick={() => setIsOpen(false)}
           ></div>
-          <div className="absolute top-full right-0 mt-2 glass-card p-2 min-w-[200px] z-20 animate-fade-in">
+          <div className="absolute top-full right-0 mt-2 bg-white border border-gray-200 rounded-xl p-2 min-w-[200px] z-20 animate-fade-in">
             <OutsideClickHandler onOutsideClick={() => setIsOpen(false)}>
             {networks.map((network) => (
               <button

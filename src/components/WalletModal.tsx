@@ -16,14 +16,14 @@ export function WalletModal({ isOpen, onClose, onConnect }: WalletModalProps) {
     type: "top",
     walletType: "metamask",
   },
-  {
-    name: "Binance Wallet",
-    icon: "https://cdn.worldofdypians.com/wod/binanceWalletUpdated.svg",
-    type: "top",
-    connectorName: "Binance Wallet",
-    chainId: 56, // BSC chainId
-    walletType: "binance",
-  },
+  // {
+  //   name: "Binance Wallet",
+  //   icon: "https://cdn.worldofdypians.com/wod/binanceWalletUpdated.svg",
+  //   type: "top",
+  //   connectorName: "Binance Wallet",
+  //   chainId: 56, // BSC chainId
+  //   walletType: "binance",
+  // },
   {
     name: "OKX Wallet",
     icon: "https://cdn.worldofdypians.com/wod/okxConnect.svg",

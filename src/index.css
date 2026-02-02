@@ -464,6 +464,9 @@
     top: calc(var(--spacing) * 4);
   }
 
+  .top-20 {
+    top: calc(var(--spacing) * 20);
+  }
   .top-28 {
     top: calc(var(--spacing) * 28);
   }
@@ -2501,6 +2504,10 @@ body {
 
 .btn-primary:active {
   transform: translateY(0);
+}
+
+.mobile-menu-open {
+    box-shadow: 0 0 0 1000px #00000080;
 }
 
 .btn-secondary {
