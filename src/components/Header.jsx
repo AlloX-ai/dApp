@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router";
-import { Wallet, LogOut, Menu, X, ChevronRight } from "lucide-react";
+import { Wallet, Menu, X, ChevronRight, Copy, Check } from "lucide-react";
 import { NetworkSelector } from "./NetworkSelector";
 import { shortAddress } from "../hooks/shortAddress";
 import { navigationTabs, isActivePath } from "../constants/navigation";
 import OutsideClickHandler from "react-outside-click-handler/build/OutsideClickHandler";
 import alloxDesktop from "../assets/AlloX-desktop.svg";
+import alloxMobile from "../assets/AlloX-mobile.svg";
+
 export function Header({
   isConnected,
   coinbase,
@@ -15,30 +17,29 @@ export function Header({
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const handleCopy = (code) => {
+    navigator.clipboard.writeText(code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 px-6 py-4 bg-pattern/95 backdrop-blur-lg border-b border-gray-200/50">
       <div className="flex items-center justify-between">
         <NavLink className="flex items-center gap-2 cursor-pointer" to="/">
-          <img src={alloxDesktop} alt="" className="h-8"/>
+          <img src={alloxDesktop} alt="" className="h-8 hidden md:flex " />
+          <img src={alloxMobile} alt="" className="h-10 flex md:hidden " />
         </NavLink>
 
         <div className="flex items-center gap-4">
-          {isConnected && <NetworkSelector />}
-
           {isConnected ? (
-            <div className="glass-card px-4 py-2 flex items-center gap-3 transition-all duration-200 hover:shadow-md">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full"></div>
+            <div className="glass-card px-0 md:pr-4 flex items-center gap-3 transition-all duration-200 hover:shadow-md">
+              <NetworkSelector onDisconnectClick={onDisconnectClick} />
               <div className="hidden md:flex items-center gap-2">
                 <span className="text-sm font-medium flex items-center">
                   {shortAddress(coinbase)}
                 </span>
-                <button
-                  className="w-12 h-8 bg-black rounded-xl flex items-center justify-center"
-                  onClick={onDisconnectClick}
-                >
-                  <LogOut className="text-white" />
-                </button>
               </div>
             </div>
           ) : (
@@ -96,6 +97,21 @@ export function Header({
                           </button>
                         );
                       })}
+                      {isConnected && (
+                        <div className="flex items-center gap-2">
+                          <span
+                            className=" px-4 py-3 text-sm font-medium flex gap-3 items-center"
+                            onClick={() => handleCopy(coinbase)}
+                          >
+                            {copied ? (
+                              <Check size={20} className="text-black" />
+                            ) : (
+                              <Copy size={20} className="text-black" />
+                            )}
+                            {shortAddress(coinbase)}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </OutsideClickHandler>

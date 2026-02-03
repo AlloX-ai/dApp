@@ -12,6 +12,11 @@ import {
   setMessage,
   setSlippage,
 } from "../redux/slices/chatSlice";
+import aero from "../assets/tokens/aero.svg";
+import arb from "../assets/tokens/arb.svg";
+import lido from "../assets/tokens/lido.svg";
+import prime from "../assets/tokens/prime.svg";
+import virtual from "../assets/tokens/virtual.svg";
 
 export function ChatPage() {
   const dispatch = useDispatch();
@@ -136,36 +141,39 @@ export function ChatPage() {
                     name: "AERO",
                     change: "+24.5%",
                     color: "from-blue-400 to-blue-600",
+                    icon: aero,
                   },
                   {
                     name: "VIRTUAL",
                     change: "+18.2%",
                     color: "from-purple-400 to-purple-600",
+                    icon: virtual,
                   },
                   {
                     name: "PRIME",
                     change: "+15.8%",
                     color: "from-pink-400 to-pink-600",
+                    icon: prime,
                   },
                   {
                     name: "LDO",
                     change: "+12.3%",
                     color: "from-orange-400 to-orange-600",
+                    icon: lido,
                   },
                   {
                     name: "ARB",
                     change: "+9.7%",
                     color: "from-cyan-400 to-cyan-600",
+                    icon: arb,
                   },
                 ].map((token) => (
                   <div
                     key={token.name}
-                    className="flex items-center justify-between bg-white/40 rounded-xl p-3 transition-all duration-200 hover:bg-white/60 hover:shadow-sm hover:border hover:border-gray-200/50 cursor-pointer"
+                    className="flex items-center  border border-transparent justify-between bg-white/40 rounded-xl p-3 transition-all duration-200 hover:bg-white/60 hover:shadow-sm hover:border hover:border-gray-200/50 cursor-pointer"
                   >
                     <div className="flex items-center gap-3">
-                      <div
-                        className={`w-8 h-8 rounded-full bg-gradient-to-br ${token.color}`}
-                      ></div>
+                      <img src={token.icon} className="w-8 h-8" />
                       <span className="font-medium">{token.name}</span>
                     </div>
                     <span className="text-green-600 font-medium text-sm">
@@ -605,7 +613,7 @@ export function ChatPage() {
               )}
             </div>
           </div>
-          <p className="text-xs text-center text-gray-500 mt-3">
+          <p className="text-xs hidden md:block text-center text-gray-500 mt-3">
             AlloX can make mistakes. Always verify transactions before
             confirming.
           </p>
