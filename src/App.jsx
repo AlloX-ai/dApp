@@ -117,7 +117,7 @@ function LaunchAppLayout() {
         onDisconnectClick={handleDisconnect}
       />
 
-      <div className="w-full flex-1 pt-20 flex overflow-hidden md:pl-[276px]">
+      <div className="w-full flex-1 pt-20 flex overflow-hidden">
         <LaunchSidebar />
         <main className="w-full flex flex-col overflow-hidden">
           <Outlet />

@@ -516,14 +516,13 @@ export function ChatPage() {
 
   return (
     <div className="flex-1 flex flex-col">
-      <div className="flex-1 flex flex-col overflow-y-auto pb-32">
+      <div className="flex-1 flex flex-col overflow-y-auto">
         {currentMessages.length === 0 && (
           <div className="h-full flex items-center justify-center px-6">
             <div className="text-center max-w-2xl">
               <h2 className="text-3xl font-bold mb-4">Hello, I'm AlloX</h2>
               <p className="text-gray-600 mb-8">
-                I can help you discover, execute, and manage crypto actions. Let
-                me know how I can help you today!
+                I can help you discover, execute, and manage your portfolio.
               </p>
 
               <div className="flex flex-wrap gap-2 justify-center mb-8">

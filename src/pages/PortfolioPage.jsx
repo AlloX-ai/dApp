@@ -130,7 +130,7 @@ export function PortfolioPage() {
 
       {isConnected ? (
         <>
-          <div className="bg-white p-8 mb-6 transition-all duration-200 hover:shadow-lg">
+          <div className="bg-white p-8 mb-6 transition-all duration-200">
             <div className="text-sm text-gray-500 mb-2">Total Balance</div>
             <div className="text-5xl font-bold mb-3">
               $

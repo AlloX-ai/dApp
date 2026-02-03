@@ -5,7 +5,7 @@ import { NetworkSelector } from "./NetworkSelector";
 import { shortAddress } from "../hooks/shortAddress";
 import { navigationTabs, isActivePath } from "../constants/navigation";
 import OutsideClickHandler from "react-outside-click-handler/build/OutsideClickHandler";
-
+import alloxDesktop from "../assets/AlloX-desktop.svg";
 export function Header({
   isConnected,
   coinbase,
@@ -18,14 +18,9 @@ export function Header({
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 px-6 py-4 bg-pattern/95 backdrop-blur-lg border-b border-gray-200/50">
-      <div className="max-w-[1600px] mx-auto flex items-center justify-between">
+      <div className="flex items-center justify-between">
         <NavLink className="flex items-center gap-2 cursor-pointer" to="/">
-          <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center">
-            <div className="w-4 h-4 border-2 border-white rounded-full"></div>
-          </div>
-          <span className="font-bold text-xl tracking-tight hidden md:inline">
-            AlloX
-          </span>
+          <img src={alloxDesktop} alt="" className="h-8"/>
         </NavLink>
 
         <div className="flex items-center gap-4">
