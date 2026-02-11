@@ -1,12 +1,10 @@
 import { useSelector } from "react-redux";
 
 export function TradingPage() {
-  const completedActions = useSelector(
-    (state) => state.chat.completedActions,
-  );
+  const completedActions = useSelector((state) => state.chat.completedActions);
 
   return (
-    <div className="flex-1 px-6 py-8 max-w-[1200px] mx-auto w-full overflow-y-auto">
+    <div className="flex-1 px-6 py-8 portfolio-wrapper ms-auto w-full overflow-y-auto">
       <h2 className="text-3xl font-bold mb-6">Trading</h2>
 
       {completedActions.length > 0 ? (
@@ -24,15 +22,15 @@ export function TradingPage() {
                         action.status === "completed"
                           ? "bg-green-100 text-green-700"
                           : action.status === "pending"
-                          ? "bg-orange-100 text-orange-700"
-                          : "bg-red-100 text-red-700"
+                            ? "bg-orange-100 text-orange-700"
+                            : "bg-red-100 text-red-700"
                       }`}
                     >
                       {action.status === "completed"
                         ? "✓ Completed"
                         : action.status === "pending"
-                        ? "Pending"
-                        : "Failed"}
+                          ? "Pending"
+                          : "Failed"}
                     </div>
                     <span className="text-xs text-gray-500">
                       {action.timestamp.toLocaleTimeString()}

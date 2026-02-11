@@ -77,7 +77,7 @@ export function StakingPage() {
 
   if (stakedPools.length > 0) {
     return (
-      <div className="flex-1 px-6 py-8 max-w-[1200px] mx-auto w-full overflow-y-auto">
+      <div className="flex-1 px-6 py-8 portfolio-wrapper ms-auto w-full overflow-y-auto">
         <h2 className="text-3xl font-bold mb-6">Active Staking</h2>
 
         <div className="max-w-2xl space-y-4">
@@ -150,7 +150,7 @@ export function StakingPage() {
   }
 
   return (
-    <div className="flex-1 px-6 py-8 max-w-[1200px] mx-auto w-full overflow-y-auto">
+    <div className="flex-1 px-6 py-8 portfolio-wrapper ms-auto w-full overflow-y-auto">
       <h2 className="text-3xl font-bold mb-6">Staking Opportunities</h2>
 
       {!selectedStaking && (

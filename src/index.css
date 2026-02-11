@@ -5,16 +5,20 @@
 
 /*! tailwindcss v4.1.3 | MIT License | https://tailwindcss.com */
 
-
 * {
-  font-family: Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif;
+  font-family:
+    Inter,
+    -apple-system,
+    BlinkMacSystemFont,
+    Segoe UI,
+    sans-serif;
 }
 
-  #root {
-    height: 100vh;
-    width: 100vw;
-    overflow-x: hidden;
-  }
+#root {
+  height: 100vh;
+  width: 100vw;
+  overflow-x: hidden;
+}
 
 body {
   -webkit-font-smoothing: antialiased;
@@ -29,7 +33,9 @@ button {
 
 .bg-pattern {
   background-color: #fafafa;
-  background-image: linear-gradient(#00000005 1px, #0000 1px), linear-gradient(90deg, #00000005 1px, #0000 1px);
+  background-image:
+    linear-gradient(#00000005 1px, #0000 1px),
+    linear-gradient(90deg, #00000005 1px, #0000 1px);
   background-size: 20px 20px;
   position: relative;
 }
@@ -38,18 +44,20 @@ button {
   content: "";
   pointer-events: none;
   z-index: 0;
-  background: radial-gradient(circle at 20% 30%, #3b82f608, #0000 50%), radial-gradient(circle at 80% 70%, #a855f708, #0000 50%);
+  background:
+    radial-gradient(circle at 20% 30%, #3b82f608, #0000 50%),
+    radial-gradient(circle at 80% 70%, #a855f708, #0000 50%);
   position: fixed;
   inset: 0;
 }
 
 .main-wrapper {
   align-items: center;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    min-height: 100vh;
-    width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 100vh;
+  width: 100%;
 }
 
 .chat-padding {
@@ -61,16 +69,22 @@ button {
   background: #ffffffb3;
   border: 1px solid #fffc;
   border-radius: 24px;
-  box-shadow: 0 4px 24px #0000000a, 0 1px 2px #00000005, inset 0 1px #ffffffe6;
+  box-shadow:
+    0 4px 24px #0000000a,
+    0 1px 2px #00000005,
+    inset 0 1px #ffffffe6;
 }
 
 .hover-lift {
-  transition: all .3s cubic-bezier(.4, 0, .2, 1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .hover-lift:hover {
   transform: translateY(-4px);
-  box-shadow: 0 12px 40px #00000014, 0 4px 8px #0000000a, inset 0 1px #ffffffe6;
+  box-shadow:
+    0 12px 40px #00000014,
+    0 4px 8px #0000000a,
+    inset 0 1px #ffffffe6;
 }
 
 .btn-primary {
@@ -84,7 +98,7 @@ button {
   padding: 12px 24px;
   font-size: 14px;
   font-weight: 600;
-  transition: all .2s cubic-bezier(.4, 0, .2, 1);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   display: inline-flex;
   box-shadow: 0 2px 8px #0000001a;
 }
@@ -100,7 +114,7 @@ button {
 }
 
 .mobile-menu-open {
-    box-shadow: 0 0 0 1000px #00000080;
+  box-shadow: 0 0 0 1000px #00000080;
 }
 
 .btn-secondary {
@@ -115,7 +129,7 @@ button {
   padding: 12px 24px;
   font-size: 14px;
   font-weight: 600;
-  transition: all .2s cubic-bezier(.4, 0, .2, 1);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   display: inline-flex;
 }
 
@@ -129,6 +143,14 @@ button {
   transform: translateY(0);
 }
 
+.portfolio-wrapper {
+  max-width: calc(100% - 280px);
+}
+@media screen and (max-width: 767px) {
+  .portfolio-wrapper {
+    max-width: none;
+  }
+}
 @keyframes fade-in {
   from {
     opacity: 0;
@@ -152,11 +174,11 @@ button {
 }
 
 .animate-fade-in {
-  animation: .6s ease-out fade-in;
+  animation: 0.6s ease-out fade-in;
 }
 
 .animate-slide-up {
-  animation: .6s ease-out slide-up;
+  animation: 0.6s ease-out slide-up;
 }
 
 ::-webkit-scrollbar {
@@ -178,14 +200,19 @@ button {
   background: #0003;
 }
 
-h1, h2, h3, h4, h5, h6 {
-  letter-spacing: -.02em;
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  letter-spacing: -0.02em;
 }
 
 * {
   transition-property: background-color, border-color, color, fill, stroke;
-  transition-duration: .15s;
-  transition-timing-function: cubic-bezier(.4, 0, .2, 1);
+  transition-duration: 0.15s;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 ::selection {
@@ -236,7 +263,7 @@ h1, h2, h3, h4, h5, h6 {
 
 @property --tw-gradient-position {
   syntax: "*";
-  inherits: false
+  inherits: false;
 }
 
 @property --tw-gradient-from {
@@ -259,12 +286,12 @@ h1, h2, h3, h4, h5, h6 {
 
 @property --tw-gradient-stops {
   syntax: "*";
-  inherits: false
+  inherits: false;
 }
 
 @property --tw-gradient-via-stops {
   syntax: "*";
-  inherits: false
+  inherits: false;
 }
 
 @property --tw-gradient-from-position {
@@ -287,17 +314,17 @@ h1, h2, h3, h4, h5, h6 {
 
 @property --tw-leading {
   syntax: "*";
-  inherits: false
+  inherits: false;
 }
 
 @property --tw-font-weight {
   syntax: "*";
-  inherits: false
+  inherits: false;
 }
 
 @property --tw-tracking {
   syntax: "*";
-  inherits: false
+  inherits: false;
 }
 
 @property --tw-shadow {
@@ -308,7 +335,7 @@ h1, h2, h3, h4, h5, h6 {
 
 @property --tw-shadow-color {
   syntax: "*";
-  inherits: false
+  inherits: false;
 }
 
 @property --tw-shadow-alpha {
@@ -325,7 +352,7 @@ h1, h2, h3, h4, h5, h6 {
 
 @property --tw-inset-shadow-color {
   syntax: "*";
-  inherits: false
+  inherits: false;
 }
 
 @property --tw-inset-shadow-alpha {
@@ -336,7 +363,7 @@ h1, h2, h3, h4, h5, h6 {
 
 @property --tw-ring-color {
   syntax: "*";
-  inherits: false
+  inherits: false;
 }
 
 @property --tw-ring-shadow {
@@ -347,7 +374,7 @@ h1, h2, h3, h4, h5, h6 {
 
 @property --tw-inset-ring-color {
   syntax: "*";
-  inherits: false
+  inherits: false;
 }
 
 @property --tw-inset-ring-shadow {
@@ -358,7 +385,7 @@ h1, h2, h3, h4, h5, h6 {
 
 @property --tw-ring-inset {
   syntax: "*";
-  inherits: false
+  inherits: false;
 }
 
 @property --tw-ring-offset-width {
@@ -381,57 +408,57 @@ h1, h2, h3, h4, h5, h6 {
 
 @property --tw-blur {
   syntax: "*";
-  inherits: false
+  inherits: false;
 }
 
 @property --tw-brightness {
   syntax: "*";
-  inherits: false
+  inherits: false;
 }
 
 @property --tw-contrast {
   syntax: "*";
-  inherits: false
+  inherits: false;
 }
 
 @property --tw-grayscale {
   syntax: "*";
-  inherits: false
+  inherits: false;
 }
 
 @property --tw-hue-rotate {
   syntax: "*";
-  inherits: false
+  inherits: false;
 }
 
 @property --tw-invert {
   syntax: "*";
-  inherits: false
+  inherits: false;
 }
 
 @property --tw-opacity {
   syntax: "*";
-  inherits: false
+  inherits: false;
 }
 
 @property --tw-saturate {
   syntax: "*";
-  inherits: false
+  inherits: false;
 }
 
 @property --tw-sepia {
   syntax: "*";
-  inherits: false
+  inherits: false;
 }
 
 @property --tw-drop-shadow {
   syntax: "*";
-  inherits: false
+  inherits: false;
 }
 
 @property --tw-drop-shadow-color {
   syntax: "*";
-  inherits: false
+  inherits: false;
 }
 
 @property --tw-drop-shadow-alpha {
@@ -442,57 +469,57 @@ h1, h2, h3, h4, h5, h6 {
 
 @property --tw-drop-shadow-size {
   syntax: "*";
-  inherits: false
+  inherits: false;
 }
 
 @property --tw-backdrop-blur {
   syntax: "*";
-  inherits: false
+  inherits: false;
 }
 
 @property --tw-backdrop-brightness {
   syntax: "*";
-  inherits: false
+  inherits: false;
 }
 
 @property --tw-backdrop-contrast {
   syntax: "*";
-  inherits: false
+  inherits: false;
 }
 
 @property --tw-backdrop-grayscale {
   syntax: "*";
-  inherits: false
+  inherits: false;
 }
 
 @property --tw-backdrop-hue-rotate {
   syntax: "*";
-  inherits: false
+  inherits: false;
 }
 
 @property --tw-backdrop-invert {
   syntax: "*";
-  inherits: false
+  inherits: false;
 }
 
 @property --tw-backdrop-opacity {
   syntax: "*";
-  inherits: false
+  inherits: false;
 }
 
 @property --tw-backdrop-saturate {
   syntax: "*";
-  inherits: false
+  inherits: false;
 }
 
 @property --tw-backdrop-sepia {
   syntax: "*";
-  inherits: false
+  inherits: false;
 }
 
 @property --tw-duration {
   syntax: "*";
-  inherits: false
+  inherits: false;
 }
 
 @property --tw-scale-x {
@@ -521,6 +548,6 @@ h1, h2, h3, h4, h5, h6 {
 
 @keyframes pulse {
   50% {
-    opacity: .5;
+    opacity: 0.5;
   }
 }

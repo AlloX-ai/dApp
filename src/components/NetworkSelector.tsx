@@ -25,8 +25,20 @@ type NetworkSelectorProps = {
 export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const chainId = useSelector((state: any) => state.wallet.chainId);
-
+  const errorNetwork: NetworkOption[] = [
+    {
+      name: "",
+      icon: "https://cdn.worldofdypians.com/wod/error.svg",
+      chainId: 0,
+      chainHex: "0",
+      chainName: "0",
+      rpcUrls: [""],
+      blockExplorerUrls: [""],
+      nativeCurrency: { name: "", symbol: "", decimals: 1 },
+    },
+  ]
   const networks: NetworkOption[] = [
+
     // {
     //   name: 'Ethereum',
     //   icon: 'https://cdn.worldofdypians.com/wod/eth.svg',
@@ -60,7 +72,7 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
   ];
 
   const selectedNetwork =
-    networks.find((network) => network.chainId === chainId) ?? networks[0];
+    networks.find((network) => network.chainId === chainId) ?? errorNetwork[0];
 
   const handleSwitchNetwork = async (network: NetworkOption) => {
     const ethereum = (window as any).ethereum;
@@ -129,11 +141,10 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
                 <button
                   key={network.name}
                   onClick={() => handleSwitchNetwork(network)}
-                  className={`w-full flex hover:bg-gray-800 items-center gap-3 px-4 py-3 rounded-xl text-sm transition-colors ${
-                    selectedNetwork?.name === network.name
-                      ? "bg-black text-white font-medium"
-                      : "hover:bg-black/5"
-                  }`}
+                  className={`w-full flex hover:bg-gray-800 items-center gap-3 px-4 py-3 rounded-xl text-sm transition-colors ${selectedNetwork?.name === network.name
+                    ? "bg-black text-white font-medium"
+                    : "hover:bg-black/5 hover:text-white"
+                    }`}
                 >
                   <img src={network.icon} alt="" className="h-6 w-6" />
                   <span>{network.name}</span>

@@ -112,7 +112,7 @@ export function WalletModal({ isOpen, onClose, onConnect }: WalletModalProps) {
         <p className="text-xs text-center text-gray-500 mt-6">
           By connecting, you agree to our{" "}
           <a
-            href="#"
+            href="https://lorenadev.dyp.finance/terms"
             target="_blank"
             rel="noreferrer"
             className="font-bold underline"
@@ -121,7 +121,7 @@ export function WalletModal({ isOpen, onClose, onConnect }: WalletModalProps) {
           </a>
           {" "}and{" "}
           <a
-            href="#"
+            href="https://lorenadev.dyp.finance/privacy"
             target="_blank"
             rel="noreferrer"
             className="font-bold underline"

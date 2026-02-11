@@ -1,29 +1,29 @@
-import { useRef, useEffect } from "react";
-import { Send, Mic, Loader2 } from "lucide-react";
+import { useRef, useEffect, useState, useCallback } from "react";
+import { Send, Loader2, Wallet } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import { ChatBubble } from "../components/ChatBubble";
-import { ActionCard } from "../components/ActionCard";
 import {
   addCurrentMessage,
-  addCurrentMessages,
-  prependCompletedAction,
-  setIsRecording,
   setIsThinking,
   setMessage,
-  setSlippage,
 } from "../redux/slices/chatSlice";
-import aero from "../assets/tokens/aero.svg";
-import arb from "../assets/tokens/arb.svg";
-import lido from "../assets/tokens/lido.svg";
-import prime from "../assets/tokens/prime.svg";
-import virtual from "../assets/tokens/virtual.svg";
+import { setWalletModal } from "../redux/slices/walletSlice";
+import { apiCall } from "../utils/api";
+import { useAuth } from "../hooks/useAuth";
 
 export function ChatPage() {
   const dispatch = useDispatch();
-  const { message, currentMessages, slippage, isRecording, isThinking } =
-    useSelector((state) => state.chat);
-
+  const { message, currentMessages, isThinking } = useSelector(
+    (state) => state.chat,
+  );
+  const isConnected = useSelector((state) => state.wallet.isConnected);
+  const { token, authenticate, logout } = useAuth();
   const speechBoxRef = useRef(null);
+  const [showWalletPrompt, setShowWalletPrompt] = useState(false);
+
+  const setWalletModalOpen = (nextValue) => {
+    dispatch(setWalletModal(nextValue));
+  };
 
   const scrollToBottom = () => {
     const scrollable = speechBoxRef.current;
@@ -36,491 +36,185 @@ export function ChatPage() {
     }
   };
 
+  const ensureAuthenticated = useCallback(async () => {
+    if (token) return token;
+    return authenticate();
+  }, [token, authenticate]);
+
+  const buildBotMessage = useCallback((data) => {
+    return {
+      id: Date.now() + 1,
+      type: "ai",
+      content: data?.message || "Thanks. What would you like to do next?",
+      options: Array.isArray(data?.options) ? data.options : [],
+      data,
+      timestamp: new Date(),
+    };
+  }, []);
+
   const handleSendMessage = () => {
     if (!message.trim()) return;
-
-    handleSuggestionClick(message);
+    sendChatMessage(message);
     dispatch(setMessage(""));
   };
 
-  const handleSuggestionClick = (suggestion) => {
-    const userMsg = {
-      id: Date.now(),
-      type: "user",
-      content: suggestion,
-      timestamp: new Date(),
-    };
+  const handleInputKeyDown = (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    handleSendMessage();
+  };
 
-    dispatch(addCurrentMessage(userMsg));
-    dispatch(setIsThinking(true));
-
-    setTimeout(() => {
-      dispatch(setIsThinking(false));
-      let aiResponse;
-
-      if (
-        suggestion === "Swap Tokens" ||
-        suggestion.includes("Buy") ||
-        suggestion.toLowerCase().includes("swap")
-      ) {
-        aiResponse = {
-          id: Date.now() + 1,
-          type: "ai",
-          content: (
-            <div>
-              <p className="text-sm mb-4">
-                I'll help you with that swap. Here's what I found:
-              </p>
-              <ActionCard onConfirm={() => handleConfirmSwap()}>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <div className="text-xs text-gray-500">From</div>
-                      <div className="font-bold text-lg">100 USDC</div>
-                    </div>
-                    <div className="text-2xl text-gray-400">→</div>
-                    <div className="text-right">
-                      <div className="text-xs text-gray-500">To</div>
-                      <div className="font-bold text-lg">0.057 ETH</div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2 text-sm pt-3 border-t border-gray-200/50">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Current Price</span>
-                      <span className="font-medium">1 ETH = $1,754.38</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Route</span>
-                      <span className="font-medium">Uniswap V3</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Network Fee</span>
-                      <span className="font-medium">~$1.20</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600">Slippage</span>
-                      <div className="flex gap-2">
-                        {["0.5", "1.0", "2.0"].map((s) => (
-                          <button
-                            key={s}
-                            onClick={() => dispatch(setSlippage(s))}
-                            className={`px-2 py-1 rounded-lg text-xs transition-all duration-200 ${
-                              slippage === s
-                                ? "bg-black text-white"
-                                : "bg-gray-100 hover:bg-gray-200 hover:shadow-sm"
-                            }`}
-                          >
-                            {s}%
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </ActionCard>
-            </div>
-          ),
-          timestamp: new Date(),
-        };
-      } else if (
-        suggestion === "Trending Tokens" ||
-        suggestion.toLowerCase().includes("trending")
-      ) {
-        aiResponse = {
-          id: Date.now() + 1,
-          type: "ai",
-          content: (
-            <div>
-              <p className="text-sm mb-4">
-                Here are the top 5 trending tokens right now:
-              </p>
-              <div className="space-y-2 mb-4">
-                {[
-                  {
-                    name: "AERO",
-                    change: "+24.5%",
-                    color: "from-blue-400 to-blue-600",
-                    icon: aero,
-                  },
-                  {
-                    name: "VIRTUAL",
-                    change: "+18.2%",
-                    color: "from-purple-400 to-purple-600",
-                    icon: virtual,
-                  },
-                  {
-                    name: "PRIME",
-                    change: "+15.8%",
-                    color: "from-pink-400 to-pink-600",
-                    icon: prime,
-                  },
-                  {
-                    name: "LDO",
-                    change: "+12.3%",
-                    color: "from-orange-400 to-orange-600",
-                    icon: lido,
-                  },
-                  {
-                    name: "ARB",
-                    change: "+9.7%",
-                    color: "from-cyan-400 to-cyan-600",
-                    icon: arb,
-                  },
-                ].map((token) => (
-                  <div
-                    key={token.name}
-                    className="flex items-center  border border-transparent justify-between bg-white/40 rounded-xl p-3 transition-all duration-200 hover:bg-white/60 hover:shadow-sm hover:border hover:border-gray-200/50 cursor-pointer"
-                  >
-                    <div className="flex items-center gap-3">
-                      <img src={token.icon} className="w-8 h-8" />
-                      <span className="font-medium">{token.name}</span>
-                    </div>
-                    <span className="text-green-600 font-medium text-sm">
-                      {token.change}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <p className="text-sm text-gray-600 mb-3">
-                Would you like to allocate funds across these tokens?
-              </p>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handleAllocateEvenly()}
-                  className="flex-1 py-2 px-4 bg-black text-white rounded-xl text-sm font-medium hover:bg-gray-800 hover:shadow-lg transition-all duration-200"
-                >
-                  Allocate evenly
-                </button>
-                <button
-                  onClick={() => handleCustomAllocation()}
-                  className="flex-1 py-2 px-4 bg-white/80 border border-gray-200 rounded-xl text-sm font-medium hover:bg-white hover:shadow-md hover:border-gray-300 transition-all duration-200"
-                >
-                  Custom allocation
-                </button>
-              </div>
-            </div>
-          ),
-          timestamp: new Date(),
-        };
-      } else if (
-        suggestion === "Build a Portfolio" ||
-        suggestion.toLowerCase().includes("portfolio")
-      ) {
-        aiResponse = {
-          id: Date.now() + 1,
-          type: "ai",
-          content: (
-            <div>
-              <p className="text-sm mb-4">
-                I'll help you build a diversified portfolio. What's your budget?
-              </p>
-              <div className="grid grid-cols-3 gap-2 mb-4">
-                {["$500", "$1,000", "$5,000"].map((budget) => (
-                  <button
-                    key={budget}
-                    onClick={() => handleBudgetSelect(budget)}
-                    className="py-2 px-4 bg-white/80 border border-gray-200 rounded-xl text-sm font-medium hover:bg-white hover:border-gray-300 hover:shadow-md transition-all duration-200"
-                  >
-                    {budget}
-                  </button>
-                ))}
-              </div>
-              <p className="text-sm mb-3">Risk preference:</p>
-              <div className="grid grid-cols-3 gap-2">
-                {["Conservative", "Moderate", "Aggressive"].map((risk) => (
-                  <button
-                    key={risk}
-                    onClick={() => handleRiskSelect(risk)}
-                    className="py-2 px-3 bg-white/80 border border-gray-200 rounded-xl text-xs font-medium hover:bg-white hover:border-gray-300 hover:shadow-md transition-all duration-200"
-                  >
-                    {risk}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ),
-          timestamp: new Date(),
-        };
-      } else if (suggestion.toLowerCase().includes("staking")) {
-        aiResponse = {
-          id: Date.now() + 1,
-          type: "ai",
-          content: (
-            <div>
-              <p className="text-sm mb-4">
-                Here are the best staking options available right now:
-              </p>
-              <div className="space-y-3">
-                {[
-                  {
-                    name: "AERO",
-                    apy: 18.5,
-                    protocol: "Aerodrome",
-                    color: "from-blue-400 to-blue-600",
-                  },
-                  {
-                    name: "VIRTUAL",
-                    apy: 22.3,
-                    protocol: "Virtual Protocol",
-                    color: "from-purple-400 to-purple-600",
-                  },
-                  {
-                    name: "ETH",
-                    apy: 4.2,
-                    protocol: "Lido",
-                    color: "from-cyan-400 to-cyan-600",
-                  },
-                ].map((token) => (
-                  <div
-                    key={token.name}
-                    className="bg-white/40 rounded-xl p-4 transition-all duration-200 hover:bg-white/60 hover:shadow-md hover:border hover:border-gray-200/50 cursor-pointer"
-                  >
-                    <div className="flex items-center gap-3 mb-2">
-                      <div
-                        className={`w-10 h-10 rounded-full bg-gradient-to-br ${token.color}`}
-                      ></div>
-                      <div className="flex-1">
-                        <div className="font-bold">{token.name}</div>
-                        <div className="text-xs text-gray-600">
-                          {token.protocol}
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-lg font-bold text-green-600">
-                          {token.apy}%
-                        </div>
-                        <div className="text-xs text-gray-500">APY</div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <p className="text-sm text-gray-600 mt-4">
-                Would you like to stake your tokens?
-              </p>
-            </div>
-          ),
-          timestamp: new Date(),
-        };
-      } else {
-        aiResponse = {
-          id: Date.now() + 1,
-          type: "ai",
-          content:
-            "I'm here to help! I can assist you with swapping tokens, building portfolios, finding trending tokens, and discovering staking opportunities. What would you like to do?",
-          timestamp: new Date(),
-        };
+  const sendChatMessage = useCallback(
+    async (text) => {
+      const trimmed = text.trim();
+      if (!trimmed) return;
+      if (!isConnected) {
+        setShowWalletPrompt(true);
+        return;
       }
 
-      dispatch(addCurrentMessage(aiResponse));
-    }, 1200);
-  };
-
-  const handleConfirmSwap = () => {
-    const confirmMsg = {
-      id: Date.now(),
-      type: "ai",
-      content: (
-        <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-white text-xs">
-              ✓
-            </div>
-            <span className="font-medium text-green-700">
-              Swap submitted successfully!
-            </span>
-          </div>
-          <p className="text-sm text-green-600">
-            Transaction pending confirmation on the blockchain.
-          </p>
-        </div>
-      ),
-      timestamp: new Date(),
-    };
-    dispatch(addCurrentMessage(confirmMsg));
-
-    const newAction = {
-      id: Date.now(),
-      type: "swap",
-      title: "Swap 100 USDC to ETH",
-      description: "Successfully swapped 100 USDC for 0.057 ETH via Uniswap V3",
-      timestamp: new Date(),
-      status: "completed",
-    };
-    dispatch(prependCompletedAction(newAction));
-  };
-
-  const handleAllocateEvenly = () => {
-    const allocationMsg = {
-      id: Date.now(),
-      type: "ai",
-      content: (
-        <div>
-          <p className="text-sm mb-4">
-            Here's your even allocation across 5 trending tokens ($100 each):
-          </p>
-          <ActionCard onConfirm={() => handleConfirmAllocation()}>
-            <div className="space-y-2 mb-3">
-              {["AERO", "VIRTUAL", "PRIME", "LDO", "ARB"].map((token) => (
-                <div key={token} className="flex justify-between text-sm">
-                  <span className="font-medium">{token}</span>
-                  <span>$100.00</span>
-                </div>
-              ))}
-            </div>
-            <div className="pt-3 border-t border-gray-200/50">
-              <div className="flex justify-between font-bold">
-                <span>Total</span>
-                <span>$500.00</span>
-              </div>
-            </div>
-          </ActionCard>
-        </div>
-      ),
-      timestamp: new Date(),
-    };
-    dispatch(addCurrentMessage(allocationMsg));
-  };
-
-  const handleCustomAllocation = () => {
-    const customMsg = {
-      id: Date.now(),
-      type: "ai",
-      content: (
-        <div>
-          <p className="text-sm mb-4">
-            Great! Let's create a custom allocation. Enter your budget:
-          </p>
-          <ActionCard onConfirm={() => handleConfirmAllocation()}>
-            <div className="space-y-3">
-              <input
-                type="text"
-                placeholder="Enter total budget (e.g., $1000)"
-                className="w-full px-4 py-2 bg-white/60 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-black/10 transition-all duration-200"
-              />
-              {["AERO", "VIRTUAL", "PRIME", "LDO", "ARB"].map((token) => (
-                <div key={token} className="flex items-center gap-3">
-                  <span className="text-sm font-medium w-20">{token}</span>
-                  <input
-                    type="text"
-                    placeholder="0%"
-                    className="flex-1 px-3 py-2 bg-white/60 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black/10 transition-all duration-200"
-                  />
-                </div>
-              ))}
-            </div>
-          </ActionCard>
-        </div>
-      ),
-      timestamp: new Date(),
-    };
-    dispatch(addCurrentMessage(customMsg));
-  };
-
-  const handleConfirmAllocation = () => {
-    const confirmMsg = {
-      id: Date.now(),
-      type: "ai",
-      content: (
-        <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-white text-xs">
-              ✓
-            </div>
-            <span className="font-medium text-green-700">
-              Portfolio built successfully!
-            </span>
-          </div>
-          <p className="text-sm text-green-600">
-            Your allocation has been executed across all tokens.
-          </p>
-        </div>
-      ),
-      timestamp: new Date(),
-    };
-    dispatch(addCurrentMessage(confirmMsg));
-
-    const newAction = {
-      id: Date.now(),
-      type: "portfolio",
-      title: "Portfolio Built Successfully",
-      description: "Allocated funds across AERO, VIRTUAL, PRIME, LDO, and ARB",
-      timestamp: new Date(),
-      status: "completed",
-    };
-    dispatch(prependCompletedAction(newAction));
-  };
-
-  const handleBudgetSelect = (budget) => {
-    const budgetMsg = {
-      id: Date.now(),
-      type: "user",
-      content: budget,
-      timestamp: new Date(),
-    };
-    dispatch(addCurrentMessage(budgetMsg));
-  };
-
-  const handleRiskSelect = (risk) => {
-    const riskMsg = {
-      id: Date.now(),
-      type: "user",
-      content: risk,
-      timestamp: new Date(),
-    };
-
-    dispatch(setIsThinking(true));
-
-    setTimeout(() => {
-      dispatch(setIsThinking(false));
-      const responseMsg = {
-        id: Date.now() + 1,
-        type: "ai",
-        content: (
-          <div>
-            <p className="text-sm mb-4">
-              Perfect! Based on your {risk.toLowerCase()} risk profile, here's a
-              recommended portfolio:
-            </p>
-            <ActionCard onConfirm={() => handleConfirmAllocation()}>
-              <div className="space-y-2 mb-3">
-                <div className="flex justify-between text-sm">
-                  <span className="font-medium">ETH (40%)</span>
-                  <span>$200.00</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="font-medium">USDC (30%)</span>
-                  <span>$150.00</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="font-medium">AERO (20%)</span>
-                  <span>$100.00</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="font-medium">VIRTUAL (10%)</span>
-                  <span>$50.00</span>
-                </div>
-              </div>
-              <div className="pt-3 border-t border-gray-200/50">
-                <div className="flex justify-between font-bold">
-                  <span>Total</span>
-                  <span>$500.00</span>
-                </div>
-              </div>
-            </ActionCard>
-          </div>
-        ),
+      const userMsg = {
+        id: Date.now(),
+        type: "user",
+        content: trimmed,
         timestamp: new Date(),
       };
 
-      dispatch(addCurrentMessages([riskMsg, responseMsg]));
-    }, 1200);
+      dispatch(addCurrentMessage(userMsg));
+      dispatch(setIsThinking(true));
+
+      try {
+        await ensureAuthenticated();
+        const response = await apiCall("/chat/message", {
+          method: "POST",
+          body: JSON.stringify({ message: trimmed }),
+        });
+        dispatch(addCurrentMessage(buildBotMessage(response)));
+      } catch (error) {
+        if (error?.status === 401) {
+          logout();
+        }
+        dispatch(
+          addCurrentMessage({
+            id: Date.now() + 1,
+            type: "ai",
+            content:
+              error?.message ||
+              "Sorry, something went wrong while reaching the server.",
+            timestamp: new Date(),
+          }),
+        );
+      } finally {
+        dispatch(setIsThinking(false));
+      }
+    },
+    [isConnected, dispatch, ensureAuthenticated, buildBotMessage, logout],
+  );
+
+  const handleSuggestionClick = (suggestion) => {
+    sendChatMessage(suggestion);
   };
+
+  const handleOptionClick = useCallback(
+    (option) => {
+      const message = option?.value ?? option?.label ?? option?.action;
+      if (!message) return;
+      sendChatMessage(String(message));
+    },
+    [sendChatMessage],
+  );
 
   useEffect(() => {
     scrollToBottom(); // Scroll to the bottom when messages update
   }, [currentMessages, isThinking]);
+
+  useEffect(() => {
+    if (isConnected && showWalletPrompt) {
+      setShowWalletPrompt(false);
+    }
+  }, [isConnected, showWalletPrompt]);
+
+  const renderTokens = (tokens) => {
+    if (!Array.isArray(tokens) || tokens.length === 0) return null;
+    return (
+      <div className="mt-3 space-y-2">
+        {tokens.map((token, index) => {
+          const label = token.symbol || token.name || `Token ${index + 1}`;
+          const change =
+            token.change24h ?? token.change ?? token.performance ?? null;
+          return (
+            <div
+              key={`${label}-${index}`}
+              className="flex items-center justify-between bg-white/40 rounded-xl p-3"
+            >
+              <span className="font-medium text-sm">{label}</span>
+              {change !== null && (
+                <span
+                  className={`text-sm font-medium ${
+                    Number(change) >= 0 ? "text-green-600" : "text-red-500"
+                  }`}
+                >
+                  {Number(change) >= 0 ? "+" : ""}
+                  {change}%
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const renderFormattedMessage = (text) => {
+    if (typeof text !== "string") return text;
+
+    const lines = text.split("\n");
+    const blocks = [];
+    let bulletItems = [];
+
+    const pushBullets = () => {
+      if (bulletItems.length === 0) return;
+      blocks.push(
+        <ul key={`list-${blocks.length}`} className="list-disc pl-5 space-y-1">
+          {bulletItems.map((item, index) => (
+            <li key={`item-${index}`}>{item}</li>
+          ))}
+        </ul>,
+      );
+      bulletItems = [];
+    };
+
+    const renderInlineBold = (line) => {
+      const parts = line.split("**");
+      if (parts.length === 1) return line;
+      return parts.map((part, index) =>
+        index % 2 === 1 ? <strong key={index}>{part}</strong> : part,
+      );
+    };
+
+    lines.forEach((line) => {
+      const isBullet = line.trim().startsWith("- ");
+      if (isBullet) {
+        const content = line.replace(/^\s*-\s*/, "");
+        bulletItems.push(renderInlineBold(content));
+        return;
+      }
+
+      pushBullets();
+      if (line.trim() === "") {
+        blocks.push(<div key={`spacer-${blocks.length}`} className="h-2" />);
+        return;
+      }
+      blocks.push(
+        <p key={`line-${blocks.length}`} className="text-sm">
+          {renderInlineBold(line)}
+        </p>,
+      );
+    });
+
+    pushBullets();
+    return <div className="space-y-2">{blocks}</div>;
+  };
 
   return (
     <div className="flex-1 flex flex-col">
@@ -540,6 +234,7 @@ export function ChatPage() {
                   "Trending Tokens",
                   "Buy $100 ETH",
                   "Best staking options",
+                  "Start guided chat",
                 ].map((suggestion) => (
                   <button
                     key={suggestion}
@@ -562,7 +257,28 @@ export function ChatPage() {
             {currentMessages.map((msg) => (
               <ChatBubble key={msg.id} type={msg.type}>
                 {typeof msg.content === "string" ? (
-                  <p className="text-sm">{msg.content}</p>
+                  <div>
+                    {renderFormattedMessage(msg.content)}
+                    {msg.type === "ai" && msg.options?.length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {msg.options.map((option, index) => (
+                          <button
+                            key={`${option.action}-${option.value}-${index}`}
+                            onClick={() => handleOptionClick(option)}
+                            className="px-3 py-2 bg-white/80 border border-gray-200 rounded-xl text-xs font-medium hover:bg-white hover:border-gray-300 hover:shadow-md transition-all duration-200"
+                          >
+                            {option.label || option.value || option.action}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {msg.type === "ai" && msg.data?.portfolioId && (
+                      <div className="mt-3 bg-green-50 border border-green-200 rounded-xl p-3 text-sm text-green-700">
+                        ✅ Portfolio created: {msg.data.portfolioId}
+                      </div>
+                    )}
+                    {msg.type === "ai" && renderTokens(msg.data?.tokens)}
+                  </div>
                 ) : (
                   msg.content
                 )}
@@ -585,12 +301,34 @@ export function ChatPage() {
 
       <div className="shrink-0 fixed left-0 w-full z-4 bottom-0 border-t border-gray-200/50 bg-pattern/95 backdrop-blur-lg">
         <div className="px-6 py-6 max-w-[1000px] mx-auto w-full">
+          {showWalletPrompt && !isConnected && (
+            <div className="mb-4 glass-card p-4 border border-blue-200/50 bg-blue-50/30">
+              <div className="flex items-center gap-2">
+                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                  <Wallet size={20} className="text-blue-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-900 mb-1">
+                    Connect wallet
+                  </p>
+                  <p className="text-xs text-gray-600">Required for AlloX</p>
+                </div>
+
+                <button
+                  onClick={() => setWalletModalOpen(true)}
+                  className="btn-primary text-sm px-4 py-2 whitespace-nowrap"
+                >
+                  Continue
+                </button>
+              </div>
+            </div>
+          )}
           <div className="relative">
             <input
               type="text"
               value={message}
               onChange={(e) => dispatch(setMessage(e.target.value))}
-              onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
+              onKeyDown={handleInputKeyDown}
               placeholder="Type your intent..."
               className="w-full px-6 py-4 pr-28 bg-white/60 backdrop-blur-sm border border-gray-200/50 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-black/10 focus:bg-white/80 transition-all duration-200"
             />

@@ -23,7 +23,7 @@ export function HistoryPage() {
   };
 
   return (
-    <div className="flex-1 px-6 py-8 max-w-[1200px] mx-auto w-full overflow-y-auto">
+    <div className="flex-1 px-6 py-8 portfolio-wrapper ms-auto w-full overflow-y-auto">
       <h2 className="text-3xl font-bold mb-6">Chat History</h2>
       <div className="space-y-3">
         {chatSessions.map((session) => (
