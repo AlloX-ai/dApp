@@ -19,7 +19,39 @@ export function ChatPage() {
   const isConnected = useSelector((state) => state.wallet.isConnected);
   const { token, authenticate, logout } = useAuth();
   const speechBoxRef = useRef(null);
+  const typingTimerRef = useRef(null);
+  const typingMessageRef = useRef(null);
+  const completedMessageIdsRef = useRef(new Set());
   const [showWalletPrompt, setShowWalletPrompt] = useState(false);
+  const [displayedTextById, setDisplayedTextById] = useState({});
+  const [typingMessageId, setTypingMessageId] = useState(null);
+  useEffect(() => {
+    const aiMessages = currentMessages.filter(
+      (msg) => msg.type === "ai" && typeof msg.content === "string",
+    );
+
+    if (aiMessages.length === 0) return;
+
+    setDisplayedTextById((prev) => {
+      const next = { ...prev };
+      aiMessages.forEach((msg) => {
+        if (next[msg.id] === undefined) {
+          next[msg.id] = msg.content;
+          completedMessageIdsRef.current.add(msg.id);
+        }
+      });
+      return next;
+    });
+  }, [currentMessages]);
+
+  useEffect(() => {
+    return () => {
+      if (typingTimerRef.current) {
+        clearInterval(typingTimerRef.current);
+        typingTimerRef.current = null;
+      }
+    };
+  }, []);
 
   const setWalletModalOpen = (nextValue) => {
     dispatch(setWalletModal(nextValue));
@@ -126,13 +158,80 @@ export function ChatPage() {
 
   useEffect(() => {
     scrollToBottom(); // Scroll to the bottom when messages update
-  }, [currentMessages, isThinking]);
+  }, [currentMessages, isThinking, typingMessageId]);
 
   useEffect(() => {
     if (isConnected && showWalletPrompt) {
       setShowWalletPrompt(false);
     }
   }, [isConnected, showWalletPrompt]);
+
+  useEffect(() => {
+    const lastAiMessage = [...currentMessages]
+      .reverse()
+      .find((msg) => msg.type === "ai" && typeof msg.content === "string");
+
+    if (!lastAiMessage) return;
+    if (typingMessageRef.current === lastAiMessage.id) return;
+    if (completedMessageIdsRef.current.has(lastAiMessage.id)) return;
+
+    if (typingTimerRef.current) {
+      clearInterval(typingTimerRef.current);
+      typingTimerRef.current = null;
+    }
+
+    const batches = createTextBatches(lastAiMessage.content);
+    let index = 0;
+    typingMessageRef.current = lastAiMessage.id;
+    setTypingMessageId(lastAiMessage.id);
+    setDisplayedTextById((prev) => ({ ...prev, [lastAiMessage.id]: "" }));
+
+    typingTimerRef.current = setInterval(() => {
+      index += 1;
+      setDisplayedTextById((prev) => ({
+        ...prev,
+        [lastAiMessage.id]: batches.slice(0, index).join(""),
+      }));
+      if (index >= batches.length) {
+        clearInterval(typingTimerRef.current);
+        typingTimerRef.current = null;
+        typingMessageRef.current = null;
+        completedMessageIdsRef.current.add(lastAiMessage.id);
+        setTypingMessageId(null);
+        setDisplayedTextById((prev) => ({
+          ...prev,
+          [lastAiMessage.id]: lastAiMessage.content,
+        }));
+      }
+    }, 120);
+
+    return () => {
+      if (typingTimerRef.current) {
+        clearInterval(typingTimerRef.current);
+        typingTimerRef.current = null;
+      }
+    };
+  }, [currentMessages]);
+
+  const createTextBatches = (text) => {
+    const tokens = text.split(/(\s+)/);
+    const batches = [];
+    let current = "";
+
+    tokens.forEach((token) => {
+      if (current.length >= 80 || current.split(/\s+/).length >= 2) {
+        batches.push(current);
+        current = "";
+      }
+      current += token;
+    });
+
+    if (current) {
+      batches.push(current);
+    }
+
+    return batches.length > 0 ? batches : [text];
+  };
 
   const renderTokens = (tokens) => {
     if (!Array.isArray(tokens) || tokens.length === 0) return null;
@@ -230,10 +329,9 @@ export function ChatPage() {
               <div className="flex flex-wrap gap-2 justify-center mb-8">
                 {[
                   "Build a Portfolio",
-                  "Swap Tokens",
+                  "Explain narratives",
                   "Trending Tokens",
-                  "Buy $100 ETH",
-                  "Best staking options",
+                  "How should I invest $100?",
                   "Start guided chat",
                 ].map((suggestion) => (
                   <button
@@ -258,20 +356,30 @@ export function ChatPage() {
               <ChatBubble key={msg.id} type={msg.type}>
                 {typeof msg.content === "string" ? (
                   <div>
-                    {renderFormattedMessage(msg.content)}
-                    {msg.type === "ai" && msg.options?.length > 0 && (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {msg.options.map((option, index) => (
-                          <button
-                            key={`${option.action}-${option.value}-${index}`}
-                            onClick={() => handleOptionClick(option)}
-                            className="px-3 py-2 bg-white/80 border border-gray-200 rounded-xl text-xs font-medium hover:bg-white hover:border-gray-300 hover:shadow-md transition-all duration-200"
-                          >
-                            {option.label || option.value || option.action}
-                          </button>
-                        ))}
-                      </div>
+                    {renderFormattedMessage(
+                      msg.type === "ai"
+                        ? msg.id === typingMessageId
+                          ? (displayedTextById[msg.id] ?? "")
+                          : completedMessageIdsRef.current.has(msg.id)
+                            ? msg.content
+                            : (displayedTextById[msg.id] ?? "")
+                        : msg.content,
                     )}
+                    {msg.type === "ai" &&
+                      completedMessageIdsRef.current.has(msg.id) &&
+                      msg.options?.length > 0 && (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {msg.options.map((option, index) => (
+                            <button
+                              key={`${option.action}-${option.value}-${index}`}
+                              onClick={() => handleOptionClick(option)}
+                              className="px-3 py-2 bg-white/80 border border-gray-200 rounded-xl text-xs font-medium hover:bg-white hover:border-gray-300 hover:shadow-md transition-all duration-200"
+                            >
+                              {option.label || option.value || option.action}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     {msg.type === "ai" && msg.data?.portfolioId && (
                       <div className="mt-3 bg-green-50 border border-green-200 rounded-xl p-3 text-sm text-green-700">
                         ✅ Portfolio created: {msg.data.portfolioId}
