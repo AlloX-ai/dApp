@@ -5,8 +5,7 @@ import { NetworkSelector } from "./NetworkSelector";
 import { shortAddress } from "../hooks/shortAddress";
 import { navigationTabs, isActivePath } from "../constants/navigation";
 import OutsideClickHandler from "react-outside-click-handler/build/OutsideClickHandler";
-import alloxDesktop from "../assets/AlloX-desktop.svg";
-import alloxMobile from "../assets/AlloX-mobile.svg";
+
 
 export function Header({
   isConnected,
@@ -28,8 +27,8 @@ export function Header({
     <header className="fixed top-0 left-0 right-0 z-50 px-6 py-4 bg-pattern/95 backdrop-blur-lg border-b border-gray-200/50">
       <div className="flex items-center justify-between">
         <NavLink className="flex items-center gap-2 cursor-pointer" to="/">
-          <img src={alloxDesktop} alt="" className="h-8 hidden md:flex " />
-          <img src={alloxMobile} alt="" className="h-10 flex md:hidden " />
+          <img src={'https://cdn.allox.ai/allox/AlloX-desktop.svg'} alt="" className="h-8 hidden md:flex " />
+          <img src={'https://cdn.allox.ai/allox/AlloX-mobile.svg'} alt="" className="h-10 flex md:hidden " />
         </NavLink>
 
         <div className="flex items-center gap-4">

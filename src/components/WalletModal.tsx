@@ -12,57 +12,27 @@ export function WalletModal({ isOpen, onClose, onConnect }: WalletModalProps) {
   const wallets = [
     {
       name: "MetaMask",
-      icon: "https://cdn.worldofdypians.com/wod/metamaskConnect.svg",
+      icon: "https://cdn.allox.ai/allox/wallets/metamaskConnect.svg",
       type: "top",
       walletType: "metamask",
     },
-    // {
-    //   name: "Binance Wallet",
-    //   icon: "https://cdn.worldofdypians.com/wod/binanceWalletUpdated.svg",
-    //   type: "top",
-    //   connectorName: "Binance Wallet",
-    //   chainId: 56, // BSC chainId
-    //   walletType: "binance",
-    // },
+
     {
       name: "OKX Wallet",
-      icon: "https://cdn.worldofdypians.com/wod/okxConnect.svg",
+      icon: "https://cdn.allox.ai/allox/wallets/okxConnect.svg",
       type: "top",
       walletType: "okx",
     },
     {
       name: "Trust Wallet",
-      icon: "https://cdn.worldofdypians.com/wod/trustWalletLogo.svg",
+      icon: "https://cdn.allox.ai/allox/wallets/trustWalletLogo.svg",
       type: "top",
       walletType: "trust",
     },
-    //   {
-    //   name: "Gate wallet",
-    //   icon: "https://cdn.worldofdypians.com/wod/gateBuyWod.svg",
-    //   type: "more",
-    //   walletType: "gate",
-    // },
-    // {
-    //   name: "Coinbase",
-    //   icon: "https://cdn.worldofdypians.com/wod/coinbaseConnect.svg",
-    //   type: "more",
-    //   walletType: "coinbase",
-    // },
-    // {
-    //   name: "Coin98",
-    //   icon: "https://cdn.worldofdypians.com/wod/coin98Connect.svg",
-    //   type: "more",
-    //   walletType: "coin98",
-    // },
-    // {
-    //   name: "SafePal",
-    //   icon: "https://cdn.worldofdypians.com/wod/safepalConnect.svg",
-    //   type: "more",
-    //   walletType: "safepal",
-    // },
+   
     {
       name: "WalletConnect",
-      icon: "https://cdn.worldofdypians.com/wod/walletConnect.svg",
+      icon: "https://cdn.allox.ai/allox/wallets/walletConnect.svg",
       type: "more",
       walletType: "walletconnect",
     },

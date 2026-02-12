@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Wallet } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import { setWalletModal } from "../redux/slices/walletSlice";
-import prime from "../assets/tokens/prime.svg";
+
 import { apiCall } from "../utils/api";
 import { useAuth } from "../hooks/useAuth";
 
@@ -389,7 +389,7 @@ export function PortfolioPage() {
                       >
                         <div className="flex items-center gap-4 mb-4">
                           <img
-                            src={token.icon ?? prime}
+                            src={token.icon ?? 'https://cdn.allox.ai/allox/tokens/prime.svg'}
                             alt=""
                             className="w-14 h-14"
                           />

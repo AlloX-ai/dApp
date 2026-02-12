@@ -28,7 +28,7 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
   const errorNetwork: NetworkOption[] = [
     {
       name: "",
-      icon: "https://cdn.worldofdypians.com/wod/error.svg",
+      icon: "https://cdn.allox.ai/allox/networks/error.svg",
       chainId: 0,
       chainHex: "0",
       chainName: "0",
@@ -41,7 +41,7 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
 
     // {
     //   name: 'Ethereum',
-    //   icon: 'https://cdn.worldofdypians.com/wod/eth.svg',
+    //   icon: 'https://cdn.allox.ai/allox/networks/eth.svg',
     //   chainId: 1,
     //   chainHex: '0x1',
     //   chainName: 'Ethereum Mainnet',
@@ -51,7 +51,7 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
     // },
     // {
     //   name: 'BNB Chain',
-    //   icon: 'https://cdn.worldofdypians.com/wod/bnbIcon.svg',
+    //   icon: 'https://cdn.allox.ai/allox/networks/bnbIcon.svg',
     //   chainId: 56,
     //   chainHex: '0x38',
     //   chainName: 'BNB Smart Chain',
@@ -61,7 +61,7 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
     // },
     {
       name: "Base",
-      icon: "https://cdn.worldofdypians.com/wod/base.svg",
+      icon: "https://cdn.allox.ai/allox/networks/base.svg",
       chainId: 8453,
       chainHex: "0x2105",
       chainName: "Base",

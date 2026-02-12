@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Outlet, Route, Routes } from "react-router";
+import { Navigate, Outlet, Route, Routes, useLocation } from "react-router";
 import { useDispatch, useSelector } from "react-redux";
 import { WalletModal } from "./components/WalletModal";
 import { LaunchSidebar } from "./components/LaunchSidebar";
@@ -9,6 +9,7 @@ import { PortfolioPage } from "./pages/PortfolioPage";
 import { TradingPage } from "./pages/TradingPage";
 import { StakingPage } from "./pages/StakingPage";
 import { HistoryPage } from "./pages/HistoryPage";
+import { BetaAccessPage } from "./pages/BetaAccessPage";
 import { wagmiClient } from "./wagmiConnectors";
 import {
   connect,
@@ -130,6 +131,70 @@ function LaunchAppLayout() {
         onConnect={handleWalletConnect}
       />
     </div>
+  );
+}
+
+function BetaAccessLayout() {
+  const dispatch = useDispatch();
+  const { walletModal } = useSelector((state) => state.wallet);
+  const allConnectors = wagmiClient.connectors;
+
+  const setWalletModalOpen = (nextValue) => {
+    dispatch(setWalletModal(nextValue));
+  };
+
+  const handleWalletConnect = async (option) => {
+    const connector = allConnectors.find((c) =>
+      c.name.toLowerCase().includes(option.name.toLowerCase()),
+    );
+
+    if (connector && connector.name !== "WalletConnect") {
+      connect(wagmiClient, { connector: connector })
+        .then(() => {
+          window.WALLET_TYPE = option.walletType;
+          dispatch(setWalletType(option.walletType));
+          dispatch(setIsConnected(true));
+          dispatch(setWalletModal(false));
+        })
+        .catch((err) => {
+          console.error("Wallet connection error:", err);
+          window.alertify.error("Failed to connect wallet. Please try again.");
+        });
+    } else if (connector && connector.name === "WalletConnect") {
+      const wcConnector = allConnectors.find((c) => c.name === "WalletConnect");
+      if (wcConnector) {
+        connect(wagmiClient, { connector: wcConnector })
+          .then(() => {
+            window.WALLET_TYPE = "walletconnect";
+            dispatch(setWalletType("walletconnect"));
+            dispatch(setIsConnected(true));
+            dispatch(setWalletModal(false));
+          })
+          .catch((err) => {
+            console.error("WalletConnect connection error:", err);
+            window.alertify.error(
+              "Failed to connect via WalletConnect. Please try again.",
+            );
+          });
+      }
+    } else {
+      window.alertify.error(
+        option.name +
+          " not found! Please add the browser extension or use mobile app wallet.",
+      );
+    }
+  };
+
+  return (
+    <>
+      <WalletSync />
+      <BetaAccessPage />
+      <WalletModal
+        isOpen={walletModal}
+        onClose={() => setWalletModalOpen(false)}
+        onConnect={handleWalletConnect}
+      />
+    </>
   );
 }
 
@@ -256,10 +321,31 @@ function WalletSync() {
   return null;
 }
 
+const BETA_ACCESS_KEY = "allox_beta_access";
+
+function RequireBetaAccess({ children }) {
+  const location = useLocation();
+  const hasAccess = localStorage.getItem(BETA_ACCESS_KEY) === "true";
+
+  if (!hasAccess) {
+    return <Navigate to="/beta-access" replace state={{ from: location }} />;
+  }
+
+  return children;
+}
+
 function App() {
   return (
     <Routes>
-      <Route path="/" element={<LaunchAppLayout />}>
+      <Route path="/beta-access" element={<BetaAccessLayout />} />
+      <Route
+        path="/"
+        element={
+          <RequireBetaAccess>
+            <LaunchAppLayout />
+          </RequireBetaAccess>
+        }
+      >
         <Route index element={<ChatPage />} />
         <Route path="/portfolio" element={<PortfolioPage />} />
         <Route path="/trading" element={<TradingPage />} />
