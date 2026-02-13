@@ -40,6 +40,7 @@ export function BetaAccessModal({
 
   return (
     <div className={containerClass} onClick={onClose}>
+      <img src={'https://cdn.allox.ai/allox/AlloX-desktop.svg'} alt="" className="h-10 my-4" />
       <div
         className="glass-card max-w-md w-full p-8 relative animate-fade-in"
         onClick={(e) => e.stopPropagation()}
@@ -88,7 +89,7 @@ export function BetaAccessModal({
           ) : (
             <div className="bg-green-50/50 border border-green-200/50 rounded-2xl p-5 flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                <div className="w-12 h-12 bg-gradient-to-br from-green-600 to-cyan-600 rounded-full flex items-center justify-center">
                   <Check size={22} className="text-white" />
                 </div>
                 <div>
@@ -105,8 +106,8 @@ export function BetaAccessModal({
           onClick={handleUnlock}
           disabled={!canUnlock}
           className={`w-full py-4 rounded-2xl font-medium text-base transition-all duration-200 ${canUnlock
-              ? "bg-black text-white hover:bg-gray-800 hover:shadow-lg"
-              : "bg-gray-200 text-gray-400 cursor-not-allowed"
+            ? "bg-black text-white hover:bg-gray-800 hover:shadow-lg"
+            : "bg-gray-200 text-gray-400 cursor-not-allowed"
             }`}
         >
           Unlock Access
@@ -118,7 +119,7 @@ export function BetaAccessModal({
         <Link
           to="https://lorenadev.dyp.finance/beta"
           target="_blank"
-          className="text-sm text-white/90 hover:text-white transition-colors duration-200 underline underline-offset-4"
+          className="text-sm text-gray-600 hover:text-black transition-colors duration-200 underline underline-offset-4"
         >
           Apply for Beta Access
         </Link>
