@@ -7,26 +7,8 @@ const initialState = {
   isRecording: false,
   completedActions: [],
   isThinking: false,
-  chatSessions: [
-    {
-      id: 1,
-      title: "Portfolio setup",
-      date: "Today, 2:30 PM",
-      messages: [],
-    },
-    {
-      id: 2,
-      title: "Swap + staking",
-      date: "Yesterday, 4:15 PM",
-      messages: [],
-    },
-    {
-      id: 3,
-      title: "Market watch",
-      date: "Jan 20, 11:00 AM",
-      messages: [],
-    },
-  ],
+  chatSessions: [],
+  viewingHistorySessionId: null,
 };
 
 const chatSlice = createSlice({
@@ -63,6 +45,14 @@ const chatSlice = createSlice({
     setChatSessions: (state, action) => {
       state.chatSessions = action.payload;
     },
+    setChatSessionTitle: (state, action) => {
+      const { id, title } = action.payload;
+      const session = state.chatSessions.find((s) => s.id === id);
+      if (session) session.title = title;
+    },
+    setViewingHistorySessionId: (state, action) => {
+      state.viewingHistorySessionId = action.payload;
+    },
   },
 });
 
@@ -77,6 +67,8 @@ export const {
   prependCompletedAction,
   setIsThinking,
   setChatSessions,
+  setChatSessionTitle,
+  setViewingHistorySessionId,
 } = chatSlice.actions;
 
 export default chatSlice.reducer;

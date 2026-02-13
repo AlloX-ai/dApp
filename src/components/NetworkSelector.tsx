@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { useSelector } from "react-redux";
 import OutsideClickHandler from "react-outside-click-handler";
+import { toast } from "sonner";
 
 type NetworkOption = {
   name: string;
@@ -39,26 +40,26 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
   ]
   const networks: NetworkOption[] = [
 
-    // {
-    //   name: 'Ethereum',
-    //   icon: 'https://cdn.allox.ai/allox/networks/eth.svg',
-    //   chainId: 1,
-    //   chainHex: '0x1',
-    //   chainName: 'Ethereum Mainnet',
-    //   rpcUrls: ['https://cloudflare-eth.com'],
-    //   blockExplorerUrls: ['https://etherscan.io'],
-    //   nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
-    // },
-    // {
-    //   name: 'BNB Chain',
-    //   icon: 'https://cdn.allox.ai/allox/networks/bnbIcon.svg',
-    //   chainId: 56,
-    //   chainHex: '0x38',
-    //   chainName: 'BNB Smart Chain',
-    //   rpcUrls: ['https://bsc-dataseed.binance.org'],
-    //   blockExplorerUrls: ['https://bscscan.com'],
-    //   nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 },
-    // },
+    {
+      name: 'Ethereum',
+      icon: 'https://cdn.allox.ai/allox/networks/eth.svg',
+      chainId: 1,
+      chainHex: '0x1',
+      chainName: 'Ethereum Mainnet',
+      rpcUrls: ['https://cloudflare-eth.com'],
+      blockExplorerUrls: ['https://etherscan.io'],
+      nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+    },
+    {
+      name: 'BNB Chain',
+      icon: 'https://cdn.allox.ai/allox/networks/bnbIcon.svg',
+      chainId: 56,
+      chainHex: '0x38',
+      chainName: 'BNB Smart Chain',
+      rpcUrls: ['https://bsc-dataseed.binance.org'],
+      blockExplorerUrls: ['https://bscscan.com'],
+      nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 },
+    },
     {
       name: "Base",
       icon: "https://cdn.allox.ai/allox/networks/base.svg",
@@ -69,15 +70,33 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
       blockExplorerUrls: ["https://basescan.org"],
       nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
     },
+    {
+      name: "Solana",
+      icon: "https://cdn.allox.ai/allox/networks/solana.svg",
+      chainId: 101,
+      chainHex: "0x65",
+      chainName: "Solana Mainnet",
+      rpcUrls: ["https://api.mainnet-beta.solana.com"],
+      blockExplorerUrls: ["https://explorer.solana.com"],
+      nativeCurrency: { name: "SOL", symbol: "SOL", decimals: 9 },
+    },
   ];
 
   const selectedNetwork =
     networks.find((network) => network.chainId === chainId) ?? errorNetwork[0];
 
   const handleSwitchNetwork = async (network: NetworkOption) => {
+    if (network.name === "Solana") {
+      toast.error(
+        "Solana requires a Solana-capable wallet (e.g. Phantom). Please connect with a Solana wallet.",
+      );
+      setIsOpen(false);
+      return;
+    }
+
     const ethereum = (window as any).ethereum;
     if (!ethereum) {
-      (window as any).alertify?.error?.("MetaMask not detected.");
+      toast.error("MetaMask not detected.");
       return;
     }
 
@@ -111,7 +130,7 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
       } else {
         console.error("Network switch error:", error);
       }
-      (window as any).alertify?.error?.("Failed to switch network.");
+      toast.error("Failed to switch network.");
     }
   };
 

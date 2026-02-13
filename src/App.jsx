@@ -1,5 +1,12 @@
-import { useEffect } from "react";
-import { Navigate, Outlet, Route, Routes, useLocation } from "react-router";
+import { useEffect, useRef } from "react";
+import {
+  Navigate,
+  Outlet,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+} from "react-router";
 import { useDispatch, useSelector } from "react-redux";
 import { WalletModal } from "./components/WalletModal";
 import { LaunchSidebar } from "./components/LaunchSidebar";
@@ -25,13 +32,63 @@ import {
   setWalletModal,
   setWalletType,
 } from "./redux/slices/walletSlice";
+import { resetPoints, setPointsBalance } from "./redux/slices/pointsSlice";
+import { useAuth } from "./hooks/useAuth";
+import { Toaster, toast } from "sonner";
 
 function LaunchAppLayout() {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const wasConnectedRef = useRef(false);
+  const prevAddressRef = useRef(undefined);
+  const authTriggeredRef = useRef(false);
   const { connector } = getAccount(wagmiClient);
   const { address, isConnected, walletModal } = useSelector(
     (state) => state.wallet,
   );
+  const { token, user, ensureAuthenticated } = useAuth();
+
+  useEffect(() => {
+    if (!isConnected) {
+      authTriggeredRef.current = false;
+      return;
+    }
+    if (token) return;
+    if (authTriggeredRef.current) return;
+    authTriggeredRef.current = true;
+    ensureAuthenticated().catch(() => {
+      authTriggeredRef.current = false;
+    });
+  }, [isConnected, token, ensureAuthenticated]);
+
+  useEffect(() => {
+    const points = user?.season1?.points;
+    if (points != null && typeof points === "number") {
+      dispatch(setPointsBalance(points));
+    }
+  }, [user?.season1?.points, dispatch]);
+
+  useEffect(() => {
+    if (wasConnectedRef.current && !isConnected) {
+      localStorage.removeItem(BETA_ACCESS_KEY);
+      localStorage.removeItem("authToken");
+      localStorage.removeItem("authUser");
+      navigate("/beta-access", { replace: true });
+    }
+    wasConnectedRef.current = isConnected;
+  }, [isConnected, navigate]);
+
+  useEffect(() => {
+    const prevAddress = prevAddressRef.current;
+    if (prevAddress != null && address != null && prevAddress !== address) {
+      localStorage.removeItem(BETA_ACCESS_KEY);
+      localStorage.removeItem("authToken");
+      localStorage.removeItem("authUser");
+      dispatch(resetPoints());
+      handleDisconnect();
+    }
+    prevAddressRef.current = address;
+  }, [address, dispatch, navigate]);
 
   const setWalletModalOpen = (nextValue) => {
     dispatch(setWalletModal(nextValue));
@@ -68,7 +125,7 @@ function LaunchAppLayout() {
         })
         .catch((err) => {
           console.error("Wallet connection error:", err);
-          window.alertify.error("Failed to connect wallet. Please try again.");
+          toast.error("Failed to connect wallet. Please try again.");
         });
     } else if (connector && connector.name === "WalletConnect") {
       // Fallback to WalletConnect if specific connector not found
@@ -86,13 +143,13 @@ function LaunchAppLayout() {
           })
           .catch((err) => {
             console.error("WalletConnect connection error:", err);
-            window.alertify.error(
+            toast.error(
               "Failed to connect via WalletConnect. Please try again.",
             );
           });
       }
     } else {
-      window.alertify.error(
+      toast.error(
         option.name +
           " not found! Please add the browser extension or use mobile app wallet.",
       );
@@ -106,6 +163,10 @@ function LaunchAppLayout() {
     dispatch(setAddress(null));
     dispatch(setChainId(null));
     dispatch(setIsConnected(false));
+    localStorage.removeItem(BETA_ACCESS_KEY);
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("authUser");
+    navigate("/beta-access", { replace: true });
   };
 
   return (
@@ -158,7 +219,7 @@ function BetaAccessLayout() {
         })
         .catch((err) => {
           console.error("Wallet connection error:", err);
-          window.alertify.error("Failed to connect wallet. Please try again.");
+          toast.error("Failed to connect wallet. Please try again.");
         });
     } else if (connector && connector.name === "WalletConnect") {
       const wcConnector = allConnectors.find((c) => c.name === "WalletConnect");
@@ -172,13 +233,13 @@ function BetaAccessLayout() {
           })
           .catch((err) => {
             console.error("WalletConnect connection error:", err);
-            window.alertify.error(
+            toast.error(
               "Failed to connect via WalletConnect. Please try again.",
             );
           });
       }
     } else {
-      window.alertify.error(
+      toast.error(
         option.name +
           " not found! Please add the browser extension or use mobile app wallet.",
       );
@@ -188,7 +249,7 @@ function BetaAccessLayout() {
   return (
     <>
       <WalletSync />
-      <BetaAccessPage />
+      <BetaAccessPage onWalletConnect={handleWalletConnect} />
       <WalletModal
         isOpen={walletModal}
         onClose={() => setWalletModalOpen(false)}
@@ -336,7 +397,9 @@ function RequireBetaAccess({ children }) {
 
 function App() {
   return (
-    <Routes>
+    <>
+      <Toaster position="top-right" richColors closeButton />
+      <Routes>
       <Route path="/beta-access" element={<BetaAccessLayout />} />
       <Route
         path="/"
@@ -353,6 +416,7 @@ function App() {
         <Route path="/history" element={<HistoryPage />} />
       </Route>
     </Routes>
+    </>
   );
 }
 

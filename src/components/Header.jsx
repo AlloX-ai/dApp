@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router";
+import { useSelector } from "react-redux";
 import { Wallet, Menu, X, ChevronRight, Copy, Check } from "lucide-react";
 import { NetworkSelector } from "./NetworkSelector";
 import { shortAddress } from "../hooks/shortAddress";
 import { navigationTabs, isActivePath } from "../constants/navigation";
 import OutsideClickHandler from "react-outside-click-handler/build/OutsideClickHandler";
-
 
 export function Header({
   isConnected,
@@ -15,6 +15,7 @@ export function Header({
 }) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const pointsBalance = useSelector((state) => state.points?.balance);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const handleCopy = (code) => {
@@ -27,17 +28,43 @@ export function Header({
     <header className="fixed top-0 left-0 right-0 z-50 px-6 py-4 bg-pattern/95 backdrop-blur-lg border-b border-gray-200/50">
       <div className="flex items-center justify-between">
         <NavLink className="flex items-center gap-2 cursor-pointer" to="/">
-          <img src={'https://cdn.allox.ai/allox/AlloX-desktop.svg'} alt="" className="h-8 hidden md:flex " />
-          <img src={'https://cdn.allox.ai/allox/AlloX-mobile.svg'} alt="" className="h-10 flex md:hidden " />
+          <img
+            src={"https://cdn.allox.ai/allox/AlloX-desktop.svg"}
+            alt=""
+            className="h-8 hidden md:flex "
+          />
+          <img
+            src={"https://cdn.allox.ai/allox/AlloX-mobile.svg"}
+            alt=""
+            className="h-10 flex md:hidden "
+          />
         </NavLink>
 
         <div className="flex items-center gap-4">
+          {pointsBalance != null && pointsBalance >= 0 && isConnected && (
+            <div className="glass-card px-3 py-2 flex items-center gap-2">
+              <span className="text-xs text-gray-500 hidden sm:inline">
+                Points
+              </span>
+              <span className="text-sm font-semibold tabular-nums">
+                {pointsBalance.toLocaleString()}
+              </span>
+            </div>
+          )}
           {isConnected ? (
             <div className="glass-card px-0 md:pr-4 flex items-center gap-3 transition-all duration-200 hover:shadow-md">
               <NetworkSelector onDisconnectClick={onDisconnectClick} />
               <div className="hidden md:flex items-center gap-2">
-                <span className="text-sm font-medium flex items-center">
+                <span
+                  className="text-sm cursor-pointer font-medium flex gap-3 items-center"
+                  onClick={() => handleCopy(coinbase)}
+                >
                   {shortAddress(coinbase)}
+                  {copied ? (
+                    <Check size={20} className="text-black" />
+                  ) : (
+                    <Copy size={20} className="text-black" />
+                  )}
                 </span>
               </div>
             </div>

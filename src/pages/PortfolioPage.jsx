@@ -9,7 +9,7 @@ import { useAuth } from "../hooks/useAuth";
 export function PortfolioPage() {
   const dispatch = useDispatch();
   const isConnected = useSelector((state) => state.wallet.isConnected);
-  const { token, authenticate, logout } = useAuth();
+  const { token, ensureAuthenticated, logout } = useAuth();
   const [portfolios, setPortfolios] = useState([]);
   const [activePortfolioId, setActivePortfolioId] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -18,10 +18,6 @@ export function PortfolioPage() {
   const [analyticsError, setAnalyticsError] = useState("");
   const [isAnalyticsLoading, setIsAnalyticsLoading] = useState(false);
 
-  const ensureAuthenticated = useCallback(async () => {
-    if (token) return token;
-    return authenticate();
-  }, [token, authenticate]);
 
   const getAnalytics = useCallback(async (portfolioId) => {
     const response = await apiCall(`/portfolio/${portfolioId}/analytics`);
