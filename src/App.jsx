@@ -400,22 +400,22 @@ function App() {
     <>
       <Toaster position="top-right" richColors closeButton />
       <Routes>
-      <Route path="/beta-access" element={<BetaAccessLayout />} />
-      <Route
-        path="/"
-        element={
-          <RequireBetaAccess>
-            <LaunchAppLayout />
-          </RequireBetaAccess>
-        }
-      >
-        <Route index element={<ChatPage />} />
-        <Route path="/portfolio" element={<PortfolioPage />} />
-        <Route path="/trading" element={<TradingPage />} />
-        <Route path="/staking" element={<StakingPage />} />
-        <Route path="/history" element={<HistoryPage />} />
-      </Route>
-    </Routes>
+        <Route path="/beta-access" element={<BetaAccessLayout />} />
+        <Route
+          path="/"
+          element={
+            <RequireBetaAccess>
+              <LaunchAppLayout />
+            </RequireBetaAccess>
+          }
+        >
+          <Route index element={<ChatPage />} />
+          <Route path="/portfolio" element={<PortfolioPage />} />
+          <Route path="/trading" element={<TradingPage />} />
+          <Route path="/staking" element={<StakingPage />} />
+          <Route path="/history" element={<HistoryPage />} />
+        </Route>
+      </Routes>
     </>
   );
 }

@@ -8,6 +8,7 @@ import {
   setMessage,
   setCurrentMessages,
   setViewingHistorySessionId,
+  setRateLimit,
 } from "../redux/slices/chatSlice";
 import { setWalletModal } from "../redux/slices/walletSlice";
 import {
@@ -19,11 +20,12 @@ import { useAuth } from "../hooks/useAuth";
 
 export function ChatPage() {
   const dispatch = useDispatch();
-  const { message, currentMessages, isThinking, viewingHistorySessionId } =
+  const { message, currentMessages, isThinking, viewingHistorySessionId, rateLimit } =
     useSelector((state) => state.chat);
   const isReadOnly = !!viewingHistorySessionId;
   const isConnected = useSelector((state) => state.wallet.isConnected);
   const pointsBalance = useSelector((state) => state.points?.balance);
+  const messagesRemaining = rateLimit?.remaining;
   const {
     token,
     user,
@@ -184,6 +186,17 @@ export function ChatPage() {
         );
         return;
       }
+      if (messagesRemaining !== null && messagesRemaining <= 0) {
+        dispatch(
+          addCurrentMessage({
+            id: Date.now() + 1,
+            type: "ai",
+            content: "You have no messages remaining in your current limit. Try again later.",
+            timestamp: new Date(),
+          }),
+        );
+        return;
+      }
 
       // dispatch(deductPoints(POINTS_DEDUCT_PER_MESSAGE));
 
@@ -204,6 +217,12 @@ export function ChatPage() {
           body: JSON.stringify({ message: trimmed }),
         });
         dispatch(addCurrentMessage(buildBotMessage(response)));
+        if (response.points?.total != null) {
+          dispatch(setPointsBalance(response.points.total));
+        }
+        if (response.rateLimit) {
+          dispatch(setRateLimit(response.rateLimit));
+        }
       } catch (error) {
         if (error?.status === 401) {
           logout();
@@ -226,6 +245,7 @@ export function ChatPage() {
       isReadOnly,
       isConnected,
       pointsBalance,
+      messagesRemaining,
       dispatch,
       ensureAuthenticated,
       buildBotMessage,
@@ -699,8 +719,11 @@ export function ChatPage() {
             )}
           </div>
           <p className="text-xs hidden md:block text-center text-gray-500 mt-3">
-            AlloX can make mistakes. Always verify transactions before
-            confirming.
+            {messagesRemaining === 0 ? (
+              <span className="text-amber-600 font-medium">No messages left in your current limit. Try again later.</span>
+            ) : (
+              "AlloX can make mistakes. Always verify transactions before confirming."
+            )}
           </p>
         </div>
       </div>

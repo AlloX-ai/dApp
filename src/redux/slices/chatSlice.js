@@ -9,6 +9,7 @@ const initialState = {
   isThinking: false,
   chatSessions: [],
   viewingHistorySessionId: null,
+  rateLimit: { remaining: null, resetAt: null },
 };
 
 const chatSlice = createSlice({
@@ -53,6 +54,9 @@ const chatSlice = createSlice({
     setViewingHistorySessionId: (state, action) => {
       state.viewingHistorySessionId = action.payload;
     },
+    setRateLimit: (state, action) => {
+      state.rateLimit = action.payload ?? { remaining: null, resetAt: null };
+    },
   },
 });
 
@@ -69,6 +73,7 @@ export const {
   setChatSessions,
   setChatSessionTitle,
   setViewingHistorySessionId,
+  setRateLimit,
 } = chatSlice.actions;
 
 export default chatSlice.reducer;

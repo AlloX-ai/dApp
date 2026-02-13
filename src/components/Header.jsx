@@ -16,6 +16,8 @@ export function Header({
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const pointsBalance = useSelector((state) => state.points?.balance);
+  const rateLimit = useSelector((state) => state.chat?.rateLimit);
+  const messagesRemaining = rateLimit?.remaining;
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const handleCopy = (code) => {
@@ -42,13 +44,25 @@ export function Header({
 
         <div className="flex items-center gap-4">
           {pointsBalance != null && pointsBalance >= 0 && isConnected && (
-            <div className="glass-card px-3 py-2 flex items-center gap-2">
-              <span className="text-xs text-gray-500 hidden sm:inline">
-                Points
-              </span>
-              <span className="text-sm font-semibold tabular-nums">
-                {pointsBalance.toLocaleString()}
-              </span>
+            <div className="glass-card px-3 py-2 flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500 hidden sm:inline">
+                  Points
+                </span>
+                <span className="text-sm font-semibold tabular-nums">
+                  {pointsBalance.toLocaleString()}
+                </span>
+              </div>
+              {messagesRemaining != null && (
+                <div className="border-l border-gray-200/60 pl-3 flex items-center gap-2">
+                  <span className="text-xs text-gray-500 hidden sm:inline">
+                    Messages left
+                  </span>
+                  <span className="text-sm font-semibold tabular-nums">
+                    {messagesRemaining}
+                  </span>
+                </div>
+              )}
             </div>
           )}
           {isConnected ? (
