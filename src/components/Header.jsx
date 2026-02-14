@@ -17,7 +17,8 @@ export function Header({
   const { pathname } = useLocation();
   const pointsBalance = useSelector((state) => state.points?.balance);
   const rateLimit = useSelector((state) => state.chat?.rateLimit);
-  const messagesRemaining = rateLimit?.remaining;
+  const messagesRemaining =
+    rateLimit?.remaining ?? rateLimit?.messagesRemaining;
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const handleCopy = (code) => {
@@ -113,7 +114,7 @@ export function Header({
                   ></div>
                   <div className="fixed left-0 right-0 top-20 z-50 animate-fade-in">
                     <div className="mobile-menu-open bg-white p-3 space-y-2 shadow-xl shadow-black/10">
-                      {navigationTabs.map(({ id, label, path, Icon }) => {
+                      {navigationTabs.map(({ id, label, path }) => {
                         const isActive = isActivePath(pathname, path);
                         return (
                           <button

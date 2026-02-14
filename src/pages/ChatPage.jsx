@@ -27,10 +27,7 @@ export function ChatPage() {
   const pointsBalance = useSelector((state) => state.points?.balance);
   const messagesRemaining = rateLimit?.remaining;
   const {
-    token,
-    user,
     setUser,
-    authenticate,
     ensureAuthenticated,
     claimSeason1,
     logout,
@@ -41,6 +38,7 @@ export function ChatPage() {
   const completedMessageIdsRef = useRef(new Set());
   const [showWalletPrompt, setShowWalletPrompt] = useState(false);
   const [showWelcomeGiftModal, setShowWelcomeGiftModal] = useState(false);
+  const [userDismissedClaimModal, setUserDismissedClaimModal] = useState(false);
   const [claiming, setClaiming] = useState(false);
   const [claimError, setClaimError] = useState(null);
   const [claimSuccess, setClaimSuccess] = useState(false);
@@ -174,18 +172,18 @@ export function ChatPage() {
         setShowWalletPrompt(true);
         return;
       }
-      const hasEnoughPoints = pointsBalance != null;
-      if (!hasEnoughPoints) {
-        dispatch(
-          addCurrentMessage({
-            id: Date.now() + 1,
-            type: "ai",
-            content: `You do not have enough points to send a message. You have ${pointsBalance ?? 0} points.`,
-            timestamp: new Date(),
-          }),
-        );
-        return;
-      }
+      // const hasEnoughPoints = pointsBalance != null;
+      // if (!hasEnoughPoints) {
+      //   dispatch(
+      //     addCurrentMessage({
+      //       id: Date.now() + 1,
+      //       type: "ai",
+      //       content: `You do not have enough points to send a message. You have ${pointsBalance ?? 0} points.`,
+      //       timestamp: new Date(),
+      //     }),
+      //   );
+      //   return;
+      // }
       if (messagesRemaining !== null && messagesRemaining <= 0) {
         dispatch(
           addCurrentMessage({
@@ -265,6 +263,13 @@ export function ChatPage() {
     },
     [sendChatMessage],
   );
+
+  // Open claim popup by default when user needs to claim and hasn't dismissed it
+  useEffect(() => {
+    if (needsToClaimPoints && !userDismissedClaimModal) {
+      setShowWelcomeGiftModal(true);
+    }
+  }, [needsToClaimPoints, userDismissedClaimModal]);
 
   useEffect(() => {
     scrollToBottom(); // Scroll to the bottom when messages update
@@ -374,6 +379,24 @@ export function ChatPage() {
     );
   };
 
+  // Parse token list line: "1. **LINK** (Chainlink, Ethereum): $9.11 USD, Market Cap: $6.45B, 24h Vol: $567M"
+  const parseTokenListLine = (line) => {
+    const match = line.match(
+      /^(\d+)\.\s+\*\*([A-Z0-9]+)\*\*\s*\(([^)]+)\):\s*\$?([\d.]+)\s*(?:USD)?[,]?\s*Market Cap:\s*\$?([\d.]+[BM])[,]?\s*24h Vol:\s*\$?([\d.]+[BM])/i,
+    );
+    if (match) {
+      return {
+        rank: match[1],
+        ticker: match[2],
+        nameChain: match[3],
+        price: match[4],
+        marketCap: match[5],
+        vol24h: match[6],
+      };
+    }
+    return null;
+  };
+
   const parseMarkdownTable = (tableLines) => {
     const rows = tableLines
       .map((line) =>
@@ -384,7 +407,7 @@ export function ChatPage() {
       )
       .filter((cells) => cells.some((c) => c.length > 0));
     const isSeparator = (cells) => cells.every((c) => /^[-:\s]+$/.test(c));
-    const headerRow = rows[0];
+  
     const separatorIndex = rows.findIndex(isSeparator);
     const bodyRows =
       separatorIndex >= 0 ? rows.slice(separatorIndex + 1) : rows.slice(1);
@@ -426,6 +449,48 @@ export function ChatPage() {
     while (i < lines.length) {
       const line = lines[i];
       const trimmed = line.trim();
+
+      // Token list block: consecutive lines matching "N. **TICKER** (Name, Chain): $X, Market Cap: $Y, 24h Vol: $Z"
+      const tokenEntries = [];
+      let j = i;
+      while (j < lines.length) {
+        const parsed = parseTokenListLine(lines[j].trim());
+        if (parsed) {
+          tokenEntries.push(parsed);
+          j++;
+        } else break;
+      }
+      if (tokenEntries.length > 0) {
+        pushBullets();
+        blocks.push(
+          <div
+            key={`token-list-${blocks.length}`}
+            className="my-4 space-y-2"
+          >
+            {tokenEntries.map((entry, idx) => (
+              <div
+                key={idx}
+                className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl border border-gray-200 bg-white/80 p-3 text-sm"
+              >
+                <span className="font-semibold text-gray-500 w-6">
+                  {entry.rank}.
+                </span>
+                <span className="font-bold text-gray-900">{entry.ticker}</span>
+                <span className="text-gray-600 text-xs">({entry.nameChain})</span>
+                <span className="font-medium">${entry.price} USD</span>
+                <span className="text-gray-600">
+                  MC: <span className="font-medium text-gray-800">{entry.marketCap}</span>
+                </span>
+                <span className="text-gray-600">
+                  24h: <span className="font-medium text-gray-800">{entry.vol24h}</span>
+                </span>
+              </div>
+            ))}
+          </div>,
+        );
+        i = j;
+        continue;
+      }
 
       if (trimmed.startsWith("|") && trimmed.endsWith("|")) {
         const tableLines = [line];
@@ -746,8 +811,13 @@ export function ChatPage() {
 
       {showWelcomeGiftModal && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
-          onClick={() => !claiming && setShowWelcomeGiftModal(false)}
+          className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          onClick={() => {
+            if (!claiming) {
+              setShowWelcomeGiftModal(false);
+              setUserDismissedClaimModal(true);
+            }
+          }}
         >
           <div
             className="glass-card max-w-sm w-full p-8 relative animate-fade-in flex flex-col items-center text-center"
@@ -755,7 +825,12 @@ export function ChatPage() {
           >
             <button
               type="button"
-              onClick={() => !claiming && setShowWelcomeGiftModal(false)}
+              onClick={() => {
+                if (!claiming) {
+                  setShowWelcomeGiftModal(false);
+                  setUserDismissedClaimModal(true);
+                }
+              }}
               className="absolute top-4 right-4 p-1 rounded-lg hover:bg-black/5 text-gray-500"
               aria-label="Close"
             >

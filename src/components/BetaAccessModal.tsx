@@ -1,15 +1,16 @@
 import { useState } from "react";
-import { Check } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import { setWalletModal } from "../redux/slices/walletSlice";
 import { shortAddress } from "../hooks/shortAddress";
 
 interface BetaAccessModalProps {
   isOpen?: boolean;
-  onUnlock: () => void;
+  onUnlock: () => void | Promise<void>;
   onClose?: () => void;
   variant?: "modal" | "page";
   onWalletConnect?: (wallet: { name: string; icon: string; walletType: string }) => void;
+  isSigning?: boolean;
 }
 
 const WALLET_OPTIONS = [
@@ -45,6 +46,7 @@ export function BetaAccessModal({
   onClose,
   variant = "modal",
   onWalletConnect,
+  isSigning = false,
 }: BetaAccessModalProps) {
   const dispatch = useDispatch();
   const { address, isConnected } = useSelector((state: any) => state.wallet);
@@ -80,7 +82,17 @@ export function BetaAccessModal({
         </div>
 
         <div className="mb-8">
-          {!isConnected ? (
+          {isSigning ? (
+            <div className="flex flex-col items-center justify-center py-12 gap-4">
+              <Loader2 className="w-14 h-14 animate-spin text-gray-400" />
+              <p className="text-sm font-medium text-gray-600">
+                Please sign the message in your wallet
+              </p>
+              <p className="text-xs text-gray-500">
+                Open MetaMask to complete sign-in
+              </p>
+            </div>
+          ) : !isConnected ? (
             <div className="space-y-3">
               {WALLET_OPTIONS.map((wallet) => (
                 <button
@@ -117,12 +129,12 @@ export function BetaAccessModal({
           )}
         </div>
 
-        {isConnected && (
+        {isConnected && !isSigning && (
           <button
             onClick={onUnlock}
-            className="w-full py-4 rounded-2xl font-medium text-base transition-all duration-200 bg-black text-white hover:bg-gray-800 hover:shadow-lg"
+            className="w-full py-4 rounded-2xl font-medium text-base transition-all duration-200 bg-black text-white hover:bg-gray-800 hover:shadow-lg flex items-center justify-center gap-2"
           >
-            Continue
+            Sign to continue
           </button>
         )}
       </div>

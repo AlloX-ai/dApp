@@ -35,6 +35,7 @@ import {
 import { resetPoints, setPointsBalance } from "./redux/slices/pointsSlice";
 import { useAuth } from "./hooks/useAuth";
 import { Toaster, toast } from "sonner";
+import { setRateLimit } from "./redux/slices/chatSlice";
 
 function LaunchAppLayout() {
   const dispatch = useDispatch();
@@ -47,6 +48,18 @@ function LaunchAppLayout() {
     (state) => state.wallet,
   );
   const { token, user, ensureAuthenticated } = useAuth();
+
+  const handleDisconnect = async () => {
+    await disconnect(wagmiClient, {
+      connector,
+    });
+    dispatch(setAddress(null));
+    dispatch(setChainId(null));
+    dispatch(setIsConnected(false));
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("authUser");
+    navigate("/login", { replace: true });
+  };
 
   useEffect(() => {
     if (!isConnected) {
@@ -69,11 +82,18 @@ function LaunchAppLayout() {
   }, [user?.season1?.points, dispatch]);
 
   useEffect(() => {
+    const limit = user?.season1?.rateLimit?.messagesRemaining;
+
+    if (limit != null && typeof limit === "number") {
+      dispatch(setRateLimit(user?.season1?.rateLimit));
+    }
+  }, [user?.season1?.rateLimit, dispatch]);
+
+  useEffect(() => {
     if (wasConnectedRef.current && !isConnected) {
-      localStorage.removeItem(BETA_ACCESS_KEY);
       localStorage.removeItem("authToken");
       localStorage.removeItem("authUser");
-      navigate("/beta-access", { replace: true });
+      navigate("/login", { replace: true });
     }
     wasConnectedRef.current = isConnected;
   }, [isConnected, navigate]);
@@ -81,7 +101,6 @@ function LaunchAppLayout() {
   useEffect(() => {
     const prevAddress = prevAddressRef.current;
     if (prevAddress != null && address != null && prevAddress !== address) {
-      localStorage.removeItem(BETA_ACCESS_KEY);
       localStorage.removeItem("authToken");
       localStorage.removeItem("authUser");
       dispatch(resetPoints());
@@ -154,19 +173,6 @@ function LaunchAppLayout() {
           " not found! Please add the browser extension or use mobile app wallet.",
       );
     }
-  };
-
-  const handleDisconnect = async () => {
-    await disconnect(wagmiClient, {
-      connector,
-    });
-    dispatch(setAddress(null));
-    dispatch(setChainId(null));
-    dispatch(setIsConnected(false));
-    localStorage.removeItem(BETA_ACCESS_KEY);
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("authUser");
-    navigate("/beta-access", { replace: true });
   };
 
   return (
@@ -382,14 +388,12 @@ function WalletSync() {
   return null;
 }
 
-const BETA_ACCESS_KEY = "allox_beta_access";
-
-function RequireBetaAccess({ children }) {
+function RequireAuth({ children }) {
   const location = useLocation();
-  const hasAccess = localStorage.getItem(BETA_ACCESS_KEY) === "true";
+  const { isAuthenticated } = useAuth();
 
-  if (!hasAccess) {
-    return <Navigate to="/beta-access" replace state={{ from: location }} />;
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
   return children;
@@ -400,13 +404,13 @@ function App() {
     <>
       <Toaster position="top-right" richColors closeButton />
       <Routes>
-        <Route path="/beta-access" element={<BetaAccessLayout />} />
+        <Route path="/login" element={<BetaAccessLayout />} />
         <Route
           path="/"
           element={
-            <RequireBetaAccess>
+            <RequireAuth>
               <LaunchAppLayout />
-            </RequireBetaAccess>
+            </RequireAuth>
           }
         >
           <Route index element={<ChatPage />} />

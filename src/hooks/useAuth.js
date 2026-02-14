@@ -8,16 +8,16 @@ const loadStoredUser = () => {
   try {
     const raw = localStorage.getItem(AUTH_USER_KEY);
     if (raw) return JSON.parse(raw);
-  } catch (_) {}
+  } catch (e) {
+    console.error(e);
+  }
   return null;
 };
 
 export const useAuth = () => {
   const { address } = useAccount();
   const { signMessageAsync } = useSignMessage();
-  const [token, setToken] = useState(() =>
-    localStorage.getItem("authToken"),
-  );
+  const [token, setToken] = useState(() => localStorage.getItem("authToken"));
   const [user, setUserState] = useState(loadStoredUser);
 
   const setUser = useCallback((nextUser) => {
@@ -25,11 +25,15 @@ export const useAuth = () => {
     if (nextUser != null) {
       try {
         localStorage.setItem(AUTH_USER_KEY, JSON.stringify(nextUser));
-      } catch (_) {}
+      } catch (e) {
+        console.error(e);
+      }
     } else {
       try {
         localStorage.removeItem(AUTH_USER_KEY);
-      } catch (_) {}
+      } catch (e) {
+        console.error(e);
+      }
     }
   }, []);
 
@@ -57,7 +61,6 @@ export const useAuth = () => {
 
     localStorage.setItem("authToken", verifyRes.token);
     setToken(verifyRes.token);
-console.log(verifyRes)
     if (verifyRes.user) {
       setUser(verifyRes.user);
     }
