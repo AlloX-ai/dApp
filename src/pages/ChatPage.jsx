@@ -20,18 +20,18 @@ import { useAuth } from "../hooks/useAuth";
 
 export function ChatPage() {
   const dispatch = useDispatch();
-  const { message, currentMessages, isThinking, viewingHistorySessionId, rateLimit } =
-    useSelector((state) => state.chat);
+  const {
+    message,
+    currentMessages,
+    isThinking,
+    viewingHistorySessionId,
+    rateLimit,
+  } = useSelector((state) => state.chat);
   const isReadOnly = !!viewingHistorySessionId;
   const isConnected = useSelector((state) => state.wallet.isConnected);
   const pointsBalance = useSelector((state) => state.points?.balance);
   const messagesRemaining = rateLimit?.remaining;
-  const {
-    setUser,
-    ensureAuthenticated,
-    claimSeason1,
-    logout,
-  } = useAuth();
+  const { setUser, ensureAuthenticated, claimSeason1, logout } = useAuth();
   const speechBoxRef = useRef(null);
   const typingTimerRef = useRef(null);
   const typingMessageRef = useRef(null);
@@ -97,9 +97,9 @@ export function ChatPage() {
         const updatedUser = {
           address: u.address,
           season1: {
-            points: u.points ?? 0,
-            claimed: u.claimed ?? true,
-            claimedAt: u.claimedAt,
+            points: u.season1 ? u.season1.points : (u.points ?? 0),
+            claimed: u.season1 ? u.season1.claimed : (u.claimed ?? true),
+            claimedAt: u.season1 ? u.season1.claimedAt : u.claimedAt,
             ...(u.snapshot && { snapshot: u.snapshot }),
           },
         };
@@ -189,7 +189,8 @@ export function ChatPage() {
           addCurrentMessage({
             id: Date.now() + 1,
             type: "ai",
-            content: "You have no messages remaining in your current limit. Try again later.",
+            content:
+              "You have no messages remaining in your current limit. Try again later.",
             timestamp: new Date(),
           }),
         );
@@ -407,7 +408,7 @@ export function ChatPage() {
       )
       .filter((cells) => cells.some((c) => c.length > 0));
     const isSeparator = (cells) => cells.every((c) => /^[-:\s]+$/.test(c));
-  
+
     const separatorIndex = rows.findIndex(isSeparator);
     const bodyRows =
       separatorIndex >= 0 ? rows.slice(separatorIndex + 1) : rows.slice(1);
@@ -463,10 +464,7 @@ export function ChatPage() {
       if (tokenEntries.length > 0) {
         pushBullets();
         blocks.push(
-          <div
-            key={`token-list-${blocks.length}`}
-            className="my-4 space-y-2"
-          >
+          <div key={`token-list-${blocks.length}`} className="my-4 space-y-2">
             {tokenEntries.map((entry, idx) => (
               <div
                 key={idx}
@@ -476,13 +474,21 @@ export function ChatPage() {
                   {entry.rank}.
                 </span>
                 <span className="font-bold text-gray-900">{entry.ticker}</span>
-                <span className="text-gray-600 text-xs">({entry.nameChain})</span>
+                <span className="text-gray-600 text-xs">
+                  ({entry.nameChain})
+                </span>
                 <span className="font-medium">${entry.price} USD</span>
                 <span className="text-gray-600">
-                  MC: <span className="font-medium text-gray-800">{entry.marketCap}</span>
+                  MC:{" "}
+                  <span className="font-medium text-gray-800">
+                    {entry.marketCap}
+                  </span>
                 </span>
                 <span className="text-gray-600">
-                  24h: <span className="font-medium text-gray-800">{entry.vol24h}</span>
+                  24h:{" "}
+                  <span className="font-medium text-gray-800">
+                    {entry.vol24h}
+                  </span>
                 </span>
               </div>
             ))}
@@ -785,7 +791,9 @@ export function ChatPage() {
           </div>
           <p className="text-xs hidden md:block text-center text-gray-500 mt-3">
             {messagesRemaining === 0 ? (
-              <span className="text-amber-600 font-medium">No messages left in your current limit. Try again later.</span>
+              <span className="text-amber-600 font-medium">
+                No messages left in your current limit. Try again later.
+              </span>
             ) : (
               "AlloX can make mistakes. Always verify transactions before confirming."
             )}

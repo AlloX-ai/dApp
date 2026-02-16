@@ -114,7 +114,7 @@ export function Header({
                   ></div>
                   <div className="fixed left-0 right-0 top-20 z-50 animate-fade-in">
                     <div className="mobile-menu-open bg-white p-3 space-y-2 shadow-xl shadow-black/10">
-                      {navigationTabs.map(({ id, label, path }) => {
+                      {navigationTabs.map(({ id, label, path, Icon }) => {
                         const isActive = isActivePath(pathname, path);
                         return (
                           <button
