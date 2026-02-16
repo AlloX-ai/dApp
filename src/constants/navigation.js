@@ -9,7 +9,7 @@ import {
 export const navigationTabs = [
   { id: "chat", label: "Chat", path: "/", Icon: MessageSquare },
   { id: "portfolio", label: "Portfolio", path: "/portfolio", Icon: PieChart },
-  { id: "trading", label: "Trading", path: "/trading", Icon: TrendingUp },
+  { id: "trading", label: "Trending", path: "/trending", Icon: TrendingUp },
   { id: "staking", label: "Staking", path: "/staking", Icon: Coins },
   { id: "history", label: "History", path: "/history", Icon: HistoryIcon },
 ];

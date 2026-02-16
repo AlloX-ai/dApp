@@ -1,15 +1,27 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Wallet } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from "react-router";
 import { setWalletModal } from "../redux/slices/walletSlice";
-
+import getFormattedNumber from "../hooks/get-formatted-number";
 import { apiCall } from "../utils/api";
 import { useAuth } from "../hooks/useAuth";
 
 export function PortfolioPage() {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const isConnected = useSelector((state) => state.wallet.isConnected);
   const { token, ensureAuthenticated, logout } = useAuth();
+
+  const goToToken = useCallback(
+    (symbol) => {
+      if (!symbol) return;
+      navigate(
+        `/trending?token=${encodeURIComponent(String(symbol).toUpperCase())}`,
+      );
+    },
+    [navigate],
+  );
   const [portfolios, setPortfolios] = useState([]);
   const [activePortfolioId, setActivePortfolioId] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -17,7 +29,6 @@ export function PortfolioPage() {
   const [analytics, setAnalytics] = useState(null);
   const [analyticsError, setAnalyticsError] = useState("");
   const [isAnalyticsLoading, setIsAnalyticsLoading] = useState(false);
-
 
   const getAnalytics = useCallback(async (portfolioId) => {
     const response = await apiCall(`/portfolio/${portfolioId}/analytics`);
@@ -219,7 +230,9 @@ export function PortfolioPage() {
                           },
                           {
                             label: "Current Value",
-                            value: "$" + overview.totalCurrentValue,
+                            value:
+                              "$" +
+                              getFormattedNumber(overview.totalCurrentValue, 4),
                           },
                           { label: "Total PnL", value: overview.totalPnL },
                           {
@@ -315,20 +328,35 @@ export function PortfolioPage() {
                             Top Performers
                           </h4>
                           <div className="space-y-3">
-                            {topPerformers.map((item, index) => (
-                              <div
-                                key={`${item.symbol || item.name}-${index}`}
-                                className="flex items-center justify-between bg-white/70 border border-gray-200/60 rounded-xl p-4"
-                              >
-                                <span className="font-medium">
-                                  {item.symbol || item.name}
-                                </span>
-                                <span className="text-green-600 text-sm font-medium">
-                                  {Number(item.pnlPercent ?? 0) >= 0 ? "+" : ""}
-                                  {item.pnlPercent ?? 0}%
-                                </span>
-                              </div>
-                            ))}
+                            {topPerformers.map((item, index) => {
+                              const symbol = item.symbol || item.name;
+                              return (
+                                <div
+                                  key={`${symbol}-${index}`}
+                                  role="button"
+                                  tabIndex={0}
+                                  onClick={() => symbol && goToToken(symbol)}
+                                  onKeyDown={(e) => {
+                                    if (
+                                      symbol &&
+                                      (e.key === "Enter" || e.key === " ")
+                                    ) {
+                                      e.preventDefault();
+                                      goToToken(symbol);
+                                    }
+                                  }}
+                                  className="flex items-center justify-between bg-white/70 border border-gray-200/60 rounded-xl p-4 cursor-pointer hover:bg-white/90 hover:border-gray-300 transition-colors"
+                                >
+                                  <span className="font-medium">{symbol}</span>
+                                  <span className="text-green-600 text-sm font-medium">
+                                    {Number(item.pnlPercent ?? 0) >= 0
+                                      ? "+"
+                                      : ""}
+                                    {item.pnlPercent ?? 0}%
+                                  </span>
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
                       )}
@@ -338,19 +366,32 @@ export function PortfolioPage() {
                             Bottom Performers
                           </h4>
                           <div className="space-y-3">
-                            {bottomPerformers.map((item, index) => (
-                              <div
-                                key={`${item.symbol || item.name}-${index}`}
-                                className="flex items-center justify-between bg-white/70 border border-gray-200/60 rounded-xl p-4"
-                              >
-                                <span className="font-medium">
-                                  {item.symbol || item.name}
-                                </span>
-                                <span className="text-red-600 text-sm font-medium">
-                                  {item.pnlPercent ?? 0}%
-                                </span>
-                              </div>
-                            ))}
+                            {bottomPerformers.map((item, index) => {
+                              const symbol = item.symbol || item.name;
+                              return (
+                                <div
+                                  key={`${symbol}-${index}`}
+                                  role="button"
+                                  tabIndex={0}
+                                  onClick={() => symbol && goToToken(symbol)}
+                                  onKeyDown={(e) => {
+                                    if (
+                                      symbol &&
+                                      (e.key === "Enter" || e.key === " ")
+                                    ) {
+                                      e.preventDefault();
+                                      goToToken(symbol);
+                                    }
+                                  }}
+                                  className="flex items-center justify-between bg-white/70 border border-gray-200/60 rounded-xl p-4 cursor-pointer hover:bg-white/90 hover:border-gray-300 transition-colors"
+                                >
+                                  <span className="font-medium">{symbol}</span>
+                                  <span className="text-red-600 text-sm font-medium">
+                                    {item.pnlPercent ?? 0}%
+                                  </span>
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
                       )}
@@ -359,7 +400,7 @@ export function PortfolioPage() {
                 </div>
               )}
 
-              <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+              {/* <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
                 <h3 className="text-xl font-bold">Assets</h3>
               </div>
               {filteredTokens.length === 0 ? (
@@ -431,7 +472,7 @@ export function PortfolioPage() {
                     );
                   })}
                 </div>
-              )}
+              )} */}
             </>
           )}
         </>

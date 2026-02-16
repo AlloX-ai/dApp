@@ -415,7 +415,7 @@ function App() {
         >
           <Route index element={<ChatPage />} />
           <Route path="/portfolio" element={<PortfolioPage />} />
-          <Route path="/trading" element={<TradingPage />} />
+          <Route path="/trending" element={<TradingPage />} />
           <Route path="/staking" element={<StakingPage />} />
           <Route path="/history" element={<HistoryPage />} />
         </Route>
