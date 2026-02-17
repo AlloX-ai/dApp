@@ -34,6 +34,7 @@ import {
 } from "./redux/slices/walletSlice";
 import { resetPoints, setPointsBalance } from "./redux/slices/pointsSlice";
 import { useAuth } from "./hooks/useAuth";
+import { useCountdown } from "./hooks/useCountdown";
 import { Toaster, toast } from "sonner";
 import { setRateLimit } from "./redux/slices/chatSlice";
 
@@ -48,6 +49,7 @@ function LaunchAppLayout() {
     (state) => state.wallet,
   );
   const { token, user, ensureAuthenticated } = useAuth();
+  const { isCountdownActive } = useCountdown();
 
   const handleDisconnect = async () => {
     await disconnect(wagmiClient, {
@@ -75,19 +77,21 @@ function LaunchAppLayout() {
   }, [isConnected, token, ensureAuthenticated]);
 
   useEffect(() => {
+    if (isCountdownActive) return;
     const points = user?.season1?.points;
     if (points != null && typeof points === "number") {
       dispatch(setPointsBalance(points));
     }
-  }, [user?.season1?.points, dispatch]);
+  }, [user?.season1?.points, isCountdownActive, dispatch]);
 
   useEffect(() => {
+    if (isCountdownActive) return;
     const limit = user?.season1?.rateLimit?.messagesRemaining;
 
     if (limit != null && typeof limit === "number") {
       dispatch(setRateLimit(user?.season1?.rateLimit));
     }
-  }, [user?.season1?.rateLimit, dispatch]);
+  }, [user?.season1?.rateLimit, isCountdownActive, dispatch]);
 
   useEffect(() => {
     if (wasConnectedRef.current && !isConnected) {

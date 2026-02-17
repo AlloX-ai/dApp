@@ -160,9 +160,9 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
                 <button
                   key={network.name}
                   onClick={() => handleSwitchNetwork(network)}
-                  className={`w-full flex hover:bg-gray-800 items-center gap-3 px-4 py-3 rounded-xl text-sm transition-colors ${selectedNetwork?.name === network.name
-                    ? "bg-black text-white font-medium"
-                    : "hover:bg-black/5 hover:text-white"
+                  className={`w-full flex hover:bg-black/5 hover:shadow-sm items-center gap-3 px-4 py-3 rounded-xl text-sm transition-colors ${selectedNetwork?.name === network.name
+                    ? "bg-black text-white font-medium hover:bg-gray-800"
+                    : "hover:bg-black/5"
                     }`}
                 >
                   <img src={network.icon} alt="" className="h-6 w-6" />

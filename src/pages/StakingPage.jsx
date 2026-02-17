@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { X, Info } from "lucide-react";
 import {
@@ -105,13 +105,10 @@ export function StakingPage() {
     : "0d:0h:0m";
   const isUnlocked = selectedStaking?.lockDays === 0;
 
-  const estimatedRewards =
-    selectedStaking && stakingAmount
-      ? (
-          ((parseFloat(stakingAmount) || 0) * selectedStaking.apy) /
-          100
-        ).toFixed(3)
-      : "0.000";
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    document.title = "Staking";
+  }, []);
 
   return (
     <div className="flex-1 px-6 py-8 portfolio-wrapper ms-auto w-full overflow-y-auto">

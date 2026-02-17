@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import { useSelector } from "react-redux";
 import { useSearchParams, useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { apiCall } from "../utils/api";
@@ -8,8 +7,6 @@ import { TokenDetailPage } from "./TokenDetailPage";
 import { NarrativeDetailPage } from "./NarrativeDetailPage";
 import {
   TrendingUp,
-  ArrowUpRight,
-  ArrowDownRight,
   Search,
   Loader2,
   BarChart3,
@@ -25,7 +22,7 @@ const SEARCH_DEBOUNCE_MS = 300;
 export function TradingPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const completedActions = useSelector((state) => state.chat.completedActions);
+
   const { ensureAuthenticated, logout } = useAuth();
 
   const tokenSymbol = searchParams.get("token")?.trim();
@@ -52,6 +49,11 @@ export function TradingPage() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    document.title = "Trending";
+  }, []);
+
   useEffect(() => {
     const t = setTimeout(() => {
       setDebouncedSearch(searchQuery.trim());

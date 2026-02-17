@@ -1,9 +1,18 @@
 import { useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router";
 import { useSelector } from "react-redux";
-import { Wallet, Menu, X, ChevronRight, Copy, Check } from "lucide-react";
+import {
+  Wallet,
+  Menu,
+  X,
+  ChevronRight,
+  Copy,
+  Check,
+  Clock,
+} from "lucide-react";
 import { NetworkSelector } from "./NetworkSelector";
 import { shortAddress } from "../hooks/shortAddress";
+import { useCountdown } from "../hooks/useCountdown";
 import { navigationTabs, isActivePath } from "../constants/navigation";
 import OutsideClickHandler from "react-outside-click-handler/build/OutsideClickHandler";
 
@@ -15,6 +24,7 @@ export function Header({
 }) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const { isCountdownActive, formatted } = useCountdown();
   const pointsBalance = useSelector((state) => state.points?.balance);
   const rateLimit = useSelector((state) => state.chat?.rateLimit);
   const messagesRemaining =
@@ -44,28 +54,49 @@ export function Header({
         </NavLink>
 
         <div className="flex items-center gap-4">
-          {pointsBalance != null && pointsBalance >= 0 && isConnected && (
-            <div className="glass-card px-3 py-2 flex items-center gap-3">
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500 hidden sm:inline">
-                  Points
-                </span>
-                <span className="text-sm font-semibold tabular-nums">
-                  {pointsBalance.toLocaleString()}
-                </span>
+          {isCountdownActive && formatted && (
+            <div className="glass-card px-3 py-2 flex items-center gap-2">
+              <div className="w-8 h-8 bg-gradient-to-br from-purple-500/20 to-blue-500/20 rounded-full flex items-center justify-center border border-purple-300/30">
+                <Clock size={16} className="text-purple-600" />
               </div>
-              {messagesRemaining != null && (
-                <div className="border-l border-gray-200/60 pl-3 flex items-center gap-2">
-                  <span className="text-xs text-gray-500 hidden sm:inline">
-                    Messages left
-                  </span>
-                  <span className="text-sm font-semibold tabular-nums">
-                    {messagesRemaining}
-                  </span>
+              <div className="hidden md:block">
+                <div className="text-xs text-gray-500 mb-0">Access</div>
+                <div className="text-xs font-medium text-gray-900">
+                  Coming Soon
                 </div>
-              )}
+              </div>
+              <div className="text-sm ml-2 font-mono font-bold text-gray-900">
+                {formatted.days}d:{String(formatted.hours).padStart(2, "0")}h:
+                {String(formatted.minutes).padStart(2, "0")}m
+                {/* : {String(formatted.seconds).padStart(2, "0")}s */}
+              </div>
             </div>
           )}
+          {!isCountdownActive &&
+            pointsBalance != null &&
+            pointsBalance >= 0 &&
+            isConnected && (
+              <div className="glass-card px-3 py-2 flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500 hidden sm:inline">
+                    Points
+                  </span>
+                  <span className="text-sm font-semibold tabular-nums">
+                    {pointsBalance.toLocaleString()}
+                  </span>
+                </div>
+                {messagesRemaining != null && (
+                  <div className="border-l border-gray-200/60 pl-3 flex items-center gap-2">
+                    <span className="text-xs text-gray-500 hidden sm:inline">
+                      Messages left
+                    </span>
+                    <span className="text-sm font-semibold tabular-nums">
+                      {messagesRemaining}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
           {isConnected ? (
             <div className="glass-card px-0 md:pr-4 flex items-center gap-3 transition-all duration-200 hover:shadow-md">
               <NetworkSelector onDisconnectClick={onDisconnectClick} />

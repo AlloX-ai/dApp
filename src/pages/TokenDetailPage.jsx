@@ -78,6 +78,11 @@ export function TokenDetailPage() {
   }, [symbol, chartTimeframe, ensureAuthenticated, logout]);
 
   useEffect(() => {
+    window.scrollTo(0, 0);
+    document.title = "Token Details";
+  }, []);
+
+  useEffect(() => {
     loadTokenDetails();
   }, [loadTokenDetails]);
 
@@ -174,22 +179,22 @@ export function TokenDetailPage() {
                 />
               )}
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">
+                <h1 className="text-2xl font-bold text-gray-900">{symbol}</h1>
+                <p className="text-gray-600 font-mono">
                   {token?.name ?? symbol}
-                </h1>
-                <p className="text-gray-600 font-mono">{symbol}</p>
+                </p>
                 {(token?.tags?.length > 0 || token?.narratives?.length > 0) && (
                   <div className="flex flex-wrap gap-2 mt-2">
-                    {[...(token?.tags || []), ...(token?.narratives || [])].map(
-                      (t) => (
+                    {[...(token?.tags || []), ...(token?.narratives || [])]
+                      .slice(0, 6)
+                      .map((t, index) => (
                         <span
-                          key={t}
+                          key={t + index}
                           className="px-2 py-0.5 rounded-full text-xs bg-gray-200 text-gray-700"
                         >
                           {t}
                         </span>
-                      ),
-                    )}
+                      ))}
                   </div>
                 )}
               </div>
@@ -298,7 +303,6 @@ export function TokenDetailPage() {
                         : new Date(v).toLocaleDateString(undefined, {
                             month: "short",
                             day: "numeric",
-                            hour: "2-digit",
                           })
                     }
                   />

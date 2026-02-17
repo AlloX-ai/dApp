@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Loader2 } from "lucide-react";
@@ -81,6 +81,11 @@ export function NarrativeDetailPage() {
     const handleClick = () => {
       if (symbol && onTokenClick) onTokenClick(symbol);
     };
+
+    useEffect(() => {
+      window.scrollTo(0, 0);
+      document.title = "Narrative Details";
+    }, []);
 
     return (
       <div
@@ -175,9 +180,11 @@ export function NarrativeDetailPage() {
         ) : error ? (
           <p className="text-red-600 py-4">{error}</p>
         ) : tokens.length === 0 ? (
-          <p className="text-gray-500 py-8 text-center">No tokens in this narrative.</p>
+          <p className="text-gray-500 py-8 text-center">
+            No tokens in this narrative.
+          </p>
         ) : (
-          <div className="divide-y divide-gray-100">
+          <div className="divide-y h-full max-h-[38rem] overflow-auto divide-gray-100">
             {tokens.map((item, i) => (
               <TokenRow
                 key={item?.token?.symbol ?? item?.symbol ?? i}

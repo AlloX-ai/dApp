@@ -22,6 +22,18 @@ export function PortfolioPage() {
     },
     [navigate],
   );
+
+  const goToNarrative = useCallback(
+    (id, label) => {
+      if (!id) return;
+      const params = new URLSearchParams();
+      params.set("narrative", id);
+      if (label) params.set("label", label);
+      navigate(`/trending?${params.toString()}`);
+    },
+    [navigate],
+  );
+
   const [portfolios, setPortfolios] = useState([]);
   const [activePortfolioId, setActivePortfolioId] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -93,6 +105,11 @@ export function PortfolioPage() {
   useEffect(() => {
     loadPortfolios();
   }, [loadPortfolios]);
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    document.title = "Portfolio";
+  }, []);
 
   const activePortfolio = useMemo(
     () =>
@@ -272,7 +289,12 @@ export function PortfolioPage() {
                           ([narrative, data]) => (
                             <div
                               key={narrative}
-                              className="flex items-center justify-between bg-white/70 border border-gray-200/60 rounded-xl p-4"
+                              role="button"
+                              className="flex cursor-pointer items-center justify-between bg-white/70 border border-gray-200/60 rounded-xl p-4 hover:bg-white/90 hover:border-gray-300 transition-colors"
+                              onClick={() =>
+                                narrative &&
+                                goToNarrative(narrative, activePortfolio.name)
+                              }
                             >
                               <span className="font-medium">
                                 {narrative.toUpperCase()}

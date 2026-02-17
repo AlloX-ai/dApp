@@ -147,6 +147,11 @@ export function HistoryPage() {
     }
   }, [dispatch]);
 
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    document.title = "History";
+  }, []);
+
   return (
     <div className="flex-1 px-6 py-8 portfolio-wrapper ms-auto w-full overflow-y-auto">
       <div className="flex items-center justify-between mb-6">
