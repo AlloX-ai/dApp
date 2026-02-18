@@ -114,6 +114,9 @@ export function StakingPage() {
     <div className="flex-1 px-6 py-8 portfolio-wrapper ms-auto w-full overflow-y-auto">
       <h2 className="text-3xl font-bold mb-6">Staking</h2>
 
+      <div className="glass-card p-8 text-center text-gray-500">
+        Staking Pools Coming Soon.
+      </div>
       {/* {stakedPools.length > 0 && (
         <div className="mb-8">
           <h3 className="text-xl font-bold mb-4">Active Staking</h3>
@@ -203,7 +206,7 @@ export function StakingPage() {
         </div>
       )} */}
 
-      <h3 className="text-xl font-bold mb-4">Staking Opportunities</h3>
+      {/* <h3 className="text-xl font-bold mb-4">Staking Opportunities</h3>
       <div className="grid md:grid-cols-3 gap-6">
         {stakingOptions.map((option) => {
           const hasEarnings =
@@ -255,9 +258,8 @@ export function StakingPage() {
             </div>
           );
         })}
-      </div>
-
-      {/* Staking Deposit / Earnings / Withdraw modal */}
+      </div> */}
+      {/* 
       {modalOpen && selectedStaking && (
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
@@ -285,7 +287,6 @@ export function StakingPage() {
               Deposit
             </h2>
 
-            {/* Deposit section */}
             <section className="mb-6">
               <h3 className="text-sm font-medium text-gray-600 mb-3">
                 Deposit
@@ -314,9 +315,7 @@ export function StakingPage() {
                   Max
                 </button>
               </div>
-              {/* <p className="text-xs text-gray-500 mb-2">
-                Approved: {approvedAmount} {selectedStaking.token}
-              </p> */}
+           
               <div>
                 <label className="text-sm font-medium mb-3 block">
                   Lock Time
@@ -370,7 +369,7 @@ export function StakingPage() {
 
             {selectedStaking.totalEarnings && (
               <>
-                {/* Earnings section */}
+              
                 <section className="mb-6">
                   <div className="flex items-center gap-2 mb-2">
                     <h3 className="text-sm font-medium text-gray-600">
@@ -404,7 +403,7 @@ export function StakingPage() {
                   </div>
                 </section>
 
-                {/* My Deposit section */}
+
                 <section className="mb-4">
                   <h3 className="text-sm font-medium text-gray-600 mb-2">
                     My Deposit
@@ -440,7 +439,7 @@ export function StakingPage() {
             )}
           </div>
         </div>
-      )}
+      )} */}
     </div>
   );
 }

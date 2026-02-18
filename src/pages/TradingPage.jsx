@@ -11,6 +11,7 @@ import {
   Loader2,
   BarChart3,
   TrendingDown,
+  RefreshCcw,
 } from "lucide-react";
 
 const LIMIT = 10;
@@ -153,10 +154,48 @@ export function TradingPage() {
     return formatPrice(n);
   };
 
+  const TokenListHeaderTrending = ({ showChange = true }) => (
+    <div className="flex bg-white items-center justify-between py-2 px-4 border-b border-gray-200 text-xs font-medium text-gray-500 uppercase  tracking-wide sticky top-0 bg-white z-10">
+      <div className="flex items-center gap-3 min-w-0">
+        {/* <span className="w-8 shrink-0" aria-hidden /> */}
+        <span>Token</span>
+      </div>
+      <div className="flex items-center gap-4 shrink-0">
+        <span className="hidden sm:inline">Market cap</span>
+        <span className="w-20 text-right">Price</span>
+        {/* {showChange && <span className="w-16 text-right">24h %</span>} */}
+      </div>
+    </div>
+  );
+  /** Header row for token lists (Trending, Gainers, Losers) – aligns with TokenRow layout */
+  const TokenListHeader = ({ showChange = true }) => (
+    <div className="flex bg-white items-center justify-between py-2 px-4 border-b border-gray-200 text-xs font-medium text-gray-500 uppercase  tracking-wide sticky top-0 bg-white z-10">
+      <div className="flex items-center gap-3 min-w-0">
+        {/* <span className="w-8 shrink-0" aria-hidden /> */}
+        <span>Token</span>
+      </div>
+      <div className="flex items-center gap-4 shrink-0">
+        <span className="hidden sm:inline">Market cap</span>
+        <span className="w-20 text-right">Price</span>
+        {showChange && <span className="w-16 text-right">24h %</span>}
+      </div>
+    </div>
+  );
+
+  /** Header row for narrative list – aligns with narrative row layout */
+  const NarrativeListHeader = () => (
+    <div className="flex items-center justify-between py-2 px-3 border-b border-gray-200 text-xs font-medium text-gray-500 uppercase tracking-wide">
+      <span className="min-w-0">Narrative</span>
+      <div className="flex items-center gap-4 shrink-0">
+        <span>Tokens</span>
+        <span className="w-16 text-right">24h %</span>
+      </div>
+    </div>
+  );
+
   const TokenRow = ({
     item,
     showChange = false,
-    changePositive,
     onTokenClick,
   }) => {
     const token = item?.token ?? item;
@@ -167,6 +206,7 @@ export function TradingPage() {
     const change24h = price?.change24h ?? item?.change24h ?? item?.change;
     const marketCap = price?.marketCap ?? item?.marketCap;
     const logo = token?.logo ?? item?.logo;
+    const changePositive = change24h != null && Number(change24h) >= 0;
 
     const handleClick = () => {
       if (symbol && onTokenClick) onTokenClick(symbol);
@@ -253,9 +293,9 @@ export function TradingPage() {
             type="button"
             onClick={onRefresh}
             disabled={isLoading}
-            className="text-xs text-gray-500 hover:text-gray-700 disabled:opacity-50"
+            className="text-xs text-gray-500 hover:text-green-600 disabled:opacity-50"
           >
-            Refresh
+            <RefreshCcw className="w-4 h-4" />
           </button>
         )}
       </div>
@@ -316,7 +356,6 @@ export function TradingPage() {
                 key={token?.symbol || i}
                 item={token}
                 showChange
-                changePositive={true}
                 onTokenClick={goToToken}
               />
             ))}
@@ -338,13 +377,15 @@ export function TradingPage() {
             !trendingQuery.error && (
               <p className="text-sm text-gray-500 py-4">No trending data.</p>
             )}
+          {(trending.length > 0 || trendingQuery.isLoading) && (
+            <TokenListHeaderTrending showChange />
+          )}
           <div className="divide-y divide-gray-100">
             {trending.map((item, i) => (
               <TokenRow
                 key={item?.token?.symbol || item?.symbol || i}
                 item={item}
                 showChange
-                changePositive={true}
                 onTokenClick={goToToken}
               />
             ))}
@@ -365,13 +406,15 @@ export function TradingPage() {
             !gainersQuery.error && (
               <p className="text-sm text-gray-500 py-4">No data.</p>
             )}
+          {(topGainers.length > 0 || gainersQuery.isLoading) && (
+            <TokenListHeader showChange />
+          )}
           <div className="divide-y divide-gray-100">
             {topGainers.map((item, i) => (
               <TokenRow
                 key={item?.token?.symbol || item?.symbol || i}
                 item={item}
                 showChange
-                changePositive={true}
                 onTokenClick={goToToken}
               />
             ))}
@@ -392,13 +435,15 @@ export function TradingPage() {
             !losersQuery.error && (
               <p className="text-sm text-gray-500 py-4">No data.</p>
             )}
+          {(topLosers.length > 0 || losersQuery.isLoading) && (
+            <TokenListHeader showChange />
+          )}
           <div className="divide-y divide-gray-100">
             {topLosers.map((item, i) => (
               <TokenRow
                 key={item?.token?.symbol || item?.symbol || i}
                 item={item}
                 showChange
-                changePositive={false}
                 onTokenClick={goToToken}
               />
             ))}
@@ -418,6 +463,9 @@ export function TradingPage() {
             !narrativesQuery.error && (
               <p className="text-sm text-gray-500 py-4">No narrative data.</p>
             )}
+          {(narratives.length > 0 || narrativesQuery.isLoading) && (
+            <NarrativeListHeader />
+          )}
           <div className="space-y-2">
             {narratives.map((n) => {
               const id = n?.id ?? n?.label ?? n?.name;
@@ -438,24 +486,28 @@ export function TradingPage() {
                 >
                   <div className="flex flex-col">
                     <span className="font-medium text-gray-900">{label}</span>
-                    {n?.tokenCount != null && (
-                      <span className="text-xs text-gray-500">
-                        {n.tokenCount} tokens
-                      </span>
-                    )}
                   </div>
-                  <div className="flex items-center gap-4 shrink-0">
-                    <span
-                      className={
-                        n?.averageChange >= 0
-                          ? "text-green-600"
-                          : "text-red-600"
-                      }
-                    >
-                      {n?.averageChange != null
-                        ? formatPercent(n.averageChange)
-                        : "—"}
-                    </span>
+                  <div className="flex gap-4">
+                    <div className="flex items-center gap-4 shrink-0">
+                      {n?.tokenCount != null && (
+                        <span className="text-xs text-gray-500">
+                          {n.tokenCount} tokens
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-4 shrink-0">
+                      <span
+                        className={
+                          n?.averageChange >= 0
+                            ? "text-green-600"
+                            : "text-red-600"
+                        }
+                      >
+                        {n?.averageChange != null
+                          ? formatPercent(n.averageChange)
+                          : "—"}
+                      </span>
+                    </div>
                   </div>
                 </div>
               );

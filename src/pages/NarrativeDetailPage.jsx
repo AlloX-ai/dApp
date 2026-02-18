@@ -74,6 +74,7 @@ export function NarrativeDetailPage() {
     const symbol = token?.symbol ?? item?.symbol;
     const name = token?.name ?? item?.name ?? symbol;
     const usd = price?.usd ?? item?.usd ?? item?.price;
+    const volume24h = price?.volume24h ?? item?.volume24h ?? item?.volume24h;
     const change24h = price?.change24h ?? item?.change24h ?? item?.change;
     const marketCap = price?.marketCap ?? item?.marketCap;
     const logo = token?.logo ?? item?.logo;
@@ -113,15 +114,21 @@ export function NarrativeDetailPage() {
             <p className="text-xs text-gray-500 truncate">{name}</p>
           </div>
         </div>
-        <div className="flex items-center gap-4 shrink-0">
+        <div className="flex items-center gap-4 shrink-0 w-1/4">
           {marketCap != null && (
-            <span className="text-sm text-gray-600 hidden sm:inline">
+            <span className="text-sm text-gray-600 w-30 hidden sm:inline text-left">
               {formatCompact(marketCap)}
             </span>
           )}
-          <span className="text-sm font-medium text-gray-900 w-20 text-right">
+
+          <span className="text-sm font-medium hidden sm:inline w-40 text-gray-900 text-center">
+            {formatCompact(volume24h)}
+          </span>
+
+          <span className="text-sm font-medium text-gray-900 text-right">
             {formatPrice(usd)}
           </span>
+
           {change24h != null && (
             <span
               className={`text-sm font-medium w-16 text-right ${
@@ -185,6 +192,18 @@ export function NarrativeDetailPage() {
           </p>
         ) : (
           <div className="divide-y h-full max-h-[38rem] overflow-auto divide-gray-100">
+            <div className="flex items-center justify-between py-2 px-4 border-b border-gray-200 text-xs font-medium text-gray-500 uppercase tracking-wide sticky top-0 bg-white z-10">
+              <div className="flex items-center gap-3 min-w-0">
+                {/* <span className="w-8 shrink-0" aria-hidden /> */}
+                <span>Token</span>
+              </div>
+              <div className="flex items-center gap-4 shrink-0 w-1/4 justify-between">
+                <span className="hidden sm:inline">Market Cap</span>
+                <span className="hidden sm:inline text-center">Volume 24h</span>
+                <span className="px-2 text-center">Price</span>
+                {/* <span className="w-16 text-right">24h %</span> */}
+              </div>
+            </div>
             {tokens.map((item, i) => (
               <TokenRow
                 key={item?.token?.symbol ?? item?.symbol ?? i}

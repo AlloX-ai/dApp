@@ -206,13 +206,15 @@ export function HistoryPage() {
           <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
         </div>
       ) : chatSessions.length === 0 ? (
-        <p className="text-gray-500 py-8">No chat history yet.</p>
+        <div className="glass-card p-8 text-center text-gray-500">
+          No chat history yet.
+        </div>
       ) : (
         <div className="space-y-3">
           {chatSessions.map((session) => (
             <div
               key={session.id}
-              className="glass-card p-6 hover:bg-white/80 hover:shadow-lg hover:border hover:border-gray-200/50 transition-all duration-200 group relative"
+              className="bg-white rounded-2xl p-6 hover:bg-black/5 hover:shadow-sm hover:border-gray-200/50 transition-all duration-200 group relative"
             >
               <button
                 type="button"
@@ -246,10 +248,10 @@ export function HistoryPage() {
                     <p className="text-sm text-gray-600">{session.date}</p>
                   </div>
                   <div className="flex items-center gap-3">
-                    <MessageSquare
+                    {/* <MessageSquare
                       size={20}
                       className="text-gray-400 shrink-0"
-                    />
+                    /> */}
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <div
                         type="button"

@@ -32,8 +32,14 @@ export function ChatPage() {
   const isConnected = useSelector((state) => state.wallet.isConnected);
   const pointsBalance = useSelector((state) => state.points?.balance);
   const messagesRemaining = rateLimit?.remaining;
-  const { setUser, ensureAuthenticated, claimSeason1, logout } = useAuth();
-  const { isCountdownActive, formatted } = useCountdown();
+  const {
+    user: authUser,
+    setUser,
+    ensureAuthenticated,
+    claimSeason1,
+    logout,
+  } = useAuth();
+  const { formatted } = useCountdown();
   const speechBoxRef = useRef(null);
   const typingTimerRef = useRef(null);
   const typingMessageRef = useRef(null);
@@ -175,7 +181,7 @@ export function ChatPage() {
       const trimmed = text.trim();
       if (!trimmed) return;
       if (isReadOnly) return;
-      if (isCountdownActive) return;
+
       if (!isConnected) {
         setShowWalletPrompt(true);
         return;
@@ -224,13 +230,33 @@ export function ChatPage() {
           body: JSON.stringify({ message: trimmed }),
         });
         dispatch(addCurrentMessage(buildBotMessage(response)));
-        if (!isCountdownActive) {
-          if (response.points?.total != null) {
-            dispatch(setPointsBalance(response.points.total));
-          }
-          if (response.rateLimit) {
-            dispatch(setRateLimit(response.rateLimit));
-          }
+
+        if (response.points?.total != null) {
+          dispatch(setPointsBalance(response.points.total));
+        }
+        if (response.rateLimit) {
+          dispatch(setRateLimit(response.rateLimit));
+        }
+
+        // Keep authUser in localStorage in sync with points and rate limit from chat API
+        if (response.points || response.rateLimit) {
+          const nextUser = {
+            ...(authUser ?? {}),
+            season1: {
+              ...(authUser?.season1 ?? {}),
+              ...(response.points?.total != null && {
+                points: response.points.total,
+              }),
+              ...(response.points?.earned != null && {
+                lastEarned: response.points.earned,
+              }),
+              ...(response.points?.breakdown && {
+                pointsBreakdown: response.points.breakdown,
+              }),
+              ...(response.rateLimit && { rateLimit: response.rateLimit }),
+            },
+          };
+          setUser(nextUser);
         }
       } catch (error) {
         if (error?.status === 401) {
@@ -252,7 +278,6 @@ export function ChatPage() {
     },
     [
       isReadOnly,
-      isCountdownActive,
       isConnected,
       pointsBalance,
       messagesRemaining,
@@ -278,10 +303,10 @@ export function ChatPage() {
 
   // Open claim popup only when countdown is finished and user needs to claim
   useEffect(() => {
-    if (!isCountdownActive && needsToClaimPoints && !userDismissedClaimModal) {
+    if (needsToClaimPoints && !userDismissedClaimModal) {
       setShowWelcomeGiftModal(true);
     }
-  }, [isCountdownActive, needsToClaimPoints, userDismissedClaimModal]);
+  }, [needsToClaimPoints, userDismissedClaimModal]);
 
   useEffect(() => {
     scrollToBottom(); // Scroll to the bottom when messages update
@@ -391,10 +416,13 @@ export function ChatPage() {
     );
   };
 
-  // Parse token list line: "1. **LINK** (Chainlink, Ethereum): $9.11 USD, Market Cap: $6.45B, 24h Vol: $567M"
+  // Parse token list line. Supports:
+  // - Pipe format: "1. **LINK** (Chainlink): $8.84 USD | MC: $6.26B | Vol: $535M (DeFi)"
+  // - Comma format: "1. **LINK** (Chainlink, Ethereum): $9.11 USD, Market Cap: $6.45B, 24h Vol: $567M" with optional "24h Change: +1.5%"
   const parseTokenListLine = (line) => {
-    const match = line.match(
-      /^(\d+)\.\s+\*\*([A-Z0-9]+)\*\*\s*\(([^)]+)\):\s*\$?([\d.]+)\s*(?:USD)?[,]?\s*Market Cap:\s*\$?([\d.]+[BM])[,]?\s*24h Vol:\s*\$?([\d.]+[BM])/i,
+    // Pipe format (MC:, Vol:, optional narrative at end)
+    let match = line.match(
+      /^(\d+)\.\s+\*\*([A-Z0-9]+)\*\*\s*\(([^)]+)\):\s*\$?([\d,.]+)\s*(?:USD)?\s*\|\s*MC:\s*\$?([\d.]+[BMK]?)\s*\|\s*Vol:\s*\$?([\d.]+[BMK]?)(?:\s*\([^)]*\))?\s*$/i,
     );
     if (match) {
       return {
@@ -404,6 +432,22 @@ export function ChatPage() {
         price: match[4],
         marketCap: match[5],
         vol24h: match[6],
+        change24h: null,
+      };
+    }
+    // Comma format (Market Cap:, 24h Vol:, optional 24h Change)
+    match = line.match(
+      /^(\d+)\.\s+\*\*([A-Z0-9]+)\*\*\s*\(([^)]+)\):\s*\$?([\d,.]+)\s*(?:USD)?[,]?\s*Market Cap:\s*\$?([\d.]+[BMK]?)[,]?\s*24h Vol:\s*\$?([\d.]+[BMK]?)(?:[,]?\s*(?:24h )?Change:\s*([+-]?[\d.]+)%?)?/i,
+    );
+    if (match) {
+      return {
+        rank: match[1],
+        ticker: match[2],
+        nameChain: match[3],
+        price: match[4],
+        marketCap: match[5],
+        vol24h: match[6],
+        change24h: match[7] != null ? parseFloat(match[7]) : null,
       };
     }
     return null;
@@ -458,11 +502,64 @@ export function ChatPage() {
       );
     };
 
+    // Render bullet content; color "Change: ±X%" green/red when it appears (with or without "| " prefix, or as full line "**Change**: ±X%")
+    const renderBulletContent = (content) => {
+      // Full line: "**Change**: -0.3%" or "**24h Change**: +0.45%"
+      let changeMatch = content.match(
+        /^\*\*((?:24h |7d )?Change)\*\*:\s*([+-]?[\d.]+)%/,
+      );
+      if (changeMatch) {
+        const value = parseFloat(changeMatch[2]);
+        const isPositive = value >= 0;
+        return (
+          <>
+            <strong>{changeMatch[1]}</strong>:{" "}
+            <span
+              className={
+                isPositive
+                  ? "text-green-600 font-medium"
+                  : "text-red-600 font-medium"
+              }
+            >
+              {changeMatch[2]}%
+            </span>
+          </>
+        );
+      }
+      // Inline: "... | 24h Vol: $279M | Change: -0.3%" anywhere in the line
+      changeMatch = content.match(
+        /\|\s*((?:24h |7d )?Change):\s*([+-]?[\d.]+)%/,
+      );
+      if (changeMatch) {
+        const prefix = content.slice(0, content.indexOf(changeMatch[0]));
+        const label = changeMatch[1];
+        const valueStr = changeMatch[2];
+        const value = parseFloat(valueStr);
+        const isPositive = value >= 0;
+        return (
+          <>
+            {renderInlineBold(prefix)}
+            {" | "}
+            {label}:{" "}
+            <span
+              className={
+                isPositive
+                  ? "text-green-600 font-medium"
+                  : "text-red-600 font-medium"
+              }
+            >
+              {valueStr}%
+            </span>
+          </>
+        );
+      }
+      return renderInlineBold(content);
+    };
+
     while (i < lines.length) {
       const line = lines[i];
       const trimmed = line.trim();
-
-      // Token list block: consecutive lines matching "N. **TICKER** (Name, Chain): $X, Market Cap: $Y, 24h Vol: $Z"
+      // Token list block: consecutive lines matching "N. **TICKER** (Name): $X USD | MC: $Y | Vol: $Z" or comma format
       const tokenEntries = [];
       let j = i;
       while (j < lines.length) {
@@ -474,33 +571,65 @@ export function ChatPage() {
       }
       if (tokenEntries.length > 0) {
         pushBullets();
+        const hasChange = tokenEntries.some((e) => e.change24h != null);
+        const gridCols = hasChange
+          ? "grid-cols-[auto_1fr_auto_auto_auto_auto]"
+          : "grid-cols-[auto_1fr_auto_auto_auto]";
         blocks.push(
-          <div key={`token-list-${blocks.length}`} className="my-4 space-y-2">
+          <div
+            key={`token-list-${blocks.length}`}
+            className="my-4 rounded-xl border border-gray-200 bg-white/80 shadow-sm overflow-hidden"
+          >
+            <div
+              className={`grid ${gridCols} gap-x-4 gap-y-0 px-4 py-2.5 border-b border-gray-200 bg-gray-50/80 text-xs font-semibold text-gray-600 uppercase tracking-wide items-center`}
+            >
+              <span className="w-6">#</span>
+              <span>Token</span>
+              <span className="text-right">Price</span>
+              <span className="text-right">MC</span>
+              <span className="text-right">24h Vol</span>
+              {hasChange && <span className="text-right">24h %</span>}
+            </div>
             {tokenEntries.map((entry, idx) => (
               <div
                 key={idx}
-                className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl border border-gray-200 bg-white/80 p-3 text-sm"
+                className={`grid ${gridCols} gap-x-4 gap-y-0 px-4 py-2.5 items-center text-sm border-b border-gray-100 last:border-0 hover:bg-gray-50/50`}
               >
-                <span className="font-semibold text-gray-500 w-6">
+                <span className="w-6 font-semibold text-gray-500">
                   {entry.rank}.
                 </span>
-                <span className="font-bold text-gray-900">{entry.ticker}</span>
-                <span className="text-gray-600 text-xs">
-                  ({entry.nameChain})
-                </span>
-                <span className="font-medium">${entry.price} USD</span>
-                <span className="text-gray-600">
-                  MC:{" "}
-                  <span className="font-medium text-gray-800">
-                    {entry.marketCap}
+                <div className="min-w-0">
+                  <span className="font-bold text-gray-900">
+                    {entry.ticker}
                   </span>
-                </span>
-                <span className="text-gray-600">
-                  24h:{" "}
-                  <span className="font-medium text-gray-800">
-                    {entry.vol24h}
+                  <span className="text-gray-500 text-xs ml-1">
+                    ({entry.nameChain})
                   </span>
+                </div>
+                <span className="text-right font-medium text-gray-900">
+                  ${entry.price} USD
                 </span>
+                <span className="text-right font-medium text-gray-800">
+                  {entry.marketCap}
+                </span>
+                <span className="text-right font-medium text-gray-800">
+                  {entry.vol24h}
+                </span>
+                {hasChange && (
+                  <span
+                    className={`text-right font-medium ${
+                      entry.change24h != null
+                        ? Number(entry.change24h) >= 0
+                          ? "text-green-600"
+                          : "text-red-600"
+                        : "text-gray-400"
+                    }`}
+                  >
+                    {entry.change24h != null
+                      ? `${Number(entry.change24h) >= 0 ? "+" : ""}${entry.change24h}%`
+                      : "—"}
+                  </span>
+                )}
               </div>
             ))}
           </div>,
@@ -560,7 +689,7 @@ export function ChatPage() {
       const isBullet = trimmed.startsWith("- ") || trimmed.startsWith("• ");
       if (isBullet) {
         const content = trimmed.replace(/^[-•]\s*/, "");
-        bulletItems.push(renderInlineBold(content));
+        bulletItems.push(renderBulletContent(content));
         i += 1;
         continue;
       }
@@ -606,15 +735,10 @@ export function ChatPage() {
           <div className="h-full flex items-center justify-center px-6">
             <div className="text-center max-w-2xl">
               <h2 className="text-3xl font-bold mb-4">Hello, I'm AlloX</h2>
-              {isCountdownActive ? (
-                <p className="text-gray-600 mb-8">
-                  Chat is coming soon. See countdown below.
-                </p>
-              ) : (
-                <p className="text-gray-600 mb-8">
-                  I can help you discover, execute, and manage your portfolio.
-                </p>
-              )}
+
+              <p className="text-gray-600 mb-8">
+                I can help you discover, execute, and manage your portfolio.
+              </p>
 
               <div className="flex flex-wrap gap-2 justify-center mb-8">
                 {[
@@ -626,10 +750,8 @@ export function ChatPage() {
                 ].map((suggestion) => (
                   <button
                     key={suggestion}
-                    onClick={() =>
-                      !isCountdownActive && handleSuggestionClick(suggestion)
-                    }
-                    disabled={isReadOnly || isCountdownActive}
+                    onClick={() => handleSuggestionClick(suggestion)}
+                    disabled={isReadOnly}
                     className="px-4 py-2 bg-white shadow border border-white text-sm font-medium hover:bg-white/90 hover:shadow-lg hover:border hover:border-gray-200/50 transition-all duration-200 rounded-full disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-white"
                   >
                     {suggestion}
@@ -673,11 +795,8 @@ export function ChatPage() {
                             {msg.options.map((option, index) => (
                               <button
                                 key={`${option.action}-${option.value}-${index}`}
-                                onClick={() =>
-                                  !isCountdownActive &&
-                                  handleOptionClick(option)
-                                }
-                                disabled={isReadOnly || isCountdownActive}
+                                onClick={() => handleOptionClick(option)}
+                                disabled={isReadOnly}
                                 className="px-3 py-2 bg-white/80 border border-gray-200 rounded-xl text-xs font-medium hover:bg-white hover:border-gray-300 hover:shadow-md transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
                               >
                                 {option.label || option.value || option.action}
@@ -751,7 +870,7 @@ export function ChatPage() {
               </div>
             </div>
           )}
-          {!isCountdownActive && needsToClaimPoints && !isReadOnly && (
+          {needsToClaimPoints && !isReadOnly && (
             <div className="mb-4 glass-card p-4 border border-amber-200/50 bg-amber-50/30">
               <div className="flex items-center gap-2">
                 <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
@@ -775,7 +894,7 @@ export function ChatPage() {
               </div>
             </div>
           )}
-          {isCountdownActive && formatted ? (
+          {formatted ? (
             <div className="mb-4 glass-card p-4 border border-blue-200/50 bg-blue-50/30">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 bg-gradient-to-br from-purple-500/20 to-blue-500/20 rounded-full flex items-center justify-center border border-purple-300/30">
@@ -858,15 +977,14 @@ export function ChatPage() {
               Congratulations!
             </h3>
             <p className="text-gray-600 mb-1">
-              You claimed your {claimedPoints.toLocaleString()} Season 1
-              credits.
+              You claimed your Season 1 points.
             </p>
-            <p className="text-sm text-gray-500">Start chatting to use them.</p>
+            {/* <p className="text-sm text-gray-500">Start chatting to use them.</p> */}
           </div>
         </div>
       )}
 
-      {showWelcomeGiftModal && !isCountdownActive && (
+      {showWelcomeGiftModal && (
         <div
           className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
           onClick={() => {
@@ -893,27 +1011,23 @@ export function ChatPage() {
             >
               <X size={20} />
             </button>
-            <img
-              src="https://cdn.allox.ai/allox/AlloX-desktop.svg"
-              alt=""
-              className="h-8 mb-4 self-start"
-            />
+
             <div className="flex items-center gap-2 mb-2">
-              <h3 className="text-xl font-bold">AlloX Welcome Gift</h3>
-              <Gift className="w-5 h-5 text-amber-500" />
+              <h3 className="text-xl font-bold">Welcome Gift</h3>
+              {/* <Gift className="w-5 h-5 text-amber-500" /> */}
             </div>
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-sm text-gray-600 mb-6">
               Exclusive Web3 Community Benefit.
             </p>
             <div className="flex items-center justify-center gap-2 mb-1">
               <span className="text-4xl font-bold">
                 {INITIAL_CLAIM_POINTS.toLocaleString()}
               </span>
-              <span className="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center">
+              {/* <span className="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center">
                 <span className="text-amber-600 text-xs font-bold">◆</span>
-              </span>
+              </span> */}
             </div>
-            <p className="text-sm text-gray-500 mb-6">New User Gift</p>
+            <p className="text-sm text-gray-500 mb-8">Points</p>
             {claimError && (
               <p className="text-sm text-red-600 mb-2">{claimError}</p>
             )}

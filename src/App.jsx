@@ -36,7 +36,11 @@ import { resetPoints, setPointsBalance } from "./redux/slices/pointsSlice";
 import { useAuth } from "./hooks/useAuth";
 import { useCountdown } from "./hooks/useCountdown";
 import { Toaster, toast } from "sonner";
-import { setRateLimit } from "./redux/slices/chatSlice";
+import {
+  setRateLimit,
+  setCurrentMessages,
+  setViewingHistorySessionId,
+} from "./redux/slices/chatSlice";
 
 function LaunchAppLayout() {
   const dispatch = useDispatch();
@@ -49,7 +53,6 @@ function LaunchAppLayout() {
     (state) => state.wallet,
   );
   const { token, user, ensureAuthenticated } = useAuth();
-  const { isCountdownActive } = useCountdown();
 
   const handleDisconnect = async () => {
     await disconnect(wagmiClient, {
@@ -58,6 +61,8 @@ function LaunchAppLayout() {
     dispatch(setAddress(null));
     dispatch(setChainId(null));
     dispatch(setIsConnected(false));
+    dispatch(setViewingHistorySessionId(null));
+    dispatch(setCurrentMessages([]));
     localStorage.removeItem("authToken");
     localStorage.removeItem("authUser");
     navigate("/login", { replace: true });
@@ -77,26 +82,31 @@ function LaunchAppLayout() {
   }, [isConnected, token, ensureAuthenticated]);
 
   useEffect(() => {
-    if (isCountdownActive) return;
+
     const points = user?.season1?.points;
     if (points != null && typeof points === "number") {
       dispatch(setPointsBalance(points));
     }
-  }, [user?.season1?.points, isCountdownActive, dispatch]);
+  }, [user?.season1?.points, dispatch]);
 
   useEffect(() => {
-    if (isCountdownActive) return;
-    const limit = user?.season1?.rateLimit?.messagesRemaining;
 
-    if (limit != null && typeof limit === "number") {
+    const limit = user?.season1?.rateLimit;
+    if (limit != null && typeof limit.remaining === "number") {
       dispatch(setRateLimit(user?.season1?.rateLimit));
     }
-  }, [user?.season1?.rateLimit, isCountdownActive, dispatch]);
+  }, [
+    user?.season1?.rateLimit,
+    user?.season1?.rateLimit?.remaining,
+    dispatch,
+  ]);
 
   useEffect(() => {
     if (wasConnectedRef.current && !isConnected) {
       localStorage.removeItem("authToken");
       localStorage.removeItem("authUser");
+      dispatch(setViewingHistorySessionId(null));
+      dispatch(setCurrentMessages([]));
       navigate("/login", { replace: true });
     }
     wasConnectedRef.current = isConnected;
@@ -107,6 +117,8 @@ function LaunchAppLayout() {
     if (prevAddress != null && address != null && prevAddress !== address) {
       localStorage.removeItem("authToken");
       localStorage.removeItem("authUser");
+      dispatch(setViewingHistorySessionId(null));
+      dispatch(setCurrentMessages([]));
       dispatch(resetPoints());
       handleDisconnect();
     }
@@ -189,9 +201,9 @@ function LaunchAppLayout() {
         onDisconnectClick={handleDisconnect}
       />
 
-      <div className="w-full flex-1 pt-20 flex overflow-hidden">
+      <div className="w-full flex-1 pt-20 flex min-h-0">
         <LaunchSidebar />
-        <main className="w-full flex flex-col overflow-hidden">
+        <main className="w-full flex flex-col min-h-0">
           <Outlet />
         </main>
       </div>
