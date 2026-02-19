@@ -20,7 +20,7 @@ export function StakingPage() {
   const stakingOptions = [
     {
       id: 1,
-      name: "AERO Staking",
+      name: "Project 1",
       protocol: "Aerodrome Finance",
       token: "AERO",
       apy: 18.5,
@@ -34,7 +34,7 @@ export function StakingPage() {
     },
     {
       id: 2,
-      name: "VIRTUAL Staking",
+      name: "Project 2",
       protocol: "Virtual Protocol",
       token: "VIRTUAL",
       apy: 22.3,
@@ -48,10 +48,10 @@ export function StakingPage() {
     },
     {
       id: 3,
-      name: "Prime Staking",
+      name: "Project 3",
       protocol: "Lido Finance",
       token: "Prime",
-      apy: 4.2,
+      apy: 42,
       lockPeriod: "Flexible",
       lockDays: 0,
       color: "from-cyan-400 to-cyan-600",
@@ -114,9 +114,9 @@ export function StakingPage() {
     <div className="flex-1 px-6 py-8 portfolio-wrapper ms-auto w-full overflow-y-auto">
       <h2 className="text-3xl font-bold mb-6">Staking</h2>
 
-      <div className="glass-card p-8 text-center text-gray-500">
+      {/* <div className="glass-card p-8 text-center text-gray-500">
         Staking Pools Coming Soon.
-      </div>
+      </div> */}
       {/* {stakedPools.length > 0 && (
         <div className="mb-8">
           <h3 className="text-xl font-bold mb-4">Active Staking</h3>
@@ -206,7 +206,7 @@ export function StakingPage() {
         </div>
       )} */}
 
-      {/* <h3 className="text-xl font-bold mb-4">Staking Opportunities</h3>
+      {/* <h3 className="text-xl font-bold mb-4">Staking Opportunities</h3> */}
       <div className="grid md:grid-cols-3 gap-6">
         {stakingOptions.map((option) => {
           const hasEarnings =
@@ -214,23 +214,22 @@ export function StakingPage() {
           return (
             <div
               key={option.id}
-              className={`glass-card p-6 transition-all duration-200 hover:bg-white/80 hover:shadow-lg hover:border hover:border-gray-200/50 relative overflow-hidden ${
-                hasEarnings
-                  ? "before:content-[''] before:absolute before:inset-0 before:rounded-2xl before:pointer-events-none before:bg-[radial-gradient(ellipse_90%_80%_at_50%_0%,rgba(167,243,208,0.65),rgba(167,243,208,0.2)_50%,transparent_70%),radial-gradient(ellipse_70%_70%_at_85%_80%,rgba(125,211,252,0.55),rgba(125,211,252,0.15)_45%,transparent_65%)]"
-                  : ""
-              }`}
+              className={`glass-card p-6 transition-all duration-200 hover:bg-white/80 hover:shadow-lg hover:border hover:border-gray-200/50 relative overflow-hidden `}
             >
               <div className="relative z-10">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <img
+                    {/* <img
                       src={option.icon}
                       alt=""
                       className="w-12 h-12 rounded-xl"
-                    />
+                    /> */}
+                    <div
+                      className={`w-12 h-12 rounded-full bg-gradient-to-br ${option.color} `}
+                    ></div>
                     <div>
                       <h3 className="font-bold">{option.name}</h3>
-                      <p className="text-sm text-gray-600">{option.protocol}</p>
+                      {/* <p className="text-sm text-gray-600">{option.protocol}</p> */}
                     </div>
                   </div>
                 </div>
@@ -250,15 +249,15 @@ export function StakingPage() {
                 </div>
                 <button
                   onClick={() => handleStake(option)}
-                  className="btn-primary w-full transition-all duration-200 hover:shadow-lg"
+                  className="btn-secondary w-full transition-all duration-200"
                 >
-                  Stake {option.token}
+                  Coming Soon
                 </button>
               </div>
             </div>
           );
         })}
-      </div> */}
+      </div>
       {/* 
       {modalOpen && selectedStaking && (
         <div

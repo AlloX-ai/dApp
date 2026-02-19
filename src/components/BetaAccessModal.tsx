@@ -15,6 +15,13 @@ interface BetaAccessModalProps {
 
 const WALLET_OPTIONS = [
   {
+    name: "Phantom",
+    icon: "https://cdn.allox.ai/allox/wallets/phantom.svg",
+    type: "top",
+    walletType: "phantom",
+    isPhantom: true,
+  },
+  {
     name: "MetaMask",
     icon: "https://cdn.allox.ai/allox/wallets/metamaskConnect.svg",
     type: "top",
@@ -88,9 +95,7 @@ export function BetaAccessModal({
               <p className="text-sm font-medium text-gray-600">
                 Please sign the message in your wallet
               </p>
-              <p className="text-xs text-gray-500">
-                Open MetaMask to complete sign-in
-              </p>
+             
             </div>
           ) : !isConnected ? (
             <div className="space-y-3">

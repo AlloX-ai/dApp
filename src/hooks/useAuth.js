@@ -1,5 +1,7 @@
 import { useCallback, useState } from "react";
+import { useSelector } from "react-redux";
 import { useAccount, useSignMessage } from "wagmi";
+import bs58 from "bs58";
 import { apiCall } from "../utils/api";
 
 const AUTH_USER_KEY = "authUser";
@@ -15,8 +17,13 @@ const loadStoredUser = () => {
 };
 
 export const useAuth = () => {
-  const { address } = useAccount();
+  const { address: evmAddress } = useAccount();
   const { signMessageAsync } = useSignMessage();
+  const walletAddress = useSelector((state) => state.wallet.address);
+  const walletType = useSelector((state) => state.wallet.walletType);
+ const isConnected = useSelector((state) => state.wallet.isConnected);
+  const address =
+    walletType === "phantom" ? walletAddress : (walletAddress ?? evmAddress);
   const [token, setToken] = useState(() => localStorage.getItem("authToken"));
   const [user, setUserState] = useState(loadStoredUser);
 
@@ -31,6 +38,7 @@ export const useAuth = () => {
     } else {
       try {
         localStorage.removeItem(AUTH_USER_KEY);
+      
       } catch (e) {
         console.error(e);
       }
@@ -49,7 +57,22 @@ export const useAuth = () => {
       throw new Error("Missing nonce message");
     }
 
-    const signature = await signMessageAsync({ message });
+    let signature;
+
+    if (walletType === "phantom") {
+      const provider = window.phantom?.solana;
+      if (!provider) throw new Error("Phantom not connected");
+      const encodedMessage = new TextEncoder().encode(message);
+      const signed = await provider.signMessage(encodedMessage, "utf8");
+      const rawSig = signed?.signature ?? signed;
+      signature =
+        typeof rawSig === "string"
+          ? rawSig
+          : bs58.encode(new Uint8Array(rawSig));
+    } else {
+      signature = await signMessageAsync({ message });
+    }
+
     const verifyRes = await apiCall("/auth/verify", {
       method: "POST",
       body: JSON.stringify({ address, signature }),
@@ -66,7 +89,7 @@ export const useAuth = () => {
     }
 
     return { token: verifyRes.token, user: verifyRes.user };
-  }, [address, signMessageAsync, setUser]);
+  }, [address, walletType, signMessageAsync, setUser]);
 
   const claimSeason1 = useCallback(async () => {
     const t = token || localStorage.getItem("authToken");
@@ -86,6 +109,7 @@ export const useAuth = () => {
   const logout = useCallback(() => {
     localStorage.removeItem("authToken");
     localStorage.removeItem(AUTH_USER_KEY);
+    
     setToken(null);
     setUserState(null);
   }, []);

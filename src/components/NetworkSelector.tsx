@@ -1,8 +1,12 @@
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import OutsideClickHandler from "react-outside-click-handler";
 import { toast } from "sonner";
+import { setChainId } from "../redux/slices/walletSlice";
+
+const PREFERRED_CHAIN_STORAGE_KEY = "walletPreferredChainId";
+const SOLANA_CHAIN_ID = 101;
 
 type NetworkOption = {
   name: string;
@@ -24,8 +28,10 @@ type NetworkSelectorProps = {
 };
 
 export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
+  const dispatch = useDispatch();
   const [isOpen, setIsOpen] = useState(false);
   const chainId = useSelector((state: any) => state.wallet.chainId);
+  const walletType = useSelector((state: any) => state.wallet.walletType);
   const errorNetwork: NetworkOption[] = [
     {
       name: "",
@@ -87,30 +93,70 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
 
   const handleSwitchNetwork = async (network: NetworkOption) => {
     if (network.name === "Solana") {
+      try {
+        localStorage.setItem(PREFERRED_CHAIN_STORAGE_KEY, String(SOLANA_CHAIN_ID));
+        dispatch(setChainId(SOLANA_CHAIN_ID));
+      } catch (e) {
+        console.warn("Failed to persist preferred chain", e);
+      }
+      if (walletType !== "phantom") {
+        toast.error(
+          "Solana requires a Solana-capable wallet (e.g. Phantom). Please connect with a Solana wallet.",
+        );
+      } else {
+        const provider = (window as any).phantom?.solana;
+        if (provider) {
+          try {
+            await provider.connect({ onlyIfTrusted: true });
+
+          } catch (err) {
+            console.error("Failed to connect Phantom:", err);
+            // User may have disconnected
+          }
+        }
+      }
+      setIsOpen(false);
+      return;
+    }
+
+    if (network.name === "BNB Chain" && walletType === "phantom") {
       toast.error(
-        "Solana requires a Solana-capable wallet (e.g. Phantom). Please connect with a Solana wallet.",
+        "BNB Chain requires an EVM wallet (e.g. MetaMask). Please connect with an EVM wallet.",
       );
       setIsOpen(false);
       return;
     }
 
-    const ethereum = (window as any).ethereum;
-    if (!ethereum) {
-      toast.error("MetaMask not detected.");
+    const provider =
+      (window as any).phantom?.ethereum ?? (window as any).ethereum;
+
+    if (!provider) {
+      toast.error("No EVM wallet detected (Phantom or MetaMask).");
       return;
     }
 
     try {
-      await ethereum.request({
+      await provider.request({
         method: "wallet_switchEthereumChain",
         params: [{ chainId: network.chainHex }],
       });
+
+      // Ensure an EVM account is connected (Phantom EVM or other EVM wallet)
+      try {
+        await provider.request({ method: "eth_requestAccounts" });
+      } catch (accountsError) {
+        console.error("Failed to request EVM accounts:", accountsError);
+      }
+
+      dispatch(setChainId(network.chainId));
+      localStorage.removeItem(PREFERRED_CHAIN_STORAGE_KEY)
       setIsOpen(false);
     } catch (error) {
       const walletError = error as { code?: number };
+
       if (walletError?.code === 4902) {
         try {
-          await ethereum.request({
+          await provider.request({
             method: "wallet_addEthereumChain",
             params: [
               {
@@ -122,6 +168,8 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
               },
             ],
           });
+
+          dispatch(setChainId(network.chainId));
           setIsOpen(false);
           return;
         } catch (addError) {
@@ -130,6 +178,7 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
       } else {
         console.error("Network switch error:", error);
       }
+
       toast.error("Failed to switch network.");
     }
   };

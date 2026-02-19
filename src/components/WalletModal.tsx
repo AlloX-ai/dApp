@@ -11,12 +11,18 @@ export function WalletModal({ isOpen, onClose, onConnect }: WalletModalProps) {
 
   const wallets = [
     {
+      name: "Phantom",
+      icon: "https://cdn.allox.ai/allox/wallets/phantom.svg",
+      type: "top",
+      walletType: "phantom",
+      isPhantom: true,
+    },
+    {
       name: "MetaMask",
       icon: "https://cdn.allox.ai/allox/wallets/metamaskConnect.svg",
       type: "top",
       walletType: "metamask",
     },
-
     {
       name: "OKX Wallet",
       icon: "https://cdn.allox.ai/allox/wallets/okxConnect.svg",
@@ -29,7 +35,6 @@ export function WalletModal({ isOpen, onClose, onConnect }: WalletModalProps) {
       type: "top",
       walletType: "trust",
     },
-   
     {
       name: "WalletConnect",
       icon: "https://cdn.allox.ai/allox/wallets/walletConnect.svg",

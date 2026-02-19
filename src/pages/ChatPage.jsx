@@ -61,12 +61,18 @@ export function ChatPage() {
 
     if (aiMessages.length === 0) return;
 
+    const lastAiMessage = aiMessages[aiMessages.length - 1];
+
     setDisplayedTextById((prev) => {
       const next = { ...prev };
       aiMessages.forEach((msg) => {
         if (next[msg.id] === undefined) {
-          next[msg.id] = msg.content;
-          completedMessageIdsRef.current.add(msg.id);
+          if (msg.id === lastAiMessage.id) {
+            next[msg.id] = "";
+          } else {
+            next[msg.id] = msg.content;
+            completedMessageIdsRef.current.add(msg.id);
+          }
         }
       });
       return next;
@@ -91,8 +97,11 @@ export function ChatPage() {
     dispatch(setWalletModal(nextValue));
   };
 
+  const hasAlreadyClaimed = authUser?.season1?.claimed === true;
   const needsToClaimPoints =
-    isConnected && (pointsBalance == null || pointsBalance === 0);
+    isConnected &&
+    !hasAlreadyClaimed &&
+    (pointsBalance == null || pointsBalance === 0);
   const handleClaimPoints = async () => {
     setClaimError(null);
     setClaiming(true);
@@ -301,12 +310,14 @@ export function ChatPage() {
     [sendChatMessage],
   );
 
-  // Open claim popup only when countdown is finished and user needs to claim
+  // Open claim popup only when user has not already claimed and needs to claim
   useEffect(() => {
     if (needsToClaimPoints && !userDismissedClaimModal) {
       setShowWelcomeGiftModal(true);
+    } else if (hasAlreadyClaimed) {
+      setShowWelcomeGiftModal(false);
     }
-  }, [needsToClaimPoints, userDismissedClaimModal]);
+  }, [needsToClaimPoints, userDismissedClaimModal, hasAlreadyClaimed]);
 
   useEffect(() => {
     scrollToBottom(); // Scroll to the bottom when messages update

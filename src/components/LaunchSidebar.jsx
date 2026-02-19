@@ -60,6 +60,25 @@ export function LaunchSidebar() {
             );
           })}
         </div>
+        <div className="px-4 pb-4 mt-auto">
+          <div className="relative overflow-hidden bg-gradient-to-br from-purple-500 via-blue-500 to-purple-600 rounded-2xl p-4 shadow-lg">
+            {/* Decorative elements */}
+            <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-12 -mt-12"></div>
+            <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/10 rounded-full -ml-8 -mb-8"></div>
+
+            <div className="relative z-10">
+              <div className="text-white/90 text-xs font-semibold mb-1">
+                Daily Bonus
+              </div>
+              <div className="text-white font-bold text-sm mb-3">
+                Get extra 400 points
+              </div>
+              <button className="w-full bg-white text-purple-600 font-semibold text-sm py-2 px-4 rounded-xl hover:bg-white/90 transition-all shadow-md">
+                Claim
+              </button>
+            </div>
+          </div>
+        </div>
       </aside>
     </>
   );

@@ -104,21 +104,26 @@ export function Header({
                 >
                   <div className="flex flex-col gap-2 p-3 w-fit">
                     <span className="flex gap-2">
-                      <Sparkles
-                        className="text-amber-500 size-4 shrink-0"
-                        strokeWidth={2}
-                      />{" "}
                       Earn points by getting started and staying active.
                     </span>
-                    <span>Welcome bonus 5000 points.</span>
-                    <span>
-                      Create a Narrative Portfolio and earn 250 points each.
+
+                    <span className="flex gap-2 items-center">
+                      {" "}
+                      <div className="w-1.5 h-1.5 bg-blue-600 rounded-full"></div>
+                      Welcome Points: 5,000
                     </span>
-                    <span>
-                      Send chat messages and earn 25 points per message.
+                    <span className="flex gap-2 items-center">
+                      <div className="w-1.5 h-1.5 bg-blue-600 rounded-full"></div>
+                      Narrative Portfolio: 250 each
+                    </span>
+                    <span className="flex gap-2 items-center">
+                      <div className="w-1.5 h-1.5 bg-blue-600 rounded-full"></div>
+                      Chat Message: 25 each
                     </span>
                     <div className="border-t border-gray-200 w-full my-1"></div>
-                    <span>Up to 100 messages allowed every 24 hours.</span>
+                    <span className="flex gap-2 items-center">
+                      Limit 100 messages per 24 hours
+                    </span>
                   </div>
                 </TooltipContent>
               </Tooltip>
@@ -208,6 +213,33 @@ export function Header({
                               )}
                               {shortAddress(coinbase)}
                             </span>
+                          </div>
+                        )}
+                        {isConnected && (
+                          <div className="px-4 pb-4 mt-auto">
+                            <div className="relative overflow-hidden bg-gradient-to-br from-purple-500 via-blue-500 to-purple-600 rounded-2xl p-4 shadow-lg">
+                              {/* Decorative elements */}
+                              <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-12 -mt-12"></div>
+                              <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/10 rounded-full -ml-8 -mb-8"></div>
+
+                              <div className="relative items-center z-10 flex gap-2 w-full">
+                                <div className="w-full">
+                                  <div className="text-white/90 text-xs font-semibold mb-1">
+                                    Daily Bonus
+                                  </div>
+                                  <div className="text-white font-bold text-sm mb-3">
+                                    Get extra 400 points
+                                  </div>
+                                </div>
+
+                                <button
+                                  onClick={() => setIsMenuOpen(false)}
+                                  className="w-full bg-white text-purple-600 font-semibold text-sm py-2 px-4 rounded-xl hover:bg-white/90 transition-all shadow-md"
+                                >
+                                  Claim
+                                </button>
+                              </div>
+                            </div>
                           </div>
                         )}
                       </div>
