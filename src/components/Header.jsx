@@ -14,6 +14,9 @@ import {
 } from "lucide-react";
 import { NetworkSelector } from "./NetworkSelector";
 import { shortAddress } from "../hooks/shortAddress";
+import { useCheckin } from "../hooks/useCheckin";
+import { useTotalPoints } from "../hooks/useTotalPoints";
+import { CheckinModal } from "./CheckinModal";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { navigationTabs, isActivePath } from "../constants/navigation";
 import OutsideClickHandler from "react-outside-click-handler/build/OutsideClickHandler";
@@ -26,15 +29,28 @@ export function Header({
 }) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const pointsBalance = useSelector((state) => state.points?.balance);
   const rateLimit = useSelector((state) => state.chat?.rateLimit);
+  const { totalPoints } = useTotalPoints();
 
   const messagesRemaining =
     rateLimit?.remaining ?? rateLimit?.messagesRemaining;
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-
   const [showTooltip, setShowTooltip] = useState(false);
+  const [checkinModalOpen, setCheckinModalOpen] = useState(false);
+
+  const {
+    status: checkinStatus,
+    checkedInToday,
+    loading: checkinLoading,
+    claim,
+    fetchStatus,
+  } = useCheckin();
+
+  const openCheckinModal = () => {
+    setCheckinModalOpen(true);
+    setIsMenuOpen(false);
+  };
 
   const handleLaunchClick = () => {
     setShowTooltip(true);
@@ -66,7 +82,7 @@ export function Header({
           }}
         >
           <div className="flex items-center gap-4">
-            {pointsBalance != null && pointsBalance >= 0 && isConnected && (
+            {totalPoints >= 0 && isConnected && (
               <Tooltip
                 open={showTooltip}
                 // onOpenChange={(open) => {
@@ -83,7 +99,7 @@ export function Header({
                       <Gem className="size-4 text-amber-500" />
 
                       <span className="text-sm font-semibold tabular-nums">
-                        {pointsBalance.toLocaleString()}
+                        {totalPoints.toLocaleString()}
                       </span>
                     </div>
                     {messagesRemaining != null && (
@@ -228,13 +244,16 @@ export function Header({
                                     Daily Bonus
                                   </div>
                                   <div className="text-white font-bold text-sm mb-3">
-                                    Get extra 400 points
+                                    {checkedInToday
+                                      ? `Already claimed today${checkedInToday.pointsAwarded != null ? ` (+${checkedInToday.pointsAwarded} pts)` : ""}`
+                                      : "Get up to 5,000 points (1–7 days)"}
                                   </div>
                                 </div>
 
                                 <button
-                                  onClick={() => setIsMenuOpen(false)}
-                                  className="w-full bg-white text-purple-600 font-semibold text-sm py-2 px-4 rounded-xl hover:bg-white/90 transition-all shadow-md"
+                                  onClick={openCheckinModal}
+                                  disabled={!isConnected}
+                                  className="w-full bg-white text-purple-600 font-semibold text-sm py-2 px-4 rounded-xl hover:bg-white/90 transition-all shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
                                 >
                                   Claim
                                 </button>
@@ -250,6 +269,15 @@ export function Header({
             </div>
           </div>
         </OutsideClickHandler>
+
+        <CheckinModal
+          open={checkinModalOpen}
+          onClose={() => setCheckinModalOpen(false)}
+          status={checkinStatus}
+          claim={claim}
+          fetchStatus={fetchStatus}
+          loading={checkinLoading}
+        />
       </div>
     </header>
   );

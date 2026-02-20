@@ -21,7 +21,7 @@ export const useAuth = () => {
   const { signMessageAsync } = useSignMessage();
   const walletAddress = useSelector((state) => state.wallet.address);
   const walletType = useSelector((state) => state.wallet.walletType);
- const isConnected = useSelector((state) => state.wallet.isConnected);
+  
   const address =
     walletType === "phantom" ? walletAddress : (walletAddress ?? evmAddress);
   const [token, setToken] = useState(() => localStorage.getItem("authToken"));

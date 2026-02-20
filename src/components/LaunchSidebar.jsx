@@ -1,7 +1,11 @@
+import { useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useDispatch, useSelector } from "react-redux";
-import { Plus } from "lucide-react";
+import { Plus, Gem } from "lucide-react";
 import { navigationTabs, isActivePath } from "../constants/navigation";
+import { useCheckin } from "../hooks/useCheckin";
+import { useTotalPoints } from "../hooks/useTotalPoints";
+import { CheckinModal } from "./CheckinModal";
 import {
   setCurrentMessages,
   setViewingHistorySessionId,
@@ -11,8 +15,20 @@ export function LaunchSidebar() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { pathname } = useLocation();
+  const isConnected = useSelector((state) => state.wallet.isConnected);
   const currentMessages = useSelector((state) => state.chat.currentMessages);
   const hasChatContent = currentMessages?.length > 0;
+
+  const [checkinModalOpen, setCheckinModalOpen] = useState(false);
+
+  
+  const {
+    status: checkinStatus,
+    checkedInToday,
+    loading: checkinLoading,
+    claim,
+    fetchStatus,
+  } = useCheckin();
 
   const handleNewChat = (e) => {
     e.stopPropagation();
@@ -23,7 +39,7 @@ export function LaunchSidebar() {
 
   return (
     <>
-      <aside className="hidden md:block h-full fixed top-20 bottom-0 left-0 w-[276px] border-r border-gray-200/50 bg-pattern/95">
+      <aside className="hidden md:block h-full fixed top-20 bottom-0 left-0 w-69 border-r border-gray-200/50 bg-pattern/95">
         <div className="p-6 space-y-2">
           {navigationTabs.map(({ id, label, path, Icon }) => {
             const isActive = isActivePath(pathname, path);
@@ -60,25 +76,51 @@ export function LaunchSidebar() {
             );
           })}
         </div>
-        <div className="px-4 pb-4 mt-auto">
-          <div className="relative overflow-hidden bg-gradient-to-br from-purple-500 via-blue-500 to-purple-600 rounded-2xl p-4 shadow-lg">
-            {/* Decorative elements */}
-            <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-12 -mt-12"></div>
-            <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/10 rounded-full -ml-8 -mb-8"></div>
+        {isConnected && (
+          <div className="px-4 pb-4 mt-auto space-y-3">
+            {/* <div className="glass-card px-4 py-3 flex items-center justify-between gap-2">
+              <span className="text-xs font-semibold text-neutral-600">
+                Total points
+              </span>
+              <span className="flex items-center gap-1.5 text-sm font-bold tabular-nums text-amber-600">
+                <Gem className="size-4 text-amber-500" />
+                {totalPoints.toLocaleString()}
+              </span>
+            </div> */}
+            <div className="relative overflow-hidden bg-gradient-to-br from-purple-500 via-blue-500 to-purple-600 rounded-2xl p-4 shadow-lg">
+              {/* Decorative elements */}
+              <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-12 -mt-12"></div>
+              <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/10 rounded-full -ml-8 -mb-8"></div>
 
-            <div className="relative z-10">
-              <div className="text-white/90 text-xs font-semibold mb-1">
-                Daily Bonus
+              <div className="relative z-10">
+                <div className="text-white/90 text-xs font-semibold mb-1">
+                  Daily Bonus
+                </div>
+                <div className="text-white font-bold text-sm mb-3">
+                  {checkedInToday
+                    ? `Already claimed today${checkedInToday.pointsAwarded != null ? ` (+${checkedInToday.pointsAwarded} pts)` : ""}`
+                    : "Get up to 5,000 points (1–7 days)"}
+                </div>
+                <button
+                  onClick={() => setCheckinModalOpen(true)}
+                  disabled={!isConnected}
+                  className="w-full bg-white text-purple-600 font-semibold text-sm py-2 px-4 rounded-xl hover:bg-white/90 transition-all shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  Claim
+                </button>
               </div>
-              <div className="text-white font-bold text-sm mb-3">
-                Get extra 400 points
-              </div>
-              <button className="w-full bg-white text-purple-600 font-semibold text-sm py-2 px-4 rounded-xl hover:bg-white/90 transition-all shadow-md">
-                Claim
-              </button>
             </div>
           </div>
-        </div>
+        )}
+
+        <CheckinModal
+          open={checkinModalOpen}
+          onClose={() => setCheckinModalOpen(false)}
+          status={checkinStatus}
+          claim={claim}
+          fetchStatus={fetchStatus}
+          loading={checkinLoading}
+        />
       </aside>
     </>
   );
