@@ -69,6 +69,10 @@ button {
   padding-bottom: 150px !important;
 }
 
+.chat-padding-readonly {
+  padding-bottom: 230px !important;
+}
+
 .glass-card {
   -webkit-backdrop-filter: blur(20px);
   background: #ffffffb3;

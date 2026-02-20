@@ -183,6 +183,62 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
     }
   };
 
+  const handleSwitchNetworkEVM = async (network: NetworkOption) => {
+    if (network.name === "Solana") {
+      toast.error(
+        "Solana requires a Solana-capable wallet (e.g. Phantom). Please connect with a Solana wallet.",
+      );
+      setIsOpen(false);
+      return;
+    }
+
+    const ethereum = (window as any).ethereum;
+    if (!ethereum) {
+      toast.error("MetaMask not detected.");
+      return;
+    }
+
+    try {
+      await ethereum.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: network.chainHex }],
+      });
+      setIsOpen(false);
+    } catch (error) {
+      const walletError = error as { code?: number };
+      if (walletError?.code === 4902) {
+        try {
+          await ethereum.request({
+            method: "wallet_addEthereumChain",
+            params: [
+              {
+                chainId: network.chainHex,
+                chainName: network.chainName,
+                rpcUrls: network.rpcUrls,
+                blockExplorerUrls: network.blockExplorerUrls,
+                nativeCurrency: network.nativeCurrency,
+              },
+            ],
+          });
+          setIsOpen(false);
+          return;
+        } catch (addError) {
+          console.error("Network add error:", addError);
+        }
+      } else {
+        console.error("Network switch error:", error);
+      }
+      toast.error("Failed to switch network.");
+    }
+  };
+
+  const manageSwitchNetwork = (network: NetworkOption) => {
+    if (walletType === "phantom") {
+      handleSwitchNetwork(network);
+    } else {
+      handleSwitchNetworkEVM(network);
+    }
+  }
   return (
     <div className="relative">
       <button
@@ -208,7 +264,7 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
               {networks.map((network) => (
                 <button
                   key={network.name}
-                  onClick={() => handleSwitchNetwork(network)}
+                  onClick={() => manageSwitchNetwork(network)}
                   className={`w-full flex hover:bg-black/5 hover:shadow-sm items-center gap-3 px-4 py-3 rounded-xl text-sm transition-colors ${selectedNetwork?.name === network.name
                     ? "bg-black text-white font-medium hover:bg-gray-800"
                     : "hover:bg-black/5"

@@ -443,7 +443,7 @@ export function ChatPage() {
         price: match[4],
         marketCap: match[5],
         vol24h: match[6],
-        change24h: null,
+        change24h: match[7],
       };
     }
     // Comma format (Market Cap:, 24h Vol:, optional 24h Change)
@@ -462,6 +462,52 @@ export function ChatPage() {
       };
     }
     return null;
+  };
+
+  // Parse token comparison bullet: "- **RENDER** (Render): $1.47 USD | MC: $765M | Vol: $43M | Change: +13.15%"
+  const parseTokenCompareLine = (line) => {
+    const trimmed = line.trim().replace(/^[-•]\s*/, "");
+    const match = trimmed.match(
+      /^\*\*([A-Z0-9]+)\*\*\s*\(([^)]+)\):\s*\$?([\d,.]+)\s*USD\s*\|\s*MC:\s*\$?([\d.]+[BMK]?)\s*\|\s*Vol:\s*\$?([\d.]+[BMK]?)\s*\|\s*Change:\s*([+-][\d.]+)%\s*$/i,
+    );
+    if (!match) return null;
+    return {
+      ticker: match[1],
+      name: match[2].trim(),
+      price: match[3],
+      marketCap: match[4],
+      vol: match[5],
+      change: match[6],
+    };
+  };
+
+  // Parse "core narratives" bullet: "- **AI**: Decentralized AI (RENDER; +152% 7d/+134% 24h—top performer)."
+  const parseCoreNarrativeLine = (line) => {
+    const trimmed = line.trim().replace(/^[-•]\s*/, "");
+    const match = trimmed.match(/^\*\*([^*]+)\*\*:\s*(.+)$/);
+    if (!match) return null;
+    const name = match[1].trim();
+    const description = match[2].trim();
+    const pct7d = description.match(/([+-][\d.]+%)\s*7d/)?.[1] ?? null;
+    const pct24h = description.match(/([+-][\d.]+%)\s*24h/)?.[1] ?? null;
+    return { name, description, pct7d, pct24h };
+  };
+
+  // Parse narrative performance line: "- **AI** (192 tokens): +133.86% | MC: $5.91B | Vol: $953M | MEDIUM"
+  const parseNarrativeListLine = (line) => {
+    const trimmed = line.trim().replace(/^[-•]\s*/, "");
+    const match = trimmed.match(
+      /^\*\*([^*]+)\*\*\s*\(([^)]+)\):\s*([+-][\d.]+%)\s*\|\s*MC:\s*\$?([\d.]+[BMK]?)\s*\|\s*Vol:\s*\$?([\d.]+[BMK]?)\s*\|\s*(.+)$/i,
+    );
+    if (!match) return null;
+    return {
+      name: match[1].trim(),
+      description: match[2].trim(),
+      changePct: match[3],
+      marketCap: match[4],
+      vol: match[5],
+      risk: match[6].trim(),
+    };
   };
 
   const parseMarkdownTable = (tableLines) => {
@@ -513,8 +559,57 @@ export function ChatPage() {
       );
     };
 
+    // Split content by ±X% (optional " 7d" or " 24h") and render green (+) / red (-); text parts get renderInlineBold
+    // Handles: "+152% 7d", "+134% 24h", "-2% 7d", "+65% 7d" (core narratives format) and plain "+12.5%"
+    const renderWithPercentageColors = (content) => {
+      const percentageRegex = /([+-][\d.]+%(?:\s*(?:7d|24h))?)/g;
+      const parts = content.split(percentageRegex);
+      if (parts.length === 1) return renderInlineBold(content);
+      return parts.map((part, index) => {
+        if (index % 2 === 1) {
+          const isPositive = part.startsWith("+");
+          return (
+            <span
+              key={index}
+              className={
+                isPositive
+                  ? "text-green-600 font-medium"
+                  : "text-red-600 font-medium"
+              }
+            >
+              {part}
+            </span>
+          );
+        }
+        return renderInlineBold(part);
+      });
+    };
+
     // Render bullet content; color "Change: ±X%" green/red when it appears (with or without "| " prefix, or as full line "**Change**: ±X%")
     const renderBulletContent = (content) => {
+      // Narrative line: "**AI** (192 tokens): +152.78% | MC: ..." or "**Gaming**" (no stats)
+      const narrativeMatch = content.match(
+        /^(\*\*[^*]+\*\*(?:\s*\([^)]*\))?):\s*([+-][\d.]+%)(.*)$/,
+      );
+      if (narrativeMatch) {
+        const [, labelPart, pct, rest] = narrativeMatch;
+        const isPositive = pct.startsWith("+");
+        return (
+          <>
+            {renderInlineBold(labelPart)}:{" "}
+            <span
+              className={
+                isPositive
+                  ? "text-green-600 font-semibold"
+                  : "text-red-600 font-semibold"
+              }
+            >
+              {pct}
+            </span>
+            {rest ? renderInlineBold(rest) : null}
+          </>
+        );
+      }
       // Full line: "**Change**: -0.3%" or "**24h Change**: +0.45%"
       let changeMatch = content.match(
         /^\*\*((?:24h |7d )?Change)\*\*:\s*([+-]?[\d.]+)%/,
@@ -564,7 +659,7 @@ export function ChatPage() {
           </>
         );
       }
-      return renderInlineBold(content);
+      return renderWithPercentageColors(content);
     };
 
     while (i < lines.length) {
@@ -646,6 +741,274 @@ export function ChatPage() {
           </div>,
         );
         i = j;
+        continue;
+      }
+
+      // Narrative performance block: consecutive bullet lines "- **AI** (192 tokens): +133.86% | MC: $5.91B | Vol: $953M | MEDIUM"
+      const narrativeEntries = [];
+      let jNarr = i;
+      while (jNarr < lines.length) {
+        const t = lines[jNarr].trim();
+        if (!t.startsWith("- ") && !t.startsWith("• ")) break;
+        const parsed = parseNarrativeListLine(lines[jNarr]);
+        if (!parsed) break;
+        narrativeEntries.push(parsed);
+        jNarr++;
+      }
+      if (narrativeEntries.length > 0) {
+        pushBullets();
+        blocks.push(
+          <div
+            key={`narrative-table-${blocks.length}`}
+            className="my-4 rounded-xl border border-gray-200 bg-white/80 shadow-sm overflow-hidden"
+          >
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[480px] text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200 bg-gray-50/80">
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700">
+                      Narrative
+                    </th>
+                    <th className="px-4 py-3 text-right font-semibold text-gray-700">
+                      7d %
+                    </th>
+                    <th className="px-4 py-3 text-right font-semibold text-gray-700">
+                      MC
+                    </th>
+                    <th className="px-4 py-3 text-right font-semibold text-gray-700">
+                      Vol
+                    </th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700">
+                      Risk
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {narrativeEntries.map((entry, idx) => (
+                    <tr
+                      key={idx}
+                      className="border-b border-gray-100 last:border-0 hover:bg-gray-50/50"
+                    >
+                      <td className="px-4 py-2.5">
+                        <span className="font-bold text-gray-900">
+                          {entry.name}
+                        </span>
+                        <span className="text-gray-500 text-xs ml-1">
+                          ({entry.description})
+                        </span>
+                      </td>
+                      <td
+                        className={`text-right font-semibold ${
+                          entry.changePct.startsWith("+")
+                            ? "text-green-600"
+                            : "text-red-600"
+                        }`}
+                      >
+                        {entry.changePct}
+                      </td>
+                      <td className="text-right font-medium text-gray-800">
+                        ${entry.marketCap}
+                      </td>
+                      <td className="text-right font-medium text-gray-800">
+                        ${entry.vol}
+                      </td>
+                      <td className="px-4 py-2.5 font-medium text-gray-700">
+                        {entry.risk.replace(/_/g, " ")}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>,
+        );
+        i = jNarr;
+        continue;
+      }
+
+      // Token comparison block: "- **RENDER** (Render): $1.47 USD | MC: $765M | Vol: $43M | Change: +13.15%" + optional "  (description)"
+      const tokenCompareEntries = [];
+      let jCompare = i;
+      while (jCompare < lines.length) {
+        const t = lines[jCompare].trim();
+        if (!t.startsWith("- ") && !t.startsWith("• ")) break;
+        const parsed = parseTokenCompareLine(lines[jCompare]);
+        if (!parsed) break;
+        const entry = { ...parsed, description: null };
+        jCompare++;
+        const descLine =
+          jCompare < lines.length
+            ? lines[jCompare].match(/^\s*\(([^)]+)\)\.?\s*$/)
+            : null;
+        if (descLine) {
+          entry.description = descLine[1].trim();
+          jCompare++;
+        }
+        tokenCompareEntries.push(entry);
+      }
+      if (tokenCompareEntries.length > 0) {
+        pushBullets();
+        blocks.push(
+          <div
+            key={`token-compare-table-${blocks.length}`}
+            className="my-4 rounded-xl border border-gray-200 bg-white/80 shadow-sm overflow-hidden"
+          >
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[560px] text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200 bg-gray-50/80">
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700">
+                      Token
+                    </th>
+                    <th className="px-4 py-3 text-right font-semibold text-gray-700">
+                      Price
+                    </th>
+                    <th className="px-4 py-3 text-right font-semibold text-gray-700">
+                      MC
+                    </th>
+                    <th className="px-4 py-3 text-right font-semibold text-gray-700">
+                      Vol
+                    </th>
+                    <th className="px-4 py-3 text-right font-semibold text-gray-700">
+                      Change
+                    </th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700">
+                      Description
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tokenCompareEntries.map((entry, idx) => (
+                    <tr
+                      key={idx}
+                      className="border-b border-gray-100 last:border-0 hover:bg-gray-50/50"
+                    >
+                      <td className="px-4 py-2.5">
+                        <span className="font-bold text-gray-900">
+                          {entry.ticker}
+                        </span>
+                        <span className="text-gray-500 text-xs ml-1">
+                          ({entry.name})
+                        </span>
+                      </td>
+                      <td className="text-right font-medium text-gray-900">
+                        ${entry.price} USD
+                      </td>
+                      <td className="text-right font-medium text-gray-800">
+                        ${entry.marketCap}
+                      </td>
+                      <td className="text-right font-medium text-gray-800">
+                        {entry.vol}
+                      </td>
+                      <td
+                        className={`text-right font-semibold ${
+                          entry.change.startsWith("+")
+                            ? "text-green-600"
+                            : "text-red-600"
+                        }`}
+                      >
+                        {entry.change}%
+                      </td>
+                      <td className="px-4 py-2.5 text-gray-600 text-xs">
+                        {entry.description ?? "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>,
+        );
+        i = jCompare;
+        continue;
+      }
+
+      // Core narratives block: "- **AI**: Decentralized AI (RENDER; +152% 7d/+134% 24h—top performer)."
+      const coreNarrativeEntries = [];
+      let jCore = i;
+      while (jCore < lines.length) {
+        const t = lines[jCore].trim();
+        if (!t.startsWith("- ") && !t.startsWith("• ")) break;
+        const parsed = parseCoreNarrativeLine(lines[jCore]);
+        if (!parsed) break;
+        coreNarrativeEntries.push(parsed);
+        jCore++;
+      }
+      if (coreNarrativeEntries.length > 0) {
+        pushBullets();
+        blocks.push(
+          <div
+            key={`core-narrative-table-${blocks.length}`}
+            className="my-4 rounded-xl border border-gray-200 bg-white/80 shadow-sm overflow-hidden"
+          >
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[520px] text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200 bg-gray-50/80">
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700">
+                      Narrative
+                    </th>
+                    <th className="px-4 py-3 text-right font-semibold text-gray-700 w-20">
+                      7d
+                    </th>
+                    <th className="px-4 py-3 text-right font-semibold text-gray-700 w-20">
+                      24h
+                    </th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700">
+                      Description
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {coreNarrativeEntries.map((entry, idx) => (
+                    <tr
+                      key={idx}
+                      className="border-b border-gray-100 last:border-0 hover:bg-gray-50/50"
+                    >
+                      <td className="px-4 py-2.5 font-bold text-gray-900 align-top">
+                        {entry.name}
+                      </td>
+                      <td className="px-4 py-2.5 text-right align-top">
+                        {entry.pct7d != null ? (
+                          <span
+                            className={
+                              entry.pct7d.startsWith("+")
+                                ? "text-green-600 font-semibold"
+                                : "text-red-600 font-semibold"
+                            }
+                          >
+                            {entry.pct7d}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2.5 text-right align-top">
+                        {entry.pct24h != null ? (
+                          <span
+                            className={
+                              entry.pct24h.startsWith("+")
+                                ? "text-green-600 font-semibold"
+                                : "text-red-600 font-semibold"
+                            }
+                          >
+                            {entry.pct24h}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2.5 text-gray-700 align-top">
+                        {renderWithPercentageColors(entry.description)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>,
+        );
+        i = jCore;
         continue;
       }
 
@@ -775,7 +1138,7 @@ export function ChatPage() {
 
         {currentMessages.length > 0 && (
           <div
-            className="py-8 px-6 max-w-[1000px] mx-auto w-full space-y-6 chat-padding"
+            className={`py-8 px-6 max-w-[1000px] mx-auto w-full space-y-6 ${isReadOnly ? "chat-padding-readonly" : "chat-padding"}`}
             ref={speechBoxRef}
           >
             {currentMessages.map((msg, index) => {
