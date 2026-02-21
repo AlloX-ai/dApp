@@ -1,8 +1,15 @@
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
+const CONFETTI_POSITIONS = [...Array(8)].map(() => ({
+  left: Math.random() * 100,
+  x: (Math.random() - 0.5) * 60,
+}));
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
-import { Check, Lock, Gift, X } from "lucide-react";
+import { X, Gift, Check, Lock, Sparkles, Package } from "lucide-react";
+// eslint-disable-next-line no-unused-vars -- motion used as namespace in JSX (motion.div)
+import { motion, AnimatePresence } from "motion/react";
 
+const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const DEFAULT_REWARDS = [500, 1000, 1500, 2000, 2500, 4000, 5000].map(
   (points, i) => ({
     day: i + 1,
@@ -10,164 +17,471 @@ const DEFAULT_REWARDS = [500, 1000, 1500, 2000, 2500, 4000, 5000].map(
     claimed: false,
     current: i === 0,
     locked: i > 0,
-  })
+  }),
 );
 
-function formatTimeUntil(seconds) {
-  if (seconds == null || seconds < 0) return "";
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  if (h > 0) return `${h}h ${m}m`;
-  return `${m}m`;
+function mapStatusToWeekDays(rewards) {
+  const items = rewards ?? DEFAULT_REWARDS;
+  return items.map((r) => {
+    const status = r.claimed ? "claimed" : r.current ? "active" : "locked";
+    return {
+      day: DAY_NAMES[(r.day ?? 0) - 1] ?? `Day ${r.day}`,
+      points: r.points ?? 0,
+      status,
+      dayNumber: r.day ?? 0,
+    };
+  });
 }
 
 export function CheckinModal({
   open,
+  isOpen,
   onClose,
   status,
   claim,
   fetchStatus,
   loading,
 }) {
-  const [claiming, setClaiming] = useState(false);
-  const rewards = status?.rewards ?? DEFAULT_REWARDS;
-  const canCheckIn = status?.canCheckIn === true;
-  const secondsUntilReset = status?.secondsUntilReset ?? 0;
-  const totalPointsEarned = status?.totalPointsEarned ?? 0;
-  const lifetimeCheckIns = status?.lifetimeCheckIns ?? 0;
+  const isOpenState = open ?? isOpen ?? false;
+
+  const [justClaimed, setJustClaimed] = useState(false);
+  const [selectedDay, setSelectedDay] = useState(null);
+
+  const weekDays = useMemo(
+    () => mapStatusToWeekDays(status?.rewards),
+    [status?.rewards],
+  );
+  const totalPointsCollected = status?.totalPointsEarned ?? 0;
+  const giftsCollected = status?.lifetimeCheckIns ?? 0;
+
+  const activeDay = weekDays.find((day) => day.status === "active");
+  const displayDay = selectedDay ?? activeDay;
 
   const handleClaim = async () => {
-    const currentReward = rewards.find((r) => r.current && !r.claimed);
-    if (!currentReward || !canCheckIn) return;
-    setClaiming(true);
+    if (!activeDay || justClaimed || loading || status?.canCheckIn !== true)
+      return;
     try {
       await claim();
-      toast.success(`Day ${currentReward.day} claimed! +${currentReward.points} points.`);
       await fetchStatus();
+      toast.success(
+        `Day ${activeDay.dayNumber} claimed! +${activeDay.points} points.`,
+      );
+      setSelectedDay({ ...activeDay, status: "claimed" });
+      setJustClaimed(true);
+      setTimeout(() => setJustClaimed(false), 2500);
     } catch (err) {
       const msg =
-        err?.message ||
-        err?.data?.message ||
-        (typeof err?.data?.error === "string" ? err.data.error : "Claim failed");
+        err?.message ??
+        err?.data?.message ??
+        (typeof err?.data?.error === "string"
+          ? err.data.error
+          : "Claim failed");
       toast.error(msg);
-    } finally {
-      setClaiming(false);
+      setJustClaimed(false);
     }
   };
 
-  if (!open) return null;
+  const handleDayClick = (day) => {
+    console.log(day);
+    if (day.status === "claimed" || day.status === "active") {
+      setSelectedDay(day);
+    }
+  };
+
+  const isClaimedView = selectedDay?.status === "claimed" && !justClaimed;
+  const isJustClaimed =
+    justClaimed && displayDay?.dayNumber === activeDay?.dayNumber;
+
+  useEffect(() => {
+    if (!isOpenState) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [isOpenState]);
 
   const modalContent = (
-    <div
-      className="fixed inset-0 z-[200] flex items-center justify-center p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="checkin-modal-title"
-    >
-      {/* Backdrop - covers header, sidebar, chat input, everything */}
-      <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-md"
-        onClick={onClose}
-      />
-
-      {/* Popup content */}
-      <div
-        className="relative z-10 glass-card w-full max-w-md p-6 animate-in fade-in-0 zoom-in-95 duration-200"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between mb-4">
-          <h2
-            id="checkin-modal-title"
-            className="flex items-center gap-2 text-lg font-semibold text-neutral-900"
-          >
-            <Gift className="size-5 text-amber-500" />
-            Daily Check-in
-          </h2>
-          <button
-            type="button"
+    <AnimatePresence>
+      {isOpenState && (
+        <>
+          {/* Backdrop - full viewport on mobile including safe areas */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             onClick={onClose}
-            className="p-2 rounded-lg hover:bg-black/5 transition-colors text-neutral-500 hover:text-neutral-700"
-            aria-label="Close"
-          >
-            <X className="size-5" />
-          </button>
-        </div>
+            className="fixed inset-0 min-h-[100dvh] bg-black/60 backdrop-blur-md z-[200]"
+          />
 
-        <p className="text-sm text-neutral-600 mb-4">
-          Claim your daily reward. Consecutive days earn more points (Day 1–7: 500 → 5,000).
-        </p>
+          {/* Modal - scrollable on mobile, centered on desktop */}
+          <div className="fixed inset-0 min-h-[100dvh] z-[200] p-4 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] flex items-start sm:items-center justify-center overflow-y-auto overscroll-contain pointer-events-none">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative bg-white/95 backdrop-blur-2xl rounded-3xl shadow-2xl max-w-2xl w-full max-h-[calc(100dvh-2rem)] overflow-y-auto overflow-x-hidden border border-white/60 pointer-events-auto my-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Close Button - safe area on notched devices */}
+              <button
+                onClick={onClose}
+                className="absolute top-[max(1rem,env(safe-area-inset-top))] right-4 z-50 w-9 h-9 flex items-center justify-center rounded-full bg-white/80 hover:bg-white transition-all shadow-sm touch-manipulation"
+                aria-label="Close"
+              >
+                <X size={18} className="text-gray-600" />
+              </button>
 
-        <div className="space-y-4">
-          {(lifetimeCheckIns > 0 || totalPointsEarned > 0) && (
-            <div className="flex gap-4 text-sm text-neutral-600">
-              {lifetimeCheckIns > 0 && (
-                <span>Check-ins: {lifetimeCheckIns}</span>
-              )}
-              {totalPointsEarned > 0 && (
-                <span>Total points: {totalPointsEarned.toLocaleString()}</span>
-              )}
-            </div>
-          )}
+              {/* Content */}
+              <div className="relative z-10 p-4 sm:p-8">
+                {/* Header */}
+                <div className="text-center mb-4 sm:mb-6">
+                  <div className="inline-flex items-center gap-2 mb-1 sm:mb-2">
+                    <Sparkles className="text-purple-500" size={22} />
+                    <h2 className="text-2xl sm:text-3xl font-bold">
+                      Daily Bonus
+                    </h2>
+                    <Sparkles className="text-blue-500" size={22} />
+                  </div>
+                  <p className="text-gray-600 text-sm sm:text-base">
+                    Claim your daily rewards and build your streak!
+                  </p>
+                </div>
 
-          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-            {rewards.map((reward) => {
-              const isClaimed = reward.claimed;
-              const isCurrent = reward.current && !reward.claimed;
-              const isLocked = reward.locked;
+                {/* Stats */}
+                <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-6 sm:mb-8">
+                  <div className="bg-gradient-to-br from-purple-100/60 to-blue-100/60 backdrop-blur-xl rounded-2xl p-4 border border-white/60">
+                    <div className="text-sm text-gray-600 mb-1">
+                      Total Points
+                    </div>
+                    <div className="text-2xl font-bold text-purple-600">
+                      {totalPointsCollected.toLocaleString()}
+                    </div>
+                  </div>
+                  <div className="bg-gradient-to-br from-blue-100/60 to-purple-100/60 backdrop-blur-xl rounded-2xl p-4 border border-white/60">
+                    <div className="text-sm text-gray-600 mb-1">
+                      Gifts Collected
+                    </div>
+                    <div className="text-2xl font-bold text-blue-600">
+                      {giftsCollected} / 7
+                    </div>
+                  </div>
+                </div>
 
-              return (
-                <button
-                  key={reward.day}
-                  type="button"
-                  onClick={isCurrent ? handleClaim : undefined}
-                  disabled={!isCurrent || claiming || loading}
-                  className={`
-                    relative flex flex-col items-center justify-center rounded-xl border-2 p-3 min-h-[72px] transition-all
-                    ${isClaimed
-                      ? "border-emerald-200 bg-emerald-50/80 text-emerald-700 cursor-default"
-                      : isCurrent
-                        ? "border-purple-500 bg-purple-50 text-purple-700 hover:bg-purple-100 hover:border-purple-600 hover:shadow-md cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-                        : isLocked
-                          ? "border-neutral-200 bg-neutral-50 text-neutral-400 cursor-not-allowed"
-                          : "border-neutral-200 bg-neutral-50 text-neutral-500 cursor-default"
-                    }
-                  `}
-                >
-                  <span className="text-xs font-medium text-neutral-500 mb-0.5">
-                    Day {reward.day}
-                  </span>
-                  <span className="font-bold text-sm tabular-nums">
-                    {reward.points.toLocaleString()}
-                  </span>
-                  <span className="text-[10px] text-neutral-400">pts</span>
-                  {isClaimed && (
-                    <span className="absolute top-1.5 right-1.5 text-emerald-600">
-                      <Check className="size-3.5" strokeWidth={2.5} />
-                    </span>
-                  )}
-                  {isLocked && !isClaimed && (
-                    <span className="absolute top-1.5 right-1.5 text-neutral-400">
-                      <Lock className="size-3.5" />
-                    </span>
-                  )}
-                  {isCurrent && (
-                    <span className="mt-1 text-[10px] font-semibold text-purple-600">
-                      {claiming || loading ? "Claiming…" : "Claim"}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+                {/* Main Content - Big Gift + Week Calendar */}
+                <div className="grid md:grid-cols-2 gap-6">
+                  {/* Left Side - Active/Selected Day Gift */}
+                  <div className="flex flex-col items-center justify-center">
+                    <div className="text-sm font-semibold text-gray-600 mb-3">
+                      {isClaimedView
+                        ? `Day ${displayDay?.dayNumber} Reward`
+                        : "Today's Reward"}
+                    </div>
+
+                    {displayDay && (
+                      <motion.div
+                        key={displayDay.dayNumber}
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="relative mb-4"
+                      >
+                        {/* Gift Container */}
+                        <div className="relative">
+                          {isJustClaimed ? (
+                            // Opened Gift with Celebration
+                            <motion.div
+                              initial={{ scale: 1 }}
+                              animate={{
+                                scale: [1, 1.1, 1],
+                                rotate: [0, -5, 5, 0],
+                              }}
+                              transition={{ duration: 0.6 }}
+                              className="w-32 h-32 bg-gradient-to-br from-green-400 via-emerald-500 to-green-600 rounded-3xl flex items-center justify-center shadow-2xl relative overflow-hidden"
+                            >
+                              {/* Confetti effect */}
+                              <motion.div
+                                animate={{
+                                  y: [-100, 100],
+                                  opacity: [1, 0],
+                                }}
+                                transition={{ duration: 1, repeat: 2 }}
+                                className="absolute inset-0"
+                              >
+                                {CONFETTI_POSITIONS.map((pos, i) => (
+                                  <motion.div
+                                    key={i}
+                                    className="absolute w-2 h-2 rounded-full"
+                                    style={{
+                                      left: `${pos.left}%`,
+                                      top: "20%",
+                                      backgroundColor: [
+                                        "#fbbf24",
+                                        "#f59e0b",
+                                        "#ec4899",
+                                        "#8b5cf6",
+                                        "#3b82f6",
+                                      ][i % 5],
+                                    }}
+                                    animate={{
+                                      y: [0, 80],
+                                      x: [pos.x],
+                                      opacity: [1, 0],
+                                      rotate: [0, 360],
+                                    }}
+                                    transition={{
+                                      duration: 0.8,
+                                      delay: i * 0.1,
+                                    }}
+                                  />
+                                ))}
+                              </motion.div>
+
+                              {/* Opened box icon */}
+                              <Package
+                                size={64}
+                                className="text-white"
+                                strokeWidth={1.5}
+                              />
+
+                              {/* Success checkmark overlay */}
+                              <motion.div
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                transition={{ delay: 0.3 }}
+                                className="absolute inset-0 flex items-center justify-center"
+                              >
+                                <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-lg">
+                                  <Check
+                                    size={32}
+                                    className="text-green-600"
+                                    strokeWidth={3}
+                                  />
+                                </div>
+                              </motion.div>
+                            </motion.div>
+                          ) : isClaimedView ? (
+                            // Previously Claimed Gift (Opened)
+                            <div className="w-32 h-32 bg-gradient-to-br from-green-400 via-emerald-500 to-green-600 rounded-3xl flex items-center justify-center shadow-2xl relative">
+                              <Package
+                                size={64}
+                                className="text-white"
+                                strokeWidth={1.5}
+                              />
+                              <div className="absolute top-2 right-2 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-md">
+                                <Check
+                                  size={16}
+                                  className="text-green-600"
+                                  strokeWidth={3}
+                                />
+                              </div>
+                            </div>
+                          ) : (
+                            // Active Gift (Closed)
+                            <div className="w-32 h-32 bg-gradient-to-br from-purple-500 via-blue-500 to-purple-600 rounded-3xl flex items-center justify-center shadow-2xl transform hover:scale-105 transition-transform">
+                              <Gift
+                                size={64}
+                                className="text-white"
+                                strokeWidth={1.5}
+                              />
+                            </div>
+                          )}
+
+                          {/* Sparkle Effects for Active Gift */}
+                          {!isClaimedView && !isJustClaimed && (
+                            <>
+                              <motion.div
+                                animate={{
+                                  scale: [1, 1.2, 1],
+                                  opacity: [0.5, 1, 0.5],
+                                }}
+                                transition={{ duration: 2, repeat: Infinity }}
+                                className="absolute -top-2 -right-2 w-6 h-6 bg-yellow-400 rounded-full blur-sm"
+                              />
+                              <motion.div
+                                animate={{
+                                  scale: [1, 1.3, 1],
+                                  opacity: [0.4, 1, 0.4],
+                                }}
+                                transition={{
+                                  duration: 2.5,
+                                  repeat: Infinity,
+                                  delay: 0.5,
+                                }}
+                                className="absolute -bottom-2 -left-2 w-5 h-5 bg-pink-400 rounded-full blur-sm"
+                              />
+                            </>
+                          )}
+                        </div>
+                      </motion.div>
+                    )}
+
+                    {displayDay && (
+                      <div className="text-center mb-6">
+                        <div
+                          className={`text-4xl font-bold mb-1 ${
+                            isClaimedView || isJustClaimed
+                              ? "text-green-600"
+                              : "bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent"
+                          }`}
+                        >
+                          {isClaimedView || isJustClaimed ? "✓ " : "+"}
+                          {displayDay.points}
+                        </div>
+                        <div className="text-sm text-gray-600">
+                          {isClaimedView ? "Points Claimed" : "Points"}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Claim Button or Status */}
+                    {isClaimedView ? (
+                      <div className="w-full px-8 py-3 rounded-xl font-semibold text-center bg-green-100 text-green-700 border-2 border-green-300">
+                        <span className="flex items-center justify-center gap-2">
+                          <Check size={20} />
+                          Claimed on {displayDay.day}
+                        </span>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={handleClaim}
+                        disabled={isJustClaimed || !activeDay || loading}
+                        className={`w-full px-8 py-3 rounded-xl font-semibold transition-all shadow-lg border-2 border-transparent ${
+                          isJustClaimed || loading
+                            ? "bg-green-500 text-white cursor-not-allowed"
+                            : "bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:shadow-xl hover:scale-105"
+                        }`}
+                      >
+                        {loading ? (
+                          <span className="flex items-center justify-center gap-2">
+                            Claiming…
+                          </span>
+                        ) : isJustClaimed ? (
+                          <span className="flex items-center justify-center gap-2">
+                            <Check size={20} />
+                            Claimed!
+                          </span>
+                        ) : (
+                          "Claim Reward"
+                        )}
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Right Side - Week Overview */}
+                  <div>
+                    <div className="text-sm font-semibold text-gray-600 mb-3 text-center md:text-left">
+                      Week Progress
+                    </div>
+                    <div className="space-y-3 max-h-68 overflow-y-auto pr-1">
+                      {weekDays.map((day, index) => (
+                        <motion.div
+                          key={day.dayNumber || index}
+                          initial={{ opacity: 0, x: 20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: index * 0.05 }}
+                          onClick={() => handleDayClick(day)}
+                          className={`flex items-center gap-3 p-3 rounded-xl transition-all ${
+                            day.status === "active"
+                              ? "bg-gradient-to-r from-purple-100/80 to-blue-100/80 border-2 cursor-pointer border-purple-300 shadow-md"
+                              : day.status === "claimed"
+                                ? "bg-green-50/60 border border-green-200 cursor-pointer hover:bg-green-100/80 hover:border-green-300"
+                                : "bg-gray-50/60 border border-gray-200"
+                          } ${
+                            selectedDay?.dayNumber === day.dayNumber &&
+                            day.status === "claimed"
+                              ? "ring-2 ring-green-400"
+                              : ""
+                          }`}
+                        >
+                          {/* Gift Icon */}
+                          <div
+                            className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                              day.status === "active"
+                                ? "bg-gradient-to-br from-purple-500 to-blue-600"
+                                : day.status === "claimed"
+                                  ? "bg-green-500"
+                                  : "bg-gray-300"
+                            }`}
+                          >
+                            {day.status === "claimed" ? (
+                              <Package
+                                size={24}
+                                className="text-white"
+                                strokeWidth={2}
+                              />
+                            ) : day.status === "locked" ? (
+                              <Lock size={20} className="text-white" />
+                            ) : (
+                              <Gift size={24} className="text-white" />
+                            )}
+                          </div>
+
+                          {/* Day Info */}
+                          <div className="flex-1">
+                            <div
+                              className={`font-semibold ${
+                                day.status === "active"
+                                  ? "text-purple-700"
+                                  : day.status === "claimed"
+                                    ? "text-green-700"
+                                    : "text-gray-400"
+                              }`}
+                            >
+                              Day {day.dayNumber} - {day.day}
+                            </div>
+                            <div
+                              className={`text-sm ${
+                                day.status === "locked"
+                                  ? "text-gray-400"
+                                  : "text-gray-600"
+                              }`}
+                            >
+                              {day.points} points
+                            </div>
+                          </div>
+
+                          {/* Status Badge */}
+                          <div
+                            className={`text-xs font-semibold px-3 py-1 rounded-full ${
+                              day.status === "active"
+                                ? "bg-purple-600 text-white"
+                                : day.status === "claimed"
+                                  ? "bg-green-600 text-white"
+                                  : "bg-gray-400 text-white"
+                            }`}
+                          >
+                            {day.status === "active"
+                              ? "Available"
+                              : day.status === "claimed"
+                                ? "Claimed"
+                                : "Locked"}
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer Note */}
+                <div className="mt-6 text-center text-sm text-gray-500">
+                  <p>
+                    Come back daily to claim your rewards and maintain your
+                    streak! 🎁
+                  </p>
+                  {status?.secondsUntilReset != null &&
+                    status.secondsUntilReset > 0 && (
+                      <p className="mt-1 text-xs text-gray-400">
+                        Resets in {Math.floor(status.secondsUntilReset / 3600)}h{" "}
+                        {Math.floor((status.secondsUntilReset % 3600) / 60)}m
+                      </p>
+                    )}
+                </div>
+              </div>
+            </motion.div>
           </div>
-
-          {secondsUntilReset > 0 && (
-            <p className="text-center text-xs text-neutral-500">
-              Resets in {formatTimeUntil(secondsUntilReset)}
-            </p>
-          )}
-        </div>
-      </div>
-    </div>
+        </>
+      )}
+    </AnimatePresence>
   );
 
   return createPortal(modalContent, document.body);

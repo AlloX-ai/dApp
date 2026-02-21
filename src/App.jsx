@@ -34,7 +34,7 @@ import {
 } from "./redux/slices/walletSlice";
 import { resetPoints, setPointsBalance } from "./redux/slices/pointsSlice";
 import { useAuth } from "./hooks/useAuth";
-import { useCountdown } from "./hooks/useCountdown";
+
 import { Toaster, toast } from "sonner";
 import {
   setRateLimit,
@@ -100,7 +100,7 @@ function LaunchAppLayout() {
     dispatch(setCurrentMessages([]));
     localStorage.removeItem("authToken");
     localStorage.removeItem("authUser");
-   
+
     window.WALLET_TYPE = null;
     navigate("/login", { replace: true });
   };
@@ -147,7 +147,7 @@ function LaunchAppLayout() {
       if (!hasAuth) {
         localStorage.removeItem("authToken");
         localStorage.removeItem("authUser");
-     
+
         dispatch(setViewingHistorySessionId(null));
         dispatch(setCurrentMessages([]));
         navigate("/login", { replace: true });
@@ -216,7 +216,6 @@ function LaunchAppLayout() {
       c.name.toLowerCase().includes(option.name.toLowerCase()),
     );
 
-    
     if (connector && connector.name !== "WalletConnect") {
       connect(wagmiClient, { connector })
         .then(() => {
@@ -318,7 +317,7 @@ function BetaAccessLayout() {
     const connector = allConnectors.find((c) =>
       c.name.toLowerCase().includes(option.name.toLowerCase()),
     );
- 
+
     if (connector && connector.name !== "WalletConnect") {
       connect(wagmiClient, { connector })
         .then(() => {
@@ -440,8 +439,6 @@ function WalletSync() {
 
     const unwatch = watchConnections(wagmiClient, {
       async onChange(connections) {
-        const walletType = store.getState().wallet.walletType;
-
         if (connections.length === 0) {
           // Debounce: wagmi can briefly report 0 when navigating (e.g. login → app) before rehydrating
           if (clearTimeoutId) clearTimeout(clearTimeoutId);
@@ -458,7 +455,7 @@ function WalletSync() {
             clearTimeoutId = null;
           }
           const activeConnection = connections[0];
-        
+
           if (
             activeConnection.accounts[0] &&
             activeConnection.chainId &&
@@ -477,10 +474,8 @@ function WalletSync() {
           } else if (activeConnection.connector.name === "Phantom") {
             const provider = window.phantom?.solana;
 
-            const provider_eth =
-              (window.phantom && window.phantom.ethereum) || window.ethereum;
             if (!provider) return;
-         
+
             if (provider) {
               try {
                 const resp = await provider.connect({ onlyIfTrusted: true });
