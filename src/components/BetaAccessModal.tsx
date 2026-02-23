@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, Loader2 } from "lucide-react";
+import { Check, Loader2, Gift } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import { setWalletModal } from "../redux/slices/walletSlice";
 import { shortAddress } from "../hooks/shortAddress";
@@ -14,13 +14,7 @@ interface BetaAccessModalProps {
 }
 
 const WALLET_OPTIONS = [
-  {
-    name: "Phantom",
-    icon: "https://cdn.allox.ai/allox/wallets/phantom.svg",
-    type: "top",
-    walletType: "phantom",
-    isPhantom: true,
-  },
+
   {
     name: "MetaMask",
     icon: "https://cdn.allox.ai/allox/wallets/metamaskConnect.svg",
@@ -38,6 +32,13 @@ const WALLET_OPTIONS = [
     icon: "https://cdn.allox.ai/allox/wallets/trustWalletLogo.svg",
     type: "top",
     walletType: "trust",
+  },
+  {
+    name: "Phantom",
+    icon: "https://cdn.allox.ai/allox/wallets/phantom.svg",
+    type: "top",
+    walletType: "phantom",
+    isPhantom: true,
   },
   {
     name: "WalletConnect",
@@ -80,12 +81,28 @@ export function BetaAccessModal({
         alt=""
         className="h-10 my-4"
       />
+      <div className="mb-4 w-full max-w-md rounded-2xl bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 p-4 ">
+        <div className="flex items-center gap-2">
+          <div className="w-10 h-10 bg-white/20 backdrop-blur-xl rounded-2xl flex items-center justify-center flex-shrink-0">
+            <Gift size={20} className="text-white" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-medium text-white mb-1">
+              Welcome Bonus
+            </p>
+            <p className="text-xs text-white">
+              Claim your 5,000 Free Points
+            </p>
+          </div>
+
+        </div>
+      </div>
       <div
         className="glass-card max-w-md w-full p-8 relative animate-fade-in"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="text-center mb-6">
-          <h2 className="text-3xl font-bold mb-3">Log in to AlloX</h2>
+          <h2 className="text-2xl font-bold mb-3">Log in to AlloX</h2>
         </div>
 
         <div className="mb-8">
@@ -95,7 +112,7 @@ export function BetaAccessModal({
               <p className="text-sm font-medium text-gray-600">
                 Please sign the message in your wallet
               </p>
-             
+
             </div>
           ) : !isConnected ? (
             <div className="space-y-3">

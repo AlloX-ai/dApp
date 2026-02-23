@@ -74,14 +74,14 @@ export function CheckinModal({
   onClose,
   status,
   claim,
-  fetchStatus,
+  // fetchStatus,
   addOptimisticCheckinPoints,
   loading,
 }) {
   const dispatch = useDispatch();
   const walletType = useSelector((state) => state.wallet.walletType);
   const chainId = useSelector((state) => state.wallet.chainId);
-  const isSolana = walletType === "phantom";
+  const isSolana = walletType === "solana";
   const isOpenState = open ?? isOpen ?? false;
 
   const [justClaimed, setJustClaimed] = useState(false);
@@ -149,7 +149,7 @@ export function CheckinModal({
     try {
       await claim(selectedChainId);
       addOptimisticCheckinPoints?.(activeDay.points);
-      await fetchStatus();
+      // await fetchStatus();
       toast.success(
         `Day ${activeDay.dayNumber} claimed! +${activeDay.points} points.`,
       );

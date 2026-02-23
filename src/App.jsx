@@ -13,6 +13,7 @@ import { LaunchSidebar } from "./components/LaunchSidebar";
 import { Header } from "./components/Header";
 import { ChatPage } from "./pages/ChatPage";
 import { PortfolioPage } from "./pages/PortfolioPage";
+import { Season1 } from "./pages/Season1";
 import { TradingPage } from "./pages/TradingPage";
 import { StakingPage } from "./pages/StakingPage";
 import { HistoryPage } from "./pages/HistoryPage";
@@ -22,6 +23,7 @@ import {
   connect,
   disconnect,
   getAccount,
+  getConnections,
   watchAccount,
   watchConnections,
 } from "@wagmi/core";
@@ -43,21 +45,26 @@ import {
   setViewingHistorySessionId,
 } from "./redux/slices/chatSlice";
 import { store } from "./redux/store";
+import { PointsPage } from "./pages/Points";
 
 const SOLANA_MAINNET_CHAIN_ID = 101;
 const PREFERRED_CHAIN_STORAGE_KEY = "walletPreferredChainId";
 
 async function tryRestorePhantomSession(dispatch) {
+  const connections = getConnections(wagmiClient);
+  const hasEVMConnection = connections.some(
+    (c) => c.connector?.name !== "Phantom" && c.accounts?.length > 0,
+  );
+  if (hasEVMConnection) return false;
+
   const provider = window.phantom?.solana;
   if (!provider) return false;
   try {
     const resp = await provider.connect({ onlyIfTrusted: true });
     const walletAddress = resp.publicKey?.toString?.() ?? resp.publicKey;
     if (!walletAddress) return false;
-    window.WALLET_TYPE = "phantom";
-    dispatch(setWalletType("phantom"));
+    dispatch(setWalletType("solana"));
     dispatch(setAddress(walletAddress));
-    // dispatch(setChainId(SOLANA_MAINNET_CHAIN_ID));
     dispatch(setIsConnected(true));
     dispatch(setWalletModal(false));
     return true;
@@ -103,7 +110,6 @@ function LaunchAppLayout() {
     localStorage.removeItem("authToken");
     localStorage.removeItem("authUser");
 
-    window.WALLET_TYPE = null;
     navigate("/login", { replace: true });
   };
 
@@ -126,6 +132,12 @@ function LaunchAppLayout() {
       dispatch(setPointsBalance(points));
     }
   }, [user?.season1, user?.season1?.points, dispatch]);
+
+  useEffect(() => {
+    if (user?.walletType && address && user?.address === address) {
+      dispatch(setWalletType(user.walletType));
+    }
+  }, [user?.walletType, user?.address, address, dispatch]);
 
   useEffect(() => {
     const limit = user?.season1?.rateLimit;
@@ -200,8 +212,7 @@ function LaunchAppLayout() {
       try {
         const resp = await provider.connect();
         const walletAddress = resp.publicKey.toString();
-        window.WALLET_TYPE = "phantom";
-        dispatch(setWalletType("phantom"));
+        dispatch(setWalletType("solana"));
         dispatch(setAddress(walletAddress));
         dispatch(setChainId(SOLANA_MAINNET_CHAIN_ID));
         dispatch(setIsConnected(true));
@@ -221,8 +232,7 @@ function LaunchAppLayout() {
     if (connector && connector.name !== "WalletConnect") {
       connect(wagmiClient, { connector })
         .then(() => {
-          window.WALLET_TYPE = option.walletType;
-          dispatch(setWalletType(option.walletType));
+          dispatch(setWalletType("evm"));
           dispatch(setIsConnected(true));
           dispatch(setWalletModal(false));
           if (option.connectorName === "Binance Wallet") {
@@ -238,8 +248,7 @@ function LaunchAppLayout() {
       if (wcConnector) {
         connect(wagmiClient, { connector: wcConnector })
           .then(() => {
-            window.WALLET_TYPE = "walletconnect";
-            dispatch(setWalletType("walletconnect"));
+            dispatch(setWalletType("evm"));
             dispatch(setIsConnected(true));
             dispatch(setWalletModal(false));
           })
@@ -319,12 +328,11 @@ function BetaAccessLayout() {
     const connector = allConnectors.find((c) =>
       c.name.toLowerCase().includes(option.name.toLowerCase()),
     );
-
+    console.log("connectorconnectorconnector", connector);
     if (connector && connector.name !== "WalletConnect") {
       connect(wagmiClient, { connector })
         .then(() => {
-          window.WALLET_TYPE = option.walletType;
-          dispatch(setWalletType(option.walletType));
+          dispatch(setWalletType("evm"));
           dispatch(setIsConnected(true));
           dispatch(setWalletModal(false));
         })
@@ -337,8 +345,7 @@ function BetaAccessLayout() {
       if (wcConnector) {
         connect(wagmiClient, { connector: wcConnector })
           .then(() => {
-            window.WALLET_TYPE = "walletconnect";
-            dispatch(setWalletType("walletconnect"));
+            dispatch(setWalletType("evm"));
             dispatch(setIsConnected(true));
             dispatch(setWalletModal(false));
           })
@@ -425,7 +432,6 @@ function WalletSync() {
             dispatch(setAddress(null));
             dispatch(setIsConnected(false));
             dispatch(setWalletType(""));
-            window.WALLET_TYPE = null;
           }, 400);
           break;
       }
@@ -463,14 +469,14 @@ function WalletSync() {
             activeConnection.chainId &&
             activeConnection.connector.name !== "Phantom"
           ) {
+            dispatch(setWalletType("evm"));
             dispatch(setAddress(activeConnection.accounts[0]));
             dispatch(setChainId(activeConnection.chainId));
             dispatch(setIsConnected(true));
             dispatch(setWalletModal(false));
           }
           if (activeConnection.connector.type === "binanceWallet") {
-            window.WALLET_TYPE = "binance";
-            dispatch(setWalletType("binance"));
+            dispatch(setWalletType("evm"));
             dispatch(setIsConnected(true));
             dispatch(setWalletModal(false));
           } else if (activeConnection.connector.name === "Phantom") {
@@ -485,8 +491,7 @@ function WalletSync() {
                 const walletAddress =
                   resp.publicKey?.toString?.() ?? resp.publicKey;
                 if (walletAddress) {
-                  window.WALLET_TYPE = "phantom";
-                  dispatch(setWalletType("phantom"));
+                  dispatch(setWalletType("solana"));
                   dispatch(setAddress(walletAddress));
                   dispatch(setIsConnected(true));
                   dispatch(setWalletModal(false));
@@ -505,8 +510,7 @@ function WalletSync() {
               // not trusted or rejected – don't show popup
             }
           } else {
-            window.WALLET_TYPE = activeConnection.connector.type;
-            dispatch(setWalletType(activeConnection.connector.type));
+            dispatch(setWalletType("evm"));
             dispatch(setIsConnected(true));
             dispatch(setWalletModal(false));
           }
@@ -526,7 +530,7 @@ function WalletSync() {
     if (!provider) return;
 
     const handleAccountsChanged = (accounts) => {
-      if (store.getState().wallet.walletType === "phantom") return;
+      if (store.getState().wallet.walletType === "solana") return;
       if (!accounts[0]) {
         dispatch(setAddress(null));
         dispatch(setIsConnected(false));
@@ -553,12 +557,11 @@ function WalletSync() {
 
     const handlePhantomAccountChanged = (pubkey) => {
       if (pubkey) return;
-      if (store.getState().wallet.walletType !== "phantom") return;
+      if (store.getState().wallet.walletType !== "solana") return;
       dispatch(setAddress(null));
       dispatch(setChainId(null));
       dispatch(setIsConnected(false));
       dispatch(setWalletType(""));
-      window.WALLET_TYPE = null;
     };
     provider.on("accountChanged", handlePhantomAccountChanged);
     return () => provider.off?.("accountChanged", handlePhantomAccountChanged);
@@ -594,6 +597,9 @@ function App() {
         >
           <Route index element={<ChatPage />} />
           <Route path="/portfolio" element={<PortfolioPage />} />
+          <Route path="/season1" element={<Season1 />} />
+          <Route path="/points" element={<PointsPage />} />
+
           <Route path="/trending" element={<TradingPage />} />
           <Route path="/staking" element={<StakingPage />} />
           <Route path="/history" element={<HistoryPage />} />

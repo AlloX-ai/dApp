@@ -25,7 +25,7 @@ export const useAuth = () => {
   const walletType = useSelector((state) => state.wallet.walletType);
   
   const address =
-    walletType === "phantom" ? walletAddress : (walletAddress ?? evmAddress);
+    walletType === "solana" ? walletAddress : (walletAddress ?? evmAddress);
   const [token, setToken] = useState(() => localStorage.getItem("authToken"));
   const [user, setUserState] = useState(loadStoredUser);
 
@@ -54,7 +54,11 @@ export const useAuth = () => {
 
     const nonceRes = await apiCall(`/auth/nonce/${address}`);
     const message = nonceRes.message;
-    const walletTypeFromApi = nonceRes.walletType ?? walletType;
+    const rawWalletType = nonceRes.walletType ?? walletType;
+    const walletTypeFromApi =
+      rawWalletType === "phantom" || rawWalletType === "solana"
+        ? "solana"
+        : rawWalletType || "evm";
 
     if (!message) {
       throw new Error("Missing nonce message");
@@ -62,7 +66,7 @@ export const useAuth = () => {
 
     let signature;
 
-    if (walletTypeFromApi === "phantom") {
+    if (walletTypeFromApi === "solana") {
       const provider = window.phantom?.solana;
       if (!provider) throw new Error("Phantom not connected");
       const encodedMessage = new TextEncoder().encode(message);
@@ -88,7 +92,12 @@ export const useAuth = () => {
     localStorage.setItem("authToken", verifyRes.token);
     setToken(verifyRes.token);
     if (verifyRes.user) {
-      setUser(verifyRes.user);
+      setUser({ ...verifyRes.user, walletType: walletTypeFromApi });
+    } else {
+      const stored = loadStoredUser();
+      if (stored) {
+        setUser({ ...stored, walletType: walletTypeFromApi });
+      }
     }
 
     if (walletTypeFromApi) {

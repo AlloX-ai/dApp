@@ -42,7 +42,7 @@ export function useCheckin() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const isSolana = walletType === "phantom";
+  const isSolana = walletType === "solana";
   const currentEVMChainId = isSolana ? null : (wagmiChainId ?? chainId);
 const dispatch = useDispatch();
   const fetchStatus = useCallback(async () => {
@@ -64,9 +64,12 @@ const dispatch = useDispatch();
   }, [dispatch]);
 
   useEffect(() => {
-    if (isConnected) fetchStatus();
-    else dispatch(setCheckinStatus(null));
-  }, [isConnected, fetchStatus, dispatch]);
+    // if (isConnected) fetchStatus();
+    // else 
+      dispatch(setCheckinStatus(null));
+  }, [isConnected,
+    //  fetchStatus,
+      dispatch]);
 
   const claimSolana = useCallback(async () => {
     const provider = window.phantom?.solana;
@@ -175,7 +178,7 @@ const dispatch = useDispatch();
         } else {
           await claimEVM(SUPPORTED_EVM_CHAIN_IDS[0]);
         }
-        await fetchStatus();
+        // await fetchStatus();
       } catch (err) {
         const msg =
           err?.message ||
@@ -189,7 +192,9 @@ const dispatch = useDispatch();
         setLoading(false);
       }
     },
-    [isSolana, chainId, claimSolana, claimEVM, fetchStatus],
+    [isSolana, chainId, claimSolana, claimEVM,
+      //  fetchStatus
+      ],
   );
 
   const fetchHistory = useCallback(async () => {
@@ -213,7 +218,7 @@ const dispatch = useDispatch();
     loading,
     error,
     claim,
-    fetchStatus,
+    // fetchStatus,
     fetchHistory,
     addOptimisticCheckinPoints,
     isSolana,

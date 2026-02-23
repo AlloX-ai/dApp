@@ -1251,10 +1251,10 @@ export function ChatPage() {
                 </div>
                 <div className="flex-1">
                   <p className="text-sm font-medium text-gray-900 mb-1">
-                    Claim your 5K Free Points
+                    Welcome Bonus
                   </p>
                   <p className="text-xs text-gray-600">
-                    Sign to claim and start chatting
+                    Claim your 5,000 Free Points
                   </p>
                 </div>
 
@@ -1362,7 +1362,7 @@ export function ChatPage() {
             </button>
 
             <div className="flex items-center gap-2 mb-2">
-              <h3 className="text-xl font-bold">Welcome Gift</h3>
+              <h3 className="text-xl font-bold">Welcome Bonus</h3>
               {/* <Gift className="w-5 h-5 text-amber-500" /> */}
             </div>
             <p className="text-sm text-gray-600 mb-6">

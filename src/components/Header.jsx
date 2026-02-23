@@ -10,6 +10,7 @@ import {
   Check,
   Sparkles,
   SendHorizontal,
+  Coins,
   Gem,
 } from "lucide-react";
 import { NetworkSelector } from "./NetworkSelector";
@@ -32,7 +33,7 @@ export function Header({
   const { pathname } = useLocation();
   const rateLimit = useSelector((state) => state.chat?.rateLimit);
   const { totalPoints } = useTotalPoints();
-
+  const walletAddress = useSelector((state) => state.wallet.address);
   const messagesRemaining =
     rateLimit?.remaining ?? rateLimit?.messagesRemaining;
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -97,7 +98,7 @@ export function Header({
                     role="button"
                   >
                     <div className="flex items-center gap-2">
-                      <Gem className="size-4 text-amber-500" />
+                      <Coins className="size-4 text-amber-500" />
 
                       <span className="text-sm font-semibold tabular-nums">
                         {totalPoints.toLocaleString()}
@@ -127,11 +128,11 @@ export function Header({
                     <span className="flex gap-2 items-center">
                       {" "}
                       <div className="w-1.5 h-1.5 bg-blue-600 rounded-full"></div>
-                      Welcome Points: 5,000
+                      Welcome Bonus: 5,000
                     </span>
                     <span className="flex gap-2 items-center">
                       <div className="w-1.5 h-1.5 bg-blue-600 rounded-full"></div>
-                      Narrative Portfolio: 250 each
+                      Create Portfolio: 250 each
                     </span>
                     <span className="flex gap-2 items-center">
                       <div className="w-1.5 h-1.5 bg-blue-600 rounded-full"></div>
@@ -147,7 +148,9 @@ export function Header({
             )}
             {isConnected ? (
               <div className="glass-card px-0 md:pr-4 flex items-center gap-3 transition-all duration-200 hover:shadow-md">
-                <NetworkSelector onDisconnectClick={onDisconnectClick} />
+                <div className="hidden md:flex">
+                  <NetworkSelector onDisconnectClick={onDisconnectClick} />
+                </div>
                 <div className="hidden md:flex items-center gap-2">
                   <span
                     className="text-sm cursor-pointer font-medium flex gap-3 items-center"
@@ -218,7 +221,7 @@ export function Header({
                           );
                         })}
                         {isConnected && (
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 justify-between">
                             <span
                               className=" px-4 py-3 text-sm font-medium flex gap-3 items-center"
                               onClick={() => handleCopy(coinbase)}
@@ -230,6 +233,9 @@ export function Header({
                               )}
                               {shortAddress(coinbase)}
                             </span>
+                            <NetworkSelector
+                              onDisconnectClick={onDisconnectClick}
+                            />
                           </div>
                         )}
                         {isConnected && (
@@ -244,17 +250,18 @@ export function Header({
                                   <div className="text-white/90 text-xs font-semibold mb-1">
                                     Daily Bonus
                                   </div>
-                                  <div className="text-white font-bold text-sm mb-3">
+                                  <div className="text-white font-bold text-sm mb-0">
                                     Get up to 5,000 points
                                   </div>
                                 </div>
 
                                 <button
-                                  onClick={openCheckinModal}
-                                  disabled={!isConnected}
+                                  // onClick={openCheckinModal}
+                                  // disabled={!isConnected}
                                   className="w-full bg-white text-purple-600 font-semibold text-sm py-2 px-4 rounded-xl hover:bg-white/90 transition-all shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
                                 >
-                                  {checkedInToday ? "Already Claimed" : "Claim"}
+                                  {/* {checkedInToday ? "Already Claimed" : "Claim"} */}
+                                  Coming Soon
                                 </button>
                               </div>
                             </div>
@@ -274,7 +281,7 @@ export function Header({
           onClose={() => setCheckinModalOpen(false)}
           status={checkinStatus}
           claim={claim}
-          fetchStatus={fetchStatus}
+          // fetchStatus={fetchStatus}
           addOptimisticCheckinPoints={addOptimisticCheckinPoints}
           loading={checkinLoading}
         />

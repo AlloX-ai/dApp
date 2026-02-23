@@ -99,11 +99,12 @@ export function LaunchSidebar() {
                   Get up to 5,000 points
                 </div>
                 <button
-                  onClick={() => setCheckinModalOpen(true)}
-                  disabled={!isConnected}
+                  // onClick={() => setCheckinModalOpen(true)}
+                  // disabled={!isConnected}
                   className="w-full bg-white text-purple-600 font-semibold text-sm py-2 px-4 rounded-xl hover:bg-white/90 transition-all shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  {checkedInToday ? "Already Claimed" : "Claim"}
+                  {/* {checkedInToday ? "Already Claimed" : "Claim"} */}
+                  Coming Soon
                 </button>
               </div>
             </div>
@@ -115,7 +116,7 @@ export function LaunchSidebar() {
           onClose={() => setCheckinModalOpen(false)}
           status={checkinStatus}
           claim={claim}
-          fetchStatus={fetchStatus}
+          // fetchStatus={fetchStatus}
           loading={checkinLoading}
         />
       </aside>

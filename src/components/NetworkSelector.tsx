@@ -99,7 +99,7 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
       } catch (e) {
         console.warn("Failed to persist preferred chain", e);
       }
-      if (walletType !== "phantom") {
+      if (walletType !== "solana") {
         toast.error(
           "Solana requires a Solana-capable wallet (e.g. Phantom). Please connect with a Solana wallet.",
         );
@@ -119,7 +119,7 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
       return;
     }
 
-    if (network.name === "BNB Chain" && walletType === "phantom") {
+    if (network.name === "BNB Chain" && walletType === "solana") {
       toast.error(
         "BNB Chain requires an EVM wallet (e.g. MetaMask). Please connect with an EVM wallet.",
       );
@@ -233,7 +233,7 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
   };
 
   const manageSwitchNetwork = (network: NetworkOption) => {
-    if (walletType === "phantom") {
+    if (walletType === "solana") {
       handleSwitchNetwork(network);
     } else {
       handleSwitchNetworkEVM(network);
