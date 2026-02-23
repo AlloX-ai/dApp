@@ -140,7 +140,7 @@ export function Header({
                     </span>
                     <div className="border-t border-gray-200 w-full my-1"></div>
                     <span className="flex gap-2 items-center">
-                      Limit 100 messages per 24 hours
+                      Limit 20 messages per 24 hours
                     </span>
                   </div>
                 </TooltipContent>
@@ -166,13 +166,14 @@ export function Header({
                 </div>
               </div>
             ) : (
-              <button
-                onClick={onConnectClick}
+              <NavLink
+                to="/login"
+                // onClick={onConnectClick}
                 className="btn-primary transition-all duration-200 hover:shadow-lg"
               >
                 <Wallet size={20} className="md:mr-2" />
                 <span className="hidden md:inline">Connect Wallet</span>
-              </button>
+              </NavLink>
             )}
 
             <div className="md:hidden">
