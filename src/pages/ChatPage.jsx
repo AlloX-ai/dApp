@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState, useCallback } from "react";
-import { Send, Loader2, Wallet, Gift, Clock, X } from "lucide-react";
+import { Send, Loader2, Wallet, Gift, Clock, X, RefreshCw } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import { ChatBubble } from "../components/ChatBubble";
 import {
@@ -52,6 +52,9 @@ export function ChatPage() {
   const [claimedPoints, setClaimedPoints] = useState(0);
   const [displayedTextById, setDisplayedTextById] = useState({});
   const [typingMessageId, setTypingMessageId] = useState(null);
+  const [onchainBlocked, setOnchainBlocked] = useState(null);
+  const [refreshOnchainLoading, setRefreshOnchainLoading] = useState(false);
+  const [refreshOnchainMessage, setRefreshOnchainMessage] = useState(null);
 
   useEffect(() => {
     const aiMessages = currentMessages.filter(
@@ -155,6 +158,33 @@ export function ChatPage() {
       });
     }
   };
+
+  const handleRefreshOnchain = useCallback(async () => {
+    if (refreshOnchainLoading) return;
+    setRefreshOnchainLoading(true);
+    setRefreshOnchainMessage(null);
+    try {
+      const data = await apiCall("/season1/refresh", { method: "POST" });
+      const txs = data?.transactions ?? 0;
+      const required = data?.required ?? 1;
+      if (txs >= required) {
+        setOnchainBlocked(null);
+        setRefreshOnchainMessage(null);
+      } else {
+        setRefreshOnchainMessage(
+          "Make a transaction on any supported chain (Ethereum, Base, BNB, Solana), then tap Refresh again.",
+        );
+      }
+    } catch (err) {
+      const msg =
+        err?.data?.message ||
+        err?.message ||
+        "Refresh failed. Try again or make a transaction on a supported chain.";
+      setRefreshOnchainMessage(msg);
+    } finally {
+      setRefreshOnchainLoading(false);
+    }
+  }, [refreshOnchainLoading]);
 
   const buildBotMessage = useCallback((data) => {
     return {
@@ -270,13 +300,50 @@ export function ChatPage() {
         if (error?.status === 401) {
           logout();
         }
+        const errCode = error?.data?.error;
+        const errMessage =
+          error?.data?.message ||
+          error?.message ||
+          "Sorry, something went wrong while reaching the server.";
+
+        if (errCode === "CLAIM_REQUIRED") {
+          dispatch(
+            addCurrentMessage({
+              id: Date.now() + 1,
+              type: "ai",
+              content: errMessage,
+              timestamp: new Date(),
+            }),
+          );
+          setShowWelcomeGiftModal(true);
+          return;
+        }
+
+        if (error?.status === 403 && errCode === "NO_ONCHAIN_ACTIVITY") {
+          setOnchainBlocked({
+            message: errMessage,
+            canRefresh: error?.data?.canRefresh === true,
+            transactions: error?.data?.transactions ?? 0,
+            required: error?.data?.required ?? 1,
+            supportedChains: error?.data?.supportedChains ?? [],
+          });
+          setRefreshOnchainMessage(null);
+          dispatch(
+            addCurrentMessage({
+              id: Date.now() + 1,
+              type: "ai",
+              content: errMessage,
+              timestamp: new Date(),
+            }),
+          );
+          return;
+        }
+
         dispatch(
           addCurrentMessage({
             id: Date.now() + 1,
             type: "ai",
-            content:
-              error?.message ||
-              "Sorry, something went wrong while reaching the server.",
+            content: errMessage,
             timestamp: new Date(),
           }),
         );
@@ -1265,6 +1332,37 @@ export function ChatPage() {
                   Claim
                 </button>
               </div>
+            </div>
+          )}
+
+          {onchainBlocked && !isReadOnly && (
+            <div className="mb-4 glass-card p-4 border border-orange-200/50 bg-orange-50/30">
+              <p className="text-sm text-gray-800 mb-3">
+                {onchainBlocked.message}
+              </p>
+              {refreshOnchainMessage && (
+                <p className="text-sm text-amber-800 mb-3">
+                  {refreshOnchainMessage}
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={handleRefreshOnchain}
+                disabled={refreshOnchainLoading}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl font-medium bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-70 text-sm"
+              >
+                {refreshOnchainLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Refreshing...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw size={16} />
+                    Refresh your on-chain activity
+                  </>
+                )}
+              </button>
             </div>
           )}
 
