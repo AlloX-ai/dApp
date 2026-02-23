@@ -166,13 +166,14 @@ export function Header({
                 </div>
               </div>
             ) : (
-              <button
-                onClick={onConnectClick}
+              <NavLink
+                to="/login"
+                // onClick={onConnectClick}
                 className="btn-primary transition-all duration-200 hover:shadow-lg"
               >
                 <Wallet size={20} className="md:mr-2" />
                 <span className="hidden md:inline">Connect Wallet</span>
-              </button>
+              </NavLink>
             )}
 
             <div className="md:hidden">
