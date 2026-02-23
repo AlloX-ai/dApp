@@ -20,6 +20,7 @@ import { CheckinModal } from "./CheckinModal";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { navigationTabs, isActivePath } from "../constants/navigation";
 import OutsideClickHandler from "react-outside-click-handler/build/OutsideClickHandler";
+import { addOptimisticCheckinPoints } from "../redux/slices/checkinSlice";
 
 export function Header({
   isConnected,
@@ -244,9 +245,7 @@ export function Header({
                                     Daily Bonus
                                   </div>
                                   <div className="text-white font-bold text-sm mb-3">
-                                    {checkedInToday
-                                      ? `Already claimed today${checkedInToday.pointsAwarded != null ? ` (+${checkedInToday.pointsAwarded} pts)` : ""}`
-                                      : "Get up to 5,000 points (1–7 days)"}
+                                    Get up to 5,000 points
                                   </div>
                                 </div>
 
@@ -255,7 +254,7 @@ export function Header({
                                   disabled={!isConnected}
                                   className="w-full bg-white text-purple-600 font-semibold text-sm py-2 px-4 rounded-xl hover:bg-white/90 transition-all shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
                                 >
-                                  Claim
+                                  {checkedInToday ? "Already Claimed" : "Claim"}
                                 </button>
                               </div>
                             </div>
@@ -276,6 +275,7 @@ export function Header({
           status={checkinStatus}
           claim={claim}
           fetchStatus={fetchStatus}
+          addOptimisticCheckinPoints={addOptimisticCheckinPoints}
           loading={checkinLoading}
         />
       </div>

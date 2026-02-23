@@ -4,8 +4,42 @@ const CONFETTI_POSITIONS = [...Array(8)].map(() => ({
   x: (Math.random() - 0.5) * 60,
 }));
 import { createPortal } from "react-dom";
+import { useDispatch, useSelector } from "react-redux";
 import { toast } from "sonner";
-import { X, Gift, Check, Lock, Sparkles, Package } from "lucide-react";
+import {
+  X,
+  Gift,
+  Check,
+  Lock,
+  Sparkles,
+  Package,
+  ChevronDown,
+} from "lucide-react";
+
+import { SOLANA_CHAIN_ID } from "../hooks/useCheckin";
+
+const CHECKIN_CHAINS = [
+  {
+    chainId: 1,
+    name: "Ethereum",
+    icon: "https://cdn.allox.ai/allox/networks/eth.svg",
+  },
+  {
+    chainId: 56,
+    name: "BNB Chain",
+    icon: "https://cdn.allox.ai/allox/networks/bnbIcon.svg",
+  },
+  {
+    chainId: 8453,
+    name: "Base",
+    icon: "https://cdn.allox.ai/allox/networks/base.svg",
+  },
+  {
+    chainId: SOLANA_CHAIN_ID,
+    name: "Solana",
+    icon: "https://cdn.allox.ai/allox/networks/solana.svg",
+  },
+];
 // eslint-disable-next-line no-unused-vars -- motion used as namespace in JSX (motion.div)
 import { motion, AnimatePresence } from "motion/react";
 
@@ -29,6 +63,7 @@ function mapStatusToWeekDays(rewards) {
       points: r.points ?? 0,
       status,
       dayNumber: r.day ?? 0,
+      isCurrent: r.current === true,
     };
   });
 }
@@ -40,12 +75,32 @@ export function CheckinModal({
   status,
   claim,
   fetchStatus,
+  addOptimisticCheckinPoints,
   loading,
 }) {
+  const dispatch = useDispatch();
+  const walletType = useSelector((state) => state.wallet.walletType);
+  const chainId = useSelector((state) => state.wallet.chainId);
+  const isSolana = walletType === "phantom";
   const isOpenState = open ?? isOpen ?? false;
 
   const [justClaimed, setJustClaimed] = useState(false);
   const [selectedDay, setSelectedDay] = useState(null);
+  const [chainDropdownOpen, setChainDropdownOpen] = useState(false);
+  const [selectedChainId, setSelectedChainId] = useState(SOLANA_CHAIN_ID);
+
+  // Sync selected chain when modal opens or wallet changes
+  useEffect(() => {
+    if (isOpenState) {
+      setSelectedChainId(
+        isSolana
+          ? SOLANA_CHAIN_ID
+          : chainId && chainId !== SOLANA_CHAIN_ID
+            ? chainId
+            : 1,
+      );
+    }
+  }, [isOpenState, isSolana, chainId]);
 
   const weekDays = useMemo(
     () => mapStatusToWeekDays(status?.rewards),
@@ -55,13 +110,45 @@ export function CheckinModal({
   const giftsCollected = status?.lifetimeCheckIns ?? 0;
 
   const activeDay = weekDays.find((day) => day.status === "active");
-  const displayDay = selectedDay ?? activeDay;
+  const currentDay =
+    weekDays.find((day) => day.isCurrent) ??
+    [...weekDays]
+      .filter((day) => day.status === "claimed")
+      .sort((a, b) => b.dayNumber - a.dayNumber)[0];
+  const displayDay = selectedDay ?? activeDay ?? currentDay;
+
+  const selectedChain =
+    CHECKIN_CHAINS.find((c) => c.chainId === selectedChainId) ??
+    CHECKIN_CHAINS[0];
+
+  const handleChainSelect = (chain) => {
+    const wantsSolana = chain.chainId === SOLANA_CHAIN_ID;
+    if (wantsSolana && !isSolana) {
+      toast.error(
+        "Solana requires a Solana-capable wallet (e.g. Phantom). Connect with a Solana wallet to claim on Solana.",
+      );
+      // dispatch(setWalletModal(true));
+      setChainDropdownOpen(false);
+      return;
+    }
+    if (!wantsSolana && isSolana) {
+      toast.error(
+        "EVM chains require an EVM wallet (e.g. MetaMask). Connect with an EVM wallet to claim on Ethereum, BNB, or Base.",
+      );
+      // dispatch(setWalletModal(true));
+      setChainDropdownOpen(false);
+      return;
+    }
+    setSelectedChainId(chain.chainId);
+    setChainDropdownOpen(false);
+  };
 
   const handleClaim = async () => {
     if (!activeDay || justClaimed || loading || status?.canCheckIn !== true)
       return;
     try {
-      await claim();
+      await claim(selectedChainId);
+      addOptimisticCheckinPoints?.(activeDay.points);
       await fetchStatus();
       toast.success(
         `Day ${activeDay.dayNumber} claimed! +${activeDay.points} points.`,
@@ -70,30 +157,40 @@ export function CheckinModal({
       setJustClaimed(true);
       setTimeout(() => setJustClaimed(false), 2500);
     } catch (err) {
-      const msg =
-        err?.message ??
-        err?.data?.message ??
-        (typeof err?.data?.error === "string"
-          ? err.data.error
-          : "Claim failed");
-      toast.error(msg);
+      if (err?.code === "WALLET_SOLANA_REQUIRED") {
+        toast.error(err.message);
+        // dispatch(setWalletModal(true));
+      } else if (err?.code === "WALLET_EVM_REQUIRED") {
+        toast.error(err.message);
+        // dispatch(setWalletModal(true));
+      } else {
+        const msg =
+          err?.message ??
+          err?.data?.message ??
+          (typeof err?.data?.error === "string"
+            ? err.data.error
+            : "Claim failed");
+        toast.error(msg);
+      }
       setJustClaimed(false);
     }
   };
 
   const handleDayClick = (day) => {
-    console.log(day);
     if (day.status === "claimed" || day.status === "active") {
       setSelectedDay(day);
     }
   };
 
-  const isClaimedView = selectedDay?.status === "claimed" && !justClaimed;
+  const isClaimedView = displayDay?.status === "claimed" && !justClaimed;
   const isJustClaimed =
     justClaimed && displayDay?.dayNumber === activeDay?.dayNumber;
 
   useEffect(() => {
-    if (!isOpenState) return;
+    if (!isOpenState) {
+      setChainDropdownOpen(false);
+      return;
+    }
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
@@ -333,6 +430,67 @@ export function CheckinModal({
                       </div>
                     )}
 
+                    {/* Chain selector */}
+                    <div className="w-full mb-4">
+                      <label className="block text-xs font-semibold text-gray-500 mb-2">
+                        Claim on
+                      </label>
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={() => setChainDropdownOpen((o) => !o)}
+                          className="w-full flex items-center justify-between gap-2 px-4 py-2.5 rounded-xl border border-gray-200 bg-white/80 hover:bg-gray-50/80 transition-colors text-sm"
+                        >
+                          <span className="flex items-center gap-2">
+                            <img
+                              src={selectedChain.icon}
+                              alt=""
+                              className="h-5 w-5 rounded-full"
+                            />
+                            <span className="font-medium text-gray-900">
+                              {selectedChain.name}
+                            </span>
+                          </span>
+                          <ChevronDown
+                            size={16}
+                            className={`text-gray-500 transition-transform ${chainDropdownOpen ? "rotate-180" : ""}`}
+                          />
+                        </button>
+                        {chainDropdownOpen && (
+                          <>
+                            <div
+                              className="fixed inset-0 z-10"
+                              onClick={() => setChainDropdownOpen(false)}
+                              aria-hidden="true"
+                            />
+                            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg py-1 z-20 max-h-48 overflow-y-auto">
+                              {CHECKIN_CHAINS.filter((items) => {
+                                return items.name !== selectedChain.name;
+                              }).map((chain) => (
+                                <button
+                                  key={chain.chainId}
+                                  type="button"
+                                  onClick={() => handleChainSelect(chain)}
+                                  className={`w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors ${
+                                    selectedChainId === chain.chainId
+                                      ? "bg-purple-50 text-purple-700 font-medium"
+                                      : "hover:bg-gray-50 text-gray-700"
+                                  }`}
+                                >
+                                  <img
+                                    src={chain.icon}
+                                    alt=""
+                                    className="h-5 w-5 rounded-full"
+                                  />
+                                  {chain.name}
+                                </button>
+                              ))}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
                     {/* Claim Button or Status */}
                     {isClaimedView ? (
                       <div className="w-full px-8 py-3 rounded-xl font-semibold text-center bg-green-100 text-green-700 border-2 border-green-300">
@@ -372,7 +530,7 @@ export function CheckinModal({
                     <div className="text-sm font-semibold text-gray-600 mb-3 text-center md:text-left">
                       Week Progress
                     </div>
-                    <div className="space-y-3 max-h-68 overflow-y-auto pr-1">
+                    <div className="space-y-3 max-h-68 overflow-y-auto p-1">
                       {weekDays.map((day, index) => (
                         <motion.div
                           key={day.dayNumber || index}

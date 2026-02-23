@@ -33,6 +33,7 @@ import {
   setWalletType,
 } from "./redux/slices/walletSlice";
 import { resetPoints, setPointsBalance } from "./redux/slices/pointsSlice";
+import { clearCheckin } from "./redux/slices/checkinSlice";
 import { useAuth } from "./hooks/useAuth";
 
 import { Toaster, toast } from "sonner";
@@ -98,6 +99,7 @@ function LaunchAppLayout() {
     dispatch(setWalletType(""));
     dispatch(setViewingHistorySessionId(null));
     dispatch(setCurrentMessages([]));
+    dispatch(clearCheckin());
     localStorage.removeItem("authToken");
     localStorage.removeItem("authUser");
 

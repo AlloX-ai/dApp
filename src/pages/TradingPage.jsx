@@ -193,11 +193,7 @@ export function TradingPage() {
     </div>
   );
 
-  const TokenRow = ({
-    item,
-    showChange = false,
-    onTokenClick,
-  }) => {
+  const TokenRow = ({ item, showChange = false, onTokenClick }) => {
     const token = item?.token ?? item;
     const price = item?.price ?? item;
     const symbol = token?.symbol ?? item?.symbol;
@@ -257,7 +253,7 @@ export function TradingPage() {
           </span>
           {showChange && change24h != null && (
             <span
-              className={`text-sm font-medium w-16 text-right ${
+              className={`text-sm font-medium w-16 text-ellipsis overflow-hidden text-right ${
                 changePositive ? "text-green-600" : "text-red-600"
               }`}
             >

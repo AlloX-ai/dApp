@@ -21,7 +21,6 @@ export function LaunchSidebar() {
 
   const [checkinModalOpen, setCheckinModalOpen] = useState(false);
 
-  
   const {
     status: checkinStatus,
     checkedInToday,
@@ -97,16 +96,14 @@ export function LaunchSidebar() {
                   Daily Bonus
                 </div>
                 <div className="text-white font-bold text-sm mb-3">
-                  {checkedInToday
-                    ? `Already claimed today${checkedInToday.pointsAwarded != null ? ` (+${checkedInToday.pointsAwarded} pts)` : ""}`
-                    : "Get up to 5,000 points (1–7 days)"}
+                  Get up to 5,000 points
                 </div>
                 <button
                   onClick={() => setCheckinModalOpen(true)}
                   disabled={!isConnected}
                   className="w-full bg-white text-purple-600 font-semibold text-sm py-2 px-4 rounded-xl hover:bg-white/90 transition-all shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  Claim
+                  {checkedInToday ? "Already Claimed" : "Claim"}
                 </button>
               </div>
             </div>

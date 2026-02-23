@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 import { useSelector } from "react-redux";
 import { useAuth } from "./useAuth";
-import { useCheckin } from "./useCheckin";
 
 /**
  * Returns the sum of user points (from localStorage/authUser / Redux) and
@@ -10,7 +9,10 @@ import { useCheckin } from "./useCheckin";
 export function useTotalPoints() {
   const { user } = useAuth();
   const pointsBalance = useSelector((state) => state.points?.balance);
-  const { status: checkinStatus } = useCheckin();
+  const checkinStatus = useSelector((state) => state.checkin?.status);
+  const optimisticCheckinPoints = useSelector(
+    (state) => state.checkin?.optimisticPoints ?? 0,
+  );
 
   return useMemo(() => {
     const userPoints =
@@ -18,7 +20,8 @@ export function useTotalPoints() {
       user?.points ??
       user?.season1?.points ??
       0;
-    const dailyBonusPoints = checkinStatus?.totalPointsEarned ?? 0;
+    const dailyBonusPoints =
+      (checkinStatus?.totalPointsEarned ?? 0) + optimisticCheckinPoints;
     const u = Number(userPoints) || 0;
     const d = Number(dailyBonusPoints) || 0;
     return {
@@ -26,5 +29,11 @@ export function useTotalPoints() {
       userPoints: u,
       dailyBonusPoints: d,
     };
-  }, [pointsBalance, user?.points, user?.season1?.points, checkinStatus?.totalPointsEarned]);
+  }, [
+    pointsBalance,
+    user?.points,
+    user?.season1?.points,
+    checkinStatus?.totalPointsEarned,
+    optimisticCheckinPoints,
+  ]);
 }

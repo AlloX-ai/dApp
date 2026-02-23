@@ -4,6 +4,7 @@ import userReducer from "./slices/userSlice";
 import chatReducer from "./slices/chatSlice";
 import stakingReducer from "./slices/stakingSlice";
 import pointsReducer from "./slices/pointsSlice";
+import checkinReducer from "./slices/checkinSlice";
 
 export const store = configureStore({
   reducer: {
@@ -12,6 +13,7 @@ export const store = configureStore({
     chat: chatReducer,
     staking: stakingReducer,
     points: pointsReducer,
+    checkin: checkinReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({ serializableCheck: false }),

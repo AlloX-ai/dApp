@@ -17,7 +17,6 @@ import {
 } from "../redux/slices/pointsSlice";
 import { apiCall } from "../utils/api";
 import { useAuth } from "../hooks/useAuth";
-import { useCountdown } from "../hooks/useCountdown";
 
 export function ChatPage() {
   const dispatch = useDispatch();
@@ -39,7 +38,7 @@ export function ChatPage() {
     claimSeason1,
     logout,
   } = useAuth();
-  const { formatted } = useCountdown();
+
   const speechBoxRef = useRef(null);
   const typingTimerRef = useRef(null);
   const typingMessageRef = useRef(null);
@@ -1268,78 +1267,54 @@ export function ChatPage() {
               </div>
             </div>
           )}
-          {formatted ? (
-            <div className="mb-4 glass-card p-4 border border-blue-200/50 bg-blue-50/30">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-gradient-to-br from-purple-500/20 to-blue-500/20 rounded-full flex items-center justify-center border border-purple-300/30">
-                  <Clock size={16} className="text-purple-600" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900 mb-0">
-                    Chat Access
-                  </p>
-                  <p className="text-xs text-gray-600">Coming Soon</p>
-                </div>
 
-                <div className="text-sm font-mono font-bold text-gray-900">
-                  {formatted.days}d:{String(formatted.hours).padStart(2, "0")}h:
-                  {String(formatted.minutes).padStart(2, "0")}m
-                  {/* : {String(formatted.seconds).padStart(2, "0")}s */}
+          <>
+            <div className="relative">
+              <input
+                type="text"
+                value={message}
+                onChange={(e) =>
+                  !isReadOnly && dispatch(setMessage(e.target.value))
+                }
+                onKeyDown={handleInputKeyDown}
+                placeholder={
+                  isReadOnly
+                    ? "This conversation is read-only"
+                    : "Type your intent..."
+                }
+                disabled={isReadOnly}
+                className="w-full px-6 py-4 pr-28 bg-white/60 backdrop-blur-sm border border-gray-200/50 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-black/10 focus:bg-white/80 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+              />
+              {!isReadOnly && (
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-2">
+                  {message ? (
+                    <button
+                      onClick={handleSendMessage}
+                      className="p-3 bg-black rounded-xl hover:bg-gray-800 hover:shadow-lg transition-all duration-200"
+                    >
+                      <Send size={18} className="text-white" />
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="p-3 bg-gray-200 rounded-xl cursor-not-allowed"
+                    >
+                      <Send size={18} className="text-gray-700" />
+                    </button>
+                  )}
                 </div>
-              </div>
-              {/* <p className="text-xs text-gray-500 mt-2">
-                Ends 25 Feb 2025, 14:00 UTC
-              </p> */}
+              )}
             </div>
-          ) : (
-            <>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={message}
-                  onChange={(e) =>
-                    !isReadOnly && dispatch(setMessage(e.target.value))
-                  }
-                  onKeyDown={handleInputKeyDown}
-                  placeholder={
-                    isReadOnly
-                      ? "This conversation is read-only"
-                      : "Type your intent..."
-                  }
-                  disabled={isReadOnly}
-                  className="w-full px-6 py-4 pr-28 bg-white/60 backdrop-blur-sm border border-gray-200/50 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-black/10 focus:bg-white/80 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
-                />
-                {!isReadOnly && (
-                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-2">
-                    {message ? (
-                      <button
-                        onClick={handleSendMessage}
-                        className="p-3 bg-black rounded-xl hover:bg-gray-800 hover:shadow-lg transition-all duration-200"
-                      >
-                        <Send size={18} className="text-white" />
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        className="p-3 bg-gray-200 rounded-xl cursor-not-allowed"
-                      >
-                        <Send size={18} className="text-gray-700" />
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-              <p className="text-xs hidden md:block text-center text-gray-500 mt-3">
-                {messagesRemaining === 0 ? (
-                  <span className="text-amber-600 font-medium">
-                    No messages left in your current limit. Try again later.
-                  </span>
-                ) : (
-                  "AlloX can make mistakes. Always verify transactions before confirming."
-                )}
-              </p>
-            </>
-          )}
+            <p className="text-xs hidden md:block text-center text-gray-500 mt-3">
+              {messagesRemaining === 0 ? (
+                <span className="text-amber-600 font-medium">
+                  No messages left in your current limit. Try again later.
+                </span>
+              ) : (
+                "AlloX can make mistakes. Always verify transactions before confirming."
+              )}
+            </p>
+          </>
         </div>
       </div>
 

@@ -1,6 +1,7 @@
 import { useCallback, useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import { useWriteContract, useSwitchChain, useAccount } from "wagmi";
+import { waitForTransactionReceipt as wagmiWaitForTransactionReceipt } from "@wagmi/core";
 import bs58 from "bs58";
 import { apiCall } from "../utils/api";
 import {
@@ -9,7 +10,9 @@ import {
   checkin_bnb_address,
   CHECKIN_ABI,
 } from "../constants/contracts";
-
+import { wagmiClient } from "../wagmiConnectors";
+import { setCheckinStatus, addOptimisticCheckinPoints } from "../redux/slices/checkinSlice";
+import { useDispatch } from "react-redux";
 const CHAIN_ID_TO_API = {
   1: "ethereum",
   56: "bnb",
@@ -23,6 +26,7 @@ const CHAIN_ID_TO_ADDRESS = {
 };
 
 const SUPPORTED_EVM_CHAIN_IDS = [1, 56, 8453];
+export const SOLANA_CHAIN_ID = 101;
 
 export function useCheckin() {
   const walletType = useSelector((state) => state.wallet.walletType);
@@ -40,27 +44,29 @@ export function useCheckin() {
 
   const isSolana = walletType === "phantom";
   const currentEVMChainId = isSolana ? null : (wagmiChainId ?? chainId);
-
+const dispatch = useDispatch();
   const fetchStatus = useCallback(async () => {
     const token = localStorage.getItem("authToken");
     if (!token) {
-      setStatus(null);
+      dispatch(setCheckinStatus(null));
       return;
     }
     try {
       const data = await apiCall("/checkin/status");
       setStatus(data);
+      dispatch(setCheckinStatus(data));
       setError(null);
     } catch (err) {
-      setStatus(null);
-      if (err?.status !== 401) setError(err?.message || "Failed to load status");
+      dispatch(setCheckinStatus(null));
+      if (err?.status !== 401)
+        setError(err?.message || "Failed to load status");
     }
-  }, []);
+  }, [dispatch]);
 
   useEffect(() => {
     if (isConnected) fetchStatus();
-    else setStatus(null);
-  }, [isConnected, fetchStatus]);
+    else dispatch(setCheckinStatus(null));
+  }, [isConnected, fetchStatus, dispatch]);
 
   const claimSolana = useCallback(async () => {
     const provider = window.phantom?.solana;
@@ -96,12 +102,12 @@ export function useCheckin() {
         } catch (switchErr) {
           if (switchErr?.code === 4902) {
             throw new Error(
-              `Please add ${apiChain} network in your wallet and try again.`
+              `Please add ${apiChain} network in your wallet and try again.`,
             );
           }
           throw new Error(
             switchErr?.message ||
-              `Please switch to ${apiChain} (chain ID ${effectiveChainId}) to claim.`
+              `Please switch to ${apiChain} (chain ID ${effectiveChainId}) to claim.`,
           );
         }
       }
@@ -113,45 +119,87 @@ export function useCheckin() {
         chainId: effectiveChainId,
       });
 
-      return apiCall("/checkin", {
-        method: "POST",
-        body: JSON.stringify({
-          chain: apiChain,
-          txHash: typeof txHash === "string" ? txHash : txHash?.hash ?? txHash,
-        }),
-      });
+      let receipt;
+      const maxRetries = 5;
+      for (let i = 0; i < maxRetries; i++) {
+        receipt = await wagmiWaitForTransactionReceipt(wagmiClient, {
+          hash: txHash,
+        }).catch(() => null);
+        if (receipt) break;
+        // wait 2 seconds before retry
+        await new Promise((res) => setTimeout(res, 2000));
+      }
+
+      if (receipt) {
+        return apiCall("/checkin", {
+          method: "POST",
+          body: JSON.stringify({
+            chain: apiChain,
+            txHash:
+              typeof txHash === "string" ? txHash : (txHash?.hash ?? txHash),
+          }),
+        });
+      }
     },
-    [currentEVMChainId, switchChainAsync, writeContractAsync]
+    [currentEVMChainId, switchChainAsync, writeContractAsync],
   );
 
-  const claim = useCallback(async () => {
-    setError(null);
-    setLoading(true);
-    try {
-      if (isSolana) {
-        await claimSolana();
-      } else {
-        const targetChainId = SUPPORTED_EVM_CHAIN_IDS.includes(chainId)
-          ? chainId
-          : 1;
-        await claimEVM(targetChainId);
+  const claim = useCallback(
+    async (targetChainIdOverride) => {
+      setError(null);
+      setLoading(true);
+      try {
+        const targetChainId =
+          targetChainIdOverride ??
+          (isSolana ? SOLANA_CHAIN_ID : chainId) ??
+          1;
+
+        if (targetChainId === SOLANA_CHAIN_ID) {
+          if (!isSolana) {
+            const err = new Error(
+              "Solana requires a Solana-capable wallet (e.g. Phantom). Please connect with a Solana wallet.",
+            );
+            err.code = "WALLET_SOLANA_REQUIRED";
+            throw err;
+          }
+          await claimSolana();
+        } else if (SUPPORTED_EVM_CHAIN_IDS.includes(targetChainId)) {
+          if (isSolana) {
+            const err = new Error(
+              "EVM chains require an EVM wallet (e.g. MetaMask). Please connect with an EVM wallet.",
+            );
+            err.code = "WALLET_EVM_REQUIRED";
+            throw err;
+          }
+          await claimEVM(targetChainId);
+        } else {
+          await claimEVM(SUPPORTED_EVM_CHAIN_IDS[0]);
+        }
+        await fetchStatus();
+      } catch (err) {
+        const msg =
+          err?.message ||
+          err?.data?.message ||
+          (typeof err?.data?.error === "string"
+            ? err.data.error
+            : "Claim failed");
+        setError(msg);
+        throw err;
+      } finally {
+        setLoading(false);
       }
-      await fetchStatus();
-    } catch (err) {
-      const msg =
-        err?.message ||
-        err?.data?.message ||
-        (typeof err?.data?.error === "string" ? err.data.error : "Claim failed");
-      setError(msg);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, [isSolana, chainId, claimSolana, claimEVM, fetchStatus]);
+    },
+    [isSolana, chainId, claimSolana, claimEVM, fetchStatus],
+  );
 
   const fetchHistory = useCallback(async () => {
     return apiCall("/checkin/history");
   }, []);
+
+  const addOptimisticCheckinPoints = useCallback(
+    (points) => dispatch(addOptimisticCheckinPoints(points)),
+    [dispatch],
+  );
 
   const checkedInToday = status?.checkedInToday ?? null;
   const canCheckIn = status?.canCheckIn === true;
@@ -167,6 +215,7 @@ export function useCheckin() {
     claim,
     fetchStatus,
     fetchHistory,
+    addOptimisticCheckinPoints,
     isSolana,
   };
 }

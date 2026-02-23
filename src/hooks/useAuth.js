@@ -1,8 +1,9 @@
 import { useCallback, useState } from "react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { useAccount, useSignMessage } from "wagmi";
 import bs58 from "bs58";
 import { apiCall } from "../utils/api";
+import { setWalletType } from "../redux/slices/walletSlice";
 
 const AUTH_USER_KEY = "authUser";
 
@@ -17,6 +18,7 @@ const loadStoredUser = () => {
 };
 
 export const useAuth = () => {
+  const dispatch = useDispatch();
   const { address: evmAddress } = useAccount();
   const { signMessageAsync } = useSignMessage();
   const walletAddress = useSelector((state) => state.wallet.address);
@@ -52,6 +54,7 @@ export const useAuth = () => {
 
     const nonceRes = await apiCall(`/auth/nonce/${address}`);
     const message = nonceRes.message;
+    const walletTypeFromApi = nonceRes.walletType ?? walletType;
 
     if (!message) {
       throw new Error("Missing nonce message");
@@ -59,7 +62,7 @@ export const useAuth = () => {
 
     let signature;
 
-    if (walletType === "phantom") {
+    if (walletTypeFromApi === "phantom") {
       const provider = window.phantom?.solana;
       if (!provider) throw new Error("Phantom not connected");
       const encodedMessage = new TextEncoder().encode(message);
@@ -88,8 +91,12 @@ export const useAuth = () => {
       setUser(verifyRes.user);
     }
 
+    if (walletTypeFromApi) {
+      dispatch(setWalletType(walletTypeFromApi));
+    }
+
     return { token: verifyRes.token, user: verifyRes.user };
-  }, [address, walletType, signMessageAsync, setUser]);
+  }, [address, walletType, signMessageAsync, setUser, dispatch]);
 
   const claimSeason1 = useCallback(async () => {
     const t = token || localStorage.getItem("authToken");

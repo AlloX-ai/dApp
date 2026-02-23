@@ -20,9 +20,9 @@ export function StakingPage() {
   const stakingOptions = [
     {
       id: 1,
-      name: "Project 1",
+      name: "BNB Chain",
       protocol: "Aerodrome Finance",
-      token: "AERO",
+      token: "BNB",
       apy: 18.5,
       lockPeriod: "Flexible",
       lockDays: 0,
@@ -34,9 +34,9 @@ export function StakingPage() {
     },
     {
       id: 2,
-      name: "Project 2",
+      name: "Solana",
       protocol: "Virtual Protocol",
-      token: "VIRTUAL",
+      token: "SOL",
       apy: 22.3,
       lockPeriod: "7 days",
       lockDays: 7,
@@ -48,11 +48,11 @@ export function StakingPage() {
     },
     {
       id: 3,
-      name: "Project 3",
+      name: "Ethereum",
       protocol: "Lido Finance",
-      token: "Prime",
+      token: "ETH",
       apy: 42,
-      lockPeriod: "Flexible",
+      lockPeriod: "30 days",
       lockDays: 0,
       color: "from-cyan-400 to-cyan-600",
       userBalance: "2.45",
@@ -228,7 +228,7 @@ export function StakingPage() {
                       className={`w-12 h-12 rounded-full bg-gradient-to-br ${option.color} `}
                     ></div>
                     <div>
-                      <h3 className="font-bold">{option.name}</h3>
+                      <h3 className="font-bold blur-sm">{option.name}</h3>
                       {/* <p className="text-sm text-gray-600">{option.protocol}</p> */}
                     </div>
                   </div>

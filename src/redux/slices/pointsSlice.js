@@ -15,7 +15,9 @@ const pointsSlice = createSlice({
     setPointsBalance: (state, action) => {
       state.balance = action.payload;
     },
-   
+    addPoints: (state, action) => {
+      state.balance = (state.balance ?? 0) + action.payload;
+    },
     resetPoints: (state) => {
       state.balance = null;
     },
