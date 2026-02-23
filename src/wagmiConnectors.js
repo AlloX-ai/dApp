@@ -3,6 +3,7 @@ import {
   mainnet,
   opBNB,
   bsc,
+  base,
 } from "wagmi/chains";
 import {
   metaMask,
@@ -19,6 +20,7 @@ export const wagmiClient = createConfig({
     mainnet,
     opBNB,
     bsc,
+    base,
   ],
   autoConnect: true,
   connectors: [
@@ -34,6 +36,6 @@ export const wagmiClient = createConfig({
     [bsc.id]: http(),
     [mainnet.id]: http(),
     [opBNB.id]: http(),
-   
+    [base.id]: http(),
   },
 });

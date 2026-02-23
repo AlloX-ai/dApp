@@ -9,8 +9,8 @@ interface ChatBubbleProps {
 export function ChatBubble({ type, children, className = '' }: ChatBubbleProps) {
   if (type === 'user') {
     return (
-      <div className={`flex justify-end ${className}`}>
-        <div className="bg-black text-white px-5 py-3 rounded-2xl rounded-tr-sm max-w-[85%]">
+      <div className={`flex justify-end w-full ${className}`}>
+        <div className="bg-black text-white px-5 py-3 rounded-2xl rounded-tr-sm max-w-[85%] [&_p]:text-white [&_strong]:text-white [&_ul]:text-white [&_li]:text-white [&_table]:text-white">
           {children}
         </div>
       </div>
