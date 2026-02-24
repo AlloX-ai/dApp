@@ -148,7 +148,7 @@ export function CheckinModal({
     const wantsSolana = chain.chainId === SOLANA_CHAIN_ID;
     if (wantsSolana && !isSolana) {
       toast.error(
-        "Solana requires a Solana-capable wallet (e.g. Phantom). Connect with a Solana wallet to claim on Solana.",
+        "Solana requires a Solana-capable wallet (e.g. MetaMask with Solana). Connect with a Solana wallet to claim on Solana.",
       );
       setChainDropdownOpen(false);
       return;
@@ -173,20 +173,11 @@ export function CheckinModal({
       } catch (e) {
         console.warn("Failed to persist preferred chain", e);
       }
-      const provider = typeof window !== "undefined" && window.phantom?.solana;
-      if (provider) {
-        try {
-          await provider.connect({ onlyIfTrusted: true });
-        } catch (err) {
-          console.error("Failed to connect Phantom:", err);
-        }
-      }
       return;
     }
 
     const provider =
-      (typeof window !== "undefined" && window.phantom?.ethereum) ||
-      (typeof window !== "undefined" && window.ethereum);
+      typeof window !== "undefined" && window.ethereum;
     if (!provider) {
       toast.error("No EVM wallet detected (e.g. MetaMask).");
       return;

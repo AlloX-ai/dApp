@@ -101,37 +101,27 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
       }
       if (walletType !== "solana") {
         toast.error(
-          "Solana requires a Solana-capable wallet (e.g. Phantom). Please connect with a Solana wallet.",
+          "Solana requires a Solana-capable wallet (e.g. MetaMask with Solana). Please connect with a Solana wallet.",
         );
       } else {
-        const provider = (window as any).phantom?.solana;
-        if (provider) {
-          try {
-            await provider.connect({ onlyIfTrusted: true });
-
-          } catch (err) {
-            console.error("Failed to connect Phantom:", err);
-            // User may have disconnected
-          }
-        }
+        // Solana connection is managed by wallet adapter; no extra connect needed when switching to Solana.
       }
       setIsOpen(false);
       return;
     }
 
-    if (network.name === "BNB Chain" && walletType === "solana") {
-      toast.error(
-        "BNB Chain requires an EVM wallet (e.g. MetaMask). Please connect with an EVM wallet.",
-      );
-      setIsOpen(false);
-      return;
-    }
+    // if (network.name === "BNB Chain" && walletType === "solana") {
+    //   toast.error(
+    //     "BNB Chain requires an EVM wallet (e.g. MetaMask). Please connect with an EVM wallet.",
+    //   );
+    //   setIsOpen(false);
+    //   return;
+    // }
 
-    const provider =
-      (window as any).phantom?.ethereum ?? (window as any).ethereum;
+    const provider = (window as any).ethereum;
 
     if (!provider) {
-      toast.error("No EVM wallet detected (Phantom or MetaMask).");
+      toast.error("No EVM wallet detected (e.g. MetaMask).");
       return;
     }
 
@@ -141,7 +131,7 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
         params: [{ chainId: network.chainHex }],
       });
 
-      // Ensure an EVM account is connected (Phantom EVM or other EVM wallet)
+      // Ensure an EVM account is connected
       try {
         await provider.request({ method: "eth_requestAccounts" });
       } catch (accountsError) {
@@ -186,7 +176,7 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
   const handleSwitchNetworkEVM = async (network: NetworkOption) => {
     if (network.name === "Solana") {
       toast.error(
-        "Solana requires a Solana-capable wallet (e.g. Phantom). Please connect with a Solana wallet.",
+        "Solana requires a Solana-capable wallet (e.g. MetaMask with Solana). Please connect with a Solana wallet.",
       );
       setIsOpen(false);
       return;
