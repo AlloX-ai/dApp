@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
+import { openCheckinModal } from "../redux/slices/walletSlice";
 import {
   Wallet,
   Menu,
@@ -17,11 +18,9 @@ import { NetworkSelector } from "./NetworkSelector";
 import { shortAddress } from "../hooks/shortAddress";
 import { useCheckin } from "../hooks/useCheckin";
 import { useTotalPoints } from "../hooks/useTotalPoints";
-import { CheckinModal } from "./CheckinModal";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { navigationTabs, isActivePath } from "../constants/navigation";
 import OutsideClickHandler from "react-outside-click-handler/build/OutsideClickHandler";
-import { addOptimisticCheckinPoints } from "../redux/slices/checkinSlice";
 
 export function Header({
   isConnected,
@@ -36,21 +35,15 @@ export function Header({
   const walletAddress = useSelector((state) => state.wallet.address);
   const messagesRemaining =
     rateLimit?.remaining ?? rateLimit?.messagesRemaining;
+  const dispatch = useDispatch();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
-  const [checkinModalOpen, setCheckinModalOpen] = useState(false);
 
-  const {
-    status: checkinStatus,
-    checkedInToday,
-    loading: checkinLoading,
-    claim,
-    fetchStatus,
-  } = useCheckin();
+  const { checkedInToday } = useCheckin();
 
-  const openCheckinModal = () => {
-    setCheckinModalOpen(true);
+  const handleOpenCheckinModal = () => {
+    dispatch(openCheckinModal());
     setIsMenuOpen(false);
   };
 
@@ -148,9 +141,9 @@ export function Header({
             )}
             {isConnected ? (
               <div className="glass-card px-0 md:pr-4 flex items-center gap-3 transition-all duration-200 hover:shadow-md">
-                <div className="hidden md:flex">
+                {/* <div className="hidden md:flex"> */}
                   <NetworkSelector onDisconnectClick={onDisconnectClick} />
-                </div>
+                {/* </div> */}
                 <div className="hidden md:flex items-center gap-2">
                   <span
                     className="text-sm cursor-pointer font-medium flex gap-3 items-center"
@@ -224,7 +217,7 @@ export function Header({
                         {isConnected && (
                           <div className="flex items-center gap-2 justify-between">
                             <span
-                              className=" px-4 py-3 text-sm font-medium flex gap-3 items-center"
+                              className=" pl-4 py-3 text-sm font-medium flex gap-3 items-center"
                               onClick={() => handleCopy(coinbase)}
                             >
                               {copied ? (
@@ -234,9 +227,9 @@ export function Header({
                               )}
                               {shortAddress(coinbase)}
                             </span>
-                            <NetworkSelector
+                            {/* <NetworkSelector
                               onDisconnectClick={onDisconnectClick}
-                            />
+                            /> */}
                           </div>
                         )}
                         {isConnected && (
@@ -257,12 +250,12 @@ export function Header({
                                 </div>
 
                                 <button
-                                  // onClick={openCheckinModal}
-                                  // disabled={!isConnected}
+                                  onClick={handleOpenCheckinModal}
+                                  disabled={!isConnected}
                                   className="w-full bg-white text-purple-600 font-semibold text-sm py-2 px-4 rounded-xl hover:bg-white/90 transition-all shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
                                 >
-                                  {/* {checkedInToday ? "Already Claimed" : "Claim"} */}
-                                  Coming Soon
+                                  {checkedInToday ? "Already Claimed" : "Claim"}
+                                  {/* Coming Soon */}
                                 </button>
                               </div>
                             </div>
@@ -276,16 +269,6 @@ export function Header({
             </div>
           </div>
         </OutsideClickHandler>
-
-        <CheckinModal
-          open={checkinModalOpen}
-          onClose={() => setCheckinModalOpen(false)}
-          status={checkinStatus}
-          claim={claim}
-          // fetchStatus={fetchStatus}
-          addOptimisticCheckinPoints={addOptimisticCheckinPoints}
-          loading={checkinLoading}
-        />
       </div>
     </header>
   );

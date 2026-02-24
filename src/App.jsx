@@ -33,10 +33,13 @@ import {
   setIsConnected,
   setWalletModal,
   setWalletType,
+  closeCheckinModal,
 } from "./redux/slices/walletSlice";
 import { resetPoints, setPointsBalance } from "./redux/slices/pointsSlice";
 import { clearCheckin } from "./redux/slices/checkinSlice";
 import { useAuth } from "./hooks/useAuth";
+import { useCheckin } from "./hooks/useCheckin";
+import { CheckinModal } from "./components/CheckinModal";
 
 import { Toaster, toast } from "sonner";
 import {
@@ -82,10 +85,16 @@ function LaunchAppLayout() {
   const authTriggeredRef = useRef(false);
   const { connector } = getAccount(wagmiClient);
 
-  const { address, isConnected, walletModal, walletType } = useSelector(
-    (state) => state.wallet,
-  );
+  const { address, isConnected, walletModal, walletType, checkinModal } =
+    useSelector((state) => state.wallet);
   const { token, user, ensureAuthenticated } = useAuth();
+  const {
+    status: checkinStatus,
+    claim: claimCheckin,
+    fetchStatus: fetchCheckinStatus,
+    addOptimisticCheckinPoints,
+    loading: checkinLoading,
+  } = useCheckin();
 
   const handleDisconnect = async () => {
     // if (walletType === "phantom") {
@@ -288,6 +297,16 @@ function LaunchAppLayout() {
         isOpen={walletModal}
         onClose={() => setWalletModalOpen(false)}
         onConnect={handleWalletConnect}
+      />
+
+      <CheckinModal
+        open={checkinModal}
+        onClose={() => dispatch(closeCheckinModal())}
+        status={checkinStatus}
+        claim={claimCheckin}
+        fetchStatus={fetchCheckinStatus}
+        addOptimisticCheckinPoints={addOptimisticCheckinPoints}
+        loading={checkinLoading}
       />
     </div>
   );

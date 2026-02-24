@@ -11,7 +11,10 @@ import {
   CHECKIN_ABI,
 } from "../constants/contracts";
 import { wagmiClient } from "../wagmiConnectors";
-import { setCheckinStatus, addOptimisticCheckinPoints } from "../redux/slices/checkinSlice";
+import {
+  setCheckinStatus,
+  addOptimisticCheckinPoints as addOptimisticCheckinPointsAction,
+} from "../redux/slices/checkinSlice";
 import { useDispatch } from "react-redux";
 const CHAIN_ID_TO_API = {
   1: "ethereum",
@@ -64,11 +67,11 @@ const dispatch = useDispatch();
   }, [dispatch]);
 
   useEffect(() => {
-    // if (isConnected) fetchStatus();
-    // else 
+    if (isConnected) fetchStatus();
+    else 
       dispatch(setCheckinStatus(null));
   }, [isConnected,
-    //  fetchStatus,
+     fetchStatus,
       dispatch]);
 
   const claimSolana = useCallback(async () => {
@@ -178,7 +181,7 @@ const dispatch = useDispatch();
         } else {
           await claimEVM(SUPPORTED_EVM_CHAIN_IDS[0]);
         }
-        // await fetchStatus();
+        await fetchStatus();
       } catch (err) {
         const msg =
           err?.message ||
@@ -193,7 +196,7 @@ const dispatch = useDispatch();
       }
     },
     [isSolana, chainId, claimSolana, claimEVM,
-      //  fetchStatus
+       fetchStatus
       ],
   );
 
@@ -202,7 +205,7 @@ const dispatch = useDispatch();
   }, []);
 
   const addOptimisticCheckinPoints = useCallback(
-    (points) => dispatch(addOptimisticCheckinPoints(points)),
+    (points) => dispatch(addOptimisticCheckinPointsAction(points)),
     [dispatch],
   );
 
@@ -218,7 +221,7 @@ const dispatch = useDispatch();
     loading,
     error,
     claim,
-    // fetchStatus,
+    fetchStatus,
     fetchHistory,
     addOptimisticCheckinPoints,
     isSolana,

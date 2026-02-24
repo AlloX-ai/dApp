@@ -98,14 +98,14 @@ export function BetaAccessModal({
         </div>
       </div>
       <div
-        className="glass-card max-w-md w-full p-8 relative animate-fade-in"
+        className="glass-card max-w-md w-full p-4 sm:p-8 relative animate-fade-in"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="text-center mb-6">
           <h2 className="text-2xl font-bold mb-3">Log in to AlloX</h2>
         </div>
 
-        <div className="mb-8">
+        <div className="mb-0 sm:mb-8">
           {isSigning ? (
             <div className="flex flex-col items-center justify-center py-12 gap-4">
               <Loader2 className="w-14 h-14 animate-spin text-gray-400" />

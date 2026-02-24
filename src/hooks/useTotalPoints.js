@@ -13,7 +13,7 @@ export function useTotalPoints() {
   const optimisticCheckinPoints = useSelector(
     (state) => state.checkin?.optimisticPoints ?? 0,
   );
-
+  
   return useMemo(() => {
     const userPoints =
       pointsBalance ??
