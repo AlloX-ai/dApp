@@ -17,27 +17,50 @@ import {
 } from "lucide-react";
 
 import { SOLANA_CHAIN_ID } from "../hooks/useCheckin";
+import { setChainId } from "../redux/slices/walletSlice";
+
+const PREFERRED_CHAIN_STORAGE_KEY = "walletPreferredChainId";
 
 const CHECKIN_CHAINS = [
   {
     chainId: 1,
+    chainHex: "0x1",
     name: "Ethereum",
     icon: "https://cdn.allox.ai/allox/networks/eth.svg",
+    chainName: "Ethereum Mainnet",
+    rpcUrls: ["https://cloudflare-eth.com"],
+    blockExplorerUrls: ["https://etherscan.io"],
+    nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
   },
   {
     chainId: 56,
+    chainHex: "0x38",
     name: "BNB Chain",
     icon: "https://cdn.allox.ai/allox/networks/bnbIcon.svg",
+    chainName: "BNB Smart Chain",
+    rpcUrls: ["https://bsc-dataseed.binance.org"],
+    blockExplorerUrls: ["https://bscscan.com"],
+    nativeCurrency: { name: "BNB", symbol: "BNB", decimals: 18 },
   },
   {
     chainId: 8453,
+    chainHex: "0x2105",
     name: "Base",
     icon: "https://cdn.allox.ai/allox/networks/base.svg",
+    chainName: "Base",
+    rpcUrls: ["https://mainnet.base.org"],
+    blockExplorerUrls: ["https://basescan.org"],
+    nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
   },
   {
     chainId: SOLANA_CHAIN_ID,
+    chainHex: "0x65",
     name: "Solana",
     icon: "https://cdn.allox.ai/allox/networks/solana.svg",
+    chainName: "Solana Mainnet",
+    rpcUrls: ["https://api.mainnet-beta.solana.com"],
+    blockExplorerUrls: ["https://explorer.solana.com"],
+    nativeCurrency: { name: "SOL", symbol: "SOL", decimals: 9 },
   },
 ];
 // eslint-disable-next-line no-unused-vars -- motion used as namespace in JSX (motion.div)
@@ -74,7 +97,7 @@ export function CheckinModal({
   onClose,
   status,
   claim,
-  // fetchStatus,
+  fetchStatus,
   addOptimisticCheckinPoints,
   loading,
 }) {
@@ -121,13 +144,12 @@ export function CheckinModal({
     CHECKIN_CHAINS.find((c) => c.chainId === selectedChainId) ??
     CHECKIN_CHAINS[0];
 
-  const handleChainSelect = (chain) => {
+  const handleChainSelect = async (chain) => {
     const wantsSolana = chain.chainId === SOLANA_CHAIN_ID;
     if (wantsSolana && !isSolana) {
       toast.error(
         "Solana requires a Solana-capable wallet (e.g. Phantom). Connect with a Solana wallet to claim on Solana.",
       );
-      // dispatch(setWalletModal(true));
       setChainDropdownOpen(false);
       return;
     }
@@ -135,12 +157,82 @@ export function CheckinModal({
       toast.error(
         "EVM chains require an EVM wallet (e.g. MetaMask). Connect with an EVM wallet to claim on Ethereum, BNB, or Base.",
       );
-      // dispatch(setWalletModal(true));
       setChainDropdownOpen(false);
       return;
     }
-    setSelectedChainId(chain.chainId);
-    setChainDropdownOpen(false);
+
+    if (wantsSolana) {
+      try {
+        localStorage.setItem(
+          PREFERRED_CHAIN_STORAGE_KEY,
+          String(SOLANA_CHAIN_ID),
+        );
+        dispatch(setChainId(SOLANA_CHAIN_ID));
+        setSelectedChainId(chain.chainId);
+        setChainDropdownOpen(false);
+      } catch (e) {
+        console.warn("Failed to persist preferred chain", e);
+      }
+      const provider = typeof window !== "undefined" && window.phantom?.solana;
+      if (provider) {
+        try {
+          await provider.connect({ onlyIfTrusted: true });
+        } catch (err) {
+          console.error("Failed to connect Phantom:", err);
+        }
+      }
+      return;
+    }
+
+    const provider =
+      (typeof window !== "undefined" && window.phantom?.ethereum) ||
+      (typeof window !== "undefined" && window.ethereum);
+    if (!provider) {
+      toast.error("No EVM wallet detected (e.g. MetaMask).");
+      return;
+    }
+
+    try {
+      await provider.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: chain.chainHex }],
+      });
+      try {
+        await provider.request({ method: "eth_requestAccounts" });
+      } catch (accountsError) {
+        console.error("Failed to request EVM accounts:", accountsError);
+      }
+      dispatch(setChainId(chain.chainId));
+      setSelectedChainId(chain.chainId);
+      setChainDropdownOpen(false);
+    } catch (error) {
+      const code = error?.code;
+      if (code === 4902) {
+        try {
+          await provider.request({
+            method: "wallet_addEthereumChain",
+            params: [
+              {
+                chainId: chain.chainHex,
+                chainName: chain.chainName,
+                rpcUrls: chain.rpcUrls,
+                blockExplorerUrls: chain.blockExplorerUrls,
+                nativeCurrency: chain.nativeCurrency,
+              },
+            ],
+          });
+          dispatch(setChainId(chain.chainId));
+          setSelectedChainId(chain.chainId);
+          setChainDropdownOpen(false);
+          return;
+        } catch (addError) {
+          console.error("Network add error:", addError);
+        }
+      } else {
+        console.error("Network switch error:", error);
+      }
+      toast.error("Failed to switch network.");
+    }
   };
 
   const handleClaim = async () => {
@@ -148,13 +240,14 @@ export function CheckinModal({
       return;
     try {
       await claim(selectedChainId);
+      const claimedDay = { ...activeDay, status: "claimed" };
+      setSelectedDay(claimedDay);
+      setJustClaimed(true);
       addOptimisticCheckinPoints?.(activeDay.points);
-      // await fetchStatus();
+      await fetchStatus();
       toast.success(
         `Day ${activeDay.dayNumber} claimed! +${activeDay.points} points.`,
       );
-      setSelectedDay({ ...activeDay, status: "claimed" });
-      setJustClaimed(true);
       setTimeout(() => setJustClaimed(false), 2500);
     } catch (err) {
       if (err?.code === "WALLET_SOLANA_REQUIRED") {
@@ -182,9 +275,13 @@ export function CheckinModal({
     }
   };
 
-  const isClaimedView = displayDay?.status === "claimed" && !justClaimed;
+  // Show green "claimed" whenever this day is claimed; avoid flipping to black
+  // when fetchStatus() updates and activeDay moves to the next day (async).
+  const isClaimedView = displayDay?.status === "claimed";
   const isJustClaimed =
-    justClaimed && displayDay?.dayNumber === activeDay?.dayNumber;
+    justClaimed &&
+    selectedDay?.status === "claimed" &&
+    displayDay?.dayNumber === selectedDay?.dayNumber;
 
   useEffect(() => {
     if (!isOpenState) {
@@ -233,33 +330,27 @@ export function CheckinModal({
               <div className="relative z-10 p-4 sm:p-8">
                 {/* Header */}
                 <div className="text-center mb-4 sm:mb-6">
-                  <div className="inline-flex items-center gap-2 mb-1 sm:mb-2">
-                    <Sparkles className="text-purple-500" size={22} />
-                    <h2 className="text-2xl sm:text-3xl font-bold">
-                      Daily Bonus
-                    </h2>
-                    <Sparkles className="text-blue-500" size={22} />
-                  </div>
-                  <p className="text-gray-600 text-sm sm:text-base">
-                    Claim your daily rewards and build your streak!
+                  <h2 className="text-2xl font-bold mb-0.5">Daily Bonus</h2>
+                  <p className="text-sm text-gray-600">
+                    Claim your daily rewards
                   </p>
                 </div>
 
                 {/* Stats */}
                 <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-6 sm:mb-8">
-                  <div className="bg-gradient-to-br from-purple-100/60 to-blue-100/60 backdrop-blur-xl rounded-2xl p-4 border border-white/60">
+                  <div className="glass-card p-4 border border-white/60">
                     <div className="text-sm text-gray-600 mb-1">
                       Total Points
                     </div>
-                    <div className="text-2xl font-bold text-purple-600">
+                    <div className="text-2xl font-bold">
                       {totalPointsCollected.toLocaleString()}
                     </div>
                   </div>
-                  <div className="bg-gradient-to-br from-blue-100/60 to-purple-100/60 backdrop-blur-xl rounded-2xl p-4 border border-white/60">
+                  <div className="glass-card p-4 border border-white/60">
                     <div className="text-sm text-gray-600 mb-1">
                       Gifts Collected
                     </div>
-                    <div className="text-2xl font-bold text-blue-600">
+                    <div className="text-2xl font-bold">
                       {giftsCollected} / 7
                     </div>
                   </div>
@@ -293,7 +384,7 @@ export function CheckinModal({
                                 rotate: [0, -5, 5, 0],
                               }}
                               transition={{ duration: 0.6 }}
-                              className="w-32 h-32 bg-gradient-to-br from-green-400 via-emerald-500 to-green-600 rounded-3xl flex items-center justify-center shadow-2xl relative overflow-hidden"
+                              className="w-26 h-26 sm:w-32 sm:h-32 bg-gradient-to-br from-green-400 via-emerald-500 to-green-600 rounded-3xl flex items-center justify-center shadow-2xl relative overflow-hidden"
                             >
                               {/* Confetti effect */}
                               <motion.div
@@ -358,13 +449,13 @@ export function CheckinModal({
                             </motion.div>
                           ) : isClaimedView ? (
                             // Previously Claimed Gift (Opened)
-                            <div className="w-32 h-32 bg-gradient-to-br from-green-400 via-emerald-500 to-green-600 rounded-3xl flex items-center justify-center shadow-2xl relative">
+                            <div className="w-26 h-26 sm:w-32 sm:h-32 bg-gradient-to-br from-green-400 via-emerald-500 to-green-600 rounded-3xl flex items-center justify-center shadow-2xl relative">
                               <Package
                                 size={64}
                                 className="text-white"
                                 strokeWidth={1.5}
                               />
-                              <div className="absolute top-2 right-2 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-md">
+                              <div className="absolute top-2 right-2 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-md">
                                 <Check
                                   size={16}
                                   className="text-green-600"
@@ -374,9 +465,9 @@ export function CheckinModal({
                             </div>
                           ) : (
                             // Active Gift (Closed)
-                            <div className="w-32 h-32 bg-gradient-to-br from-purple-500 via-blue-500 to-purple-600 rounded-3xl flex items-center justify-center shadow-2xl transform hover:scale-105 transition-transform">
+                            <div className="w-26 h-26 sm:w-32 sm:h-32 bg-black rounded-3xl flex items-center justify-center shadow-2xl transform hover:scale-105 transition-transform">
                               <Gift
-                                size={64}
+                                size={52}
                                 className="text-white"
                                 strokeWidth={1.5}
                               />
@@ -413,12 +504,12 @@ export function CheckinModal({
                     )}
 
                     {displayDay && (
-                      <div className="text-center mb-6">
+                      <div className="text-center sm:mb-6 mb-2">
                         <div
-                          className={`text-4xl font-bold mb-1 ${
+                          className={`text-3xl sm:text-4xl font-bold mb-1 ${
                             isClaimedView || isJustClaimed
                               ? "text-green-600"
-                              : "bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent"
+                              : "text-black"
                           }`}
                         >
                           {isClaimedView || isJustClaimed ? "✓ " : "+"}
@@ -496,7 +587,7 @@ export function CheckinModal({
                       <div className="w-full px-8 py-3 rounded-xl font-semibold text-center bg-green-100 text-green-700 border-2 border-green-300">
                         <span className="flex items-center justify-center gap-2">
                           <Check size={20} />
-                          Claimed on {displayDay.day}
+                          Claimed
                         </span>
                       </div>
                     ) : (
@@ -506,7 +597,7 @@ export function CheckinModal({
                         className={`w-full px-8 py-3 rounded-xl font-semibold transition-all shadow-lg border-2 border-transparent ${
                           isJustClaimed || loading
                             ? "bg-green-500 text-white cursor-not-allowed"
-                            : "bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:shadow-xl hover:scale-105"
+                            : "bg-black text-white hover:shadow-xl hover:scale-105"
                         }`}
                       >
                         {loading ? (
@@ -526,11 +617,11 @@ export function CheckinModal({
                   </div>
 
                   {/* Right Side - Week Overview */}
-                  <div>
+                  <div className="flex flex-col min-w-0 w-full">
                     <div className="text-sm font-semibold text-gray-600 mb-3 text-center md:text-left">
                       Week Progress
                     </div>
-                    <div className="space-y-3 max-h-68 overflow-y-auto p-1">
+                    <div className="flex sm:grid flex-nowrap sm:grid-cols-1 overflow-x-auto sm:overflow-x-visible gap-2 sm:gap-3 sm:max-h-[22rem] overflow-y-auto p-1 w-full snap-x snap-mandatory scroll-smooth [-webkit-overflow-scrolling:touch]">
                       {weekDays.map((day, index) => (
                         <motion.div
                           key={day.dayNumber || index}
@@ -538,9 +629,9 @@ export function CheckinModal({
                           animate={{ opacity: 1, x: 0 }}
                           transition={{ delay: index * 0.05 }}
                           onClick={() => handleDayClick(day)}
-                          className={`flex items-center gap-3 p-3 rounded-xl transition-all ${
+                          className={`flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-xl transition-all flex-shrink-0 w-[70%] min-w-[70%] sm:w-auto sm:min-w-0 snap-start ${
                             day.status === "active"
-                              ? "bg-gradient-to-r from-purple-100/80 to-blue-100/80 border-2 cursor-pointer border-purple-300 shadow-md"
+                              ? "bg-black/5 border-2 border-black cursor-pointer shadow-md"
                               : day.status === "claimed"
                                 ? "bg-green-50/60 border border-green-200 cursor-pointer hover:bg-green-100/80 hover:border-green-300"
                                 : "bg-gray-50/60 border border-gray-200"
@@ -553,9 +644,9 @@ export function CheckinModal({
                         >
                           {/* Gift Icon */}
                           <div
-                            className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                            className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0 ${
                               day.status === "active"
-                                ? "bg-gradient-to-br from-purple-500 to-blue-600"
+                                ? "bg-black"
                                 : day.status === "claimed"
                                   ? "bg-green-500"
                                   : "bg-gray-300"
@@ -575,20 +666,20 @@ export function CheckinModal({
                           </div>
 
                           {/* Day Info */}
-                          <div className="flex-1">
+                          <div className="flex-1 min-w-0">
                             <div
-                              className={`font-semibold ${
+                              className={`font-semibold text-sm sm:text-base truncate ${
                                 day.status === "active"
-                                  ? "text-purple-700"
+                                  ? "text-black"
                                   : day.status === "claimed"
                                     ? "text-green-700"
                                     : "text-gray-400"
                               }`}
                             >
-                              Day {day.dayNumber} - {day.day}
+                              Day {day.dayNumber}
                             </div>
                             <div
-                              className={`text-sm ${
+                              className={`text-xs sm:text-sm truncate ${
                                 day.status === "locked"
                                   ? "text-gray-400"
                                   : "text-gray-600"
@@ -600,9 +691,9 @@ export function CheckinModal({
 
                           {/* Status Badge */}
                           <div
-                            className={`text-xs font-semibold px-3 py-1 rounded-full ${
+                            className={`text-[10px] sm:text-xs font-semibold px-2 sm:px-3 py-0.5 sm:py-1 rounded-full flex-shrink-0 ${
                               day.status === "active"
-                                ? "bg-purple-600 text-white"
+                                ? "bg-black text-white"
                                 : day.status === "claimed"
                                   ? "bg-green-600 text-white"
                                   : "bg-gray-400 text-white"
@@ -621,11 +712,11 @@ export function CheckinModal({
                 </div>
 
                 {/* Footer Note */}
-                <div className="mt-6 text-center text-sm text-gray-500">
-                  <p>
+                <div className="mt-3 sm:mt-6 text-center text-sm text-gray-500">
+                  {/* <p>
                     Come back daily to claim your rewards and maintain your
                     streak! 🎁
-                  </p>
+                  </p> */}
                   {status?.secondsUntilReset != null &&
                     status.secondsUntilReset > 0 && (
                       <p className="mt-1 text-xs text-gray-400">

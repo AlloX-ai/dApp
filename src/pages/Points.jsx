@@ -17,6 +17,7 @@ import {
   setPointsBalance,
   INITIAL_CLAIM_POINTS,
 } from "../redux/slices/pointsSlice";
+import { openCheckinModal } from "../redux/slices/walletSlice";
 // Custom X (Twitter) Logo Component
 function XLogo({ className }) {
   return (
@@ -67,7 +68,7 @@ export function PointsPage() {
       description: "Log in daily to earn points",
       icon: Clock,
       customIcon: null,
-      comingSoon: true,
+      comingSoon: false,
     },
     {
       id: 5,
@@ -132,7 +133,9 @@ export function PointsPage() {
   const handleClick = (id) => {
     if (id === 1 && !hasClaimedWelcomeBonus) {
       setShowWelcomeGiftModal(true);
-    } else if (id > 1) {
+    } else if (id === 4) {
+      dispatch(openCheckinModal());
+    } else if (id > 1 && id <= 3) {
       navigate("/", { replace: true });
     }
   };
@@ -172,7 +175,7 @@ export function PointsPage() {
         {pointsWays.map((way) => {
           const Icon = way.icon;
           const CustomIcon = way.customIcon;
-          const isWelcomeGift = way.id < 4;
+          const isWelcomeGift = way.id <= 4;
           return (
             <div
               key={way.id}

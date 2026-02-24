@@ -4,6 +4,7 @@ const initialState = {
   address: undefined,
   chainId: null,
   walletModal: false,
+  checkinModal: false,
   walletId: "connect",
   walletType: "",
   isConnected: false,
@@ -29,6 +30,15 @@ const walletSlice = createSlice({
     closeWalletModal: (state) => {
       state.walletModal = false;
     },
+    setCheckinModal: (state, action) => {
+      state.checkinModal = action.payload;
+    },
+    openCheckinModal: (state) => {
+      state.checkinModal = true;
+    },
+    closeCheckinModal: (state) => {
+      state.checkinModal = false;
+    },
     setWalletId: (state, action) => {
       state.walletId = action.payload;
     },
@@ -47,6 +57,9 @@ export const {
   setWalletModal,
   openWalletModal,
   closeWalletModal,
+  setCheckinModal,
+  openCheckinModal,
+  closeCheckinModal,
   setWalletId,
   setWalletType,
   setIsConnected,

@@ -1,11 +1,9 @@
-import { useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useDispatch, useSelector } from "react-redux";
-import { Plus, Gem } from "lucide-react";
+import { Plus } from "lucide-react";
 import { navigationTabs, isActivePath } from "../constants/navigation";
 import { useCheckin } from "../hooks/useCheckin";
-import { useTotalPoints } from "../hooks/useTotalPoints";
-import { CheckinModal } from "./CheckinModal";
+import { openCheckinModal } from "../redux/slices/walletSlice";
 import {
   setCurrentMessages,
   setViewingHistorySessionId,
@@ -19,15 +17,7 @@ export function LaunchSidebar() {
   const currentMessages = useSelector((state) => state.chat.currentMessages);
   const hasChatContent = currentMessages?.length > 0;
 
-  const [checkinModalOpen, setCheckinModalOpen] = useState(false);
-
-  const {
-    status: checkinStatus,
-    checkedInToday,
-    loading: checkinLoading,
-    claim,
-    fetchStatus,
-  } = useCheckin();
+  const { checkedInToday } = useCheckin();
 
   const handleNewChat = (e) => {
     e.stopPropagation();
@@ -99,26 +89,17 @@ export function LaunchSidebar() {
                   Get up to 5,000 points
                 </div>
                 <button
-                  // onClick={() => setCheckinModalOpen(true)}
-                  // disabled={!isConnected}
+                  onClick={() => dispatch(openCheckinModal())}
+                  disabled={!isConnected}
                   className="w-full bg-white text-purple-600 font-semibold text-sm py-2 px-4 rounded-xl hover:bg-white/90 transition-all shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  {/* {checkedInToday ? "Already Claimed" : "Claim"} */}
-                  Coming Soon
+                  {checkedInToday ? "Already Claimed" : "Claim"}
+                  {/* Coming Soon */}
                 </button>
               </div>
             </div>
           </div>
         )}
-
-        <CheckinModal
-          open={checkinModalOpen}
-          onClose={() => setCheckinModalOpen(false)}
-          status={checkinStatus}
-          claim={claim}
-          // fetchStatus={fetchStatus}
-          loading={checkinLoading}
-        />
       </aside>
     </>
   );
