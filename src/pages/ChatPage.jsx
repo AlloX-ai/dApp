@@ -9,6 +9,7 @@ import {
   setCurrentMessages,
   setViewingHistorySessionId,
   setRateLimit,
+  setChatStatus,
 } from "../redux/slices/chatSlice";
 import { setWalletModal } from "../redux/slices/walletSlice";
 import {
@@ -18,6 +19,41 @@ import {
 import { apiCall } from "../utils/api";
 import { useAuth } from "../hooks/useAuth";
 
+function formatResetAt(resetAt) {
+  if (resetAt == null || resetAt === "") return "";
+  // Support ISO date strings (e.g. "2026-02-26T13:51:45.654Z") and timestamps
+  const date =
+    typeof resetAt === "number"
+      ? new Date(resetAt)
+      : new Date(String(resetAt).trim());
+  if (Number.isNaN(date.getTime())) return "";
+  const now = Date.now();
+  const ms = date.getTime() - now;
+  if (ms <= 0) return "soon";
+  const mins = Math.round(ms / 60000);
+  if (mins < 60) return `in ${mins} min`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `in ${hours} h`;
+  const timeStr = date.toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  const today = new Date();
+  const sameDay = (a, b) =>
+    a.getDate() === b.getDate() &&
+    a.getMonth() === b.getMonth() &&
+    a.getFullYear() === b.getFullYear();
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  if (sameDay(date, today)) return `at ${timeStr}`;
+  if (sameDay(date, tomorrow)) return `tomorrow at ${timeStr}`;
+  const dateStr = date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+  return `${dateStr} at ${timeStr}`;
+}
+
 export function ChatPage() {
   const dispatch = useDispatch();
   const {
@@ -26,11 +62,14 @@ export function ChatPage() {
     isThinking,
     viewingHistorySessionId,
     rateLimit,
+    chatStatus,
   } = useSelector((state) => state.chat);
   const isReadOnly = !!viewingHistorySessionId;
   const isConnected = useSelector((state) => state.wallet.isConnected);
   const pointsBalance = useSelector((state) => state.points?.balance);
   const messagesRemaining = rateLimit?.remaining;
+  const resetAt = rateLimit?.resetAt;
+  const canRefresh = chatStatus?.activity?.canRefresh === true;
   const {
     user: authUser,
     setUser,
@@ -55,6 +94,7 @@ export function ChatPage() {
   const [onchainBlocked, setOnchainBlocked] = useState(null);
   const [refreshOnchainLoading, setRefreshOnchainLoading] = useState(false);
   const [refreshOnchainMessage, setRefreshOnchainMessage] = useState(null);
+  const [statusLoading, setStatusLoading] = useState(false);
 
   useEffect(() => {
     const aiMessages = currentMessages.filter(
@@ -94,6 +134,53 @@ export function ChatPage() {
     window.scrollTo(0, 0);
     document.title = "AlloX AI Agent";
   }, []);
+
+  const fetchChatStatus = useCallback(async () => {
+    const token = localStorage.getItem("authToken");
+    if (!token) return;
+    try {
+      const status = await apiCall("/chat/status");
+      if (status?.rateLimit) {
+        dispatch(setRateLimit(status.rateLimit));
+      }
+      dispatch(
+        setChatStatus({
+          rateLimit: status?.rateLimit,
+          activity: status?.activity ?? null,
+          points: status?.points,
+          claimed: status?.claimed,
+        }),
+      );
+      if (typeof status?.points === "number") {
+        dispatch(setPointsBalance(status.points));
+      }
+      if (status?.claimed != null) {
+        try {
+          const stored = JSON.parse(localStorage.getItem("authUser") || "{}");
+          setUser({
+            ...stored,
+            season1: { ...(stored?.season1 ?? {}), claimed: status.claimed },
+          });
+        } catch (_) {}
+      }
+    } catch (e) {
+      if (e?.status !== 401) console.warn("Chat status fetch failed:", e);
+    }
+  }, [dispatch, setUser]);
+
+  useEffect(() => {
+    fetchChatStatus();
+  }, [fetchChatStatus]);
+
+  const handleRefreshLimit = useCallback(async () => {
+    if (statusLoading || !canRefresh) return;
+    setStatusLoading(true);
+    try {
+      await fetchChatStatus();
+    } finally {
+      setStatusLoading(false);
+    }
+  }, [statusLoading, canRefresh, fetchChatStatus]);
 
   const setWalletModalOpen = (nextValue) => {
     dispatch(setWalletModal(nextValue));
@@ -166,14 +253,27 @@ export function ChatPage() {
     try {
       const data = await apiCall("/season1/refresh", { method: "POST" });
       const txs = data?.transactions ?? 0;
-      const required = data?.required ?? 1;
-      if (txs >= required) {
+      const required = data?.required ?? data?.requiredTransactions ?? 1;
+      const balance = data?.balance ?? 0;
+      const requiredBalance = data?.requiredBalance ?? 5;
+      const txsOk = txs >= required;
+      const balanceOk = balance >= requiredBalance;
+      if (txsOk && balanceOk) {
         setOnchainBlocked(null);
         setRefreshOnchainMessage(null);
       } else {
-        setRefreshOnchainMessage(
-          "Make a transaction on any supported chain (Ethereum, Base, BNB, Solana), then tap Refresh again.",
-        );
+        const parts = [];
+        if (!txsOk) {
+          parts.push(
+            "Make a transaction on any supported chain (Ethereum, Base, BNB, Solana).",
+          );
+        }
+        if (!balanceOk) {
+          parts.push(
+            `Have at least $${requiredBalance} on any supported chain (current: $${Number(balance).toFixed(2)}).`,
+          );
+        }
+        setRefreshOnchainMessage(parts.join(" Then tap Refresh again. "));
       }
     } catch (err) {
       const msg =
@@ -320,12 +420,15 @@ export function ChatPage() {
         }
 
         if (error?.status === 403 && errCode === "NO_ONCHAIN_ACTIVITY") {
+          const data = error?.data ?? {};
           setOnchainBlocked({
             message: errMessage,
-            canRefresh: error?.data?.canRefresh === true,
-            transactions: error?.data?.transactions ?? 0,
-            required: error?.data?.required ?? 1,
-            supportedChains: error?.data?.supportedChains ?? [],
+            canRefresh: data.canRefresh === true,
+            transactions: data.transactions ?? 0,
+            required: data.required ?? data.requiredTransactions ?? 1,
+            supportedChains: data.supportedChains ?? [],
+            balance: data.balance ?? 0,
+            requiredBalance: data.requiredBalance ?? 5,
           });
           setRefreshOnchainMessage(null);
           dispatch(
@@ -1191,7 +1294,7 @@ export function ChatPage() {
                   <button
                     key={suggestion}
                     onClick={() => handleSuggestionClick(suggestion)}
-                    disabled={isReadOnly}
+                    disabled={isReadOnly || messagesRemaining === 0}
                     className="px-4 py-2 bg-white shadow border border-white text-sm font-medium hover:bg-white/90 hover:shadow-lg hover:border hover:border-gray-200/50 transition-all duration-200 rounded-full disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-white"
                   >
                     {suggestion}
@@ -1340,6 +1443,14 @@ export function ChatPage() {
               <p className="text-sm text-gray-800 mb-3">
                 {onchainBlocked.message}
               </p>
+              {(onchainBlocked.balance != null ||
+                onchainBlocked.requiredBalance != null) && (
+                <p className="text-sm text-gray-700 mb-2">
+                  Balance on supported chains: $
+                  {Number(onchainBlocked.balance ?? 0).toFixed(2)} / $
+                  {onchainBlocked.requiredBalance ?? 5} required.
+                </p>
+              )}
               {refreshOnchainMessage && (
                 <p className="text-sm text-amber-800 mb-3">
                   {refreshOnchainMessage}
@@ -1366,26 +1477,64 @@ export function ChatPage() {
             </div>
           )}
 
+          {messagesRemaining === 0 && !isReadOnly && (
+            <div className="mb-4 glass-card p-4 border border-amber-200/50 bg-amber-50/30">
+              <div className="flex items-center gap-2">
+                <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
+                  <Clock size={20} className="text-amber-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-900 mb-1">
+                    No messages left in your current limit
+                  </p>
+                  <p className="text-xs text-gray-600">
+                    {resetAt
+                      ? `Resets ${formatResetAt(resetAt)}.`
+                      : "Try again later."}
+                  </p>
+                </div>
+                {canRefresh && (
+                  <button
+                    type="button"
+                    onClick={handleRefreshLimit}
+                    disabled={statusLoading}
+                    className="btn-primary text-sm px-4 py-2 whitespace-nowrap"
+                  >
+                    {statusLoading ? "Checking…" : "Refresh limit"}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           <>
             <div className="relative">
               <input
                 type="text"
                 value={message}
                 onChange={(e) =>
-                  !isReadOnly && dispatch(setMessage(e.target.value))
+                  !isReadOnly &&
+                  (messagesRemaining == null || messagesRemaining > 0) &&
+                  dispatch(setMessage(e.target.value))
                 }
                 onKeyDown={handleInputKeyDown}
                 placeholder={
                   isReadOnly
                     ? "This conversation is read-only"
-                    : "Type your intent..."
+                    : messagesRemaining === 0
+                      ? "Message limit reached"
+                      : "Type your intent..."
                 }
-                disabled={isReadOnly}
+                disabled={
+                  isReadOnly ||
+                  (messagesRemaining !== null && messagesRemaining <= 0)
+                }
                 className="w-full px-6 py-4 pr-28 bg-white/60 backdrop-blur-sm border border-gray-200/50 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-black/10 focus:bg-white/80 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
               />
               {!isReadOnly && (
                 <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-2">
-                  {message ? (
+                  {message &&
+                  (messagesRemaining == null || messagesRemaining > 0) ? (
                     <button
                       onClick={handleSendMessage}
                       className="p-3 bg-black rounded-xl hover:bg-gray-800 hover:shadow-lg transition-all duration-200"
@@ -1393,24 +1542,41 @@ export function ChatPage() {
                       <Send size={18} className="text-white" />
                     </button>
                   ) : (
-                    <button
+                    <div
                       type="button"
                       className="p-3 bg-gray-200 rounded-xl cursor-not-allowed"
                     >
                       <Send size={18} className="text-gray-700" />
-                    </button>
+                    </div>
                   )}
                 </div>
               )}
             </div>
             <p className="text-xs hidden md:block text-center text-gray-500 mt-3">
-              {messagesRemaining === 0 ? (
-                <span className="text-amber-600 font-medium">
-                  No messages left in your current limit. Try again later.
-                </span>
-              ) : (
+              {
+                // messagesRemaining === 0 ? (
+                //   <span className="text-amber-600 font-medium">
+                //     No messages left in your current limit.
+                //     {resetAt
+                //       ? ` Resets ${formatResetAt(resetAt)}.`
+                //       : " Try again later."}
+                //     {canRefresh && (
+                //       <>
+                //         {" "}
+                //         <button
+                //           type="button"
+                //           onClick={handleRefreshLimit}
+                //           disabled={statusLoading}
+                //           className="underline font-medium hover:no-underline disabled:opacity-60"
+                //         >
+                //           {statusLoading ? "Checking…" : "Refresh limit"}
+                //         </button>
+                //       </>
+                //     )}
+                //   </span>
+                // ) :
                 "AlloX can make mistakes. Always verify transactions before confirming."
-              )}
+              }
             </p>
           </>
         </div>
