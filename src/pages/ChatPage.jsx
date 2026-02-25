@@ -166,14 +166,27 @@ export function ChatPage() {
     try {
       const data = await apiCall("/season1/refresh", { method: "POST" });
       const txs = data?.transactions ?? 0;
-      const required = data?.required ?? 1;
-      if (txs >= required) {
+      const required = data?.required ?? data?.requiredTransactions ?? 1;
+      const balance = data?.balance ?? 0;
+      const requiredBalance = data?.requiredBalance ?? 5;
+      const txsOk = txs >= required;
+      const balanceOk = balance >= requiredBalance;
+      if (txsOk && balanceOk) {
         setOnchainBlocked(null);
         setRefreshOnchainMessage(null);
       } else {
-        setRefreshOnchainMessage(
-          "Make a transaction on any supported chain (Ethereum, Base, BNB, Solana), then tap Refresh again.",
-        );
+        const parts = [];
+        if (!txsOk) {
+          parts.push(
+            "Make a transaction on any supported chain (Ethereum, Base, BNB, Solana).",
+          );
+        }
+        if (!balanceOk) {
+          parts.push(
+            `Have at least $${requiredBalance} on any supported chain (current: $${Number(balance).toFixed(2)}).`,
+          );
+        }
+        setRefreshOnchainMessage(parts.join(" Then tap Refresh again. "));
       }
     } catch (err) {
       const msg =
@@ -320,12 +333,15 @@ export function ChatPage() {
         }
 
         if (error?.status === 403 && errCode === "NO_ONCHAIN_ACTIVITY") {
+          const data = error?.data ?? {};
           setOnchainBlocked({
             message: errMessage,
-            canRefresh: error?.data?.canRefresh === true,
-            transactions: error?.data?.transactions ?? 0,
-            required: error?.data?.required ?? 1,
-            supportedChains: error?.data?.supportedChains ?? [],
+            canRefresh: data.canRefresh === true,
+            transactions: data.transactions ?? 0,
+            required: data.required ?? data.requiredTransactions ?? 1,
+            supportedChains: data.supportedChains ?? [],
+            balance: data.balance ?? 0,
+            requiredBalance: data.requiredBalance ?? 5,
           });
           setRefreshOnchainMessage(null);
           dispatch(
@@ -1340,6 +1356,11 @@ export function ChatPage() {
               <p className="text-sm text-gray-800 mb-3">
                 {onchainBlocked.message}
               </p>
+              {(onchainBlocked.balance != null || onchainBlocked.requiredBalance != null) && (
+                <p className="text-sm text-gray-700 mb-2">
+                  Balance on supported chains: ${Number(onchainBlocked.balance ?? 0).toFixed(2)} / ${onchainBlocked.requiredBalance ?? 5} required.
+                </p>
+              )}
               {refreshOnchainMessage && (
                 <p className="text-sm text-amber-800 mb-3">
                   {refreshOnchainMessage}
