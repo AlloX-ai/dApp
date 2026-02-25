@@ -131,6 +131,10 @@ export function Header({
                       <div className="w-1.5 h-1.5 bg-blue-600 rounded-full"></div>
                       Chat Message: 25 each
                     </span>
+                    <span className="flex gap-2 items-center">
+                      <div className="w-1.5 h-1.5 bg-blue-600 rounded-full"></div>
+                      Daily Bonus: up to 5,000
+                    </span>
                     <div className="border-t border-gray-200 w-full my-1"></div>
                     <span className="flex gap-2 items-center">
                       Limit 20 messages per 24 hours
