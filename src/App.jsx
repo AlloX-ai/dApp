@@ -176,8 +176,7 @@ function LaunchAppLayout() {
   }, [isConnected, navigate]);
 
   // If the user changes account within the same wallet type (e.g. MetaMask account 1 → 2),
-  // force a fresh session. But don't treat switching wallet types (e.g. Phantom → MetaMask)
-  // as a mid-session switch that should wipe auth.
+  // force a fresh session. Compare addresses case-insensitively to avoid false positives (EVM checksum).
   useEffect(() => {
     const prevAddress = prevAddressRef.current;
     const prevWalletType = prevWalletTypeRef.current;
@@ -185,8 +184,9 @@ function LaunchAppLayout() {
     if (
       prevAddress != null &&
       address != null &&
-      prevAddress !== address &&
-      prevWalletType === walletType
+      prevWalletType === "evm" &&
+      walletType === "evm" &&
+      prevAddress.toLowerCase() !== address.toLowerCase()
     ) {
       localStorage.removeItem("authToken");
       localStorage.removeItem("authUser");
@@ -418,20 +418,17 @@ function WalletSync() {
   }, [dispatch]);
 
   useEffect(() => {
+    const currentWalletType = store.getState().wallet.walletType;
     if (solanaConnected && solanaPublicKey) {
+      // If we are currently using EVM as the active ecosystem, don't override it
+      if (currentWalletType === "evm") return;
       dispatch(setWalletType("solana"));
       dispatch(setAddress(solanaPublicKey.toBase58()));
       dispatch(setChainId(SOLANA_MAINNET_CHAIN_ID));
       dispatch(setIsConnected(true));
       dispatch(setWalletModal(false));
-    } else if (
-      store.getState().wallet.walletType === "solana" &&
-      !solanaConnected
-    ) {
-      // Don't clear when user has a session – adapter may not have reconnected yet after sign/navigation
-      if (localStorage.getItem("authToken") && getStoredAuthUser()?.walletType === "solana") {
-        return;
-      }
+    } else if (currentWalletType === "solana" && !solanaConnected) {
+      if (localStorage.getItem("authToken")) return;
       dispatch(setAddress(null));
       dispatch(setChainId(null));
       dispatch(setIsConnected(false));
@@ -473,7 +470,7 @@ function WalletSync() {
           break;
         case "reconnecting":
         case "connecting":
-          if (!localStorage.getItem("authToken") || !getStoredAuthUser()?.walletType) {
+          if (!localStorage.getItem("authToken")) {
             dispatch(setIsConnected(false));
           }
           break;
@@ -482,7 +479,7 @@ function WalletSync() {
           if (disconnectTimeoutId) clearTimeout(disconnectTimeoutId);
           disconnectTimeoutId = setTimeout(() => {
             disconnectTimeoutId = null;
-            if (localStorage.getItem("authToken") && getStoredAuthUser()?.walletType) return;
+            if (localStorage.getItem("authToken")) return;
             dispatch(setAddress(null));
             dispatch(setIsConnected(false));
             dispatch(setWalletType(""));
@@ -502,11 +499,11 @@ function WalletSync() {
     const unwatch = watchConnections(wagmiClient, {
       onChange(connections) {
         if (connections.length === 0) {
-          const storedUser = getStoredAuthUser();
           if (clearTimeoutId) clearTimeout(clearTimeoutId);
           clearTimeoutId = setTimeout(() => {
             clearTimeoutId = null;
-            if (localStorage.getItem("authToken") && storedUser?.walletType) return;
+            if (localStorage.getItem("authToken")) return;
+            const storedUser = getStoredAuthUser();
             if (
               store.getState().wallet.walletType !== "solana" &&
               storedUser?.walletType !== "solana"

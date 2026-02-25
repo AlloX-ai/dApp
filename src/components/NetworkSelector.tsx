@@ -3,10 +3,23 @@ import { ChevronDown } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import OutsideClickHandler from "react-outside-click-handler";
 import { toast } from "sonner";
-import { setChainId } from "../redux/slices/walletSlice";
+import { setAddress, setChainId, setIsConnected, setWalletType } from "../redux/slices/walletSlice";
+import { connect, disconnect, getAccount } from "@wagmi/core";
+import { wagmiClient } from "../wagmiConnectors";
+import { useWallet } from "@solana/wallet-adapter-react";
 
-const PREFERRED_CHAIN_STORAGE_KEY = "walletPreferredChainId";
 const SOLANA_CHAIN_ID = 101;
+const AUTH_USER_KEY = "authUser";
+
+function getStoredAuthUser(): { walletType?: string; address?: string; [k: string]: unknown } | null {
+  try {
+    const raw = localStorage.getItem(AUTH_USER_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {
+    console.error(e);
+  }
+  return null;
+}
 
 type NetworkOption = {
   name: string;
@@ -30,8 +43,10 @@ type NetworkSelectorProps = {
 export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
   const dispatch = useDispatch();
   const [isOpen, setIsOpen] = useState(false);
+  const [switching, setSwitching] = useState(false);
   const chainId = useSelector((state: any) => state.wallet.chainId);
   const walletType = useSelector((state: any) => state.wallet.walletType);
+  const { connected: solanaConnected, publicKey: solanaPublicKey } = useWallet();
   const errorNetwork: NetworkOption[] = [
     {
       name: "",
@@ -93,57 +108,66 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
 
   const handleSwitchNetwork = async (network: NetworkOption) => {
     if (network.name === "Solana") {
-      try {
-        localStorage.setItem(PREFERRED_CHAIN_STORAGE_KEY, String(SOLANA_CHAIN_ID));
-        dispatch(setChainId(SOLANA_CHAIN_ID));
-      } catch (e) {
-        console.warn("Failed to persist preferred chain", e);
-      }
       if (walletType !== "solana") {
         toast.error(
           "Solana requires a Solana-capable wallet (e.g. MetaMask with Solana). Please connect with a Solana wallet.",
         );
-      } else {
-        // Solana connection is managed by wallet adapter; no extra connect needed when switching to Solana.
+        setIsOpen(false);
+        return;
       }
+      dispatch(setChainId(SOLANA_CHAIN_ID));
       setIsOpen(false);
       return;
     }
 
-    // if (network.name === "BNB Chain" && walletType === "solana") {
-    //   toast.error(
-    //     "BNB Chain requires an EVM wallet (e.g. MetaMask). Please connect with an EVM wallet.",
-    //   );
-    //   setIsOpen(false);
-    //   return;
-    // }
-
     const provider = (window as any).ethereum;
-
     if (!provider) {
       toast.error("No EVM wallet detected (e.g. MetaMask).");
       return;
     }
 
+    setSwitching(true);
     try {
       await provider.request({
         method: "wallet_switchEthereumChain",
         params: [{ chainId: network.chainHex }],
       });
-
-      // Ensure an EVM account is connected
       try {
         await provider.request({ method: "eth_requestAccounts" });
       } catch (accountsError) {
         console.error("Failed to request EVM accounts:", accountsError);
       }
 
+      const metaMaskConnector = wagmiClient.connectors.find(
+        (c) => c.name?.toLowerCase().includes("metamask"),
+      );
+      if (metaMaskConnector) {
+        const existingAccount = getAccount(wagmiClient);
+        const alreadyMetaMask =
+          existingAccount?.connector?.name?.toLowerCase?.().includes("metamask") &&
+          existingAccount?.status === "connected";
+        if (!alreadyMetaMask) {
+          await connect(wagmiClient, { connector: metaMaskConnector });
+        }
+        const account = getAccount(wagmiClient);
+        if (account?.address) {
+          dispatch(setAddress(account.address));
+          dispatch(setWalletType("evm"));
+          dispatch(setIsConnected(true));
+        }
+      }
       dispatch(setChainId(network.chainId));
-      localStorage.removeItem(PREFERRED_CHAIN_STORAGE_KEY)
+      const stored = getStoredAuthUser();
+      if (stored) {
+        const account = getAccount(wagmiClient);
+        localStorage.setItem(
+          AUTH_USER_KEY,
+          JSON.stringify({ ...stored, walletType: "evm", address: account?.address ?? stored.address }),
+        );
+      }
       setIsOpen(false);
     } catch (error) {
       const walletError = error as { code?: number };
-
       if (walletError?.code === 4902) {
         try {
           await provider.request({
@@ -158,8 +182,33 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
               },
             ],
           });
-
+          const metaMaskConnector = wagmiClient.connectors.find(
+            (c) => c.name?.toLowerCase().includes("metamask"),
+          );
+          if (metaMaskConnector) {
+            const existingAccount = getAccount(wagmiClient);
+            const alreadyMetaMask =
+              existingAccount?.connector?.name?.toLowerCase?.().includes("metamask") &&
+              existingAccount?.status === "connected";
+            if (!alreadyMetaMask) {
+              await connect(wagmiClient, { connector: metaMaskConnector });
+            }
+            const account = getAccount(wagmiClient);
+            if (account?.address) {
+              dispatch(setAddress(account.address));
+              dispatch(setWalletType("evm"));
+              dispatch(setIsConnected(true));
+            }
+          }
           dispatch(setChainId(network.chainId));
+          const stored = getStoredAuthUser();
+          if (stored) {
+            const account = getAccount(wagmiClient);
+            localStorage.setItem(
+              AUTH_USER_KEY,
+              JSON.stringify({ ...stored, walletType: "evm", address: account?.address ?? stored.address }),
+            );
+          }
           setIsOpen(false);
           return;
         } catch (addError) {
@@ -168,8 +217,47 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
       } else {
         console.error("Network switch error:", error);
       }
-
       toast.error("Failed to switch network.");
+    } finally {
+      setSwitching(false);
+    }
+  };
+
+  const handleSwitchToSolana = async () => {
+    if (!solanaConnected || !solanaPublicKey) {
+      toast.error(
+        "Please connect MetaMask Solana from the wallet modal first.",
+      );
+      return;
+    }
+    setSwitching(true);
+    try {
+      const currentAccount = getAccount(wagmiClient);
+      if (currentAccount?.connector) {
+        await disconnect(wagmiClient, { connector: currentAccount.connector });
+      }
+      const address = solanaPublicKey.toBase58();
+      dispatch(setWalletType("solana"));
+      dispatch(setAddress(address));
+      dispatch(setChainId(SOLANA_CHAIN_ID));
+      dispatch(setIsConnected(true));
+      const stored = getStoredAuthUser();
+      if (stored) {
+        localStorage.setItem(
+          AUTH_USER_KEY,
+          JSON.stringify({
+            ...stored,
+            walletType: "solana",
+            address: address ?? stored.address,
+          }),
+        );
+      }
+      setIsOpen(false);
+    } catch (err) {
+      console.error("Switch to Solana:", err);
+      toast.error("Failed to switch to Solana. Please try again.");
+    } finally {
+      setSwitching(false);
     }
   };
 
@@ -225,10 +313,13 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
   const manageSwitchNetwork = (network: NetworkOption) => {
     if (walletType === "solana") {
       handleSwitchNetwork(network);
+    } else if (network.name === "Solana") {
+      handleSwitchToSolana();
     } else {
       handleSwitchNetworkEVM(network);
     }
-  }
+  };
+
   return (
     <div className="relative">
       <button
@@ -255,7 +346,8 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
                 <button
                   key={network.name}
                   onClick={() => manageSwitchNetwork(network)}
-                  className={`w-full flex hover:bg-black/5 hover:shadow-sm items-center gap-3 px-4 py-3 rounded-xl text-sm transition-colors ${selectedNetwork?.name === network.name
+                  disabled={switching}
+                  className={`w-full flex hover:bg-black/5 hover:shadow-sm items-center gap-3 px-4 py-3 rounded-xl text-sm transition-colors disabled:opacity-60 disabled:pointer-events-none ${selectedNetwork?.name === network.name
                     ? "bg-black text-white font-medium hover:bg-gray-800"
                     : "hover:bg-black/5"
                     }`}

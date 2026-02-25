@@ -91,6 +91,7 @@ export const useAuth = () => {
 
     localStorage.setItem("authToken", verifyRes.token);
     setToken(verifyRes.token);
+    // Always persist user with walletType and address so session restore and guards work after navigate
     if (verifyRes.user) {
       setUser({
         ...verifyRes.user,
@@ -99,13 +100,11 @@ export const useAuth = () => {
       });
     } else {
       const stored = loadStoredUser();
-      if (stored) {
-        setUser({
-          ...stored,
-          walletType: walletTypeFromApi,
-          address: stored.address ?? address,
-        });
-      }
+      setUser(
+        stored
+          ? { ...stored, walletType: walletTypeFromApi, address: stored.address ?? address }
+          : { walletType: walletTypeFromApi, address },
+      );
     }
 
     if (walletTypeFromApi) {
@@ -138,6 +137,10 @@ export const useAuth = () => {
     setUserState(null);
   }, []);
 
+  // Resilient to state/localStorage race after navigate: treat as authenticated if token is in state or localStorage
+  const isAuthenticated =
+    !!token || (typeof localStorage !== "undefined" && !!localStorage.getItem("authToken"));
+
   return {
     token,
     user,
@@ -146,6 +149,6 @@ export const useAuth = () => {
     ensureAuthenticated,
     claimSeason1,
     logout,
-    isAuthenticated: !!token,
+    isAuthenticated,
   };
 };
