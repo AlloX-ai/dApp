@@ -10,12 +10,17 @@ export function WalletModal({ isOpen, onClose, onConnect }: WalletModalProps) {
   if (!isOpen) return null;
 
   const wallets = [
-
     {
       name: "MetaMask",
       icon: "https://cdn.allox.ai/allox/wallets/metamaskConnect.svg",
       type: "top",
       walletType: "metamask",
+    },
+    {
+      name: "Binance Wallet",
+      icon: "https://cdn.allox.ai/allox/wallets/binanceWallet.svg",
+      type: "top",
+      walletType: "binance",
     },
     {
       name: "OKX Wallet",

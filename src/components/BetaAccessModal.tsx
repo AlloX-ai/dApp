@@ -22,6 +22,12 @@ const WALLET_OPTIONS = [
     walletType: "metamask",
   },
   {
+    name: "Binance Wallet",
+    icon: "https://cdn.allox.ai/allox/wallets/binanceWallet.svg",
+    type: "top",
+    walletType: "binance",
+  },
+  {
     name: "OKX Wallet",
     icon: "https://cdn.allox.ai/allox/wallets/okxConnect.svg",
     type: "top",
