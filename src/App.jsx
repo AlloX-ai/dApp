@@ -239,12 +239,13 @@ function LaunchAppLayout() {
     );
 
     if (connector && connector.name !== "WalletConnect") {
+      const isBinance = option.walletType === "binance" || option.name === "Binance Wallet";
       connect(wagmiClient, { connector })
         .then(() => {
-          dispatch(setWalletType("evm"));
+          dispatch(setWalletType(isBinance ? "binance" : "evm"));
           dispatch(setIsConnected(true));
           dispatch(setWalletModal(false));
-          if (option.connectorName === "Binance Wallet") {
+          if (isBinance) {
             setTimeout(() => getAccount(wagmiClient), 2000);
           }
         })
@@ -347,11 +348,11 @@ function BetaAccessLayout() {
     const connector = allConnectors.find((c) =>
       c.name.toLowerCase().includes(option.name.toLowerCase()),
     );
-    console.log("connectorconnectorconnector", connector);
     if (connector && connector.name !== "WalletConnect") {
+      const isBinance = option.walletType === "binance" || option.name === "Binance Wallet";
       connect(wagmiClient, { connector })
         .then(() => {
-          dispatch(setWalletType("evm"));
+          dispatch(setWalletType(isBinance ? "binance" : "evm"));
           dispatch(setIsConnected(true));
           dispatch(setWalletModal(false));
         })
