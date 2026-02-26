@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Wallet } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
-import { useNavigate } from "react-router";
+import { NavLink, useNavigate } from "react-router";
 import { setWalletModal } from "../redux/slices/walletSlice";
 import getFormattedNumber from "../hooks/get-formatted-number";
 import { apiCall } from "../utils/api";
@@ -507,13 +507,13 @@ export function PortfolioPage() {
           <p className="text-gray-600 mb-6">
             Connect your wallet to view your portfolio
           </p>
-          <button
-            onClick={() => dispatch(setWalletModal(true))}
+          <NavLink
+            to={"/login"}
             className="btn-primary text-lg px-8 py-4 transition-all duration-200 hover:shadow-xl"
           >
             <Wallet size={20} className="mr-2" />
             Connect Wallet
-          </button>
+          </NavLink>
         </div>
       )}
     </div>
