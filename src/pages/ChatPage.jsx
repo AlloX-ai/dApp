@@ -1404,13 +1404,12 @@ export function ChatPage() {
                   </p>
                   <p className="text-xs text-gray-600">Required for AlloX</p>
                 </div>
-
-                <NavLink
-                  to={"/login"}
+                <button
+                  onClick={() => setWalletModalOpen(true)}
                   className="btn-primary text-sm px-4 py-2 whitespace-nowrap"
                 >
                   Continue
-                </NavLink>
+                </button>
               </div>
             </div>
           )}

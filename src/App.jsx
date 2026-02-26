@@ -494,11 +494,13 @@ function WalletSync() {
             dispatch(setChainId(activeConnection.chainId));
             dispatch(setIsConnected(true));
             dispatch(setWalletModal(false));
+            window.WALLET_TYPE = "metamask";
           }
           if (activeConnection.connector.type === "binanceWallet") {
             dispatch(setWalletType("evm"));
             dispatch(setIsConnected(true));
             dispatch(setWalletModal(false));
+            window.WALLET_TYPE = "binance";
           } else if (activeConnection.connector.name === "Phantom") {
             const provider = window.phantom?.solana;
 
@@ -515,6 +517,8 @@ function WalletSync() {
                   dispatch(setAddress(walletAddress));
                   dispatch(setIsConnected(true));
                   dispatch(setWalletModal(false));
+                  window.WALLET_TYPE = "solana";
+
                   const stored = localStorage.getItem(
                     PREFERRED_CHAIN_STORAGE_KEY,
                   );

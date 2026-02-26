@@ -146,7 +146,7 @@ export function Header({
             {isConnected ? (
               <div className="glass-card px-0 md:pr-4 flex items-center gap-3 transition-all duration-200 hover:shadow-md">
                 {/* <div className="hidden md:flex"> */}
-                  <NetworkSelector onDisconnectClick={onDisconnectClick} />
+                <NetworkSelector onDisconnectClick={onDisconnectClick} />
                 {/* </div> */}
                 <div className="hidden md:flex items-center gap-2">
                   <span
@@ -163,14 +163,13 @@ export function Header({
                 </div>
               </div>
             ) : (
-              <NavLink
-                to="/login"
-                // onClick={onConnectClick}
+              <button
+                onClick={onConnectClick}
                 className="btn-primary transition-all duration-200 hover:shadow-lg"
               >
                 <Wallet size={20} className="md:mr-2" />
                 <span className="hidden md:inline">Connect Wallet</span>
-              </NavLink>
+              </button>
             )}
 
             <div className="md:hidden">
