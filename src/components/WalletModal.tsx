@@ -34,13 +34,13 @@ const WALLETS = [
     walletType: "binance",
   },
   {
-    name: "OKX Wallet",
+    name: "OKX",
     icon: "https://cdn.allox.ai/allox/wallets/okxConnect.svg",
     type: "top",
     walletType: "okx",
   },
   {
-    name: "Trust Wallet",
+    name: "Trust",
     icon: "https://cdn.allox.ai/allox/wallets/trustWalletLogo.svg",
     type: "top",
     walletType: "trust",
@@ -60,6 +60,17 @@ const WALLETS = [
   },
 ];
 
+const SUGGESTED_WALLET_TYPES = ["binance", "metamask"];
+
+function getSuggestedWallets() {
+  return SUGGESTED_WALLET_TYPES
+    .map((type) => WALLETS.find((w) => w.walletType === type))
+    .filter(Boolean) as typeof WALLETS;
+}
+
+function getOtherWallets() {
+  return WALLETS.filter((w) => !SUGGESTED_WALLET_TYPES.includes(w.walletType));
+}
 
 export function WalletModal({
   isOpen,
@@ -105,24 +116,51 @@ export function WalletModal({
               </p>
             </div>
           ) : !isConnected ? (
-            <div className="space-y-3">
-              {WALLETS.map((wallet) => (
-                <button
-                  key={wallet.name}
-                  type="button"
-                  onClick={() => handleWalletClick(wallet)}
-                  className="w-full flex items-center gap-4 p-4 bg-white/60 border border-gray-200/50 rounded-2xl hover:bg-white/80 hover:border-gray-300 transition-all text-left"
-                >
-                  <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center border border-gray-200/50 overflow-hidden">
-                    <img
-                      src={wallet.icon}
-                      alt=""
-                      className="h-8 w-8 object-contain"
-                    />
-                  </div>
-                  <span className="font-medium">{wallet.name}</span>
-                </button>
-              ))}
+            <div className="space-y-5">
+              <div>
+                <p className="text-sm font-medium text-gray-600 mb-3">Suggested wallets</p>
+                <div className="space-y-3">
+                  {getSuggestedWallets().map((wallet) => (
+                    <button
+                      key={wallet.name}
+                      type="button"
+                      onClick={() => handleWalletClick(wallet)}
+                      className="w-full flex items-center gap-4 p-2 bg-white/60 border border-gray-200/50 rounded-2xl hover:bg-white/80 hover:border-gray-300 transition-all text-left"
+                    >
+                      <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center border border-gray-200/50 overflow-hidden">
+                        <img
+                          src={wallet.icon}
+                          alt=""
+                          className="h-8 w-8 object-contain"
+                        />
+                      </div>
+                      <span className="font-medium">{wallet.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-600 mb-3">Other wallets</p>
+                <div className="space-y-3 grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {getOtherWallets().map((wallet) => (
+                    <button
+                      key={wallet.name}
+                      type="button"
+                      onClick={() => handleWalletClick(wallet)}
+                      className="w-full flex flex-col items-center gap-2 p-2 bg-white/60 border border-gray-200/50 rounded-2xl hover:bg-white/80 hover:border-gray-300 transition-all text-left"
+                    >
+                      <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center border border-gray-200/50 overflow-hidden">
+                        <img
+                          src={wallet.icon}
+                          alt=""
+                          className="h-8 w-8 object-contain"
+                        />
+                      </div>
+                      <span className="font-xs">{wallet.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           ) : (
             <div className="bg-green-50/50 border border-green-200/50 rounded-2xl p-5 flex items-center justify-between">
