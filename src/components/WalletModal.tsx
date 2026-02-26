@@ -18,12 +18,20 @@ interface WalletModalProps {
   isSigning?: boolean;
 }
 
+
 const WALLETS = [
+
   {
     name: "MetaMask",
     icon: "https://cdn.allox.ai/allox/wallets/metamaskConnect.svg",
     type: "top",
     walletType: "metamask",
+  },
+  {
+    name: "Binance Wallet",
+    icon: "https://cdn.allox.ai/allox/wallets/binanceWallet.svg",
+    type: "top",
+    walletType: "binance",
   },
   {
     name: "OKX Wallet",
@@ -38,12 +46,20 @@ const WALLETS = [
     walletType: "trust",
   },
   {
+    name: "Phantom",
+    icon: "https://cdn.allox.ai/allox/wallets/phantom.svg",
+    type: "top",
+    walletType: "phantom",
+    isPhantom: true,
+  },
+  {
     name: "WalletConnect",
     icon: "https://cdn.allox.ai/allox/wallets/walletConnect.svg",
     type: "more",
     walletType: "walletconnect",
   },
 ];
+
 
 export function WalletModal({
   isOpen,
@@ -71,7 +87,7 @@ export function WalletModal({
 
       <div className="relative glass-card p-8 w-full max-w-md animate-slide-up">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold">Connect wallet</h2>
+          <h2 className="text-2xl font-bold">Connect Wallet</h2>
           <button
             onClick={onClose}
             className="p-2 hover:bg-black/5 rounded-lg transition-colors"
