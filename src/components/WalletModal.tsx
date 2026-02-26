@@ -38,6 +38,13 @@ const WALLETS = [
     walletType: "trust",
   },
   {
+    name: "Phantom",
+    icon: "https://cdn.allox.ai/allox/wallets/phantom.svg",
+    type: "top",
+    walletType: "phantom",
+    isPhantom: true,
+  },
+  {
     name: "WalletConnect",
     icon: "https://cdn.allox.ai/allox/wallets/walletConnect.svg",
     type: "more",
