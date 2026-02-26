@@ -239,12 +239,13 @@ function LaunchAppLayout() {
     );
 
     if (connector && connector.name !== "WalletConnect") {
+      const isBinance = option.walletType === "binance" || option.name === "Binance Wallet";
       connect(wagmiClient, { connector })
         .then(() => {
-          dispatch(setWalletType("evm"));
+          dispatch(setWalletType(isBinance ? "binance" : "evm"));
           dispatch(setIsConnected(true));
           dispatch(setWalletModal(false));
-          if (option.connectorName === "Binance Wallet") {
+          if (isBinance) {
             setTimeout(() => getAccount(wagmiClient), 2000);
           }
         })
@@ -347,11 +348,11 @@ function BetaAccessLayout() {
     const connector = allConnectors.find((c) =>
       c.name.toLowerCase().includes(option.name.toLowerCase()),
     );
-    console.log("connectorconnectorconnector", connector);
     if (connector && connector.name !== "WalletConnect") {
+      const isBinance = option.walletType === "binance" || option.name === "Binance Wallet";
       connect(wagmiClient, { connector })
         .then(() => {
-          dispatch(setWalletType("evm"));
+          dispatch(setWalletType(isBinance ? "binance" : "evm"));
           dispatch(setIsConnected(true));
           dispatch(setWalletModal(false));
         })
@@ -493,11 +494,13 @@ function WalletSync() {
             dispatch(setChainId(activeConnection.chainId));
             dispatch(setIsConnected(true));
             dispatch(setWalletModal(false));
+            window.WALLET_TYPE = "metamask";
           }
           if (activeConnection.connector.type === "binanceWallet") {
             dispatch(setWalletType("evm"));
             dispatch(setIsConnected(true));
             dispatch(setWalletModal(false));
+            window.WALLET_TYPE = "binance";
           } else if (activeConnection.connector.name === "Phantom") {
             const provider = window.phantom?.solana;
 
@@ -514,6 +517,8 @@ function WalletSync() {
                   dispatch(setAddress(walletAddress));
                   dispatch(setIsConnected(true));
                   dispatch(setWalletModal(false));
+                  window.WALLET_TYPE = "solana";
+
                   const stored = localStorage.getItem(
                     PREFERRED_CHAIN_STORAGE_KEY,
                   );

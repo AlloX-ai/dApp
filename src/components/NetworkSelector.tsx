@@ -3,6 +3,7 @@ import { ChevronDown } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import OutsideClickHandler from "react-outside-click-handler";
 import { toast } from "sonner";
+import { useSwitchChain, useAccount } from "wagmi";
 import { setChainId } from "../redux/slices/walletSlice";
 
 const PREFERRED_CHAIN_STORAGE_KEY = "walletPreferredChainId";
@@ -32,6 +33,8 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const chainId = useSelector((state: any) => state.wallet.chainId);
   const walletType = useSelector((state: any) => state.wallet.walletType);
+  const { connector } = useAccount();
+  const { switchChainAsync } = useSwitchChain();
   const errorNetwork: NetworkOption[] = [
     {
       name: "",
@@ -119,43 +122,37 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
       return;
     }
 
-    if (network.name === "BNB Chain" && walletType === "solana") {
+    if (network.name !== "Solana" && walletType === "solana") {
       toast.error(
-        "BNB Chain requires an EVM wallet (e.g. MetaMask). Please connect with an EVM wallet.",
+        "EVM networks require an EVM wallet (e.g. MetaMask, Binance Wallet). Please connect with an EVM wallet.",
       );
       setIsOpen(false);
       return;
     }
 
-    const provider =
-      (window as any).phantom?.ethereum ?? (window as any).ethereum;
+    await switchEVMChain(network);
+  };
 
-    if (!provider) {
-      toast.error("No EVM wallet detected (Phantom or MetaMask).");
+  const switchEVMChain = async (network: NetworkOption) => {
+    if (network.name === "Solana") return;
+    if (!switchChainAsync) {
+      toast.error("Unable to switch chain. Please try reconnecting your wallet.");
       return;
     }
-
+    if (!connector) {
+      toast.error("No wallet connected. Please connect an EVM wallet first.");
+      return;
+    }
     try {
-      await provider.request({
-        method: "wallet_switchEthereumChain",
-        params: [{ chainId: network.chainHex }],
-      });
-
-      // Ensure an EVM account is connected (Phantom EVM or other EVM wallet)
-      try {
-        await provider.request({ method: "eth_requestAccounts" });
-      } catch (accountsError) {
-        console.error("Failed to request EVM accounts:", accountsError);
-      }
-
+      await switchChainAsync({ chainId: network.chainId });
       dispatch(setChainId(network.chainId));
-      localStorage.removeItem(PREFERRED_CHAIN_STORAGE_KEY)
+      localStorage.removeItem(PREFERRED_CHAIN_STORAGE_KEY);
       setIsOpen(false);
     } catch (error) {
-      const walletError = error as { code?: number };
-
-      if (walletError?.code === 4902) {
+      const err = error as { code?: number };
+      if (err?.code === 4902) {
         try {
+          const provider: any = await connector.getProvider();
           await provider.request({
             method: "wallet_addEthereumChain",
             params: [
@@ -168,18 +165,18 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
               },
             ],
           });
-
+          await switchChainAsync({ chainId: network.chainId });
           dispatch(setChainId(network.chainId));
+          localStorage.removeItem(PREFERRED_CHAIN_STORAGE_KEY);
           setIsOpen(false);
-          return;
-        } catch (addError) {
-          console.error("Network add error:", addError);
+        } catch (addErr) {
+          console.error("Add network error:", addErr);
+          toast.error("Failed to add or switch network.");
         }
       } else {
         console.error("Network switch error:", error);
+        toast.error("Failed to switch network.");
       }
-
-      toast.error("Failed to switch network.");
     }
   };
 
@@ -191,45 +188,7 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
       setIsOpen(false);
       return;
     }
-
-    const ethereum = (window as any).ethereum;
-    if (!ethereum) {
-      toast.error("MetaMask not detected.");
-      return;
-    }
-
-    try {
-      await ethereum.request({
-        method: "wallet_switchEthereumChain",
-        params: [{ chainId: network.chainHex }],
-      });
-      setIsOpen(false);
-    } catch (error) {
-      const walletError = error as { code?: number };
-      if (walletError?.code === 4902) {
-        try {
-          await ethereum.request({
-            method: "wallet_addEthereumChain",
-            params: [
-              {
-                chainId: network.chainHex,
-                chainName: network.chainName,
-                rpcUrls: network.rpcUrls,
-                blockExplorerUrls: network.blockExplorerUrls,
-                nativeCurrency: network.nativeCurrency,
-              },
-            ],
-          });
-          setIsOpen(false);
-          return;
-        } catch (addError) {
-          console.error("Network add error:", addError);
-        }
-      } else {
-        console.error("Network switch error:", error);
-      }
-      toast.error("Failed to switch network.");
-    }
+    await switchEVMChain(network);
   };
 
   const manageSwitchNetwork = (network: NetworkOption) => {

@@ -18,6 +18,7 @@ import {
 } from "../redux/slices/pointsSlice";
 import { apiCall } from "../utils/api";
 import { useAuth } from "../hooks/useAuth";
+import { NavLink } from "react-router";
 
 function formatResetAt(resetAt) {
   if (resetAt == null || resetAt === "") return "";
@@ -1403,7 +1404,6 @@ export function ChatPage() {
                   </p>
                   <p className="text-xs text-gray-600">Required for AlloX</p>
                 </div>
-
                 <button
                   onClick={() => setWalletModalOpen(true)}
                   className="btn-primary text-sm px-4 py-2 whitespace-nowrap"
