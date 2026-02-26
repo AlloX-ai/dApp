@@ -507,13 +507,13 @@ export function PortfolioPage() {
           <p className="text-gray-600 mb-6">
             Connect your wallet to view your portfolio
           </p>
-          <NavLink
-            to={"/login"}
+          <button
+            onClick={() => dispatch(setWalletModal(true))}
             className="btn-primary text-lg px-8 py-4 transition-all duration-200 hover:shadow-xl"
           >
             <Wallet size={20} className="mr-2" />
             Connect Wallet
-          </NavLink>
+          </button>
         </div>
       )}
     </div>
