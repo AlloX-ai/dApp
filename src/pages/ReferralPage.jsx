@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Copy,
   Check,
@@ -10,10 +10,10 @@ import {
   Coins,
   Sparkles,
   Download,
+  CheckCircle2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
-// Staking pools
 const STAKING_POOLS = [
   { id: "ETH60", name: "ETH Pool", lockDays: 60 },
   { id: "ETH30", name: "ETH Pool", lockDays: 30 },
@@ -29,6 +29,7 @@ export function ReferralsPage() {
   const [showBenefitsModal, setShowBenefitsModal] = useState(false);
   const [showTiersModal, setShowTiersModal] = useState(false);
   const [showPoolLinkModal, setShowPoolLinkModal] = useState(false);
+  const [selectedUserDetails, setSelectedUserDetails] = useState(null);
 
   // Mock data
   const referralCode = "ALX-USER-9F3K7";
@@ -36,6 +37,8 @@ export function ReferralsPage() {
 
   // Summary stats
   const totalGems = 127.5;
+  const directGems = 100;
+  const networkGems = 27.5;
   const totalPoints = 12540;
 
   // Registrations data
@@ -226,7 +229,7 @@ export function ReferralsPage() {
     if (!selectedPool) return baseReferralLink;
     const pool = STAKING_POOLS.find((p) => p.id === selectedPool);
     if (!pool) return baseReferralLink;
-    return `https://app.allox.ai/staking?pool=${pool.id}&ref=${referralCode}`;
+    return `https://allox.ai/stake?pool=${pool.id}&ref=${referralCode}`;
   };
 
   const handleDownloadCSV = () => {
@@ -271,10 +274,27 @@ export function ReferralsPage() {
     document.body.removeChild(link);
   };
 
-  useEffect(() => {
-    window.scrollTo(0, 0);
-    document.title = "Referral";
-  }, []);
+  const handleActionClick = (wallet) => {
+    // Calculate user earnings
+    const userActions = completedActions.filter(
+      (action) => action.wallet === wallet,
+    );
+    const directActions = userActions.filter((a) => a.type === "direct");
+    const networkActions = userActions.filter((a) => a.type === "network");
+
+    const userEarnings = {
+      wallet,
+      totalGems: userActions.reduce((sum, a) => sum + a.gemsEarned, 0),
+      totalPoints: userActions.reduce((sum, a) => sum + a.pointsEarned, 0),
+      directGems: directActions.reduce((sum, a) => sum + a.gemsEarned, 0),
+      directPoints: directActions.reduce((sum, a) => sum + a.pointsEarned, 0),
+      networkGems: networkActions.reduce((sum, a) => sum + a.gemsEarned, 0),
+      networkPoints: networkActions.reduce((sum, a) => sum + a.pointsEarned, 0),
+      actions: userActions,
+    };
+
+    setSelectedUserDetails(userEarnings);
+  };
 
   return (
     <div className="space-y-6 flex-1 px-6 py-8 portfolio-wrapper ms-auto w-full overflow-y-auto">
@@ -282,7 +302,7 @@ export function ReferralsPage() {
         // Landing Page - Before Activation
         <>
           {/* Header with buttons in top right */}
-          <div className="flex items-start justify-between">
+          <div className="flex flex-col md:flex-row items-start justify-between">
             <div>
               <h2 className="text-3xl font-bold mb-2">Referral Program</h2>
               <p className="text-gray-600 text-sm">
@@ -432,7 +452,7 @@ export function ReferralsPage() {
         // Dashboard - After Activation
         <>
           {/* Header with buttons in top right */}
-          <div className="flex items-start justify-between">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between">
             <div>
               <h2 className="text-3xl font-bold mb-2">Referral Dashboard</h2>
               <p className="text-gray-600 text-sm">
@@ -461,7 +481,7 @@ export function ReferralsPage() {
 
           {/* Summary Cards */}
           <div className="grid grid-cols-1 xl:grid-cols-4 lg:grid-cols-2 md:grid-cols-2 gap-4">
-            <div className="glass-card p-5 flex">
+            <div className="glass-card p-5 flex justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 bg-purple-100 rounded-2xl flex items-center justify-center">
                   <Gem size={20} className="text-purple-600" />
@@ -471,9 +491,40 @@ export function ReferralsPage() {
                   <div className="text-2xl font-bold">{totalGems}</div>
                 </div>
               </div>
+              {/* Breakdown */}
+              <div className="flex flex-col">
+                <div className="flex items-center justify-between px-3 py-2 bg-green-50 border border-green-200 rounded-lg mb-2 relative group/icon">
+                  <div className="flex items-center gap-2">
+                    <Users size={14} className="text-green-600" />
+                    <span className="text-xs font-medium text-green-800">
+                      Direct
+                    </span>
+                  </div>
+                  <span className="text-sm font-bold text-green-900">
+                    {directGems}
+                  </span>
+                  <div className="absolute left-6 top-1/2 -translate-y-1/2 whitespace-nowrap bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover/icon:opacity-100 transition-opacity pointer-events-none z-10">
+                    Gems from direct users
+                  </div>
+                </div>
+                <div className="flex items-center justify-between px-3 py-2 gap-2 bg-blue-50 border border-blue-200 rounded-lg relative group/icon">
+                  <div className="flex items-center gap-2">
+                    <Sparkles size={14} className="text-blue-600" />
+                    <span className="text-xs font-medium text-blue-800">
+                      Network
+                    </span>
+                  </div>
+                  <span className="text-sm font-bold text-blue-900">
+                    {networkGems}
+                  </span>
+                  <div className="absolute left-6 top-1/2 -translate-y-1/2 whitespace-nowrap bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover/icon:opacity-100 transition-opacity pointer-events-none z-10">
+                    Gems from network
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div className="glass-card p-5 flex">
+            <div className="glass-card p-5 flex justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center">
                   <Coins size={20} className="text-blue-600" />
@@ -485,8 +536,39 @@ export function ReferralsPage() {
                   </div>
                 </div>
               </div>
+              {/* Breakdown */}
+              <div className="flex flex-col">
+                <div className="flex items-center justify-between px-3 py-2 bg-green-50 border border-green-200 rounded-lg mb-2 relative group/icon">
+                  <div className="flex items-center gap-2">
+                    <Users size={14} className="text-green-600" />
+                    <span className="text-xs font-medium text-green-800">
+                      Direct
+                    </span>
+                  </div>
+                  <span className="text-sm font-bold text-green-900">
+                   1200
+                  </span>
+                  <div className="absolute left-6 top-1/2 -translate-y-1/2 whitespace-nowrap bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover/icon:opacity-100 transition-opacity pointer-events-none z-10">
+                    Points from direct users
+                  </div>
+                </div>
+                <div className="flex items-center justify-between px-3 py-2 gap-2 bg-blue-50 border border-blue-200 rounded-lg relative group/icon">
+                  <div className="flex items-center gap-2">
+                    <Sparkles size={14} className="text-blue-600" />
+                    <span className="text-xs font-medium text-blue-800">
+                      Network
+                    </span>
+                  </div>
+                  <span className="text-sm font-bold text-blue-900">
+                    540
+                  </span>
+                  <div className="absolute left-6 top-1/2 -translate-y-1/2 whitespace-nowrap bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover/icon:opacity-100 transition-opacity pointer-events-none z-10">
+                    Points from network
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="glass-card p-5">
+            <div className="glass-card p-5 flex flex-col justify-between">
               <h3 className="font-bold text-sm mb-3">Your Referral Link</h3>
               <div className="flex gap-2 relative">
                 <input
@@ -506,7 +588,7 @@ export function ReferralsPage() {
             </div>
 
             {/* Pool-Specific Link */}
-            <div className="glass-card p-5">
+            <div className="glass-card p-5 flex flex-col justify-between">
               <h3 className="font-bold text-sm mb-3">Pool Specific Link</h3>
               <button
                 onClick={() => setShowPoolLinkModal(true)}
@@ -553,13 +635,29 @@ export function ReferralsPage() {
                     {filteredRegistrations.map((reg) => (
                       <div
                         key={reg.id}
-                        className={`flex items-center justify-between py-2 px-3 rounded-lg transition-colors ${
-                          reg.hasActivatedReferral
-                            ? "border-2 border-blue-300 bg-blue-50/50 hover:bg-blue-100/50"
-                            : "border border-transparent hover:bg-gray-50"
-                        }`}
+                        className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-gray-50 transition-colors group"
                       >
-                        <span className="font-mono text-xs">{reg.wallet}</span>
+                        <div className="flex items-center gap-2">
+                          <div className="relative group/icon">
+                            {reg.hasActivatedReferral ? (
+                              <CheckCircle2
+                                size={16}
+                                className="text-blue-600"
+                              />
+                            ) : (
+                              <div className="w-4 h-4 rounded-full border-2 border-gray-300"></div>
+                            )}
+                            {/* Tooltip */}
+                            {reg.hasActivatedReferral && (
+                              <div className="absolute left-6 top-1/2 -translate-y-1/2 whitespace-nowrap bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover/icon:opacity-100 transition-opacity pointer-events-none z-10">
+                                User activated referral
+                              </div>
+                            )}
+                          </div>
+                          <span className="font-mono text-xs">
+                            {reg.wallet}
+                          </span>
+                        </div>
                         <span className="text-xs text-gray-500">
                           {formatTimeAgo(reg.registeredDate)}
                         </span>
@@ -573,20 +671,6 @@ export function ReferralsPage() {
                   </div>
                 )}
               </div>
-
-              {/* Legend */}
-              {filteredRegistrations.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-gray-200 space-y-2">
-                  <div className="flex items-center gap-2 text-xs text-gray-600">
-                    <div className="w-4 h-4 border-2 border-blue-300 bg-blue-50 rounded"></div>
-                    <span>Network active (can earn from their referrals)</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-gray-600">
-                    <div className="w-4 h-4 border border-gray-300 bg-gray-100 rounded"></div>
-                    <span>Not yet activated</span>
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* Right Table: Completed Actions */}
@@ -601,13 +685,14 @@ export function ReferralsPage() {
                         key={action.id}
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className={`p-3 rounded-lg border transition-colors ${
+                        onClick={() => handleActionClick(action.wallet)}
+                        className={`p-3 rounded-lg border transition-colors cursor-pointer ${
                           action.type === "network"
-                            ? "bg-blue-50 border-blue-200"
-                            : "bg-white border-gray-200"
+                            ? "bg-blue-50 border-blue-200 hover:bg-blue-100"
+                            : "bg-white border-gray-200 hover:bg-gray-50"
                         }`}
                       >
-                        <div className="flex items-start justify-between mb-2">
+                        <div className="flex items-start justify-between mb-2 relative">
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5 mb-1">
                               <span className="font-mono text-xs font-semibold truncate">
@@ -637,7 +722,7 @@ export function ReferralsPage() {
                             )}
                           </div>
 
-                          <div className="flex flex-col gap-1 ml-2">
+                          <div className="flex flex-col gap-1 ml-2 mt-2 absolute right-0">
                             <div className="flex items-center gap-1 px-2 py-0.5 bg-purple-100 border border-purple-200 rounded">
                               <Gem size={10} className="text-purple-600" />
                               <span className="text-xs font-bold text-purple-700">
@@ -1017,6 +1102,175 @@ export function ReferralsPage() {
                     <div>
                       • You earn Gems and Points based on their staking tier
                     </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* User Details Modal */}
+      <AnimatePresence>
+        {selectedUserDetails && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+            onClick={() => setSelectedUserDetails(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-auto"
+            >
+              <div className="sticky top-0 bg-white border-b border-gray-200 p-5 flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-bold">User Earnings</h2>
+                  <p className="text-xs text-gray-600 font-mono mt-1">
+                    {selectedUserDetails.wallet}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setSelectedUserDetails(null)}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="p-5 space-y-4">
+                {/* Summary */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="glass-card p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Gem size={16} className="text-purple-600" />
+                      <div className="text-xs text-gray-600">Total Gems</div>
+                    </div>
+                    <div className="text-2xl font-bold">
+                      {selectedUserDetails.totalGems}
+                    </div>
+                  </div>
+                  <div className="glass-card p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Coins size={16} className="text-blue-600" />
+                      <div className="text-xs text-gray-600">Total Points</div>
+                    </div>
+                    <div className="text-2xl font-bold">
+                      {selectedUserDetails.totalPoints.toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Breakdown */}
+                <div className="glass-card p-4">
+                  <h3 className="font-bold text-sm mb-3">Earnings Breakdown</h3>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between p-2 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <Users size={14} className="text-green-600" />
+                        <span className="text-xs font-medium">
+                          Direct Referrals
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-1">
+                          <Gem size={12} className="text-purple-600" />
+                          <span className="text-sm font-bold">
+                            {selectedUserDetails.directGems}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Coins size={12} className="text-blue-600" />
+                          <span className="text-sm font-bold">
+                            {selectedUserDetails.directPoints}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between p-2 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <Sparkles size={14} className="text-blue-600" />
+                        <span className="text-xs font-medium">
+                          Network Referrals
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-1">
+                          <Gem size={12} className="text-purple-600" />
+                          <span className="text-sm font-bold">
+                            {selectedUserDetails.networkGems}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Coins size={12} className="text-blue-600" />
+                          <span className="text-sm font-bold">
+                            {selectedUserDetails.networkPoints}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Activity History */}
+                <div className="glass-card p-4">
+                  <h3 className="font-bold text-sm mb-3">Activity History</h3>
+                  <div className="space-y-2 max-h-[300px] overflow-auto">
+                    {selectedUserDetails.actions.map((action) => (
+                      <div
+                        key={action.id}
+                        className={`p-3 rounded-lg border ${
+                          action.type === "network"
+                            ? "bg-blue-50 border-blue-200"
+                            : "bg-white border-gray-200"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span
+                                className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                                  action.type === "network"
+                                    ? "bg-blue-200 text-blue-800"
+                                    : "bg-green-200 text-green-800"
+                                }`}
+                              >
+                                {action.type === "network"
+                                  ? "Network"
+                                  : "Direct"}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                {formatTimeAgo(action.timestamp)}
+                              </span>
+                            </div>
+                            {action.type === "direct" ? (
+                              <div className="text-xs text-gray-600">
+                                {action.pool}, {action.lockPeriod}
+                              </div>
+                            ) : (
+                              <div className="text-xs text-blue-700">
+                                5% of their earnings
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-1 px-2 py-0.5 bg-purple-100 border border-purple-200 rounded">
+                              <Gem size={10} className="text-purple-600" />
+                              <span className="text-xs font-bold text-purple-700">
+                                +{action.gemsEarned}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1 px-2 py-0.5 bg-blue-100 border border-blue-200 rounded">
+                              <Coins size={10} className="text-blue-600" />
+                              <span className="text-xs font-bold text-blue-700">
+                                +{action.pointsEarned}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
