@@ -8,6 +8,7 @@ import {
   Check,
   Loader2,
   X,
+  Info,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
@@ -18,6 +19,7 @@ import {
   INITIAL_CLAIM_POINTS,
 } from "../redux/slices/pointsSlice";
 import { openCheckinModal } from "../redux/slices/walletSlice";
+import { XTasksModal } from "../components/XTasksModal";
 // Custom X (Twitter) Logo Component
 function XLogo({ className }) {
   return (
@@ -33,6 +35,22 @@ function XLogo({ className }) {
 }
 
 export function PointsPage() {
+
+
+    const [showTooltip, setShowTooltip] = useState(false);
+  const [showXTasksModal, setShowXTasksModal] = useState(false);
+  const [newTasksCount, setNewTasksCount] = useState(4); // Initial count of new tasks
+
+  const handleXTasksClick = () => {
+    setShowXTasksModal(true);
+  };
+
+  const handleTasksViewed = () => {
+    setNewTasksCount(0); // Reset count when tasks are viewed
+  };
+
+
+
   const pointsWays = [
     {
       id: 1,
@@ -77,7 +95,7 @@ export function PointsPage() {
       description: "Complete social media tasks",
       icon: null,
       customIcon: XLogo,
-      comingSoon: true,
+      // comingSoon: true,
     },
     {
       id: 6,
@@ -137,6 +155,8 @@ export function PointsPage() {
       dispatch(openCheckinModal());
     } else if (id > 1 && id <= 3) {
       navigate("/", { replace: true });
+    } else if (id === 5) {
+      handleXTasksClick();
     }
   };
 
@@ -148,14 +168,31 @@ export function PointsPage() {
   return (
     <div className="space-y-6 flex-1 px-6 py-8 portfolio-wrapper ms-auto w-full overflow-y-auto">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-bold mb-2">Points</h2>
+         <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 mb-2">
+            <h2 className="text-3xl font-bold">Points</h2>
+            <div className="relative">
+              <button
+                onMouseEnter={() => setShowTooltip(true)}
+                onMouseLeave={() => setShowTooltip(false)}
+                className="w-5 h-5 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors"
+              >
+                <Info className="w-3 h-3 text-gray-600" />
+              </button>
+              {showTooltip && (
+                <div className="absolute left-0 top-full mt-2 w-80 p-4 bg-white rounded-xl shadow-lg border border-gray-200 z-50">
+                  <div className="space-y-2 text-sm text-gray-700">
+                    <p>When Season ends, winners will be randomly selected from every tier. Winners will be selected 7 days after the season ends.</p>
+                    <p className="pt-2 border-t border-gray-200">The winners rewards will be shown on each season tab when it ends.</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
           <p className="text-gray-600 text-sm">
-            Points unlock exclusive rewards and benefits.
+            Earn points by engaging with AlloX. Points unlock exclusive rewards and benefits.
           </p>
         </div>
-      </div>
 
       {/* Info Banner */}
       <div className="glass-card p-6 bg-gradient-to-br from-indigo-50 to-purple-50 border-indigo-200/50">
@@ -182,7 +219,7 @@ export function PointsPage() {
               className={`glass-card p-6 relative overflow-hidden transition-all duration-200 hover:shadow-lg ${
                 way.comingSoon ? "opacity-75" : ""
               }
-               ${isWelcomeGift && " cursor-pointer"}`}
+               ${isWelcomeGift || way.id === 5 && " cursor-pointer"}`}
               onClick={() => {
                 handleClick(way.id);
               }}
@@ -191,6 +228,11 @@ export function PointsPage() {
               {way.comingSoon && (
                 <div className="absolute top-3 right-3 px-2 py-1 bg-gray-900 text-white text-xs font-bold rounded-lg">
                   Coming Soon
+                </div>
+              )}
+                    {way.id === 5 && newTasksCount > 0 && (
+                <div className="absolute top-3 right-3 w-6 h-6 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                  {newTasksCount}
                 </div>
               )}
 
@@ -345,6 +387,12 @@ export function PointsPage() {
           </div>
         </div>
       )}
+
+       <XTasksModal
+        isOpen={showXTasksModal}
+        onClose={() => setShowXTasksModal(false)}
+        onTasksViewed={handleTasksViewed}
+      />
     </div>
   );
 }
