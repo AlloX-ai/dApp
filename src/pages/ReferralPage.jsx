@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Copy,
   Check,
@@ -226,7 +226,7 @@ export function ReferralsPage() {
     if (!selectedPool) return baseReferralLink;
     const pool = STAKING_POOLS.find((p) => p.id === selectedPool);
     if (!pool) return baseReferralLink;
-    return `https://allox.ai/stake?pool=${pool.id}&ref=${referralCode}`;
+    return `https://app.allox.ai/staking?pool=${pool.id}&ref=${referralCode}`;
   };
 
   const handleDownloadCSV = () => {
@@ -270,6 +270,11 @@ export function ReferralsPage() {
     link.click();
     document.body.removeChild(link);
   };
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    document.title = "Referral";
+  }, []);
 
   return (
     <div className="space-y-6 flex-1 px-6 py-8 portfolio-wrapper ms-auto w-full overflow-y-auto">
@@ -415,7 +420,7 @@ export function ReferralsPage() {
               onClick={handleActivate}
               className="bg-black text-white px-8 py-3 rounded-xl font-semibold hover:bg-gray-800 transition-colors mb-2"
             >
-              Activate Referral Program
+              Activate
             </button>
             <p className="text-xs text-gray-500">
               Activating creates your unique referral link and unlocks your
@@ -455,8 +460,8 @@ export function ReferralsPage() {
           </div>
 
           {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="glass-card p-5">
+          <div className="grid grid-cols-1 xl:grid-cols-4 lg:grid-cols-2 md:grid-cols-2 gap-4">
+            <div className="glass-card p-5 flex">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 bg-purple-100 rounded-2xl flex items-center justify-center">
                   <Gem size={20} className="text-purple-600" />
@@ -468,7 +473,7 @@ export function ReferralsPage() {
               </div>
             </div>
 
-            <div className="glass-card p-5">
+            <div className="glass-card p-5 flex">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center">
                   <Coins size={20} className="text-blue-600" />
@@ -481,23 +486,18 @@ export function ReferralsPage() {
                 </div>
               </div>
             </div>
-          </div>
-
-          {/* Referral Link Section - Two small containers side by side */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Main Referral Link */}
             <div className="glass-card p-5">
               <h3 className="font-bold text-sm mb-3">Your Referral Link</h3>
-              <div className="flex gap-2">
+              <div className="flex gap-2 relative">
                 <input
                   type="text"
                   value={baseReferralLink}
                   readOnly
-                  className="flex-1 px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-xs font-mono"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-xs font-mono"
                 />
                 <button
                   onClick={() => handleCopy(baseReferralLink)}
-                  className="px-3 py-2 bg-black text-white rounded-lg font-semibold hover:bg-gray-800 transition-colors flex items-center gap-1.5 whitespace-nowrap text-xs"
+                  className="px-3 absolute right-0 h-full py-2 bg-black text-white rounded-lg font-semibold hover:bg-gray-800 transition-colors flex items-center gap-1.5 whitespace-nowrap text-xs"
                 >
                   {copied ? <Check size={14} /> : <Copy size={14} />}
                   {copied ? "Copied" : "Copy"}
@@ -593,7 +593,7 @@ export function ReferralsPage() {
             <div className="glass-card p-5">
               <h3 className="font-bold text-sm mb-4">Completed Actions</h3>
 
-              <div className="overflow-auto max-h-[500px]">
+              <div className="overflow-auto max-h-[450px]">
                 {filteredActions.length > 0 ? (
                   <div className="space-y-2">
                     {filteredActions.map((action) => (
