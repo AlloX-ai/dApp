@@ -545,9 +545,7 @@ export function ReferralsPage() {
                       Direct
                     </span>
                   </div>
-                  <span className="text-sm font-bold text-green-900">
-                   1200
-                  </span>
+                  <span className="text-sm font-bold text-green-900">1200</span>
                   <div className="absolute left-6 top-1/2 -translate-y-1/2 whitespace-nowrap bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover/icon:opacity-100 transition-opacity pointer-events-none z-10">
                     Points from direct users
                   </div>
@@ -559,9 +557,7 @@ export function ReferralsPage() {
                       Network
                     </span>
                   </div>
-                  <span className="text-sm font-bold text-blue-900">
-                    540
-                  </span>
+                  <span className="text-sm font-bold text-blue-900">540</span>
                   <div className="absolute left-6 top-1/2 -translate-y-1/2 whitespace-nowrap bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover/icon:opacity-100 transition-opacity pointer-events-none z-10">
                     Points from network
                   </div>
@@ -610,8 +606,12 @@ export function ReferralsPage() {
                 onChange={(e) => setDateFilter(e.target.value)}
                 className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-black/10"
               >
+                <option value="24h">Last 24 Hours</option>
                 <option value="7d">Last 7 Days</option>
                 <option value="30d">Last 30 Days</option>
+                <option value="60d">Last 60 Days</option>
+                <option value="90d">Last 90 Days</option>
+                <option value="365d">Last Year</option>
               </select>
               <button
                 onClick={handleDownloadCSV}
@@ -915,9 +915,9 @@ export function ReferralsPage() {
                   Earn Gems based on your referral's first valid staking action:
                 </p>
 
-                <div className="grid grid-cols-1 gap-3 mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
                   <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-4">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 justify-between">
                       <div>
                         <div className="text-sm font-semibold text-blue-900 mb-0.5">
                           Tier A
