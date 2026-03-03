@@ -18,6 +18,7 @@ import { TradingPage } from "./pages/TradingPage";
 import { StakingPage } from "./pages/StakingPage";
 import { HistoryPage } from "./pages/HistoryPage";
 import { BetaAccessPage } from "./pages/BetaAccessPage";
+import { ReferralsPage } from "./pages/ReferralPage";
 import { wagmiClient } from "./wagmiConnectors";
 import {
   connect,
@@ -239,7 +240,8 @@ function LaunchAppLayout() {
     );
 
     if (connector && connector.name !== "WalletConnect") {
-      const isBinance = option.walletType === "binance" || option.name === "Binance Wallet";
+      const isBinance =
+        option.walletType === "binance" || option.name === "Binance Wallet";
       connect(wagmiClient, { connector })
         .then(() => {
           dispatch(setWalletType(isBinance ? "binance" : "evm"));
@@ -349,7 +351,8 @@ function BetaAccessLayout() {
       c.name.toLowerCase().includes(option.name.toLowerCase()),
     );
     if (connector && connector.name !== "WalletConnect") {
-      const isBinance = option.walletType === "binance" || option.name === "Binance Wallet";
+      const isBinance =
+        option.walletType === "binance" || option.name === "Binance Wallet";
       connect(wagmiClient, { connector })
         .then(() => {
           dispatch(setWalletType(isBinance ? "binance" : "evm"));
@@ -627,6 +630,7 @@ function App() {
           <Route path="/trending" element={<TradingPage />} />
           <Route path="/staking" element={<StakingPage />} />
           <Route path="/history" element={<HistoryPage />} />
+          <Route path="/referrals" element={<ReferralsPage />} />
         </Route>
       </Routes>
     </>
