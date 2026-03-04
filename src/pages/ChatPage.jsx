@@ -651,6 +651,22 @@ export function ChatPage() {
     };
   };
 
+  // Parse portfolio token line: "LINK (defi): $20.00 / 2.170597 tokens at $9.2141"
+  const parsePortfolioTokenLine = (line) => {
+    const trimmed = line.trim();
+    const match = trimmed.match(
+      /^([A-Z0-9]+)\s*\(([^)]+)\):\s*\$?([\d.,]+)\s*\/\s*([\d.,]+)\s*tokens?\s+at\s+\$?([\d.,]+)/i,
+    );
+    if (!match) return null;
+    return {
+      ticker: match[1],
+      category: match[2],
+      allocation: match[3],
+      quantity: match[4],
+      price: match[5],
+    };
+  };
+
   // Parse "core narratives" bullet: "- **AI**: Decentralized AI (RENDER; +152% 7d/+134% 24h—top performer)."
   const parseCoreNarrativeLine = (line) => {
     const trimmed = line.trim().replace(/^[-•]\s*/, "");
@@ -1180,6 +1196,76 @@ export function ChatPage() {
         );
         i = jCore;
         continue;
+      }
+
+      // Portfolio tokens block inside "Tokens (N):" section
+      if (/^Tokens\s*\(\d+\):/i.test(trimmed)) {
+        const portfolioTokenEntries = [];
+        let jPort = i + 1;
+        while (jPort < lines.length) {
+          const parsed = parsePortfolioTokenLine(lines[jPort]);
+          if (!parsed) break;
+          portfolioTokenEntries.push(parsed);
+          jPort += 1;
+        }
+        if (portfolioTokenEntries.length > 0) {
+          pushBullets();
+          blocks.push(
+            <div
+              key={`portfolio-tokens-${blocks.length}`}
+              className="my-4 rounded-xl border border-gray-200 bg-white/80 shadow-sm overflow-hidden"
+            >
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[480px] text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-200 bg-gray-50/80">
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700">
+                        Token
+                      </th>
+                      <th className="px-4 py-3 text-right font-semibold text-gray-700">
+                        Allocation
+                      </th>
+                      <th className="px-4 py-3 text-right font-semibold text-gray-700">
+                        Quantity
+                      </th>
+                      <th className="px-4 py-3 text-right font-semibold text-gray-700">
+                        Price
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {portfolioTokenEntries.map((entry, idx) => (
+                      <tr
+                        key={idx}
+                        className="border-b border-gray-100 last:border-0 hover:bg-gray-50/50"
+                      >
+                        <td className="px-4 py-2.5">
+                          <span className="font-bold text-gray-900">
+                            {entry.ticker}
+                          </span>
+                          <span className="text-gray-500 text-xs ml-1">
+                            ({entry.category})
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5 text-right font-medium text-gray-900">
+                          ${entry.allocation}
+                        </td>
+                        <td className="px-4 py-2.5 text-right font-medium text-gray-800">
+                          {entry.quantity}
+                        </td>
+                        <td className="px-4 py-2.5 text-right font-medium text-gray-800">
+                          ${entry.price}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>,
+          );
+          i = jPort;
+          continue;
+        }
       }
 
       if (trimmed.startsWith("|") && trimmed.endsWith("|")) {

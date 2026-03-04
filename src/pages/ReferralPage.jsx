@@ -601,21 +601,21 @@ export function ReferralsPage() {
             <div className="flex gap-2">
               <button
                 onClick={() => setShowBenefitsModal(true)}
-                className="glass-card px-3 py-2 hover:bg-gray-50 transition-colors flex items-center gap-2 text-xs whitespace-nowrap"
+                className="bg-white rounded-full hover:bg-gray-200 transition-colors px-3 py-2  transition-colors flex items-center gap-2 text-xs whitespace-nowrap"
               >
                 <Info size={14} className="text-blue-600" />
                 <span className="font-medium">Program Benefits</span>
               </button>
               <button
                 onClick={() => setShowTiersModal(true)}
-                className="glass-card px-3 py-2 hover:bg-gray-50 transition-colors flex items-center gap-2 text-xs whitespace-nowrap"
+                className="bg-white rounded-full hover:bg-gray-200 transition-colors px-3 py-2  transition-colors flex items-center gap-2 text-xs whitespace-nowrap"
               >
                 <Gem size={14} className="text-purple-600" />
                 <span className="font-medium">How Rewards Work</span>
               </button>
               <button
                 onClick={() => setFaqModalOpen(true)}
-                className="glass-card px-3 py-2 hover:bg-gray-50 transition-colors flex items-center gap-2 text-xs whitespace-nowrap"
+                className="bg-white rounded-full hover:bg-gray-200 transition-colors px-3 py-2 transition-colors flex items-center gap-2 text-xs whitespace-nowrap"
               >
                 <HelpCircle size={14} className="text-purple-600" />
                 <span className="font-medium">FAQs</span>
@@ -861,7 +861,7 @@ export function ReferralsPage() {
                               </div>
                             ) : (
                               <div className="text-xs text-blue-700">
-                                5% of lifetime earnings 
+                                5% of lifetime earnings
                               </div>
                             )}
                           </div>
@@ -1268,7 +1268,7 @@ export function ReferralsPage() {
                       <Users size={16} className="text-blue-700" />
                     </div>
                     <div className="font-bold text-blue-900">
-                     5% of lifetime earnings 
+                      5% of lifetime earnings
                     </div>
                   </div>
                   <p className="text-sm text-blue-700">
@@ -1509,7 +1509,7 @@ export function ReferralsPage() {
                               </div>
                             ) : (
                               <div className="text-xs text-blue-700">
-                                5% of lifetime earnings 
+                                5% of lifetime earnings
                               </div>
                             )}
                           </div>

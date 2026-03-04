@@ -54,6 +54,19 @@ export function PointsPage() {
     setNewTasksCount(0);
   };
 
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const { user, setUser, claimSeason1 } = useAuth();
+  const hasClaimedWelcomeBonus = user?.season1?.claimed === true;
+  const userPointsBreakdown = user?.season1?.pointsBreakdown || {};
+  const isConnected = useSelector((state) => state.wallet.isConnected);
+
+  const [showWelcomeGiftModal, setShowWelcomeGiftModal] = useState(false);
+  const [claiming, setClaiming] = useState(false);
+  const [claimError, setClaimError] = useState(null);
+  const checkinStatus = useSelector((state) => state.checkin?.status);
+  // const currentDay = checkinStatus?.rewards.find((item)=>{item.})
+  // console.log(checkinStatus);
   const earnWays = [
     {
       id: 1,
@@ -65,6 +78,7 @@ export function PointsPage() {
       customIcon: null,
       comingSoon: false,
       isClickable: true,
+      userPoints: "5,000",
     },
     {
       id: 2,
@@ -76,6 +90,7 @@ export function PointsPage() {
       customIcon: null,
       comingSoon: false,
       isClickable: true,
+      userPoints: userPointsBreakdown.portfolios || 0,
     },
     {
       id: 3,
@@ -87,6 +102,7 @@ export function PointsPage() {
       customIcon: null,
       comingSoon: false,
       isClickable: true,
+      userPoints: userPointsBreakdown.messages || 0,
     },
     {
       id: 4,
@@ -97,6 +113,7 @@ export function PointsPage() {
       customIcon: null,
       comingSoon: false,
       isClickable: true,
+      userPoints: checkinStatus?.totalPointsEarned || 0,
     },
     // {
     //   id: 5,
@@ -131,16 +148,6 @@ export function PointsPage() {
       isClickable: false,
     },
   ];
-  const navigate = useNavigate();
-  const dispatch = useDispatch();
-  const { user, setUser, claimSeason1 } = useAuth();
-  const hasClaimedWelcomeBonus = user?.season1?.claimed === true;
-  const isConnected = useSelector((state) => state.wallet.isConnected);
-
-  const [showWelcomeGiftModal, setShowWelcomeGiftModal] = useState(false);
-  const [claiming, setClaiming] = useState(false);
-  const [claimError, setClaimError] = useState(null);
-
   const handleClaimPoints = async () => {
     setClaimError(null);
     setClaiming(true);
@@ -202,7 +209,7 @@ export function PointsPage() {
         </div>
         <button
           onClick={() => setShowFAQModal(true)}
-          className="glass-card px-3 py-2 hover:bg-gray-50 transition-colors flex items-center gap-2 text-xs whitespace-nowrap"
+          className="bg-white rounded-full px-3 py-2 hover:bg-gray-50 transition-colors flex items-center gap-2 text-xs whitespace-nowrap hover:bg-gray-200 transition-colors"
         >
           <HelpCircle size={14} className="text-blue-600" />
           <span className="font-medium">FAQs</span>
@@ -386,7 +393,9 @@ export function PointsPage() {
                       </div>
                     ) : (
                       <div className="flex gap-1 items-baseline">
-                        <span className="text-3xl font-bold">{way.points}</span>
+                        <span className="text-3xl font-bold">
+                          {way.userPoints ?? 0}
+                        </span>
                         <span className="text-sm text-gray-600 font-medium">
                           points
                         </span>
@@ -396,7 +405,8 @@ export function PointsPage() {
                     {isWelcomeGift && (
                       <div
                         className={`relative w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
-                          way.id === 1 && hasClaimedWelcomeBonus
+                          (way.id === 1 && hasClaimedWelcomeBonus) ||
+                          (way.id === 4 && checkinStatus?.canCheckIn === false)
                             ? "bg-green-500"
                             : "bg-black hover:bg-gray-800"
                         }`}
@@ -405,6 +415,9 @@ export function PointsPage() {
                           <Check className="w-4 h-4 text-white" />
                         ) : way.id === 1 ? (
                           <ArrowRight className="w-4 h-4 text-white" />
+                        ) : way.id === 4 &&
+                          checkinStatus?.canCheckIn === false ? (
+                          <Check className="w-4 h-4 text-white" />
                         ) : (
                           <ArrowRight className="w-4 h-4 text-white" />
                         )}
