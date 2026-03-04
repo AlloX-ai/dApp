@@ -11,8 +11,7 @@ import {
   Sparkles,
   HelpCircle,
   Check,
-  Loader2,
-  X,
+  ChevronRight,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
@@ -25,7 +24,7 @@ import {
 import { openCheckinModal } from "../redux/slices/walletSlice";
 import { XTasksModal } from "../components/XTasksModal";
 import { motion, AnimatePresence } from "motion/react";
-
+import FAQModal from "../components/FaqModal";
 // Custom X (Twitter) Logo Component
 function XLogo({ className }) {
   return (
@@ -42,6 +41,8 @@ function XLogo({ className }) {
 
 export function PointsPage() {
   const [showXTasksModal, setShowXTasksModal] = useState(false);
+  const [showFAQModal, setShowFAQModal] = useState(false);
+
   const [newTasksCount, setNewTasksCount] = useState(4);
   const [expandedFaq, setExpandedFaq] = useState(null);
 
@@ -97,19 +98,19 @@ export function PointsPage() {
       comingSoon: false,
       isClickable: true,
     },
+    // {
+    //   id: 5,
+    //   name: "Referrals",
+    //   points: "2,500",
+    //   gems: "10",
+    //   description: "Invite friends and earn from their activity",
+    //   icon: Users,
+    //   customIcon: null,
+    //   comingSoon: false,
+    //   isClickable: true,
+    // },
     {
       id: 5,
-      name: "Referrals",
-      points: "2,500",
-      gems: "10",
-      description: "Invite friends and earn from their activity",
-      icon: Users,
-      customIcon: null,
-      comingSoon: false,
-      isClickable: true,
-    },
-    {
-      id: 6,
       name: "Staking",
       points: "500",
       gems: "10",
@@ -120,7 +121,7 @@ export function PointsPage() {
       isClickable: false,
     },
     {
-      id: 7,
+      id: 6,
       name: "X Tasks",
       points: "200",
       description: "Complete social media tasks",
@@ -176,6 +177,8 @@ export function PointsPage() {
       setShowWelcomeGiftModal(true);
     } else if (id === 4) {
       dispatch(openCheckinModal());
+    } else if (id === 5) {
+      navigate("/referrals", { replace: true });
     } else if (id > 1 && id <= 3) {
       navigate("/", { replace: true });
     }
@@ -189,14 +192,22 @@ export function PointsPage() {
   return (
     <div className="space-y-6 flex-1 px-6 py-8 portfolio-wrapper ms-auto w-full overflow-y-auto">
       {/* Header */}
-      <div>
-        <h2 className="text-3xl font-bold mb-2">Rewards</h2>
-        <p className="text-gray-600 text-sm">
-          Earn Points and Gems by engaging with AlloX. Unlock exclusive benefits
-          at token launch.
-        </p>
+      <div className="flex flex-col md:flex-row justify-between items-center gap-3">
+        <div>
+          <h2 className="text-3xl font-bold mb-2">Rewards</h2>
+          <p className="text-gray-600 text-sm">
+            Earn Points and Gems by engaging with AlloX. Unlock exclusive
+            benefits at token launch.
+          </p>
+        </div>
+        <button
+          onClick={() => setShowFAQModal(true)}
+          className="glass-card px-3 py-2 hover:bg-gray-50 transition-colors flex items-center gap-2 text-xs whitespace-nowrap"
+        >
+          <HelpCircle size={14} className="text-blue-600" />
+          <span className="font-medium">FAQs</span>
+        </button>
       </div>
-
       {/* Two-Column Info: Points and Gems */}
       <div className="grid md:grid-cols-2 gap-4">
         {/* Points Section */}
@@ -253,8 +264,8 @@ export function PointsPage() {
               How to Earn:
             </div>
             <ul className="space-y-1 text-xs text-gray-700">
-              <li>• Referral program (primary source)</li>
-              <li>• High-value staking activities</li>
+              <li>• Referral program</li>
+              <li>• Staking activities</li>
               <li>• Special campaigns and events</li>
               <li>• Network referral bonuses</li>
             </ul>
@@ -270,7 +281,7 @@ export function PointsPage() {
             const Icon = way.icon;
             const CustomIcon = way.customIcon;
             const isWelcomeGift = way.id <= 4 || way.comingSoon === false;
-            const isXTasks = way.id === 4;
+            const isXTasks = way.id === 6;
             const hasGems = parseInt(way.gems) > 0;
 
             return (
@@ -335,7 +346,7 @@ export function PointsPage() {
                       <div className="flex mb-auto ml-auto items-center gap-1.5 px-2 py-1 bg-purple-100 border border-purple-200 rounded-lg w-fit">
                         <Gem size={14} className="text-purple-600" />
                         <span className="text-xs font-bold text-purple-700">
-                           Gems
+                          Gems
                         </span>
                       </div>
                     )}
@@ -407,362 +418,49 @@ export function PointsPage() {
         </div>
       </div>
 
-      {/* FAQs Section */}
-      <div>
-        <h3 className="text-xl font-bold mb-4">Frequently Asked Questions</h3>
+      <div
+        onClick={() => {
+          handleClick(5);
+        }}
+        className="relative overflow-hidden rounded-2xl h-[90px] bg-gradient-to-r from-purple-500 via-pink-500 to-purple-600 border-2 border-purple-400 cursor-pointer hover:shadow-2xl transition-all duration-300 group"
+      >
+        {/* Decorative elements */}
+        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 group-hover:scale-110 transition-transform duration-500"></div>
 
-        <div className="space-y-3">
-          {/* FAQ 1 */}
-          <div className="glass-card overflow-hidden">
-            <button
-              onClick={() => setExpandedFaq(expandedFaq === 1 ? null : 1)}
-              className="w-full flex items-start justify-between p-4 hover:bg-gray-50/50 transition-colors text-left"
-            >
-              <div className="flex items-start gap-3 flex-1">
-                <HelpCircle
-                  size={20}
-                  className="text-blue-600 mt-0.5 flex-shrink-0"
-                />
-                <div>
-                  <h4 className="font-semibold mb-1">
-                    What's the difference between Points and Gems?
-                  </h4>
-                  {expandedFaq !== 1 && (
-                    <p className="text-sm text-gray-600">
-                      Learn about reward types...
-                    </p>
-                  )}
-                </div>
-              </div>
-              <motion.div
-                animate={{ rotate: expandedFaq === 1 ? 180 : 0 }}
-                transition={{ duration: 0.2 }}
-                className="ml-2"
-              >
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                  <path
-                    d="M5 7.5L10 12.5L15 7.5"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </motion.div>
-            </button>
-            <AnimatePresence>
-              {expandedFaq === 1 && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <div className="px-4 pb-4 pl-[52px] text-sm text-gray-700 space-y-3">
-                    <p>
-                      <strong>Points</strong> are the standard reward currency
-                      earned through everyday activities on AlloX. They're easy
-                      to accumulate and serve as your baseline participation
-                      rewards.
-                    </p>
-                    <p>
-                      <strong>Gems</strong> are premium, high-value rewards that
-                      are harder to earn but offer significantly better
-                      benefits. At token launch, Gems will convert at a much
-                      better ratio than Points and grant access to exclusive
-                      allocations.
-                    </p>
-                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
-                      <div className="font-semibold text-purple-900 mb-1">
-                        Key Difference:
-                      </div>
-                      <p className="text-sm">
-                        Think of Points as your regular paycheck and Gems as
-                        your investment portfolio—both valuable, but Gems offer
-                        significantly higher long-term value.
-                      </p>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+        <div className="relative z-10 h-full flex items-center justify-between px-6 md:px-8">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-white/20 backdrop-blur-xl rounded-xl flex items-center justify-center flex-shrink-0">
+              <Gem size={24} className="text-white" />
+            </div>
+            <div>
+              <h3 className="text-xl md:text-2xl font-bold text-white">
+                Earn 5% Lifetime Rewards
+              </h3>
+              <p className="text-white/80 text-sm hidden md:block">
+                Invite friends, unlock Gems, and earn lifetime rewards from
+                their activity.
+              </p>
+            </div>
           </div>
 
-          {/* FAQ 2 */}
-          <div className="glass-card overflow-hidden">
-            <button
-              onClick={() => setExpandedFaq(expandedFaq === 2 ? null : 2)}
-              className="w-full flex items-start justify-between p-4 hover:bg-gray-50/50 transition-colors text-left"
-            >
-              <div className="flex items-start gap-3 flex-1">
-                <HelpCircle
-                  size={20}
-                  className="text-purple-600 mt-0.5 flex-shrink-0"
-                />
-                <div>
-                  <h4 className="font-semibold mb-1">How do I earn Gems?</h4>
-                  {expandedFaq !== 2 && (
-                    <p className="text-sm text-gray-600">
-                      Discover Gem earning strategies...
-                    </p>
-                  )}
-                </div>
-              </div>
-              <motion.div
-                animate={{ rotate: expandedFaq === 2 ? 180 : 0 }}
-                transition={{ duration: 0.2 }}
-                className="ml-2"
-              >
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                  <path
-                    d="M5 7.5L10 12.5L15 7.5"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </motion.div>
-            </button>
-            <AnimatePresence>
-              {expandedFaq === 2 && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <div className="px-4 pb-4 pl-[52px] text-sm text-gray-700 space-y-3">
-                    <p>
-                      The <strong>Referral Program</strong> is currently the
-                      primary way to earn Gems:
-                    </p>
-                    <div className="bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-4 space-y-2">
-                      <div className="flex items-start gap-2">
-                        <Sparkles
-                          size={16}
-                          className="text-purple-600 mt-0.5 flex-shrink-0"
-                        />
-                        <div>
-                          <div className="font-semibold text-purple-900">
-                            Direct Referrals
-                          </div>
-                          <div className="text-sm">
-                            Earn 1-10 Gems when your referral completes their
-                            first stake (based on stake amount)
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <Sparkles
-                          size={16}
-                          className="text-purple-600 mt-0.5 flex-shrink-0"
-                        />
-                        <div>
-                          <div className="font-semibold text-purple-900">
-                            Network Referrals
-                          </div>
-                          <div className="text-sm">
-                            Earn 5% of all Gems your direct referrals earn from
-                            their own referrals
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <p>
-                      Additional Gem earning opportunities will be introduced
-                      through special campaigns, high-value staking pools, and
-                      seasonal events. Visit the Referrals page to activate your
-                      program and start earning!
-                    </p>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
-          {/* FAQ 3 */}
-          <div className="glass-card overflow-hidden">
-            <button
-              onClick={() => setExpandedFaq(expandedFaq === 3 ? null : 3)}
-              className="w-full flex items-start justify-between p-4 hover:bg-gray-50/50 transition-colors text-left"
-            >
-              <div className="flex items-start gap-3 flex-1">
-                <HelpCircle
-                  size={20}
-                  className="text-green-600 mt-0.5 flex-shrink-0"
-                />
-                <div>
-                  <h4 className="font-semibold mb-1">
-                    What can I do with my Points and Gems?
-                  </h4>
-                  {expandedFaq !== 3 && (
-                    <p className="text-sm text-gray-600">
-                      Unlock exclusive benefits...
-                    </p>
-                  )}
-                </div>
-              </div>
-              <motion.div
-                animate={{ rotate: expandedFaq === 3 ? 180 : 0 }}
-                transition={{ duration: 0.2 }}
-                className="ml-2"
-              >
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                  <path
-                    d="M5 7.5L10 12.5L15 7.5"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </motion.div>
-            </button>
-            <AnimatePresence>
-              {expandedFaq === 3 && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <div className="px-4 pb-4 pl-[52px] text-sm text-gray-700 space-y-3">
-                    <p>
-                      Your rewards will unlock exclusive benefits at AlloX token
-                      launch:
-                    </p>
-                    <div className="space-y-2">
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Coins size={16} className="text-blue-600" />
-                          <span className="font-semibold text-blue-900">
-                            Points Benefits:
-                          </span>
-                        </div>
-                        <ul className="space-y-1 text-sm">
-                          <li>• Convert to token allocations at launch</li>
-                          <li>• Participate in seasonal campaigns</li>
-                          <li>• Enter prize draws and competitions</li>
-                          <li>• Access to community tier benefits</li>
-                        </ul>
-                      </div>
-                      <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Gem size={16} className="text-purple-600" />
-                          <span className="font-semibold text-purple-900">
-                            Gems Benefits (Premium):
-                          </span>
-                        </div>
-                        <ul className="space-y-1 text-sm">
-                          <li>• Superior token conversion ratio</li>
-                          <li>• Exclusive early-bird allocations</li>
-                          <li>• VIP tier status and perks</li>
-                          <li>• Priority access to future features</li>
-                        </ul>
-                      </div>
-                    </div>
-                    <p className="bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg p-3 text-center font-semibold text-sm">
-                      💎 The more you accumulate now, the more value you unlock
-                      at launch!
-                    </p>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
-          {/* FAQ 4 */}
-          <div className="glass-card overflow-hidden">
-            <button
-              onClick={() => setExpandedFaq(expandedFaq === 4 ? null : 4)}
-              className="w-full flex items-start justify-between p-4 hover:bg-gray-50/50 transition-colors text-left"
-            >
-              <div className="flex items-start gap-3 flex-1">
-                <HelpCircle
-                  size={20}
-                  className="text-indigo-600 mt-0.5 flex-shrink-0"
-                />
-                <div>
-                  <h4 className="font-semibold mb-1">
-                    Do Points and Gems expire?
-                  </h4>
-                  {expandedFaq !== 4 && (
-                    <p className="text-sm text-gray-600">
-                      Learn about reward duration...
-                    </p>
-                  )}
-                </div>
-              </div>
-              <motion.div
-                animate={{ rotate: expandedFaq === 4 ? 180 : 0 }}
-                transition={{ duration: 0.2 }}
-                className="ml-2"
-              >
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                  <path
-                    d="M5 7.5L10 12.5L15 7.5"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </motion.div>
-            </button>
-            <AnimatePresence>
-              {expandedFaq === 4 && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <div className="px-4 pb-4 pl-[52px] text-sm text-gray-700 space-y-3">
-                    <p>
-                      <strong>No, your rewards never expire!</strong> All Points
-                      and Gems you earn are permanently saved to your account.
-                    </p>
-                    <ul className="space-y-2 ml-4">
-                      <li className="flex items-start gap-2">
-                        <span className="text-green-600 mt-1">✓</span>
-                        <span>Accumulate rewards at your own pace</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="text-green-600 mt-1">✓</span>
-                        <span>No time limits or expiration dates</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="text-green-600 mt-1">✓</span>
-                        <span>
-                          All rewards remain valid through token launch
-                        </span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="text-green-600 mt-1">✓</span>
-                        <span>
-                          Track your total balance in your wallet stats
-                        </span>
-                      </li>
-                    </ul>
-                    <p className="text-xs text-gray-600 italic">
-                      Keep earning and building your rewards—every Point and Gem
-                      counts toward your future benefits!
-                    </p>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+          <button className="flex items-center gap-2 px-6 py-3 bg-white hover:bg-white/95 text-purple-600 rounded-xl font-bold shadow-lg transition-all flex-shrink-0">
+            <span className="hidden sm:inline">Start Earning</span>
+            <ChevronRight
+              size={20}
+              className="group-hover:translate-x-1 transition-transform"
+            />
+          </button>
         </div>
       </div>
-
       {/* X Tasks Modal */}
       <XTasksModal
         isOpen={showXTasksModal}
         onClose={() => setShowXTasksModal(false)}
         onTasksViewed={handleTasksViewed}
       />
+
+      {/* FAQ Modal */}
+      <FAQModal isOpen={showFAQModal} onClose={() => setShowFAQModal(false)} />
     </div>
   );
 }
