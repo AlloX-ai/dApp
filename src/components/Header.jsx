@@ -78,7 +78,7 @@ export function Header({
         >
           <div className="flex items-center gap-4">
             <div
-              className="glass-card px-3 py-2 flex items-center gap-3 cursor-pointer"
+              className="bg-white rounded-full px-3 py-2 flex items-center gap-3 cursor-pointer hover:bg-gray-200 transition-colors"
               onClick={() => {
                 navigate("/rewards");
               }}
@@ -107,7 +107,7 @@ export function Header({
               >
                 <TooltipTrigger asChild>
                   <div
-                    className="glass-card px-3 py-2 flex items-center gap-3 cursor-pointer"
+                    className="bg-white rounded-full px-3 py-2 flex items-center gap-3 cursor-pointer hover:bg-gray-200 transition-color"
                     onClick={handleLaunchClick}
                     role="button"
                   >

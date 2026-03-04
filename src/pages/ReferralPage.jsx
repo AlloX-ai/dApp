@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Copy,
   Check,
@@ -302,6 +302,11 @@ export function ReferralsPage() {
     setSelectedUserDetails(userEarnings);
   };
 
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    document.title = "Referrals";
+  }, []);
+
   return (
     <div className="space-y-6 flex-1 px-6 py-8 portfolio-wrapper ms-auto w-full overflow-y-auto">
       {!isActivated ? (
@@ -382,7 +387,7 @@ export function ReferralsPage() {
 
               {/* Direct Referral Header */}
               <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-4 shadow-lg">
-                <div className="flex items-center justify-center gap-2 mb-2">
+                <div className="flex items-center justify-center gap-2">
                   <Users size={24} className="text-white" />
                   <h3 className="text-lg font-bold text-white">
                     Direct Referral
@@ -395,7 +400,7 @@ export function ReferralsPage() {
 
               {/* Network Referral Header */}
               <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-4 shadow-lg">
-                <div className="flex items-center justify-center gap-2 mb-2">
+                <div className="flex items-center justify-center gap-2">
                   <Sparkles size={24} className="text-white" />
                   <h3 className="text-lg font-bold text-white">
                     Network Referral
@@ -408,11 +413,11 @@ export function ReferralsPage() {
             </div>
 
             {/* Benefits Rows */}
-            <div className="space-y-3">
+            <div className="space-y-1">
               {/* Benefit 1 */}
               <div className="grid grid-cols-3 gap-4 items-center bg-white/60 rounded-xl p-3 hover:shadow-md transition-shadow">
                 <div className="col-span-1 font-medium text-sm text-gray-800">
-                  Earn Gems from first valid staking action
+                  Earn Gems from staking
                 </div>
                 <div className="flex justify-center">
                   <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
@@ -437,7 +442,7 @@ export function ReferralsPage() {
               {/* Benefit 2 */}
               <div className="grid grid-cols-3 gap-4 items-center bg-white/60 rounded-xl p-3 hover:shadow-md transition-shadow">
                 <div className="col-span-1 font-medium text-sm text-gray-800">
-                  30 day cookie tracking
+                  30-day referral tracking
                 </div>
                 <div className="flex justify-center">
                   <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
@@ -462,7 +467,7 @@ export function ReferralsPage() {
               {/* Benefit 3 */}
               <div className="grid grid-cols-3 gap-4 items-center bg-white/60 rounded-xl p-3 hover:shadow-md transition-shadow">
                 <div className="col-span-1 font-medium text-sm text-gray-800">
-                  Anti-fraud and wallet validation
+                  Verified wallet rewards
                 </div>
                 <div className="flex justify-center">
                   <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
@@ -487,7 +492,7 @@ export function ReferralsPage() {
               {/* Benefit 4 */}
               <div className="grid grid-cols-3 gap-4 items-center bg-white/60 rounded-xl p-3 hover:shadow-md transition-shadow">
                 <div className="col-span-1 font-medium text-sm text-gray-800">
-                  Visible in referral dashboard
+                  Referral dashboard tracking
                 </div>
                 <div className="flex justify-center">
                   <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
@@ -538,7 +543,7 @@ export function ReferralsPage() {
               <div className="grid grid-cols-3 gap-4 items-center bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-3 border-2 border-indigo-200 hover:shadow-md transition-shadow">
                 <div className="col-span-1">
                   <div className="font-semibold text-sm text-gray-900">
-                    Earn from your referral's own users
+                    Earn from referral network
                   </div>
                   <div className="text-xs text-indigo-600 mt-1 font-medium">
                     Network Exclusive
@@ -560,7 +565,7 @@ export function ReferralsPage() {
               <div className="grid grid-cols-3 gap-4 items-center bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-3 border-2 border-indigo-200 hover:shadow-md transition-shadow">
                 <div className="col-span-1">
                   <div className="font-semibold text-sm text-gray-900">
-                    5% of lifetime earnings from referral network
+                    5% network earnings share
                   </div>
                   <div className="text-xs text-indigo-600 mt-1 font-medium">
                     Passive Income
@@ -856,7 +861,7 @@ export function ReferralsPage() {
                               </div>
                             ) : (
                               <div className="text-xs text-blue-700">
-                                5% of their earnings
+                                5% of lifetime earnings 
                               </div>
                             )}
                           </div>
@@ -954,7 +959,7 @@ export function ReferralsPage() {
                     {/* Benefit 1 */}
                     <div className="grid grid-cols-3 gap-4 items-center bg-white/60 rounded-xl p-3 transition-shadow">
                       <div className="col-span-1 font-medium text-sm text-gray-800">
-                        Earn Gems from first valid staking action
+                        Earn Gems from staking
                       </div>
                       <div className="flex justify-center">
                         <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
@@ -979,7 +984,7 @@ export function ReferralsPage() {
                     {/* Benefit 2 */}
                     <div className="grid grid-cols-3 gap-4 items-center bg-white/60 rounded-xl p-3 transition-shadow">
                       <div className="col-span-1 font-medium text-sm text-gray-800">
-                        30 day cookie tracking
+                        30-day referral tracking
                       </div>
                       <div className="flex justify-center">
                         <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
@@ -1004,7 +1009,7 @@ export function ReferralsPage() {
                     {/* Benefit 3 */}
                     <div className="grid grid-cols-3 gap-4 items-center bg-white/60 rounded-xl p-3 transition-shadow">
                       <div className="col-span-1 font-medium text-sm text-gray-800">
-                        Anti-fraud and wallet validation
+                        Verified wallet rewards
                       </div>
                       <div className="flex justify-center">
                         <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
@@ -1029,7 +1034,7 @@ export function ReferralsPage() {
                     {/* Benefit 4 */}
                     <div className="grid grid-cols-3 gap-4 items-center bg-white/60 rounded-xl p-3 transition-shadow">
                       <div className="col-span-1 font-medium text-sm text-gray-800">
-                        Visible in referral dashboard
+                        Referral dashboard tracking
                       </div>
                       <div className="flex justify-center">
                         <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
@@ -1080,7 +1085,7 @@ export function ReferralsPage() {
                     <div className="grid grid-cols-3 gap-4 items-center bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-3 border-2 border-indigo-200 transition-shadow">
                       <div className="col-span-1">
                         <div className="font-semibold text-sm text-gray-900">
-                          Earn from your referral's own users
+                          Earn from referral network
                         </div>
                         <div className="text-xs text-indigo-600 mt-1 font-medium">
                           Network Exclusive
@@ -1110,7 +1115,7 @@ export function ReferralsPage() {
                     <div className="grid grid-cols-3 gap-4 items-center bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-3 border-2 border-indigo-200 transition-shadow">
                       <div className="col-span-1">
                         <div className="font-semibold text-sm text-gray-900">
-                          5% of lifetime earnings from referral network
+                          5% network earnings share
                         </div>
                         <div className="text-xs text-indigo-600 mt-1 font-medium">
                           Passive Income
@@ -1263,7 +1268,7 @@ export function ReferralsPage() {
                       <Users size={16} className="text-blue-700" />
                     </div>
                     <div className="font-bold text-blue-900">
-                      5% of Their Earnings
+                     5% of lifetime earnings 
                     </div>
                   </div>
                   <p className="text-sm text-blue-700">
@@ -1504,7 +1509,7 @@ export function ReferralsPage() {
                               </div>
                             ) : (
                               <div className="text-xs text-blue-700">
-                                5% of their earnings
+                                5% of lifetime earnings 
                               </div>
                             )}
                           </div>
