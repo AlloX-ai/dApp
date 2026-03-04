@@ -130,7 +130,10 @@ export function CheckinModal({
     [status?.rewards],
   );
   const totalPointsCollected = status?.totalPointsEarned ?? 0;
-  const giftsCollected = status?.lifetimeCheckIns ?? 0;
+  const giftsCollected =
+    status?.rewards.filter((items) => {
+      return items.claimed === true;
+    }).length ?? 0;
 
   const activeDay = weekDays.find((day) => day.status === "active");
   const currentDay =
