@@ -1,5 +1,5 @@
-import { X as XIcon, ThumbsUp, Repeat2, LogOut, Star } from "lucide-react";
-import { useState } from "react";
+import { X as XIcon, ThumbsUp, Repeat2, LogOut, Star, Clock } from "lucide-react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 
 // Custom X (Twitter) Logo Component
@@ -37,6 +37,12 @@ export function XTasksModal({ isOpen, onClose, onTasksViewed }: XTasksModalProps
   const [isConnected, setIsConnected] = useState(false);
   const [xUsername, setXUsername] = useState("");
   const [currentTab, setCurrentTab] = useState<"available" | "completed">("available");
+  const [showDisconnectModal, setShowDisconnectModal] = useState(false);
+  const [disconnectTime, setDisconnectTime] = useState<number | null>(null);
+  const [timeRemaining, setTimeRemaining] = useState<string>("");
+  const [tasksCheckedCount, setTasksCheckedCount] = useState(0);
+  const [taskLimitResetTime, setTaskLimitResetTime] = useState<number | null>(null);
+  const [taskLimitTimeRemaining, setTaskLimitTimeRemaining] = useState<string>("");
   const [tasks, setTasks] = useState<Task[]>([
     {
       id: "1",
@@ -84,6 +90,52 @@ export function XTasksModal({ isOpen, onClose, onTasksViewed }: XTasksModalProps
     [key: string]: { like: "idle" | "success" | "error"; repost: "idle" | "success" | "error" };
   }>({});
 
+  // Timer effect for disconnect countdown
+  useEffect(() => {
+    if (disconnectTime) {
+      const interval = setInterval(() => {
+        const now = Date.now();
+        const remaining = disconnectTime - now;
+        
+        if (remaining <= 0) {
+          setDisconnectTime(null);
+          setTimeRemaining("");
+          clearInterval(interval);
+        } else {
+          const hours = Math.floor(remaining / (1000 * 60 * 60));
+          const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+          const seconds = Math.floor((remaining % (1000 * 60)) / 1000);
+          setTimeRemaining(`${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
+        }
+      }, 1000);
+
+      return () => clearInterval(interval);
+    }
+  }, [disconnectTime]);
+
+  // Timer effect for task limit countdown
+  useEffect(() => {
+    if (taskLimitResetTime) {
+      const interval = setInterval(() => {
+        const now = Date.now();
+        const remaining = taskLimitResetTime - now;
+        
+        if (remaining <= 0) {
+          setTaskLimitResetTime(null);
+          setTaskLimitTimeRemaining("");
+          setTasksCheckedCount(0);
+          clearInterval(interval);
+        } else {
+          const minutes = Math.floor(remaining / (1000 * 60));
+          const seconds = Math.floor((remaining % (1000 * 60)) / 1000);
+          setTaskLimitTimeRemaining(`${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
+        }
+      }, 1000);
+
+      return () => clearInterval(interval);
+    }
+  }, [taskLimitResetTime]);
+
   const handleConnect = () => {
     // Simulate X connection
     const mockUsername = "@user" + Math.floor(Math.random() * 10000);
@@ -92,12 +144,28 @@ export function XTasksModal({ isOpen, onClose, onTasksViewed }: XTasksModalProps
     onTasksViewed(); // Mark tasks as viewed when connected
   };
 
-  const handleDisconnect = () => {
+  const handleDisconnectClick = () => {
+    setShowDisconnectModal(true);
+  };
+
+  const handleConfirmDisconnect = () => {
     setIsConnected(false);
     setXUsername("");
+    setShowDisconnectModal(false);
+    // Set disconnect time to 24 hours from now
+    setDisconnectTime(Date.now() + 24 * 60 * 60 * 1000);
+  };
+
+  const handleCancelDisconnect = () => {
+    setShowDisconnectModal(false);
   };
 
   const handleAction = (taskId: string, action: "like" | "repost") => {
+    // Check if we've hit the task limit
+    if (tasksCheckedCount >= 5) {
+      return;
+    }
+
     // Simulate API call
     const success = Math.random() > 0.2; // 80% success rate
 
@@ -110,6 +178,15 @@ export function XTasksModal({ isOpen, onClose, onTasksViewed }: XTasksModalProps
     }));
 
     if (success) {
+      // Increment task check counter
+      const newCount = tasksCheckedCount + 1;
+      setTasksCheckedCount(newCount);
+
+      // If this is the 5th check, start the 15-minute timer
+      if (newCount === 5) {
+        setTaskLimitResetTime(Date.now() + 15 * 60 * 1000);
+      }
+
       setTasks((prev) =>
         prev.map((task) => {
           if (task.id === taskId) {
@@ -143,8 +220,8 @@ export function XTasksModal({ isOpen, onClose, onTasksViewed }: XTasksModalProps
     }
   };
 
-  const getActionButtonClass = (state: "idle" | "success" | "error", isDisabled: boolean) => {
-    if (isDisabled) {
+  const getActionButtonClass = (state: "idle" | "success" | "error", isDisabled: boolean, isLimitReached: boolean) => {
+    if (isDisabled || isLimitReached) {
       return "bg-gray-300 text-gray-500 cursor-not-allowed";
     }
     if (state === "success") {
@@ -156,6 +233,8 @@ export function XTasksModal({ isOpen, onClose, onTasksViewed }: XTasksModalProps
     return "bg-black text-white hover:bg-gray-800";
   };
 
+  const isTaskLimitReached = tasksCheckedCount >= 5;
+
   const availableTasks = tasks.filter((task) => !task.completed);
   const completedTasks = tasks.filter((task) => task.completed);
   const totalStarsToday = completedTasks.reduce((sum, task) => sum + task.points, 0);
@@ -163,7 +242,7 @@ export function XTasksModal({ isOpen, onClose, onTasksViewed }: XTasksModalProps
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50  flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -190,51 +269,140 @@ export function XTasksModal({ isOpen, onClose, onTasksViewed }: XTasksModalProps
             </button>
           </div>
 
-          {/* Connected User Info */}
-          {isConnected && (
-            <div className="flex items-center justify-between bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-200/50 rounded-2xl p-4">
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <XLogo className="w-5 h-5" />
-                  <span className="font-semibold">{xUsername}</span>
-                </div>
+          {/* User Info / Connection Status */}
+          <div className="flex items-center justify-between bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-200/50 rounded-2xl p-4">
+            {isConnected ? (
+              <>
+                {/* Left side - Points */}
                 <div className="flex items-center gap-2 px-3 py-1 bg-white rounded-lg">
                   <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
                   <span className="text-sm font-bold">{totalStarsToday} points today</span>
                 </div>
-              </div>
-              <button
-                onClick={handleDisconnect}
-                className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl transition-colors text-sm font-medium"
-              >
-                <LogOut className="w-4 h-4" />
-                Disconnect
-              </button>
-            </div>
-          )}
+
+                {/* Right side - Username and Disconnect */}
+                <div className="flex flex-col items-end gap-1">
+                  <div className="flex items-center gap-2">
+                    <XLogo className="w-5 h-5" />
+                    <span className="font-semibold">{xUsername}</span>
+                  </div>
+                  <button
+                    onClick={handleDisconnectClick}
+                    className="text-sm text-red-600 hover:text-red-700 underline font-medium transition-colors"
+                  >
+                    Disconnect
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Left side - Not connected */}
+                <div className="flex items-center gap-2">
+                  <XLogo className="w-5 h-5" />
+                  <span className="font-semibold text-gray-600">Not Connected</span>
+                </div>
+
+                {/* Right side - Connect button or timer */}
+                {disconnectTime ? (
+                  <div className="group relative">
+                    <div className="flex items-center gap-2 px-4 py-2 bg-gray-300 text-gray-600 rounded-xl text-sm font-medium cursor-not-allowed">
+                      <Clock className="w-4 h-4" />
+                      {timeRemaining}
+                    </div>
+                    <div className="absolute right-0 top-full mt-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                      You can connect after the timer has ended
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleConnect}
+                    className="flex items-center gap-2 px-4 py-2 bg-black hover:bg-gray-800 text-white rounded-xl transition-colors text-sm font-medium"
+                  >
+                    <XLogo className="w-4 h-4" />
+                    Connect
+                  </button>
+                )}
+              </>
+            )}
+          </div>
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[calc(80vh-180px)]">
+        <div className="p-6 overflow-y-auto max-h-[calc(80vh-190px)]">
           {!isConnected ? (
-            // Connection Prompt
-            <div className="text-center py-12">
-              <div className="w-20 h-20 bg-black rounded-3xl flex items-center justify-center mx-auto mb-6">
-                <XLogo className="w-10 h-10 text-white" />
+            <>
+              {/* Tabs (same layout as connected) */}
+              <div className="flex gap-2 mb-6">
+                <button
+                  disabled
+                  className="flex-1 px-6 py-3 rounded-xl font-semibold bg-black text-white cursor-not-allowed"
+                >
+                  Available (-)
+                </button>
+                <button
+                  disabled
+                  className="flex-1 px-6 py-3 rounded-xl font-semibold bg-gray-200 text-gray-700 cursor-not-allowed"
+                >
+                  Completed (-)
+                </button>
               </div>
-              <h3 className="text-2xl font-bold mb-2">Connect Your X Account</h3>
-              <p className="text-gray-600 mb-8 max-w-md mx-auto">
-                Connect your X (Twitter) account to start completing social tasks and earning points
-              </p>
-              <button
-                onClick={handleConnect}
-                className="px-8 py-3 bg-black hover:bg-gray-800 text-white rounded-xl font-semibold transition-colors"
-              >
-                Connect X Account
-              </button>
-            </div>
+
+              {/* Skeleton Cards */}
+              <div className="space-y-4">
+                {[1, 2, 3].map((i) => (
+                  <div
+                    key={i}
+                    className="bg-white/60 backdrop-blur-xl border border-white/60 rounded-2xl p-6 animate-pulse"
+                  >
+                    <div className="flex items-start gap-4">
+                      {/* Icon skeleton */}
+                      <div className="w-12 h-12 bg-gray-300 rounded-xl flex-shrink-0"></div>
+
+                      {/* Content skeleton */}
+                      <div className="flex-1">
+                        <div className="h-6 bg-gray-300 rounded-lg w-3/4 mb-2"></div>
+                        <div className="h-4 bg-gray-200 rounded-lg w-full mb-2"></div>
+                        <div className="flex items-center gap-4 mb-4">
+                          <div className="h-3 bg-gray-200 rounded w-24"></div>
+                          <div className="h-3 bg-gray-200 rounded w-20"></div>
+                        </div>
+                        <div className="flex gap-3">
+                          <div className="h-10 bg-gray-300 rounded-xl w-24"></div>
+                          <div className="h-10 bg-gray-300 rounded-xl w-28"></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
           ) : (
             <>
+              {/* Task Limit Notice */}
+              <div className={`mb-4 p-3 rounded-xl border ${
+                isTaskLimitReached 
+                  ? 'bg-red-50 border-red-200' 
+                  : 'bg-blue-50 border-blue-200'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Clock className={`w-4 h-4 ${isTaskLimitReached ? 'text-red-600' : 'text-blue-600'}`} />
+                    <span className={`text-sm font-medium ${isTaskLimitReached ? 'text-red-700' : 'text-blue-700'}`}>
+                      {isTaskLimitReached 
+                        ? `Task limit reached. Reset in ${taskLimitTimeRemaining}` 
+                        : `You can check ${5 - tasksCheckedCount} more task${5 - tasksCheckedCount !== 1 ? 's' : ''} in the next 15 minutes`
+                      }
+                    </span>
+                  </div>
+                  <span className={`text-xs font-semibold px-2 py-1 rounded-lg ${
+                    isTaskLimitReached 
+                      ? 'bg-red-200 text-red-700' 
+                      : 'bg-blue-200 text-blue-700'
+                  }`}>
+                    {tasksCheckedCount}/5
+                  </span>
+                </div>
+              </div>
+
               {/* Tabs */}
               <div className="flex gap-2 mb-6">
                 <button
@@ -303,10 +471,11 @@ export function XTasksModal({ isOpen, onClose, onTasksViewed }: XTasksModalProps
                               <div className="flex gap-3 mt-4">
                                 <button
                                   onClick={() => handleAction(task.id, "like")}
-                                  disabled={task.liked}
+                                  disabled={task.liked || isTaskLimitReached}
                                   className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all ${getActionButtonClass(
                                     taskState.like,
-                                    task.liked
+                                    task.liked,
+                                    isTaskLimitReached
                                   )}`}
                                 >
                                   <ThumbsUp className="w-4 h-4" />
@@ -314,10 +483,11 @@ export function XTasksModal({ isOpen, onClose, onTasksViewed }: XTasksModalProps
                                 </button>
                                 <button
                                   onClick={() => handleAction(task.id, "repost")}
-                                  disabled={task.reposted}
+                                  disabled={task.reposted || isTaskLimitReached}
                                   className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all ${getActionButtonClass(
                                     taskState.repost,
-                                    task.reposted
+                                    task.reposted,
+                                    isTaskLimitReached
                                   )}`}
                                 >
                                   <Repeat2 className="w-4 h-4" />
@@ -361,6 +531,55 @@ export function XTasksModal({ isOpen, onClose, onTasksViewed }: XTasksModalProps
           )}
         </div>
       </motion.div>
+
+      {/* Disconnect Confirmation Modal */}
+      <AnimatePresence>
+        {showDisconnectModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-sm z-10"
+            onClick={handleCancelDisconnect}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-2xl p-6 max-w-md mx-4 shadow-2xl"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
+                  <LogOut className="w-6 h-6 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold">Disconnect X Account?</h3>
+                </div>
+              </div>
+              
+              <p className="text-gray-600 mb-6 leading-relaxed">
+                If you disconnect, you won't be able to connect again for 24 hours. Are you sure you want to continue?
+              </p>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={handleCancelDisconnect}
+                  className="flex-1 px-4 py-3 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-xl font-semibold transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmDisconnect}
+                  className="flex-1 px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-semibold transition-colors"
+                >
+                  Disconnect
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
