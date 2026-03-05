@@ -1,6 +1,8 @@
-import { X as XIcon, ThumbsUp, Repeat2, LogOut, Star, Clock } from "lucide-react";
+import { X as XIcon, ThumbsUp, Repeat2, LogOut, Star, Clock, Sparkles, ExternalLink } from "lucide-react";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { useSocial } from "../hooks/useSocial";
+import { useSelector } from "react-redux";
 
 // Custom X (Twitter) Logo Component
 function XLogo({ className }: { className?: string }) {
@@ -22,9 +24,22 @@ interface Task {
   description: string;
   dateAdded: string;
   points: number;
-  liked: boolean;
-  reposted: boolean;
-  completed: boolean;
+  tweetUrl: string;
+  actions: Array<{
+    action: "like" | "retweet" | "comment";
+    points: number;
+    completed: boolean;
+    verifiedAt: string | null;
+  }>;
+}
+
+interface PromoTask {
+  type: string;
+  description: string;
+  points: number;
+  completedToday: boolean;
+  timesCompleted: number;
+  daily: boolean;
 }
 
 interface XTasksModalProps {
@@ -34,61 +49,65 @@ interface XTasksModalProps {
 }
 
 export function XTasksModal({ isOpen, onClose, onTasksViewed }: XTasksModalProps) {
-  const [isConnected, setIsConnected] = useState(false);
-  const [xUsername, setXUsername] = useState("");
+  const {
+    twitterStatus,
+    tasks,
+    promoTask,
+    taskStats,
+    loading,
+    error,
+    fetchTwitterStatus,
+    linkTwitter,
+    unlinkTwitter,
+    fetchTasks,
+    verifyTaskAction,
+    postPromoTweet,
+    verifyPromoTweet,
+    clearError,
+  } = useSocial();
+
   const [currentTab, setCurrentTab] = useState<"available" | "completed">("available");
   const [showDisconnectModal, setShowDisconnectModal] = useState(false);
   const [disconnectTime, setDisconnectTime] = useState<number | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<string>("");
-  const [tasksCheckedCount, setTasksCheckedCount] = useState(0);
-  const [taskLimitResetTime, setTaskLimitResetTime] = useState<number | null>(null);
-  const [taskLimitTimeRemaining, setTaskLimitTimeRemaining] = useState<string>("");
-  const [tasks, setTasks] = useState<Task[]>([
-    {
-      id: "1",
-      title: "Follow AlloX on X",
-      description: "Follow our official account to stay updated with the latest news",
-      dateAdded: "2024-03-01",
-      points: 200,
-      liked: false,
-      reposted: false,
-      completed: false,
-    },
-    {
-      id: "2",
-      title: "Repost AlloX Launch Announcement",
-      description: "Help us spread the word about our platform launch",
-      dateAdded: "2024-03-01",
-      points: 150,
-      liked: false,
-      reposted: false,
-      completed: false,
-    },
-    {
-      id: "3",
-      title: "Share Your Portfolio Strategy",
-      description: "Tweet about your favorite investment narrative on AlloX",
-      dateAdded: "2024-03-02",
-      points: 300,
-      liked: false,
-      reposted: false,
-      completed: false,
-    },
-    {
-      id: "4",
-      title: "Like AlloX's Latest Update",
-      description: "Show some love to our latest feature announcement",
-      dateAdded: "2024-03-02",
-      points: 100,
-      liked: false,
-      reposted: false,
-      completed: false,
-    },
-  ]);
-
+  const [promoVerifyState, setPromoVerifyState] = useState<"idle" | "success" | "error">("idle");
+  const [promoPosted, setPromoPosted] = useState(false);
   const [actionStates, setActionStates] = useState<{
-    [key: string]: { like: "idle" | "success" | "error"; repost: "idle" | "success" | "error" };
+    [key: string]: { like: "idle" | "success" | "error"; retweet: "idle" | "success" | "error" };
   }>({});
+
+  // initialize action states when tasks load
+  useEffect(() => {
+    const states: any = {};
+    tasks.forEach((t: any) => {
+      const likeCompleted = t.actions?.find((a: any) => a.action === 'like')?.completed;
+      const retweetCompleted = t.actions?.find((a: any) => a.action === 'retweet')?.completed;
+      states[t.id] = {
+        like: likeCompleted ? 'success' : 'idle',
+        retweet: retweetCompleted ? 'success' : 'idle',
+      };
+    });
+    setActionStates(states);
+  }, [tasks]);
+
+  // Fetch data when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      fetchTwitterStatus();
+      if (twitterStatus.linked) {
+        fetchTasks();
+      }
+      onTasksViewed();
+    }
+  }, [isOpen, fetchTwitterStatus, fetchTasks, onTasksViewed, twitterStatus.linked]);
+
+  // Clear error and promoPosted when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      clearError();
+      setPromoPosted(false);
+    }
+  }, [isOpen, clearError]);
 
   // Timer effect for disconnect countdown
   useEffect(() => {
@@ -96,7 +115,7 @@ export function XTasksModal({ isOpen, onClose, onTasksViewed }: XTasksModalProps
       const interval = setInterval(() => {
         const now = Date.now();
         const remaining = disconnectTime - now;
-        
+
         if (remaining <= 0) {
           setDisconnectTime(null);
           setTimeRemaining("");
@@ -113,116 +132,125 @@ export function XTasksModal({ isOpen, onClose, onTasksViewed }: XTasksModalProps
     }
   }, [disconnectTime]);
 
-  // Timer effect for task limit countdown
+  // Handle URL params for cooldown
   useEffect(() => {
-    if (taskLimitResetTime) {
-      const interval = setInterval(() => {
-        const now = Date.now();
-        const remaining = taskLimitResetTime - now;
-        
-        if (remaining <= 0) {
-          setTaskLimitResetTime(null);
-          setTaskLimitTimeRemaining("");
-          setTasksCheckedCount(0);
-          clearInterval(interval);
-        } else {
-          const minutes = Math.floor(remaining / (1000 * 60));
-          const seconds = Math.floor((remaining % (1000 * 60)) / 1000);
-          setTaskLimitTimeRemaining(`${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
-        }
-      }, 1000);
-
-      return () => clearInterval(interval);
+    if (!twitterStatus.cooldown.allowed && twitterStatus.cooldown.relinkAt) {
+      const relinkTime = new Date(twitterStatus.cooldown.relinkAt).getTime();
+      setDisconnectTime(relinkTime);
+    } else {
+      setDisconnectTime(null);
     }
-  }, [taskLimitResetTime]);
+  }, [twitterStatus.cooldown]);
 
-  const handleConnect = () => {
-    // Simulate X connection
-    const mockUsername = "@user" + Math.floor(Math.random() * 10000);
-    setXUsername(mockUsername);
-    setIsConnected(true);
-    onTasksViewed(); // Mark tasks as viewed when connected
+  const handleConnect = async () => {
+    try {
+      await linkTwitter();
+    } catch (err) {
+      // Error is handled in the hook
+    }
   };
 
   const handleDisconnectClick = () => {
     setShowDisconnectModal(true);
   };
 
-  const handleConfirmDisconnect = () => {
-    setIsConnected(false);
-    setXUsername("");
-    setShowDisconnectModal(false);
-    // Set disconnect time to 24 hours from now
-    setDisconnectTime(Date.now() + 24 * 60 * 60 * 1000);
+  const handleConfirmDisconnect = async () => {
+    try {
+      await unlinkTwitter();
+      setShowDisconnectModal(false);
+    } catch (err) {
+      // Error is handled in the hook
+    }
   };
 
   const handleCancelDisconnect = () => {
     setShowDisconnectModal(false);
   };
 
-  const handleAction = (taskId: string, action: "like" | "repost") => {
-    // Check if we've hit the task limit
-    if (tasksCheckedCount >= 5) {
-      return;
-    }
+  const handlePromoPost = () => {
+    // Use one of the random tweet variants
+    const tweetVariants = [
+      "Just discovered @alloxdotai — AI-powered crypto portfolios! 🚀\n\nCheck it out: https://allox.ai",
+      "Excited about @alloxdotai's AI-driven portfolio management! The future of DeFi is here 🧠💎\n\nhttps://allox.ai",
+      "@alloxdotai is revolutionizing how we invest in crypto. Smart portfolios powered by AI! 🤖📈\n\nJoin the movement: https://allox.ai",
+      "Finally found a platform that makes crypto investing intelligent. Thanks @alloxdotai! 🧠🚀\n\nhttps://allox.ai #DeFi #AI",
+      "@alloxdotai combines AI and DeFi perfectly. My portfolios have never been smarter! 💡📊\n\nCheck it: https://allox.ai",
+    ];
 
-    // Simulate API call
-    const success = Math.random() > 0.2; // 80% success rate
+    const randomTweet = tweetVariants[Math.floor(Math.random() * tweetVariants.length)];
+    postPromoTweet(randomTweet);
+    setPromoPosted(true);
+  };
 
-    setActionStates((prev) => ({
-      ...prev,
-      [taskId]: {
-        ...prev[taskId],
-        [action]: success ? "success" : "error",
-      },
-    }));
-
-    if (success) {
-      // Increment task check counter
-      const newCount = tasksCheckedCount + 1;
-      setTasksCheckedCount(newCount);
-
-      // If this is the 5th check, start the 15-minute timer
-      if (newCount === 5) {
-        setTaskLimitResetTime(Date.now() + 15 * 60 * 1000);
-      }
-
-      setTasks((prev) =>
-        prev.map((task) => {
-          if (task.id === taskId) {
-            const updated = {
-              ...task,
-              [action === "like" ? "liked" : "reposted"]: true,
-            };
-            // Mark as completed if both actions are done
-            if (
-              (action === "like" && updated.liked && updated.reposted) ||
-              (action === "repost" && updated.reposted && updated.liked)
-            ) {
-              updated.completed = true;
-            }
-            return updated;
-          }
-          return task;
-        })
-      );
-    } else {
-      // Reset to idle after 2 seconds for errors
+  const handlePromoVerify = async () => {
+    try {
+      setPromoVerifyState("idle");
+      await verifyPromoTweet();
+      setPromoVerifyState("success");
+    } catch (err) {
+      setPromoVerifyState("error");
       setTimeout(() => {
-        setActionStates((prev) => ({
-          ...prev,
-          [taskId]: {
-            ...prev[taskId],
-            [action]: "idle",
-          },
-        }));
+        setPromoVerifyState("idle");
       }, 2000);
     }
   };
 
-  const getActionButtonClass = (state: "idle" | "success" | "error", isDisabled: boolean, isLimitReached: boolean) => {
-    if (isDisabled || isLimitReached) {
-      return "bg-gray-300 text-gray-500 cursor-not-allowed";
+  const handleAction = async (taskId: string, action: "like" | "retweet") => {
+    try {
+      // Set loading state
+      setActionStates((prev) => ({
+        ...prev,
+        [taskId]: {
+          ...prev[taskId],
+          [action === "like" ? "like" : "retweet"]: "idle",
+        },
+      }));
+
+      // Open tweet in new tab
+      const task = tasks.find((t: any) => t.id === taskId);
+      if (task) {
+        window.open(task.tweetUrl, '_blank');
+      }
+
+      // Small delay before verification
+      setTimeout(async () => {
+        try {
+          await verifyTaskAction(taskId, action);
+          setActionStates((prev) => ({
+            ...prev,
+            [taskId]: {
+              ...prev[taskId],
+              [action === "like" ? "like" : "retweet"]: "success",
+            },
+          }));
+        } catch (err) {
+          setActionStates((prev) => ({
+            ...prev,
+            [taskId]: {
+              ...prev[taskId],
+              [action === "like" ? "like" : "repost"]: "error",
+            },
+          }));
+          // Reset to idle after 2 seconds
+          setTimeout(() => {
+            setActionStates((prev) => ({
+              ...prev,
+              [taskId]: {
+                ...prev[taskId],
+                [action === "like" ? "like" : "retweet"]: "idle",
+              },
+            }));
+          }, 2000);
+        }
+      }, 1000);
+    } catch (err) {
+      // Error handled in hook
+    }
+  };
+
+  const getActionButtonClass = (state: "idle" | "success" | "error", isCompleted: boolean) => {
+    if (isCompleted) {
+      return "bg-green-500 text-white cursor-not-allowed";
     }
     if (state === "success") {
       return "bg-green-500 text-white";
@@ -233,11 +261,19 @@ export function XTasksModal({ isOpen, onClose, onTasksViewed }: XTasksModalProps
     return "bg-black text-white hover:bg-gray-800";
   };
 
-  const isTaskLimitReached = tasksCheckedCount >= 5;
+  const availableTasks = tasks.filter((task: any) => {
+    const likeAction = task.actions.find((a: any) => a.action === 'like');
+    const retweetAction = task.actions.find((a: any) => a.action === 'retweet');
+    return !(likeAction?.completed && retweetAction?.completed);
+  });
 
-  const availableTasks = tasks.filter((task) => !task.completed);
-  const completedTasks = tasks.filter((task) => task.completed);
-  const totalStarsToday = completedTasks.reduce((sum, task) => sum + task.points, 0);
+  const completedTasks = tasks.filter((task: any) => {
+    const likeAction = task.actions.find((a: any) => a.action === 'like');
+    const retweetAction = task.actions.find((a: any) => a.action === 'retweet');
+    return likeAction?.completed && retweetAction?.completed;
+  });
+
+  const totalStarsToday = taskStats.totalPointsEarned;
 
   if (!isOpen) return null;
 
@@ -271,7 +307,7 @@ export function XTasksModal({ isOpen, onClose, onTasksViewed }: XTasksModalProps
 
           {/* User Info / Connection Status */}
           <div className="flex items-center justify-between bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-200/50 rounded-2xl p-4">
-            {isConnected ? (
+            {twitterStatus.linked ? (
               <>
                 {/* Left side - Points */}
                 <div className="flex items-center gap-2 px-3 py-1 bg-white rounded-lg">
@@ -283,13 +319,14 @@ export function XTasksModal({ isOpen, onClose, onTasksViewed }: XTasksModalProps
                 <div className="flex flex-col items-end gap-1">
                   <div className="flex items-center gap-2">
                     <XLogo className="w-5 h-5" />
-                    <span className="font-semibold">{xUsername}</span>
+                    <span className="font-semibold">@{twitterStatus.username}</span>
                   </div>
                   <button
                     onClick={handleDisconnectClick}
-                    className="text-sm text-red-600 hover:text-red-700 underline font-medium transition-colors"
+                    disabled={loading.unlink}
+                    className="text-sm text-red-600 hover:text-red-700 underline font-medium transition-colors disabled:opacity-50"
                   >
-                    Disconnect
+                    {loading.unlink ? "Disconnecting..." : "Disconnect"}
                   </button>
                 </div>
               </>
@@ -302,23 +339,24 @@ export function XTasksModal({ isOpen, onClose, onTasksViewed }: XTasksModalProps
                 </div>
 
                 {/* Right side - Connect button or timer */}
-                {disconnectTime ? (
+                {!twitterStatus.cooldown.allowed ? (
                   <div className="group relative">
                     <div className="flex items-center gap-2 px-4 py-2 bg-gray-300 text-gray-600 rounded-xl text-sm font-medium cursor-not-allowed">
                       <Clock className="w-4 h-4" />
-                      {timeRemaining}
+                      {timeRemaining || "24:00:00"}
                     </div>
                     <div className="absolute right-0 top-full mt-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                      You can connect after the timer has ended
+                      You can connect again after the timer ends
                     </div>
                   </div>
                 ) : (
                   <button
                     onClick={handleConnect}
-                    className="flex items-center gap-2 px-4 py-2 bg-black hover:bg-gray-800 text-white rounded-xl transition-colors text-sm font-medium"
+                    disabled={loading.auth}
+                    className="flex items-center gap-2 px-4 py-2 bg-black hover:bg-gray-800 text-white rounded-xl transition-colors text-sm font-medium disabled:opacity-50"
                   >
                     <XLogo className="w-4 h-4" />
-                    Connect
+                    {loading.auth ? "Connecting..." : "Connect"}
                   </button>
                 )}
               </>
@@ -327,8 +365,13 @@ export function XTasksModal({ isOpen, onClose, onTasksViewed }: XTasksModalProps
         </div>
 
         {/* Content */}
+        {error && (
+          <div className="mx-6 mb-4 p-3 bg-red-100 text-red-800 rounded-lg">
+            {error}
+          </div>
+        )}
         <div className="p-6 overflow-y-auto max-h-[calc(80vh-190px)]">
-          {!isConnected ? (
+          {(!twitterStatus.linked || loading.tasks) ? (
             <>
               {/* Tabs (same layout as connected) */}
               <div className="flex gap-2 mb-6">
@@ -377,31 +420,7 @@ export function XTasksModal({ isOpen, onClose, onTasksViewed }: XTasksModalProps
             </>
           ) : (
             <>
-              {/* Task Limit Notice */}
-              <div className={`mb-4 p-3 rounded-xl border ${
-                isTaskLimitReached 
-                  ? 'bg-red-50 border-red-200' 
-                  : 'bg-blue-50 border-blue-200'
-              }`}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Clock className={`w-4 h-4 ${isTaskLimitReached ? 'text-red-600' : 'text-blue-600'}`} />
-                    <span className={`text-sm font-medium ${isTaskLimitReached ? 'text-red-700' : 'text-blue-700'}`}>
-                      {isTaskLimitReached 
-                        ? `Task limit reached. Reset in ${taskLimitTimeRemaining}` 
-                        : `You can check ${5 - tasksCheckedCount} more task${5 - tasksCheckedCount !== 1 ? 's' : ''} in the next 15 minutes`
-                      }
-                    </span>
-                  </div>
-                  <span className={`text-xs font-semibold px-2 py-1 rounded-lg ${
-                    isTaskLimitReached 
-                      ? 'bg-red-200 text-red-700' 
-                      : 'bg-blue-200 text-blue-700'
-                  }`}>
-                    {tasksCheckedCount}/5
-                  </span>
-                </div>
-              </div>
+
 
               {/* Tabs */}
               <div className="flex gap-2 mb-6">
@@ -429,6 +448,179 @@ export function XTasksModal({ isOpen, onClose, onTasksViewed }: XTasksModalProps
 
               {/* Tasks List */}
               <div className="space-y-4">
+                {currentTab === "available" && !promoTask.completedToday && (
+                  /* Premium Daily Promo Task */
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="relative bg-gradient-to-br from-purple-500 via-indigo-500 to-blue-500 rounded-2xl p-[2px] shadow-xl hover:shadow-2xl transition-all"
+                  >
+                    {/* Glow effect */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-purple-400 via-indigo-400 to-blue-400 rounded-2xl blur-xl opacity-50"></div>
+                    
+                    <div className="relative bg-white/95 backdrop-blur-xl rounded-2xl p-6">
+                      <div className="flex items-start gap-4">
+                        {/* Premium Icon */}
+                        <div className="relative w-12 h-12 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
+                          <Sparkles className="w-6 h-6 text-white" />
+                          {/* Shimmer effect */}
+                          <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/30 to-transparent rounded-xl animate-pulse"></div>
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1">
+                          <div className="flex items-start justify-between mb-2">
+                            <div>
+                              {/* Daily tag */}
+                              <div className="inline-flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-lg mb-2">
+                                <Star className="w-3 h-3 text-white fill-white" />
+                                <span className="text-xs font-bold text-white">DAILY PROMO</span>
+                              </div>
+                              
+                              <h3 className="text-lg font-bold mb-1 bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
+                                {promoTask.title}
+                              </h3>
+                              <p className="text-sm text-gray-600 mb-2">{promoTask.description}</p>
+                              
+                              <div className="flex items-center gap-4 text-xs text-gray-500 mb-3">
+                                <span className="flex items-center gap-1">
+                                  <Clock className="w-3 h-3" />
+                                  Resets Daily
+                                </span>
+                                <div className="flex items-center gap-1 font-bold text-transparent bg-gradient-to-r from-yellow-500 to-orange-500 bg-clip-text">
+                                  <Star className="w-4 h-4 fill-yellow-500 text-yellow-500" />
+                                  {promoTask.points} points
+                                </div>
+                              </div>
+
+                              {/* Tweet Preview Box (sample text) */}
+                              <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 mb-4 text-sm text-gray-700 italic">
+                                "Help me earn points by tweeting about @alloxdotai!" (must mention @alloxdotai)
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Action Buttons */}
+                          {!promoTask.completedToday && (
+                            <div className="flex gap-3">
+                              <button
+                                onClick={handlePromoPost}
+                                className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl font-semibold transition-all shadow-md hover:shadow-lg"
+                              >
+                                <ExternalLink className="w-4 h-4" />
+                                Post
+                              </button>
+                              <button
+                                onClick={handlePromoVerify}
+                                disabled={promoTask.completedToday || !promoPosted}
+                                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold transition-all shadow-md ${
+                                  promoTask.completedToday || !promoPosted
+                                    ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                                    : promoVerifyState === "success"
+                                    ? "bg-green-500 text-white"
+                                    : promoVerifyState === "error"
+                                    ? "bg-red-500 text-white"
+                                    : "bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white hover:shadow-lg"
+                                }`}
+                              >
+                                <svg
+                                  className="w-4 h-4"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M5 13l4 4L19 7"
+                                  />
+                                </svg>
+                                {promoVerifyState === "success"
+                                  ? "Verified"
+                                  : promoVerifyState === "error"
+                                  ? "Failed"
+                                  : "Verify"}
+                              </button>
+                            </div>
+                          )}
+
+                          {promoTask.completedToday && (
+                            <div className="flex items-center gap-2 text-green-600 font-semibold text-sm">
+                              <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                                <svg
+                                  className="w-3 h-3 text-white"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={3}
+                                    d="M5 13l4 4L19 7"
+                                  />
+                                </svg>
+                              </div>
+                              Completed - Check back tomorrow!
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
+                {currentTab === "completed" && promoTask.completedToday && (
+                  /* Premium Daily Promo Task - Completed View */
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="relative bg-gradient-to-br from-green-500 via-emerald-500 to-teal-500 rounded-2xl p-[2px] shadow-xl"
+                  >
+                    <div className="relative bg-white/95 backdrop-blur-xl rounded-2xl p-6">
+                      <div className="flex items-start gap-4">
+                        {/* Premium Icon */}
+                        <div className="relative w-12 h-12 bg-gradient-to-br from-green-600 to-emerald-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
+                          <Sparkles className="w-6 h-6 text-white" />
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1">
+                          <div className="inline-flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-lg mb-2">
+                            <Star className="w-3 h-3 text-white fill-white" />
+                            <span className="text-xs font-bold text-white">DAILY PROMO</span>
+                          </div>
+                          
+                          <h3 className="text-lg font-bold mb-1 bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+                            {promoTask.title}
+                          </h3>
+                          <p className="text-sm text-gray-600 mb-2">{promoTask.description}</p>
+                          
+                          <div className="flex items-center gap-2 text-green-600 font-semibold text-sm mt-4">
+                            <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                              <svg
+                                className="w-3 h-3 text-white"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={3}
+                                  d="M5 13l4 4L19 7"
+                                />
+                              </svg>
+                            </div>
+                            Completed - Check back tomorrow!
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
                 {(currentTab === "available" ? availableTasks : completedTasks).length === 0 ? (
                   <div className="text-center py-12 text-gray-500">
                     {currentTab === "available"
@@ -436,8 +628,8 @@ export function XTasksModal({ isOpen, onClose, onTasksViewed }: XTasksModalProps
                       : "No completed tasks yet"}
                   </div>
                 ) : (
-                  (currentTab === "available" ? availableTasks : completedTasks).map((task) => {
-                    const taskState = actionStates[task.id] || { like: "idle", repost: "idle" };
+                  (currentTab === "available" ? availableTasks : completedTasks).map((task: any) => {
+                    const taskState = actionStates[task.id] || { like: "idle", retweet: "idle" };
 
                     return (
                       <div
@@ -467,40 +659,38 @@ export function XTasksModal({ isOpen, onClose, onTasksViewed }: XTasksModalProps
                             </div>
 
                             {/* Action Buttons */}
-                            {!task.completed && (
+                            {currentTab === "available" && (
                               <div className="flex gap-3 mt-4">
                                 <button
                                   onClick={() => handleAction(task.id, "like")}
-                                  disabled={task.liked || isTaskLimitReached}
+                                  disabled={task.actions?.find((a: any) => a.action === 'like')?.completed}
                                   className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all ${getActionButtonClass(
                                     taskState.like,
-                                    task.liked,
-                                    isTaskLimitReached
+                                    task.actions?.find((a: any) => a.action === 'like')?.completed
                                   )}`}
                                 >
                                   <ThumbsUp className="w-4 h-4" />
                                   {task.liked ? "Liked" : taskState.like === "error" ? "Failed" : "Like"}
                                 </button>
                                 <button
-                                  onClick={() => handleAction(task.id, "repost")}
-                                  disabled={task.reposted || isTaskLimitReached}
+                                  onClick={() => handleAction(task.id, "retweet")}
+                                  disabled={task.actions?.find((a: any) => a.action === 'retweet')?.completed}
                                   className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all ${getActionButtonClass(
-                                    taskState.repost,
-                                    task.reposted,
-                                    isTaskLimitReached
+                                    taskState.retweet,
+                                    task.actions?.find((a: any) => a.action === 'retweet')?.completed
                                   )}`}
                                 >
                                   <Repeat2 className="w-4 h-4" />
-                                  {task.reposted
-                                    ? "Reposted"
-                                    : taskState.repost === "error"
+                                  {task.actions?.find((a: any) => a.action === 'retweet')?.completed
+                                    ? "Retweeted"
+                                    : taskState.retweet === "error"
                                     ? "Failed"
-                                    : "Repost"}
+                                    : "Retweet"}
                                 </button>
                               </div>
                             )}
 
-                            {task.completed && (
+                            {currentTab === "completed" && (
                               <div className="flex items-center gap-2 text-green-600 font-semibold text-sm mt-4">
                                 <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
                                   <svg
