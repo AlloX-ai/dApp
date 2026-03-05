@@ -96,7 +96,7 @@ export function WalletModal({
         onClick={onClose}
       />
 
-      <div className="relative glass-card p-8 w-full max-w-md animate-slide-up">
+      <div className="relative glass-card p-5 w-full max-w-md animate-slide-up">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold">Connect Wallet</h2>
           <button
@@ -141,7 +141,7 @@ export function WalletModal({
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600 mb-3">Other wallets</p>
-                <div className="space-y-3 grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {getOtherWallets().map((wallet) => (
                     <button
                       key={wallet.name}
@@ -156,7 +156,7 @@ export function WalletModal({
                           className="h-8 w-8 object-contain"
                         />
                       </div>
-                      <span className="font-xs">{wallet.name}</span>
+                      <span className="text-xs">{wallet.name}</span>
                     </button>
                   ))}
                 </div>
