@@ -60,7 +60,9 @@ export function PointsPage() {
   const { user, setUser, claimSeason1 } = useAuth();
   const hasClaimedWelcomeBonus = user?.season1?.claimed === true;
   const userPointsBreakdown = user?.season1?.pointsBreakdown || {};
-  const isConnected = useSelector((state) => state.wallet.isConnected);
+  const rateLimit =
+    user?.season1?.rateLimit?.remaining ??
+    user?.season1?.rateLimit?.messagesRemaining;
 
   const [showWelcomeGiftModal, setShowWelcomeGiftModal] = useState(false);
   const [claiming, setClaiming] = useState(false);
@@ -72,7 +74,7 @@ export function PointsPage() {
         if (i === checkinStatus.rewards.length - 1) {
           return checkinStatus.rewards[0];
         } else {
-          return checkinStatus.rewards[i + 1];
+          return checkinStatus.rewards[i];
         }
       }
     }
@@ -103,7 +105,12 @@ export function PointsPage() {
       comingSoon: false,
       isClickable: true,
       userPoints:
-        getFormattedNumber(userPointsBreakdown.fromPortfolios || 0, 0) || 0,
+        getFormattedNumber(
+          userPointsBreakdown.fromPortfolios ||
+            userPointsBreakdown.portfolios ||
+            0,
+          0,
+        ) || 0,
     },
     {
       id: 3,
@@ -116,7 +123,10 @@ export function PointsPage() {
       comingSoon: false,
       isClickable: true,
       userPoints:
-        getFormattedNumber(userPointsBreakdown.fromMessages || 0, 0) || 0,
+        getFormattedNumber(
+          userPointsBreakdown.fromMessages || userPointsBreakdown.messages || 0,
+          0,
+        ) || 0,
     },
     {
       id: 4,
@@ -145,16 +155,16 @@ export function PointsPage() {
       id: 5,
       name: "Staking",
       points: "500",
-      gems: "10",
+      gems: "0",
       description: "Earn points by staking tokens",
       icon: TrendingUp,
       customIcon: null,
-      comingSoon: false,
+      comingSoon: true,
       isClickable: false,
     },
     {
       id: 6,
-      name: "X Tasks",
+      name: "Social Tasks",
       points: "200",
       description: "Complete social media tasks",
       icon: null,
@@ -310,7 +320,7 @@ export function PointsPage() {
               <div
                 key={way.id}
                 onClick={() => {
-                  if (isXTasks) {
+                  if (isXTasks || way.id === 5) {
                     // handleXTasksClick();
                   } else {
                     handleClick(way.id);
@@ -423,17 +433,25 @@ export function PointsPage() {
                       <div
                         className={`relative w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
                           (way.id === 1 && hasClaimedWelcomeBonus) ||
-                          (way.id === 4 && checkinStatus?.canCheckIn === false)
+                          (way.id === 4 &&
+                            checkinStatus?.canCheckIn === false) ||
+                          (way.id === 2 && rateLimit < 3) ||
+                          (way.id === 3 && rateLimit === 0)
                             ? "bg-green-500"
-                            : "bg-black hover:bg-gray-800"
+                            : (way.id === 2 && rateLimit >= 3) ||
+                                (way.id === 3 && rateLimit > 0)
+                              ? "bg-orange-500"
+                              : "bg-black hover:bg-gray-800"
                         }`}
                       >
                         {way.id === 1 && hasClaimedWelcomeBonus ? (
                           <Check className="w-4 h-4 text-white" />
                         ) : way.id === 1 ? (
                           <ArrowRight className="w-4 h-4 text-white" />
-                        ) : way.id === 4 &&
-                          checkinStatus?.canCheckIn === false ? (
+                        ) : (way.id === 4 &&
+                            checkinStatus?.canCheckIn === false) ||
+                          (way.id === 2 && rateLimit < 3) ||
+                          (way.id === 3 && rateLimit === 0) ? (
                           <Check className="w-4 h-4 text-white" />
                         ) : (
                           <ArrowRight className="w-4 h-4 text-white" />
@@ -474,7 +492,7 @@ export function PointsPage() {
           </div>
 
           <button className="flex items-center gap-2 px-6 py-3 bg-white hover:bg-white/95 text-purple-600 rounded-xl font-bold shadow-lg transition-all flex-shrink-0">
-            <span className="hidden sm:inline">Start Earning</span>
+            <span className="hidden sm:inline">Coming Soon</span>
             <ChevronRight
               size={20}
               className="group-hover:translate-x-1 transition-transform"

@@ -741,8 +741,8 @@ export function CheckinModal({
                   </p> */}
                   {status?.secondsUntilReset != null &&
                     status.secondsUntilReset > 0 && (
-                      <p className="mt-1 text-xs text-gray-400">
-                        Daily bonus resets after you claim it for 7 days. Then a
+                      <p className="mt-1 text-xs text-gray-800">
+                        Daily bonus <span className="text-red-500 font-bold">resets</span> after you claim it for 7 days. Then a
                         new cycle begins
                       </p>
                     )}
