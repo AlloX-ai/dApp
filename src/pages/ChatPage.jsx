@@ -19,6 +19,7 @@ import {
 import { apiCall } from "../utils/api";
 import { useAuth } from "../hooks/useAuth";
 import { NavLink } from "react-router";
+import getFormattedNumber from "../hooks/get-formatted-number";
 
 function formatResetAt(resetAt) {
   if (resetAt == null || resetAt === "") return "";
@@ -600,6 +601,7 @@ export function ChatPage() {
   // Parse token list line. Supports:
   // - Pipe format: "1. **LINK** (Chainlink): $8.84 USD | MC: $6.26B | Vol: $535M (DeFi)"
   // - Comma format: "1. **LINK** (Chainlink, Ethereum): $9.11 USD, Market Cap: $6.45B, 24h Vol: $567M" with optional "24h Change: +1.5%"
+  // - Compact DeFi format: "1. **STABLE** ($0.0278, MC: $573M, Vol: $1.03B)"
   const parseTokenListLine = (line) => {
     // Pipe format (MC:, Vol:, optional narrative at end)
     let match = line.match(
@@ -629,6 +631,21 @@ export function ChatPage() {
         marketCap: match[5],
         vol24h: match[6],
         change24h: match[7] != null ? parseFloat(match[7]) : null,
+      };
+    }
+    // Compact DeFi format with price/MC/Vol only
+    match = line.match(
+      /^(\d+)\.\s+\*\*([A-Z0-9]+)\*\*\s*\(\$?([\d,.]+)\s*,\s*MC:\s*\$?([\d.]+[BMK]?)\s*,\s*Vol:\s*\$?([\d.]+[BMK]?)\)\s*$/i,
+    );
+    if (match) {
+      return {
+        rank: match[1],
+        ticker: match[2],
+        nameChain: null,
+        price: match[3],
+        marketCap: match[4],
+        vol24h: match[5],
+        change24h: null,
       };
     }
     return null;
@@ -870,7 +887,7 @@ export function ChatPage() {
         blocks.push(
           <div
             key={`token-list-${blocks.length}`}
-            className="my-4 rounded-xl border border-gray-200 bg-white/80 shadow-sm overflow-hidden"
+            className="my-4 rounded-xl border  bg-gradient-to-br from-blue-50/80 to-purple-50/80 border border-blue-200/50 shadow-sm overflow-hidden"
           >
             <div
               className={`grid ${gridCols} gap-x-4 gap-y-0 px-4 py-2.5 border-b border-gray-200 bg-gray-50/80 text-xs font-semibold text-gray-600 uppercase tracking-wide items-center`}
@@ -894,9 +911,11 @@ export function ChatPage() {
                   <span className="font-bold text-gray-900">
                     {entry.ticker}
                   </span>
-                  <span className="text-gray-500 text-xs ml-1">
-                    ({entry.nameChain})
-                  </span>
+                  {entry.nameChain && (
+                    <span className="text-gray-500 text-xs ml-1">
+                      ({entry.nameChain})
+                    </span>
+                  )}
                 </div>
                 <span className="text-right font-medium text-gray-900">
                   ${entry.price} USD
@@ -949,7 +968,7 @@ export function ChatPage() {
             className="my-4 rounded-xl border border-gray-200 bg-white/80 shadow-sm overflow-hidden"
           >
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[480px] text-sm">
+              <table className="w-full min-w-[480px] text-sm bg-gradient-to-br from-blue-50/80 to-purple-50/80 border border-blue-200/50">
                 <thead>
                   <tr className="border-b border-gray-200 bg-gray-50/80">
                     <th className="px-4 py-3 text-left font-semibold text-gray-700">
@@ -1037,7 +1056,7 @@ export function ChatPage() {
         blocks.push(
           <div
             key={`token-compare-table-${blocks.length}`}
-            className="my-4 rounded-xl border border-gray-200 bg-white/80 shadow-sm overflow-hidden"
+            className="my-4 rounded-xl  bg-gradient-to-br from-blue-50/80 to-purple-50/80 border border-blue-200/50 shadow-sm overflow-hidden"
           >
             <div className="overflow-x-auto">
               <table className="w-full min-w-[560px] text-sm">
@@ -1125,7 +1144,7 @@ export function ChatPage() {
         blocks.push(
           <div
             key={`core-narrative-table-${blocks.length}`}
-            className="my-4 rounded-xl border border-gray-200 bg-white/80 shadow-sm overflow-hidden"
+            className="my-4 rounded-xl  bg-gradient-to-br from-blue-50/80 to-purple-50/80 border border-blue-200/50 shadow-sm overflow-hidden"
           >
             <div className="overflow-x-auto">
               <table className="w-full min-w-[520px] text-sm">
@@ -1216,7 +1235,7 @@ export function ChatPage() {
               className="my-4 rounded-xl border border-gray-200 bg-white/80 shadow-sm overflow-hidden"
             >
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[480px] text-sm">
+                <table className="w-full min-w-[480px] text-sm bg-gradient-to-br from-blue-50/80 to-purple-50/80 border border-blue-200/50">
                   <thead>
                     <tr className="border-b border-gray-200 bg-gray-50/80">
                       <th className="px-4 py-3 text-left font-semibold text-gray-700">
@@ -1244,14 +1263,14 @@ export function ChatPage() {
                             {entry.ticker}
                           </span>
                           <span className="text-gray-500 text-xs ml-1">
-                            ({entry.category})
+                            {/* ({entry.category}) */}
                           </span>
                         </td>
                         <td className="px-4 py-2.5 text-right font-medium text-gray-900">
                           ${entry.allocation}
                         </td>
                         <td className="px-4 py-2.5 text-right font-medium text-gray-800">
-                          {entry.quantity}
+                          {getFormattedNumber(entry.quantity)}
                         </td>
                         <td className="px-4 py-2.5 text-right font-medium text-gray-800">
                           ${entry.price}
@@ -1282,7 +1301,7 @@ export function ChatPage() {
               key={`table-${blocks.length}`}
               className="my-4 overflow-x-auto rounded-xl border border-gray-200 bg-white/80 shadow-sm"
             >
-              <table className="w-full min-w-[400px] text-sm">
+              <table className="w-full min-w-[400px] text-sm bg-gradient-to-br from-blue-50/80 to-purple-50/80 border border-blue-200/50">
                 <thead>
                   <tr className="border-b border-gray-200 bg-gray-50/80">
                     {headers.map((h, hi) => (

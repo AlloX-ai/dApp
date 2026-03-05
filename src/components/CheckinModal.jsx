@@ -621,8 +621,27 @@ export function CheckinModal({
 
                   {/* Right Side - Week Overview */}
                   <div className="flex flex-col min-w-0 w-full">
-                    <div className="text-sm font-semibold text-gray-600 mb-3 text-center md:text-left">
-                      Week Progress
+                    <div className="flex justify-between gap-3 align-center">
+                      <div className="text-sm font-semibold text-gray-600 mb-3 text-center md:text-left">
+                        Week Progress
+                      </div>
+                      <div className=" text-center text-sm text-gray-500">
+                        {/* <p>
+                    Come back daily to claim your rewards and maintain your
+                    streak! 🎁
+                  </p> */}
+                        {status?.secondsUntilReset != null &&
+                          status.secondsUntilReset > 0 && (
+                            <p className="mt-1 text-xs text-gray-400">
+                              Resets in{" "}
+                              {Math.floor(status.secondsUntilReset / 3600)}h{" "}
+                              {Math.floor(
+                                (status.secondsUntilReset % 3600) / 60,
+                              )}
+                              m
+                            </p>
+                          )}
+                      </div>
                     </div>
                     <div className="flex sm:grid flex-nowrap sm:grid-cols-1 overflow-x-auto sm:overflow-x-visible gap-2 sm:gap-3 sm:max-h-[22rem] overflow-y-auto p-1 w-full snap-x snap-mandatory scroll-smooth [-webkit-overflow-scrolling:touch]">
                       {weekDays.map((day, index) => (
@@ -723,8 +742,8 @@ export function CheckinModal({
                   {status?.secondsUntilReset != null &&
                     status.secondsUntilReset > 0 && (
                       <p className="mt-1 text-xs text-gray-400">
-                        Resets in {Math.floor(status.secondsUntilReset / 3600)}h{" "}
-                        {Math.floor((status.secondsUntilReset % 3600) / 60)}m
+                        Daily bonus resets after you claim it for 7 days. Then a
+                        new cycle begins
                       </p>
                     )}
                 </div>

@@ -13,7 +13,7 @@ import {
   Check,
   ChevronRight,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { useDispatch, useSelector } from "react-redux";
 import { useAuth } from "../hooks/useAuth";
@@ -25,6 +25,7 @@ import { openCheckinModal } from "../redux/slices/walletSlice";
 import { XTasksModal } from "../components/XTasksModal";
 import { motion, AnimatePresence } from "motion/react";
 import FAQModal from "../components/FaqModal";
+import getFormattedNumber from "../hooks/get-formatted-number";
 // Custom X (Twitter) Logo Component
 function XLogo({ className }) {
   return (
@@ -65,8 +66,19 @@ export function PointsPage() {
   const [claiming, setClaiming] = useState(false);
   const [claimError, setClaimError] = useState(null);
   const checkinStatus = useSelector((state) => state.checkin?.status);
-  // const currentDay = checkinStatus?.rewards.find((item)=>{item.})
-  // console.log(checkinStatus);
+  const lastClaimed = useMemo(() => {
+    for (let i = checkinStatus?.rewards?.length - 1; i >= 0; i--) {
+      if (checkinStatus.rewards[i].claimed === true) {
+        if (i === checkinStatus.rewards.length - 1) {
+          return checkinStatus.rewards[0];
+        } else {
+          return checkinStatus.rewards[i + 1];
+        }
+      }
+    }
+    return checkinStatus?.rewards[0];
+  }, [checkinStatus]);
+
   const earnWays = [
     {
       id: 1,
@@ -90,7 +102,8 @@ export function PointsPage() {
       customIcon: null,
       comingSoon: false,
       isClickable: true,
-      userPoints: userPointsBreakdown.portfolios || 0,
+      userPoints:
+        getFormattedNumber(userPointsBreakdown.fromPortfolios || 0, 0) || 0,
     },
     {
       id: 3,
@@ -102,18 +115,20 @@ export function PointsPage() {
       customIcon: null,
       comingSoon: false,
       isClickable: true,
-      userPoints: userPointsBreakdown.messages || 0,
+      userPoints:
+        getFormattedNumber(userPointsBreakdown.fromMessages || 0, 0) || 0,
     },
     {
       id: 4,
       name: "Daily Bonus",
-      points: "5,000",
+      points: getFormattedNumber(lastClaimed?.points || 0, 0),
       description: "Log in daily to earn points",
       icon: Clock,
       customIcon: null,
       comingSoon: false,
       isClickable: true,
-      userPoints: checkinStatus?.totalPointsEarned || 0,
+      userPoints:
+        getFormattedNumber(checkinStatus?.totalPointsEarned || 0, 0) || 0,
     },
     // {
     //   id: 5,
@@ -378,14 +393,16 @@ export function PointsPage() {
                       <div className="flex gap-3">
                         <div className="flex gap-1 items-baseline">
                           <span className="text-3xl font-bold">
-                            {way.points}
+                            {/* {way.points} */}0
                           </span>
                           <span className="text-sm text-gray-600 font-medium">
                             points
                           </span>
                         </div>{" "}
                         <div className="flex gap-1 items-baseline">
-                          <span className="text-3xl font-bold">{way.gems}</span>
+                          <span className="text-3xl font-bold">
+                            {/* {way.gems} */}0
+                          </span>
                           <span className="text-sm text-gray-600 font-medium">
                             gems
                           </span>
