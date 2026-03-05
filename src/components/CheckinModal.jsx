@@ -65,6 +65,7 @@ const CHECKIN_CHAINS = [
 ];
 // eslint-disable-next-line no-unused-vars -- motion used as namespace in JSX (motion.div)
 import { motion, AnimatePresence } from "motion/react";
+import { useTotalPoints } from "../hooks/useTotalPoints";
 
 const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const DEFAULT_REWARDS = [500, 1000, 1500, 2000, 2500, 4000, 5000].map(
@@ -130,6 +131,7 @@ export function CheckinModal({
     [status?.rewards],
   );
   const totalPointsCollected = status?.totalPointsEarned ?? 0;
+  const { totalPoints } = useTotalPoints();
   const giftsCollected =
     status?.rewards.filter((items) => {
       return items.claimed === true;
@@ -340,15 +342,24 @@ export function CheckinModal({
                 </div>
 
                 {/* Stats */}
-                <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-6 sm:mb-8">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
                   <div className="glass-card p-4 border border-white/60">
                     <div className="text-sm text-gray-600 mb-1">
                       Total Points
                     </div>
                     <div className="text-2xl font-bold">
+                      {totalPoints.toLocaleString()}
+                    </div>
+                  </div>
+                  <div className="glass-card p-4 border border-white/60">
+                    <div className="text-sm text-gray-600 mb-1">
+                      Weekly Points
+                    </div>
+                    <div className="text-2xl font-bold">
                       {totalPointsCollected.toLocaleString()}
                     </div>
                   </div>
+
                   <div className="glass-card p-4 border border-white/60">
                     <div className="text-sm text-gray-600 mb-1">
                       Gifts Collected
