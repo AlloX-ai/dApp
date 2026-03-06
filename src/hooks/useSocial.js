@@ -298,6 +298,10 @@ export function useSocial() {
           break;
       }
 
+      if(error === 'requirements' && message) {
+        toast.error(message);
+      }
+
       dispatch(setError(errorMessage));
       // Clear URL parameters
       window.history.replaceState({}, document.title, window.location.pathname);

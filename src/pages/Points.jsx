@@ -75,6 +75,10 @@ export function PointsPage() {
   const checkinStatus = useSelector((state) => state.checkin?.status);
     const socialPoints = useSelector((state) => state.social?.socialPoints);
     const newCount = useSelector((state) => state.social?.newCount);
+
+
+
+    
   
   const lastClaimed = useMemo(() => {
     for (let i = checkinStatus?.rewards?.length - 1; i >= 0; i--) {
