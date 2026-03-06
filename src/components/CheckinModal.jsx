@@ -65,6 +65,7 @@ const CHECKIN_CHAINS = [
 ];
 // eslint-disable-next-line no-unused-vars -- motion used as namespace in JSX (motion.div)
 import { motion, AnimatePresence } from "motion/react";
+import { useTotalPoints } from "../hooks/useTotalPoints";
 
 const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const DEFAULT_REWARDS = [500, 1000, 1500, 2000, 2500, 4000, 5000].map(
@@ -130,7 +131,11 @@ export function CheckinModal({
     [status?.rewards],
   );
   const totalPointsCollected = status?.totalPointsEarned ?? 0;
-  const giftsCollected = status?.lifetimeCheckIns ?? 0;
+  const { totalPoints } = useTotalPoints();
+  const giftsCollected =
+    status?.rewards.filter((items) => {
+      return items.claimed === true;
+    }).length ?? 0;
 
   const activeDay = weekDays.find((day) => day.status === "active");
   const currentDay =
@@ -337,15 +342,24 @@ export function CheckinModal({
                 </div>
 
                 {/* Stats */}
-                <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-6 sm:mb-8">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
                   <div className="glass-card p-4 border border-white/60">
                     <div className="text-sm text-gray-600 mb-1">
                       Total Points
                     </div>
                     <div className="text-2xl font-bold">
+                      {totalPoints.toLocaleString()}
+                    </div>
+                  </div>
+                  <div className="glass-card p-4 border border-white/60">
+                    <div className="text-sm text-gray-600 mb-1">
+                      Weekly Points
+                    </div>
+                    <div className="text-2xl font-bold">
                       {totalPointsCollected.toLocaleString()}
                     </div>
                   </div>
+
                   <div className="glass-card p-4 border border-white/60">
                     <div className="text-sm text-gray-600 mb-1">
                       Gifts Collected
@@ -618,8 +632,27 @@ export function CheckinModal({
 
                   {/* Right Side - Week Overview */}
                   <div className="flex flex-col min-w-0 w-full">
-                    <div className="text-sm font-semibold text-gray-600 mb-3 text-center md:text-left">
-                      Week Progress
+                    <div className="flex justify-between gap-3 align-center">
+                      <div className="text-sm font-semibold text-gray-600 mb-3 text-center md:text-left">
+                        Week Progress
+                      </div>
+                      <div className=" text-center text-sm text-gray-500">
+                        {/* <p>
+                    Come back daily to claim your rewards and maintain your
+                    streak! 🎁
+                  </p> */}
+                        {status?.secondsUntilReset != null &&
+                          status.secondsUntilReset > 0 && (
+                            <p className="mt-1 text-xs text-gray-400">
+                              Resets in{" "}
+                              {Math.floor(status.secondsUntilReset / 3600)}h{" "}
+                              {Math.floor(
+                                (status.secondsUntilReset % 3600) / 60,
+                              )}
+                              m
+                            </p>
+                          )}
+                      </div>
                     </div>
                     <div className="flex sm:grid flex-nowrap sm:grid-cols-1 overflow-x-auto sm:overflow-x-visible gap-2 sm:gap-3 sm:max-h-[22rem] overflow-y-auto p-1 w-full snap-x snap-mandatory scroll-smooth [-webkit-overflow-scrolling:touch]">
                       {weekDays.map((day, index) => (
@@ -719,9 +752,9 @@ export function CheckinModal({
                   </p> */}
                   {status?.secondsUntilReset != null &&
                     status.secondsUntilReset > 0 && (
-                      <p className="mt-1 text-xs text-gray-400">
-                        Resets in {Math.floor(status.secondsUntilReset / 3600)}h{" "}
-                        {Math.floor((status.secondsUntilReset % 3600) / 60)}m
+                      <p className="mt-1 text-xs text-gray-800">
+                        Daily bonus <span className="text-red-500 font-bold">resets</span> after you claim it for 7 days. Then a
+                        new cycle begins
                       </p>
                     )}
                 </div>

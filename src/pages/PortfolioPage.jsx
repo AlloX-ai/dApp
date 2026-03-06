@@ -7,6 +7,12 @@ import getFormattedNumber from "../hooks/get-formatted-number";
 import { apiCall } from "../utils/api";
 import { useAuth } from "../hooks/useAuth";
 
+const archivePortfolio = async (portfolioId) => {
+  await apiCall(`/portfolio/${portfolioId}`, {
+    method: "DELETE",
+  });
+};
+
 export function PortfolioPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -41,6 +47,9 @@ export function PortfolioPage() {
   const [analytics, setAnalytics] = useState(null);
   const [analyticsError, setAnalyticsError] = useState("");
   const [isAnalyticsLoading, setIsAnalyticsLoading] = useState(false);
+  const [isArchiving, setIsArchiving] = useState(false);
+  const [archiveError, setArchiveError] = useState("");
+  const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
 
   const getAnalytics = useCallback(async (portfolioId) => {
     const response = await apiCall(`/portfolio/${portfolioId}/analytics`);
@@ -102,6 +111,33 @@ export function PortfolioPage() {
     }
   }, [isConnected, ensureAuthenticated, handlePortfolioSelect, logout]);
 
+  const handleArchiveActivePortfolio = useCallback(() => {
+    if (!activePortfolioId) return;
+    setArchiveError("");
+    setIsArchiveModalOpen(true);
+  }, [activePortfolioId]);
+
+  const confirmArchiveActivePortfolio = useCallback(async () => {
+    if (!activePortfolioId) return;
+    setIsArchiving(true);
+    setArchiveError("");
+    try {
+      await ensureAuthenticated();
+      await archivePortfolio(activePortfolioId);
+      await loadPortfolios();
+      setIsArchiveModalOpen(false);
+    } catch (error) {
+      if (error?.status === 401) {
+        logout();
+      }
+      const msg =
+        error?.message || "Unable to delete (archive) this portfolio.";
+      setArchiveError(msg);
+    } finally {
+      setIsArchiving(false);
+    }
+  }, [activePortfolioId, ensureAuthenticated, loadPortfolios, logout]);
+
   useEffect(() => {
     loadPortfolios();
   }, [loadPortfolios]);
@@ -139,7 +175,7 @@ export function PortfolioPage() {
       maximumFractionDigits: 6,
     }).format(amount)} `;
   return (
-    <div className="flex-1 px-6 py-8 portfolio-wrapper ms-auto w-full overflow-y-auto">
+    <div className="flex-1 px-6 py-8 portfolio-wrapper ms-auto w-full overflow-y-auto relative">
       <h2 className="text-3xl font-bold mb-6">Portfolio</h2>
 
       {isConnected ? (
@@ -170,6 +206,11 @@ export function PortfolioPage() {
 
           {!isLoading && !errorMessage && activePortfolio && (
             <>
+              {/* {archiveError && (
+                <div className="glass-card p-4 mb-4 text-red-600">
+                  {archiveError}
+                </div>
+              )} */}
               <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
                 <div>
                   <h3 className="text-2xl font-bold">
@@ -181,27 +222,37 @@ export function PortfolioPage() {
                     </div>
                   )}
                 </div>
-                {portfolios.length > 1 && (
-                  <div className="flex flex-wrap gap-2">
-                    {portfolios.map((portfolio) => (
-                      <button
-                        key={portfolio.id}
-                        onClick={() => handlePortfolioSelect(portfolio.id)}
-                        className={`px-3 py-2 rounded-full text-xs font-medium border transition-all ${
-                          portfolio.id === activePortfolio.id
-                            ? "bg-black text-white border-black"
-                            : "bg-white/80 border-gray-200 hover:border-gray-300"
-                        }`}
-                      >
-                        {portfolio.name || "Portfolio"}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                <div className="flex flex-wrap items-center gap-3">
+                  {portfolios.length > 1 && (
+                    <div className="flex flex-wrap gap-2">
+                      {portfolios.map((portfolio) => (
+                        <button
+                          key={portfolio.id}
+                          onClick={() => handlePortfolioSelect(portfolio.id)}
+                          className={`px-3 py-2 rounded-full text-xs font-medium border transition-all ${
+                            portfolio.id === activePortfolio.id
+                              ? "bg-black text-white border-black"
+                              : "bg-white/80 border-gray-200 hover:border-gray-300"
+                          }`}
+                        >
+                          {portfolio.name || "Portfolio"}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
-              <div className="bg-white p-8 mb-6 transition-all duration-200">
+              <div className="bg-white p-8 mb-6 transition-all duration-200 relative">
                 <div className="text-sm text-gray-500 mb-2">Total Balance</div>
+                <button
+                  type="button"
+                  onClick={handleArchiveActivePortfolio}
+                  disabled={!activePortfolioId || isArchiving}
+                  className="absolute right-4 top-4  rounded-full text-xs font-medium underline text-red-600 hover:font-bold disabled:opacity-60"
+                >
+                  {isArchiving ? "Deleting..." : "Delete"}
+                </button>
                 <div className="text-5xl font-bold mb-3">
                   $
                   {totalBalance.toLocaleString(undefined, {
@@ -514,6 +565,38 @@ export function PortfolioPage() {
             <Wallet size={20} className="mr-2" />
             Connect Wallet
           </button>
+        </div>
+      )}
+
+      {isArchiveModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="glass-card p-6 max-w-sm w-full mx-4">
+            <h3 className="text-lg font-semibold mb-2">Delete portfolio</h3>
+            <p className="text-sm text-gray-700 mb-4">
+              Are you sure you want to delete this portfolio?
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                className="px-3 py-1.5 text-xs rounded-full border border-gray-200 text-gray-700 hover:bg-gray-100"
+                onClick={() => setIsArchiveModalOpen(false)}
+                disabled={isArchiving}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="px-3 py-1.5 text-xs rounded-full bg-red-600 text-white hover:bg-red-700 disabled:opacity-60"
+                onClick={confirmArchiveActivePortfolio}
+                disabled={isArchiving}
+              >
+                {isArchiving ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+            {archiveError && (
+              <span className="text-red-600">{archiveError}</span>
+            )}
+          </div>
         </div>
       )}
     </div>

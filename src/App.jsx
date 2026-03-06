@@ -18,6 +18,7 @@ import { TradingPage } from "./pages/TradingPage";
 import { StakingPage } from "./pages/StakingPage";
 import { HistoryPage } from "./pages/HistoryPage";
 import { BetaAccessPage } from "./pages/BetaAccessPage";
+import { ReferralsPage } from "./pages/ReferralPage";
 import { wagmiClient } from "./wagmiConnectors";
 import {
   connect,
@@ -87,7 +88,7 @@ function LaunchAppLayout() {
 
   const { address, isConnected, walletModal, walletType, checkinModal } =
     useSelector((state) => state.wallet);
-  const { token, user, ensureAuthenticated } = useAuth();
+  const { token, user, ensureAuthenticated, logout } = useAuth();
   const {
     status: checkinStatus,
     claim: claimCheckin,
@@ -116,10 +117,9 @@ function LaunchAppLayout() {
     dispatch(setViewingHistorySessionId(null));
     dispatch(setCurrentMessages([]));
     dispatch(clearCheckin());
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("authUser");
-
-    navigate("/login", { replace: true });
+    // Fully clear auth state (token + user) across the app
+    logout();
+    navigate("/login");
   };
 
   useEffect(() => {
@@ -239,7 +239,8 @@ function LaunchAppLayout() {
     );
 
     if (connector && connector.name !== "WalletConnect") {
-      const isBinance = option.walletType === "binance" || option.name === "Binance Wallet";
+      const isBinance =
+        option.walletType === "binance" || option.name === "Binance Wallet";
       connect(wagmiClient, { connector })
         .then(() => {
           dispatch(setWalletType(isBinance ? "binance" : "evm"));
@@ -349,7 +350,8 @@ function BetaAccessLayout() {
       c.name.toLowerCase().includes(option.name.toLowerCase()),
     );
     if (connector && connector.name !== "WalletConnect") {
-      const isBinance = option.walletType === "binance" || option.name === "Binance Wallet";
+      const isBinance =
+        option.walletType === "binance" || option.name === "Binance Wallet";
       connect(wagmiClient, { connector })
         .then(() => {
           dispatch(setWalletType(isBinance ? "binance" : "evm"));
@@ -622,11 +624,12 @@ function App() {
           <Route index element={<ChatPage />} />
           <Route path="/portfolio" element={<PortfolioPage />} />
           <Route path="/season1" element={<Season1 />} />
-          <Route path="/points" element={<PointsPage />} />
+          <Route path="/rewards" element={<PointsPage />} />
 
           <Route path="/trending" element={<TradingPage />} />
           <Route path="/staking" element={<StakingPage />} />
           <Route path="/history" element={<HistoryPage />} />
+          <Route path="/referrals" element={<ReferralsPage />} />
         </Route>
       </Routes>
     </>
