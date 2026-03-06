@@ -298,7 +298,7 @@ export function useSocial() {
           break;
       }
 
-      if(error === 'requirements' && message) {
+      if(error && message) {
         toast.error(message);
       }
 
