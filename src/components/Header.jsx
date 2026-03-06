@@ -76,7 +76,28 @@ export function Header({
             setShowTooltip(false);
           }}
         >
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
+            <div
+              className="bg-white rounded-full px-3 py-2 flex items-center gap-3 cursor-pointer hover:bg-gray-200 transition-colors"
+              onClick={() => {
+                navigate("/rewards");
+              }}
+              role="button"
+            >
+              <div className="flex items-center gap-2">
+                <Coins className="size-4 text-amber-500" />
+
+                <span className="text-sm font-semibold tabular-nums">
+                  {totalPoints.toLocaleString()}
+                </span>
+              </div>
+              {messagesRemaining != null && (
+                <div className="border-l border-gray-200/60 pl-3 flex items-center gap-2">
+                  <Gem className="size-4 text-purple-600" />
+                  <span className="text-sm font-semibold tabular-nums">0</span>
+                </div>
+              )}
+            </div>
             {totalPoints >= 0 && isConnected && (
               <Tooltip
                 open={showTooltip}
@@ -86,19 +107,12 @@ export function Header({
               >
                 <TooltipTrigger asChild>
                   <div
-                    className="glass-card px-3 py-2 flex items-center gap-3 cursor-pointer"
+                    className="bg-white rounded-full px-3 py-2 flex items-center gap-3 cursor-pointer hover:bg-gray-200 transition-color"
                     onClick={handleLaunchClick}
                     role="button"
                   >
-                    <div className="flex items-center gap-2">
-                      <Coins className="size-4 text-amber-500" />
-
-                      <span className="text-sm font-semibold tabular-nums">
-                        {totalPoints.toLocaleString()}
-                      </span>
-                    </div>
                     {messagesRemaining != null && (
-                      <div className="border-l border-gray-200/60 pl-3 flex items-center gap-2">
+                      <div className="flex items-center gap-2">
                         <SendHorizontal className="size-4 text-green-600" />
                         <span className="text-sm font-semibold tabular-nums">
                           {messagesRemaining}
@@ -114,28 +128,6 @@ export function Header({
                   className="border border-neutral-200/80 bg-white/95 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.08),0_2px_8px_rgba(0,0,0,0.04)] rounded-2xl px-4 py-3 text-sm font-medium text-neutral-800 flex items-center gap-2.5 [&>svg]:text-amber-500"
                 >
                   <div className="flex flex-col gap-2 p-3 w-fit">
-                    <span className="flex gap-2">
-                      Earn points by getting started and staying active.
-                    </span>
-
-                    <span className="flex gap-2 items-center">
-                      {" "}
-                      <div className="w-1.5 h-1.5 bg-blue-600 rounded-full"></div>
-                      Welcome Bonus: 5,000
-                    </span>
-                    <span className="flex gap-2 items-center">
-                      <div className="w-1.5 h-1.5 bg-blue-600 rounded-full"></div>
-                      Create Portfolio: 250 each
-                    </span>
-                    <span className="flex gap-2 items-center">
-                      <div className="w-1.5 h-1.5 bg-blue-600 rounded-full"></div>
-                      Chat Message: 25 each
-                    </span>
-                    <span className="flex gap-2 items-center">
-                      <div className="w-1.5 h-1.5 bg-blue-600 rounded-full"></div>
-                      Daily Bonus: up to 5,000
-                    </span>
-                    <div className="border-t border-gray-200 w-full my-1"></div>
                     <span className="flex gap-2 items-center">
                       Limit 20 messages per 24 hours
                     </span>
