@@ -293,7 +293,7 @@ export function XTasksModal({ isOpen, onClose, onTasksViewed }: XTasksModalProps
                 <XLogo className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold">X Social Rewards</h2>
+                <h2 className="text-2xl font-bold">Social Rewards</h2>
                 <p className="text-sm text-gray-600">Complete tasks to earn points</p>
               </div>
             </div>
@@ -646,8 +646,8 @@ export function XTasksModal({ isOpen, onClose, onTasksViewed }: XTasksModalProps
                           <div className="flex-1">
                             <div className="flex items-start justify-between mb-2">
                               <div>
-                                <h3 className="text-lg font-bold mb-1">{task.title}</h3>
-                                <p className="text-sm text-gray-600 mb-2">{task.description}</p>
+                                {/* <h3 className="text-lg font-bold mb-1">{task.title}</h3> */}
+                                <p className="text-sm text-gray-600 mb-2">{task.tweetText.length > 100 ? task.tweetText.substring(0, 100) + "..." : task.tweetText}</p>
                                 <div className="flex items-center gap-4 text-xs text-gray-500">
                                   <span>Added: {new Date(task.dateAdded).toLocaleDateString()}</span>
                                   <div className="flex items-center gap-1 font-semibold text-yellow-600">
