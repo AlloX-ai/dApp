@@ -13,7 +13,7 @@ export const navigationTabs = [
   { id: "chat", label: "Chat", path: "/", Icon: MessageSquare },
   { id: "portfolio", label: "Portfolio", path: "/portfolio", Icon: PieChart },
   { id: "season1", label: "Season 1", path: "/season1", Icon: Flame },
-  { id: "points", label: "Points", path: "/points", Icon: Coins },
+  { id: "rewards", label: "Rewards", path: "/rewards", Icon: Coins },
   { id: "referrals", label: "Referrals", path: "/referrals", Icon: Users },
 
   { id: "trading", label: "Trending", path: "/trending", Icon: TrendingUp },

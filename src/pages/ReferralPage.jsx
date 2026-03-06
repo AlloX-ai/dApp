@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Copy,
   Check,
@@ -11,8 +11,13 @@ import {
   Sparkles,
   Download,
   CheckCircle2,
+  Zap,
+  TrendingUp,
+  Star,
+  HelpCircle,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import FAQReferralModal from "../components/FaqReferralModal";
 
 const STAKING_POOLS = [
   { id: "ETH60", name: "ETH Pool", lockDays: 60 },
@@ -30,6 +35,7 @@ export function ReferralsPage() {
   const [showTiersModal, setShowTiersModal] = useState(false);
   const [showPoolLinkModal, setShowPoolLinkModal] = useState(false);
   const [selectedUserDetails, setSelectedUserDetails] = useState(null);
+  const [faqModalOpen, setFaqModalOpen] = useState(false);
 
   // Mock data
   const referralCode = "ALX-USER-9F3K7";
@@ -296,156 +302,287 @@ export function ReferralsPage() {
     setSelectedUserDetails(userEarnings);
   };
 
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    document.title = "Referrals";
+  }, []);
+
   return (
     <div className="space-y-6 flex-1 px-6 py-8 portfolio-wrapper ms-auto w-full overflow-y-auto">
       {!isActivated ? (
         // Landing Page - Before Activation
         <>
           {/* Header with buttons in top right */}
-          <div className="flex flex-col md:flex-row items-start justify-between">
-            <div>
-              <h2 className="text-3xl font-bold mb-2">Referral Program</h2>
-              <p className="text-gray-600 text-sm">
-                Invite friends to stake and earn more Gems over time.
-              </p>
-            </div>
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-purple-600 via-indigo-600 to-blue-600 p-8 md:p-12 text-white">
+            {/* Decorative elements */}
+            <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-32 -mt-32"></div>
+            <div className="absolute bottom-0 left-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -ml-32 -mb-32"></div>
 
-            {/* Info Buttons - Top Right */}
-            <div className="flex gap-2">
-              <button
-                onClick={() => setShowBenefitsModal(true)}
-                className="glass-card px-3 py-2 hover:bg-gray-50 transition-colors flex items-center gap-2 text-xs whitespace-nowrap"
-              >
-                <Info size={14} className="text-blue-600" />
-                <span className="font-medium">Program Benefits</span>
-              </button>
-              <button
-                onClick={() => setShowTiersModal(true)}
-                className="glass-card px-3 py-2 hover:bg-gray-50 transition-colors flex items-center gap-2 text-xs whitespace-nowrap"
-              >
-                <Gem size={14} className="text-purple-600" />
-                <span className="font-medium">How Rewards Work</span>
-              </button>
+            <div className="relative z-10">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-xs font-semibold flex items-center gap-1.5">
+                  <Star size={14} className="text-yellow-300" />
+                  Referral Program
+                </div>
+              </div>
+              <div className="flex flex-col md:flex-row w-full gap-3">
+                <div className="flex flex-col w-full">
+                  <h1 className="text-4xl md:text-5xl font-bold mb-4 leading-tight">
+                    High Payouts.
+                    <br />
+                    Earn now.
+                  </h1>
+
+                  <p className="text-lg text-white/90 mb-6 max-w-2xl">
+                    We aim to reward your work at each step of your journey. The
+                    more active you are, the more benefits you unlock. Make
+                    others work for you and build your network.
+                  </p>
+                  <button
+                    // onClick={handleActivate}
+                    className="bg-white w-fit text-black px-8 py-3 rounded-xl font-semibold hover:bg-gray-200 transition-colors mb-2"
+                  >
+                    Coming Soon
+                  </button>
+                </div>
+                {/* Stats Grid */}
+                <div className="grid grid-cols-1 gap-4 mb-6 w-70 items-center">
+                  <div className="bg-white/10 h-fit backdrop-blur-sm rounded-xl p-4 border border-white/20">
+                    <div className="flex items-center justify-center gap-2 mb-1">
+                      <Gem size={16} className="text-yellow-300" />
+                      <div className="text-2xl font-bold">10x</div>
+                    </div>
+                    <div className="text-xs flex justify-center text-white/80">
+                      Max Gems per Staking
+                    </div>
+                  </div>
+                  <div className="bg-white/10 h-fit backdrop-blur-sm rounded-xl p-4 border border-white/20">
+                    <div className="flex items-center justify-center gap-2 mb-1">
+                      <TrendingUp size={16} className="text-green-300" />
+                      <div className="text-2xl font-bold">5%</div>
+                    </div>
+                    <div className="text-xs text-white/80 flex justify-center">
+                      Lifetime Earnings
+                    </div>
+                  </div>
+                  <div className="bg-white/10 h-fit backdrop-blur-sm rounded-xl p-4 border border-white/20">
+                    <div className="flex items-center justify-center gap-2 mb-1">
+                      <Zap size={16} className="text-orange-300" />
+                      <div className="text-2xl font-bold">∞</div>
+                    </div>
+                    <div className="text-xs text-white/80 flex justify-center">
+                      Unlimited Duration
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
           {/* Benefits Table */}
-          <div className="glass-card p-6 overflow-x-auto border-2 border-indigo-200 bg-gradient-to-br from-indigo-50/50 to-purple-50/50">
-            <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-              Benefits
-            </h3>
-            <table className="w-full min-w-[600px]">
-              <thead>
-                <tr className="border-b-2 border-gray-300">
-                  <th className="text-left py-3 px-3 text-sm font-semibold">
-                    Benefit
-                  </th>
-                  <th className="text-center py-3 px-3 text-sm font-semibold bg-green-100 border-l-2 border-r border-green-200">
-                    <div className="flex items-center justify-center gap-1.5">
-                      <Users size={14} className="text-green-700" />
-                      <span className="text-green-800">Direct Referral</span>
-                    </div>
-                  </th>
-                  <th className="text-center py-3 px-3 text-sm font-semibold bg-blue-100 border-r-2 border-blue-200">
-                    <div className="flex items-center justify-center gap-1.5">
-                      <Sparkles size={14} className="text-blue-700" />
-                      <span className="text-blue-800">Network Referral</span>
-                    </div>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr className="border-b border-gray-100">
-                  <td className="py-3 px-3 text-sm">
-                    Earn Gems from first valid staking action
-                  </td>
-                  <td className="py-3 px-3 text-center bg-green-50/50 border-l-2 border-r border-green-100">
-                    <Check className="inline text-green-500" size={18} />
-                  </td>
-                  <td className="py-3 px-3 text-center bg-blue-50/50 border-r-2 border-blue-100">
-                    <Check className="inline text-green-500" size={18} />
-                  </td>
-                </tr>
-                <tr className="border-b border-gray-100">
-                  <td className="py-3 px-3 text-sm">30 day cookie tracking</td>
-                  <td className="py-3 px-3 text-center bg-green-50/50 border-l-2 border-r border-green-100">
-                    <Check className="inline text-green-500" size={18} />
-                  </td>
-                  <td className="py-3 px-3 text-center bg-blue-50/50 border-r-2 border-blue-100">
-                    <Check className="inline text-green-500" size={18} />
-                  </td>
-                </tr>
-                <tr className="border-b border-gray-100">
-                  <td className="py-3 px-3 text-sm">
-                    Anti-fraud and wallet validation
-                  </td>
-                  <td className="py-3 px-3 text-center bg-green-50/50 border-l-2 border-r border-green-100">
-                    <Check className="inline text-green-500" size={18} />
-                  </td>
-                  <td className="py-3 px-3 text-center bg-blue-50/50 border-r-2 border-blue-100">
-                    <Check className="inline text-green-500" size={18} />
-                  </td>
-                </tr>
-                <tr className="border-b border-gray-100">
-                  <td className="py-3 px-3 text-sm">
-                    Visible in referral dashboard
-                  </td>
-                  <td className="py-3 px-3 text-center bg-green-50/50 border-l-2 border-r border-green-100">
-                    <Check className="inline text-green-500" size={18} />
-                  </td>
-                  <td className="py-3 px-3 text-center bg-blue-50/50 border-r-2 border-blue-100">
-                    <Check className="inline text-green-500" size={18} />
-                  </td>
-                </tr>
-                <tr className="border-b border-gray-100">
-                  <td className="py-3 px-3 text-sm">
-                    Unlimited earning duration
-                  </td>
-                  <td className="py-3 px-3 text-center bg-green-50/50 border-l-2 border-r border-green-100">
-                    <Check className="inline text-green-500" size={18} />
-                  </td>
-                  <td className="py-3 px-3 text-center bg-blue-50/50 border-r-2 border-blue-100">
-                    <Check className="inline text-green-500" size={18} />
-                  </td>
-                </tr>
-                <tr className="border-b border-gray-100">
-                  <td className="py-3 px-3 text-sm">
-                    Earn from referral's own users
-                  </td>
-                  <td className="py-3 px-3 text-center bg-green-50/50 border-l-2 border-r border-green-100">
-                    <X className="inline text-gray-300" size={18} />
-                  </td>
-                  <td className="py-3 px-3 text-center bg-blue-50/50 border-r-2 border-blue-100">
-                    <Check className="inline text-green-500" size={18} />
-                  </td>
-                </tr>
-                <tr>
-                  <td className="py-3 px-3 text-sm">
-                    5% of lifetime earnings from referral network
-                  </td>
-                  <td className="py-3 px-3 text-center bg-green-50/50 border-l-2 border-r border-green-100">
-                    <X className="inline text-gray-300" size={18} />
-                  </td>
-                  <td className="py-3 px-3 text-center bg-blue-50/50 border-r-2 border-blue-100">
-                    <Check className="inline text-green-500" size={18} />
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          <div className="glass-card p-8 overflow-x-auto border-2 border-indigo-200 bg-gradient-to-br from-indigo-50/50 to-purple-50/50">
+            {/* Column Headers */}
+            <div className="grid grid-cols-3 gap-4 mb-6">
+              <div className="col-span-1"></div>
 
-          {/* CTA */}
-          <div className="text-center">
-            <button
-              onClick={handleActivate}
-              className="bg-black text-white px-8 py-3 rounded-xl font-semibold hover:bg-gray-800 transition-colors mb-2"
-            >
-              Activate
-            </button>
-            <p className="text-xs text-gray-500">
-              Activating creates your unique referral link and unlocks your
-              referral dashboard.
-            </p>
+              {/* Direct Referral Header */}
+              <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-4 shadow-lg">
+                <div className="flex items-center justify-center gap-2">
+                  <Users size={24} className="text-white" />
+                  <h3 className="text-lg font-bold text-white">
+                    Direct Referral
+                  </h3>
+                </div>
+                <p className="text-center text-white/90 text-sm">
+                  Your direct invites
+                </p>
+              </div>
+
+              {/* Network Referral Header */}
+              <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-4 shadow-lg">
+                <div className="flex items-center justify-center gap-2">
+                  <Sparkles size={24} className="text-white" />
+                  <h3 className="text-lg font-bold text-white">
+                    Network Referral
+                  </h3>
+                </div>
+                <p className="text-center text-white/90 text-sm">
+                  Your referrals' invites
+                </p>
+              </div>
+            </div>
+
+            {/* Benefits Rows */}
+            <div className="space-y-1">
+              {/* Benefit 1 */}
+              <div className="grid grid-cols-3 gap-4 items-center bg-white/60 rounded-xl p-3 hover:shadow-md transition-shadow">
+                <div className="col-span-1 font-medium text-sm text-gray-800">
+                  Earn Gems from staking
+                </div>
+                <div className="flex justify-center">
+                  <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                    <Check
+                      className="text-green-600"
+                      size={20}
+                      strokeWidth={3}
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-center">
+                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                    <Check
+                      className="text-blue-600"
+                      size={20}
+                      strokeWidth={3}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Benefit 2 */}
+              <div className="grid grid-cols-3 gap-4 items-center bg-white/60 rounded-xl p-3 hover:shadow-md transition-shadow">
+                <div className="col-span-1 font-medium text-sm text-gray-800">
+                  30-day referral tracking
+                </div>
+                <div className="flex justify-center">
+                  <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                    <Check
+                      className="text-green-600"
+                      size={20}
+                      strokeWidth={3}
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-center">
+                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                    <Check
+                      className="text-blue-600"
+                      size={20}
+                      strokeWidth={3}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Benefit 3 */}
+              <div className="grid grid-cols-3 gap-4 items-center bg-white/60 rounded-xl p-3 hover:shadow-md transition-shadow">
+                <div className="col-span-1 font-medium text-sm text-gray-800">
+                  Verified wallet rewards
+                </div>
+                <div className="flex justify-center">
+                  <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                    <Check
+                      className="text-green-600"
+                      size={20}
+                      strokeWidth={3}
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-center">
+                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                    <Check
+                      className="text-blue-600"
+                      size={20}
+                      strokeWidth={3}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Benefit 4 */}
+              <div className="grid grid-cols-3 gap-4 items-center bg-white/60 rounded-xl p-3 hover:shadow-md transition-shadow">
+                <div className="col-span-1 font-medium text-sm text-gray-800">
+                  Referral dashboard tracking
+                </div>
+                <div className="flex justify-center">
+                  <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                    <Check
+                      className="text-green-600"
+                      size={20}
+                      strokeWidth={3}
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-center">
+                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                    <Check
+                      className="text-blue-600"
+                      size={20}
+                      strokeWidth={3}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Benefit 5 */}
+              <div className="grid grid-cols-3 gap-4 items-center bg-white/60 rounded-xl p-3 hover:shadow-md transition-shadow">
+                <div className="col-span-1 font-medium text-sm text-gray-800">
+                  Unlimited earning duration
+                </div>
+                <div className="flex justify-center">
+                  <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                    <Check
+                      className="text-green-600"
+                      size={20}
+                      strokeWidth={3}
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-center">
+                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                    <Check
+                      className="text-blue-600"
+                      size={20}
+                      strokeWidth={3}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Benefit 6 - Highlight difference */}
+              <div className="grid grid-cols-3 gap-4 items-center bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-3 border-2 border-indigo-200 hover:shadow-md transition-shadow">
+                <div className="col-span-1">
+                  <div className="font-semibold text-sm text-gray-900">
+                    Earn from referral network
+                  </div>
+                  <div className="text-xs text-indigo-600 mt-1 font-medium">
+                    Network Exclusive
+                  </div>
+                </div>
+                <div className="flex justify-center">
+                  <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                    <X className="text-gray-400" size={20} strokeWidth={3} />
+                  </div>
+                </div>
+                <div className="flex justify-center">
+                  <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center shadow-lg">
+                    <Check className="text-white" size={20} strokeWidth={3} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Benefit 7 - Highlight difference */}
+              <div className="grid grid-cols-3 gap-4 items-center bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-3 border-2 border-indigo-200 hover:shadow-md transition-shadow">
+                <div className="col-span-1">
+                  <div className="font-semibold text-sm text-gray-900">
+                    5% network earnings share
+                  </div>
+                  <div className="text-xs text-indigo-600 mt-1 font-medium">
+                    Passive Income
+                  </div>
+                </div>
+                <div className="flex justify-center">
+                  <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                    <X className="text-gray-400" size={20} strokeWidth={3} />
+                  </div>
+                </div>
+                <div className="flex justify-center">
+                  <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center shadow-lg">
+                    <Check className="text-white" size={20} strokeWidth={3} />
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </>
       ) : (
@@ -464,17 +601,24 @@ export function ReferralsPage() {
             <div className="flex gap-2">
               <button
                 onClick={() => setShowBenefitsModal(true)}
-                className="glass-card px-3 py-2 hover:bg-gray-50 transition-colors flex items-center gap-2 text-xs whitespace-nowrap"
+                className="bg-white rounded-full hover:bg-gray-200 transition-colors px-3 py-2  transition-colors flex items-center gap-2 text-xs whitespace-nowrap"
               >
                 <Info size={14} className="text-blue-600" />
                 <span className="font-medium">Program Benefits</span>
               </button>
               <button
                 onClick={() => setShowTiersModal(true)}
-                className="glass-card px-3 py-2 hover:bg-gray-50 transition-colors flex items-center gap-2 text-xs whitespace-nowrap"
+                className="bg-white rounded-full hover:bg-gray-200 transition-colors px-3 py-2  transition-colors flex items-center gap-2 text-xs whitespace-nowrap"
               >
                 <Gem size={14} className="text-purple-600" />
                 <span className="font-medium">How Rewards Work</span>
+              </button>
+              <button
+                onClick={() => setFaqModalOpen(true)}
+                className="bg-white rounded-full hover:bg-gray-200 transition-colors px-3 py-2 transition-colors flex items-center gap-2 text-xs whitespace-nowrap"
+              >
+                <HelpCircle size={14} className="text-purple-600" />
+                <span className="font-medium">FAQs</span>
               </button>
             </div>
           </div>
@@ -545,9 +689,7 @@ export function ReferralsPage() {
                       Direct
                     </span>
                   </div>
-                  <span className="text-sm font-bold text-green-900">
-                   1200
-                  </span>
+                  <span className="text-sm font-bold text-green-900">1200</span>
                   <div className="absolute left-6 top-1/2 -translate-y-1/2 whitespace-nowrap bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover/icon:opacity-100 transition-opacity pointer-events-none z-10">
                     Points from direct users
                   </div>
@@ -559,9 +701,7 @@ export function ReferralsPage() {
                       Network
                     </span>
                   </div>
-                  <span className="text-sm font-bold text-blue-900">
-                    540
-                  </span>
+                  <span className="text-sm font-bold text-blue-900">540</span>
                   <div className="absolute left-6 top-1/2 -translate-y-1/2 whitespace-nowrap bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover/icon:opacity-100 transition-opacity pointer-events-none z-10">
                     Points from network
                   </div>
@@ -610,8 +750,12 @@ export function ReferralsPage() {
                 onChange={(e) => setDateFilter(e.target.value)}
                 className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-black/10"
               >
+                <option value="24h">Last 24 Hours</option>
                 <option value="7d">Last 7 Days</option>
                 <option value="30d">Last 30 Days</option>
+                <option value="60d">Last 60 Days</option>
+                <option value="90d">Last 90 Days</option>
+                <option value="365d">Last Year</option>
               </select>
               <button
                 onClick={handleDownloadCSV}
@@ -717,7 +861,7 @@ export function ReferralsPage() {
                               </div>
                             ) : (
                               <div className="text-xs text-blue-700">
-                                5% of their earnings
+                                5% of lifetime earnings
                               </div>
                             )}
                           </div>
@@ -777,111 +921,226 @@ export function ReferralsPage() {
               </div>
 
               <div className="p-5">
+                <div className="grid grid-cols-3 gap-4 mb-6">
+                  <div className="flex items-center justify-center">
+                    <div className="flex items-center justify-center gap-2">
+                      <h3 className="text-lg font-bold text-black">Benefits</h3>
+                    </div>
+                  </div>
+
+                  {/* Direct Referral Header */}
+                  <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-4 shadow-lg">
+                    <div className="flex items-center justify-center gap-2">
+                      <Users size={24} className="text-white" />
+                      <h3 className="text-base font-bold text-white">
+                        Direct Referral
+                      </h3>
+                    </div>
+                    <p className="text-center text-white/90 text-xs">
+                      Your direct invites
+                    </p>
+                  </div>
+
+                  {/* Network Referral Header */}
+                  <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-4 shadow-lg">
+                    <div className="flex items-center justify-center gap-2">
+                      <Sparkles size={24} className="text-white" />
+                      <h3 className="text-base font-bold text-white">
+                        Network Referral
+                      </h3>
+                    </div>
+                    <p className="text-center text-white/90 text-xs">
+                      Your referrals' invites
+                    </p>
+                  </div>
+                </div>
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[600px]">
-                    <thead>
-                      <tr className="border-b-2 border-gray-300">
-                        <th className="text-left py-3 px-3 text-sm font-semibold">
-                          Benefit
-                        </th>
-                        <th className="text-center py-3 px-3 text-sm font-semibold bg-green-100 border-l-2 border-r border-green-200">
-                          <div className="flex items-center justify-center gap-1.5">
-                            <Users size={14} className="text-green-700" />
-                            <span className="text-green-800">
-                              Direct Referral
-                            </span>
-                          </div>
-                        </th>
-                        <th className="text-center py-3 px-3 text-sm font-semibold bg-blue-100 border-r-2 border-blue-200">
-                          <div className="flex items-center justify-center gap-1.5">
-                            <Sparkles size={14} className="text-blue-700" />
-                            <span className="text-blue-800">
-                              Network Referral
-                            </span>
-                          </div>
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr className="border-b border-gray-100">
-                        <td className="py-3 px-3 text-sm">
-                          Earn Gems from first valid staking action
-                        </td>
-                        <td className="py-3 px-3 text-center bg-green-50/50 border-l-2 border-r border-green-100">
-                          <Check className="inline text-green-500" size={18} />
-                        </td>
-                        <td className="py-3 px-3 text-center bg-blue-50/50 border-r-2 border-blue-100">
-                          <Check className="inline text-green-500" size={18} />
-                        </td>
-                      </tr>
-                      <tr className="border-b border-gray-100">
-                        <td className="py-3 px-3 text-sm">
-                          30 day cookie tracking
-                        </td>
-                        <td className="py-3 px-3 text-center bg-green-50/50 border-l-2 border-r border-green-100">
-                          <Check className="inline text-green-500" size={18} />
-                        </td>
-                        <td className="py-3 px-3 text-center bg-blue-50/50 border-r-2 border-blue-100">
-                          <Check className="inline text-green-500" size={18} />
-                        </td>
-                      </tr>
-                      <tr className="border-b border-gray-100">
-                        <td className="py-3 px-3 text-sm">
-                          Anti-fraud and wallet validation
-                        </td>
-                        <td className="py-3 px-3 text-center bg-green-50/50 border-l-2 border-r border-green-100">
-                          <Check className="inline text-green-500" size={18} />
-                        </td>
-                        <td className="py-3 px-3 text-center bg-blue-50/50 border-r-2 border-blue-100">
-                          <Check className="inline text-green-500" size={18} />
-                        </td>
-                      </tr>
-                      <tr className="border-b border-gray-100">
-                        <td className="py-3 px-3 text-sm">
-                          Visible in referral dashboard
-                        </td>
-                        <td className="py-3 px-3 text-center bg-green-50/50 border-l-2 border-r border-green-100">
-                          <Check className="inline text-green-500" size={18} />
-                        </td>
-                        <td className="py-3 px-3 text-center bg-blue-50/50 border-r-2 border-blue-100">
-                          <Check className="inline text-green-500" size={18} />
-                        </td>
-                      </tr>
-                      <tr className="border-b border-gray-100">
-                        <td className="py-3 px-3 text-sm">
-                          Unlimited earning duration
-                        </td>
-                        <td className="py-3 px-3 text-center bg-green-50/50 border-l-2 border-r border-green-100">
-                          <Check className="inline text-green-500" size={18} />
-                        </td>
-                        <td className="py-3 px-3 text-center bg-blue-50/50 border-r-2 border-blue-100">
-                          <Check className="inline text-green-500" size={18} />
-                        </td>
-                      </tr>
-                      <tr className="border-b border-gray-100">
-                        <td className="py-3 px-3 text-sm">
-                          Earn from referral's own users
-                        </td>
-                        <td className="py-3 px-3 text-center bg-green-50/50 border-l-2 border-r border-green-100">
-                          <X className="inline text-gray-300" size={18} />
-                        </td>
-                        <td className="py-3 px-3 text-center bg-blue-50/50 border-r-2 border-blue-100">
-                          <Check className="inline text-green-500" size={18} />
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="py-3 px-3 text-sm">
-                          5% of lifetime earnings from referral network
-                        </td>
-                        <td className="py-3 px-3 text-center bg-green-50/50 border-l-2 border-r border-green-100">
-                          <X className="inline text-gray-300" size={18} />
-                        </td>
-                        <td className="py-3 px-3 text-center bg-blue-50/50 border-r-2 border-blue-100">
-                          <Check className="inline text-green-500" size={18} />
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
+                  <div className="space-y-1">
+                    {/* Benefit 1 */}
+                    <div className="grid grid-cols-3 gap-4 items-center bg-white/60 rounded-xl p-3 transition-shadow">
+                      <div className="col-span-1 font-medium text-sm text-gray-800">
+                        Earn Gems from staking
+                      </div>
+                      <div className="flex justify-center">
+                        <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                          <Check
+                            className="text-green-600"
+                            size={20}
+                            strokeWidth={3}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex justify-center">
+                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                          <Check
+                            className="text-blue-600"
+                            size={20}
+                            strokeWidth={3}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Benefit 2 */}
+                    <div className="grid grid-cols-3 gap-4 items-center bg-white/60 rounded-xl p-3 transition-shadow">
+                      <div className="col-span-1 font-medium text-sm text-gray-800">
+                        30-day referral tracking
+                      </div>
+                      <div className="flex justify-center">
+                        <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                          <Check
+                            className="text-green-600"
+                            size={20}
+                            strokeWidth={3}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex justify-center">
+                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                          <Check
+                            className="text-blue-600"
+                            size={20}
+                            strokeWidth={3}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Benefit 3 */}
+                    <div className="grid grid-cols-3 gap-4 items-center bg-white/60 rounded-xl p-3 transition-shadow">
+                      <div className="col-span-1 font-medium text-sm text-gray-800">
+                        Verified wallet rewards
+                      </div>
+                      <div className="flex justify-center">
+                        <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                          <Check
+                            className="text-green-600"
+                            size={20}
+                            strokeWidth={3}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex justify-center">
+                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                          <Check
+                            className="text-blue-600"
+                            size={20}
+                            strokeWidth={3}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Benefit 4 */}
+                    <div className="grid grid-cols-3 gap-4 items-center bg-white/60 rounded-xl p-3 transition-shadow">
+                      <div className="col-span-1 font-medium text-sm text-gray-800">
+                        Referral dashboard tracking
+                      </div>
+                      <div className="flex justify-center">
+                        <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                          <Check
+                            className="text-green-600"
+                            size={20}
+                            strokeWidth={3}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex justify-center">
+                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                          <Check
+                            className="text-blue-600"
+                            size={20}
+                            strokeWidth={3}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Benefit 5 */}
+                    <div className="grid grid-cols-3 gap-4 items-center bg-white/60 rounded-xl p-3 transition-shadow">
+                      <div className="col-span-1 font-medium text-sm text-gray-800">
+                        Unlimited earning duration
+                      </div>
+                      <div className="flex justify-center">
+                        <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                          <Check
+                            className="text-green-600"
+                            size={20}
+                            strokeWidth={3}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex justify-center">
+                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                          <Check
+                            className="text-blue-600"
+                            size={20}
+                            strokeWidth={3}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Benefit 6 - Highlight difference */}
+                    <div className="grid grid-cols-3 gap-4 items-center bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-3 border-2 border-indigo-200 transition-shadow">
+                      <div className="col-span-1">
+                        <div className="font-semibold text-sm text-gray-900">
+                          Earn from referral network
+                        </div>
+                        <div className="text-xs text-indigo-600 mt-1 font-medium">
+                          Network Exclusive
+                        </div>
+                      </div>
+                      <div className="flex justify-center">
+                        <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                          <X
+                            className="text-gray-400"
+                            size={20}
+                            strokeWidth={3}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex justify-center">
+                        <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center shadow-lg">
+                          <Check
+                            className="text-white"
+                            size={20}
+                            strokeWidth={3}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Benefit 7 - Highlight difference */}
+                    <div className="grid grid-cols-3 gap-4 items-center bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-3 border-2 border-indigo-200 transition-shadow">
+                      <div className="col-span-1">
+                        <div className="font-semibold text-sm text-gray-900">
+                          5% network earnings share
+                        </div>
+                        <div className="text-xs text-indigo-600 mt-1 font-medium">
+                          Passive Income
+                        </div>
+                      </div>
+                      <div className="flex justify-center">
+                        <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                          <X
+                            className="text-gray-400"
+                            size={20}
+                            strokeWidth={3}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex justify-center">
+                        <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center shadow-lg">
+                          <Check
+                            className="text-white"
+                            size={20}
+                            strokeWidth={3}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </motion.div>
@@ -915,9 +1174,9 @@ export function ReferralsPage() {
                   Earn Gems based on your referral's first valid staking action:
                 </p>
 
-                <div className="grid grid-cols-1 gap-3 mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
                   <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-4">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 justify-between">
                       <div>
                         <div className="text-sm font-semibold text-blue-900 mb-0.5">
                           Tier A
@@ -1009,7 +1268,7 @@ export function ReferralsPage() {
                       <Users size={16} className="text-blue-700" />
                     </div>
                     <div className="font-bold text-blue-900">
-                      5% of Their Earnings
+                      5% of lifetime earnings
                     </div>
                   </div>
                   <p className="text-sm text-blue-700">
@@ -1250,7 +1509,7 @@ export function ReferralsPage() {
                               </div>
                             ) : (
                               <div className="text-xs text-blue-700">
-                                5% of their earnings
+                                5% of lifetime earnings
                               </div>
                             )}
                           </div>
@@ -1278,6 +1537,10 @@ export function ReferralsPage() {
           </div>
         )}
       </AnimatePresence>
+      <FAQReferralModal
+        isOpen={faqModalOpen}
+        onClose={() => setFaqModalOpen(false)}
+      />
     </div>
   );
 }
