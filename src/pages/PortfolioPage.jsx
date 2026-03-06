@@ -8,8 +8,8 @@ import { apiCall } from "../utils/api";
 import { useAuth } from "../hooks/useAuth";
 
 const archivePortfolio = async (portfolioId) => {
-  await apiCall(`/portfolio/${portfolioId}/archive`, {
-    method: "PATCH",
+  await apiCall(`/portfolio/${portfolioId}`, {
+    method: "DELETE",
   });
 };
 
