@@ -1,4 +1,14 @@
-import { X as XIcon, ThumbsUp, Repeat2, LogOut, Star, Clock, Sparkles, ExternalLink } from "lucide-react";
+import {
+  X as XIcon,
+  ThumbsUp,
+  Repeat2,
+  LogOut,
+  Star,
+  Clock,
+  Sparkles,
+  ExternalLink,
+  Coins,
+} from "lucide-react";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useSocial } from "../hooks/useSocial";
@@ -48,7 +58,11 @@ interface XTasksModalProps {
   onTasksViewed: () => void;
 }
 
-export function XTasksModal({ isOpen, onClose, onTasksViewed }: XTasksModalProps) {
+export function XTasksModal({
+  isOpen,
+  onClose,
+  onTasksViewed,
+}: XTasksModalProps) {
   const {
     twitterStatus,
     tasks,
@@ -66,25 +80,36 @@ export function XTasksModal({ isOpen, onClose, onTasksViewed }: XTasksModalProps
     clearError,
   } = useSocial();
 
-  const [currentTab, setCurrentTab] = useState<"available" | "completed">("available");
+  const [currentTab, setCurrentTab] = useState<"available" | "completed">(
+    "available",
+  );
   const [showDisconnectModal, setShowDisconnectModal] = useState(false);
   const [disconnectTime, setDisconnectTime] = useState<number | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<string>("");
-  const [promoVerifyState, setPromoVerifyState] = useState<"idle" | "success" | "error">("idle");
+  const [promoVerifyState, setPromoVerifyState] = useState<
+    "idle" | "success" | "error"
+  >("idle");
   const [promoPosted, setPromoPosted] = useState(false);
   const [actionStates, setActionStates] = useState<{
-    [key: string]: { like: "idle" | "success" | "error"; retweet: "idle" | "success" | "error" };
+    [key: string]: {
+      like: "idle" | "success" | "error";
+      retweet: "idle" | "success" | "error";
+    };
   }>({});
 
   // initialize action states when tasks load
   useEffect(() => {
     const states: any = {};
     tasks.forEach((t: any) => {
-      const likeCompleted = t.actions?.find((a: any) => a.action === 'like')?.completed;
-      const retweetCompleted = t.actions?.find((a: any) => a.action === 'retweet')?.completed;
+      const likeCompleted = t.actions?.find(
+        (a: any) => a.action === "like",
+      )?.completed;
+      const retweetCompleted = t.actions?.find(
+        (a: any) => a.action === "retweet",
+      )?.completed;
       states[t.id] = {
-        like: likeCompleted ? 'success' : 'idle',
-        retweet: retweetCompleted ? 'success' : 'idle',
+        like: likeCompleted ? "success" : "idle",
+        retweet: retweetCompleted ? "success" : "idle",
       };
     });
     setActionStates(states);
@@ -99,7 +124,13 @@ export function XTasksModal({ isOpen, onClose, onTasksViewed }: XTasksModalProps
       }
       onTasksViewed();
     }
-  }, [isOpen, fetchTwitterStatus, fetchTasks, onTasksViewed, twitterStatus.linked]);
+  }, [
+    isOpen,
+    fetchTwitterStatus,
+    fetchTasks,
+    onTasksViewed,
+    twitterStatus.linked,
+  ]);
 
   // Clear error and promoPosted when modal closes
   useEffect(() => {
@@ -122,9 +153,13 @@ export function XTasksModal({ isOpen, onClose, onTasksViewed }: XTasksModalProps
           clearInterval(interval);
         } else {
           const hours = Math.floor(remaining / (1000 * 60 * 60));
-          const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+          const minutes = Math.floor(
+            (remaining % (1000 * 60 * 60)) / (1000 * 60),
+          );
           const seconds = Math.floor((remaining % (1000 * 60)) / 1000);
-          setTimeRemaining(`${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
+          setTimeRemaining(
+            `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`,
+          );
         }
       }, 1000);
 
@@ -177,7 +212,8 @@ export function XTasksModal({ isOpen, onClose, onTasksViewed }: XTasksModalProps
       "@alloxdotai combines AI and DeFi perfectly. My portfolios have never been smarter! 💡📊\n\nCheck it: https://allox.ai",
     ];
 
-    const randomTweet = tweetVariants[Math.floor(Math.random() * tweetVariants.length)];
+    const randomTweet =
+      tweetVariants[Math.floor(Math.random() * tweetVariants.length)];
     postPromoTweet(randomTweet);
     setPromoPosted(true);
   };
@@ -209,7 +245,7 @@ export function XTasksModal({ isOpen, onClose, onTasksViewed }: XTasksModalProps
       // Open tweet in new tab
       const task = tasks.find((t: any) => t.id === taskId);
       if (task) {
-        window.open(task.tweetUrl, '_blank');
+        window.open(task.tweetUrl, "_blank");
       }
 
       // Small delay before verification
@@ -248,7 +284,10 @@ export function XTasksModal({ isOpen, onClose, onTasksViewed }: XTasksModalProps
     }
   };
 
-  const getActionButtonClass = (state: "idle" | "success" | "error", isCompleted: boolean) => {
+  const getActionButtonClass = (
+    state: "idle" | "success" | "error",
+    isCompleted: boolean,
+  ) => {
     if (isCompleted) {
       return "bg-green-500 text-white cursor-not-allowed";
     }
@@ -262,14 +301,14 @@ export function XTasksModal({ isOpen, onClose, onTasksViewed }: XTasksModalProps
   };
 
   const availableTasks = tasks.filter((task: any) => {
-    const likeAction = task.actions.find((a: any) => a.action === 'like');
-    const retweetAction = task.actions.find((a: any) => a.action === 'retweet');
+    const likeAction = task.actions.find((a: any) => a.action === "like");
+    const retweetAction = task.actions.find((a: any) => a.action === "retweet");
     return !(likeAction?.completed && retweetAction?.completed);
   });
 
   const completedTasks = tasks.filter((task: any) => {
-    const likeAction = task.actions.find((a: any) => a.action === 'like');
-    const retweetAction = task.actions.find((a: any) => a.action === 'retweet');
+    const likeAction = task.actions.find((a: any) => a.action === "like");
+    const retweetAction = task.actions.find((a: any) => a.action === "retweet");
     return likeAction?.completed && retweetAction?.completed;
   });
 
@@ -294,7 +333,9 @@ export function XTasksModal({ isOpen, onClose, onTasksViewed }: XTasksModalProps
               </div>
               <div>
                 <h2 className="text-2xl font-bold">Social Rewards</h2>
-                <p className="text-sm text-gray-600">Complete tasks to earn points</p>
+                <p className="text-sm text-gray-600">
+                  Complete tasks to earn points
+                </p>
               </div>
             </div>
             <button
@@ -311,15 +352,19 @@ export function XTasksModal({ isOpen, onClose, onTasksViewed }: XTasksModalProps
               <>
                 {/* Left side - Points */}
                 <div className="flex items-center gap-2 px-3 py-1 bg-white rounded-lg">
-                  <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                  <span className="text-sm font-bold">{totalStarsToday} points today</span>
+                  <Coins className="size-4 text-amber-500" />
+
+                  <span className="text-sm font-bold">
+                    {totalStarsToday} points today
+                  </span>
                 </div>
 
                 {/* Right side - Username and Disconnect */}
                 <div className="flex flex-col items-end gap-1">
                   <div className="flex items-center gap-2">
-                    <XLogo className="w-5 h-5" />
-                    <span className="font-semibold">@{twitterStatus.username}</span>
+                    <span className="font-semibold">
+                      @{twitterStatus.username}
+                    </span>
                   </div>
                   <button
                     onClick={handleDisconnectClick}
@@ -335,7 +380,9 @@ export function XTasksModal({ isOpen, onClose, onTasksViewed }: XTasksModalProps
                 {/* Left side - Not connected */}
                 <div className="flex items-center gap-2">
                   <XLogo className="w-5 h-5" />
-                  <span className="font-semibold text-gray-600">Not Connected</span>
+                  <span className="font-semibold text-gray-600">
+                    Not Connected
+                  </span>
                 </div>
 
                 {/* Right side - Connect button or timer */}
@@ -371,7 +418,7 @@ export function XTasksModal({ isOpen, onClose, onTasksViewed }: XTasksModalProps
           </div>
         )}
         <div className="p-6 overflow-y-auto max-h-[calc(80vh-190px)]">
-          {(!twitterStatus.linked || loading.tasks) ? (
+          {!twitterStatus.linked || loading.tasks ? (
             <>
               {/* Tabs (same layout as connected) */}
               <div className="flex gap-2 mb-6">
@@ -420,8 +467,6 @@ export function XTasksModal({ isOpen, onClose, onTasksViewed }: XTasksModalProps
             </>
           ) : (
             <>
-
-
               {/* Tabs */}
               <div className="flex gap-2 mb-6">
                 <button
@@ -457,11 +502,11 @@ export function XTasksModal({ isOpen, onClose, onTasksViewed }: XTasksModalProps
                   >
                     {/* Glow effect */}
                     <div className="absolute inset-0 bg-gradient-to-br from-purple-400 via-indigo-400 to-blue-400 rounded-2xl blur-xl opacity-50"></div>
-                    
+
                     <div className="relative bg-white/95 backdrop-blur-xl rounded-2xl p-6">
                       <div className="flex items-start gap-4">
                         {/* Premium Icon */}
-                        <div className="relative w-12 h-12 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
+                        <div className="relative w-12 h-12 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-xl hidden md:flex items-center justify-center flex-shrink-0 shadow-lg">
                           <Sparkles className="w-6 h-6 text-white" />
                           {/* Shimmer effect */}
                           <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/30 to-transparent rounded-xl animate-pulse"></div>
@@ -474,14 +519,18 @@ export function XTasksModal({ isOpen, onClose, onTasksViewed }: XTasksModalProps
                               {/* Daily tag */}
                               <div className="inline-flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-lg mb-2">
                                 <Star className="w-3 h-3 text-white fill-white" />
-                                <span className="text-xs font-bold text-white">DAILY PROMO</span>
+                                <span className="text-xs font-bold text-white">
+                                  DAILY PROMO
+                                </span>
                               </div>
-                              
+
                               <h3 className="text-lg font-bold mb-1 bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
                                 {promoTask.title}
                               </h3>
-                              <p className="text-sm text-gray-600 mb-2">{promoTask.description}</p>
-                              
+                              <p className="text-sm text-gray-600 mb-2">
+                                {promoTask.description}
+                              </p>
+
                               <div className="flex items-center gap-4 text-xs text-gray-500 mb-3">
                                 <span className="flex items-center gap-1">
                                   <Clock className="w-3 h-3" />
@@ -495,7 +544,8 @@ export function XTasksModal({ isOpen, onClose, onTasksViewed }: XTasksModalProps
 
                               {/* Tweet Preview Box (sample text) */}
                               <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 mb-4 text-sm text-gray-700 italic">
-                                "Help me earn points by tweeting about @alloxdotai!" (must mention @alloxdotai)
+                                "Help me earn points by tweeting about
+                                @alloxdotai!" (must mention @alloxdotai)
                               </div>
                             </div>
                           </div>
@@ -512,15 +562,17 @@ export function XTasksModal({ isOpen, onClose, onTasksViewed }: XTasksModalProps
                               </button>
                               <button
                                 onClick={handlePromoVerify}
-                                disabled={promoTask.completedToday || !promoPosted}
+                                disabled={
+                                  promoTask.completedToday || !promoPosted
+                                }
                                 className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold transition-all shadow-md ${
                                   promoTask.completedToday || !promoPosted
                                     ? "bg-gray-300 text-gray-500 cursor-not-allowed"
                                     : promoVerifyState === "success"
-                                    ? "bg-green-500 text-white"
-                                    : promoVerifyState === "error"
-                                    ? "bg-red-500 text-white"
-                                    : "bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white hover:shadow-lg"
+                                      ? "bg-green-500 text-white"
+                                      : promoVerifyState === "error"
+                                        ? "bg-red-500 text-white"
+                                        : "bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white hover:shadow-lg"
                                 }`}
                               >
                                 <svg
@@ -539,8 +591,8 @@ export function XTasksModal({ isOpen, onClose, onTasksViewed }: XTasksModalProps
                                 {promoVerifyState === "success"
                                   ? "Verified"
                                   : promoVerifyState === "error"
-                                  ? "Failed"
-                                  : "Verify"}
+                                    ? "Failed"
+                                    : "Verify"}
                               </button>
                             </div>
                           )}
@@ -589,14 +641,18 @@ export function XTasksModal({ isOpen, onClose, onTasksViewed }: XTasksModalProps
                         <div className="flex-1">
                           <div className="inline-flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-lg mb-2">
                             <Star className="w-3 h-3 text-white fill-white" />
-                            <span className="text-xs font-bold text-white">DAILY PROMO</span>
+                            <span className="text-xs font-bold text-white">
+                              DAILY PROMO
+                            </span>
                           </div>
-                          
+
                           <h3 className="text-lg font-bold mb-1 bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
                             {promoTask.title}
                           </h3>
-                          <p className="text-sm text-gray-600 mb-2">{promoTask.description}</p>
-                          
+                          <p className="text-sm text-gray-600 mb-2">
+                            {promoTask.description}
+                          </p>
+
                           <div className="flex items-center gap-2 text-green-600 font-semibold text-sm mt-4">
                             <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
                               <svg
@@ -621,15 +677,22 @@ export function XTasksModal({ isOpen, onClose, onTasksViewed }: XTasksModalProps
                   </motion.div>
                 )}
 
-                {(currentTab === "available" ? availableTasks : completedTasks).length === 0 ? (
+                {(currentTab === "available" ? availableTasks : completedTasks)
+                  .length === 0 ? (
                   <div className="text-center py-12 text-gray-500">
                     {currentTab === "available"
                       ? "No available tasks at the moment"
                       : "No completed tasks yet"}
                   </div>
                 ) : (
-                  (currentTab === "available" ? availableTasks : completedTasks).map((task: any) => {
-                    const taskState = actionStates[task.id] || { like: "idle", retweet: "idle" };
+                  (currentTab === "available"
+                    ? availableTasks
+                    : completedTasks
+                  ).map((task: any) => {
+                    const taskState = actionStates[task.id] || {
+                      like: "idle",
+                      retweet: "idle",
+                    };
 
                     return (
                       <div
@@ -638,8 +701,14 @@ export function XTasksModal({ isOpen, onClose, onTasksViewed }: XTasksModalProps
                       >
                         <div className="flex items-start gap-4">
                           {/* Icon */}
-                          <div className="w-12 h-12 bg-black rounded-xl flex items-center justify-center flex-shrink-0">
-                            <XLogo className="w-6 h-6 text-white" />
+                          <div className="w-12 h-12 bg-gray-300 rounded-xl flex items-center justify-center flex-shrink-0 hidden md:flex">
+                            <img
+                              src={
+                                "https://cdn.allox.ai/allox/AlloX-mobile.svg"
+                              }
+                              alt=""
+                              className="h-10 flex"
+                            />
                           </div>
 
                           {/* Content */}
@@ -647,12 +716,23 @@ export function XTasksModal({ isOpen, onClose, onTasksViewed }: XTasksModalProps
                             <div className="flex items-start justify-between mb-2">
                               <div>
                                 {/* <h3 className="text-lg font-bold mb-1">{task.title}</h3> */}
-                                <p className="text-sm text-gray-600 mb-2">{task.tweetText.length > 100 ? task.tweetText.substring(0, 100) + "..." : task.tweetText}</p>
+                                <p className="text-sm text-gray-600 mb-2">
+                                  {task.tweetText.length > 100
+                                    ? task.tweetText.substring(0, 100) + "..."
+                                    : task.tweetText}
+                                </p>
                                 <div className="flex items-center gap-4 text-xs text-gray-500">
-                                  <span>Added: {new Date(task.dateAdded).toLocaleDateString()}</span>
+                                  <span>
+                                    Added:{" "}
+                                    {new Date(
+                                      task.dateAdded,
+                                    ).toLocaleDateString()}
+                                  </span>
                                   <div className="flex items-center gap-1 font-semibold text-yellow-600">
-                                    <Star className="w-3 h-3 fill-yellow-500 text-yellow-500" />
-                                    {task.points} points
+                                    <Coins className="w-3 h-3 fill-yellow-500 text-yellow-500" />
+                                    {task.actions[0].points +
+                                      task.actions[1].points}{" "}
+                                    points
                                   </div>
                                 </div>
                               </div>
@@ -663,29 +743,49 @@ export function XTasksModal({ isOpen, onClose, onTasksViewed }: XTasksModalProps
                               <div className="flex gap-3 mt-4">
                                 <button
                                   onClick={() => handleAction(task.id, "like")}
-                                  disabled={task.actions?.find((a: any) => a.action === 'like')?.completed}
+                                  disabled={
+                                    task.actions?.find(
+                                      (a: any) => a.action === "like",
+                                    )?.completed
+                                  }
                                   className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all ${getActionButtonClass(
                                     taskState.like,
-                                    task.actions?.find((a: any) => a.action === 'like')?.completed
+                                    task.actions?.find(
+                                      (a: any) => a.action === "like",
+                                    )?.completed,
                                   )}`}
                                 >
                                   <ThumbsUp className="w-4 h-4" />
-                                  {task.liked ? "Liked" : taskState.like === "error" ? "Failed" : "Like"}
+                                  {task.liked
+                                    ? "Liked"
+                                    : taskState.like === "error"
+                                      ? "Failed"
+                                      : "Like"}
                                 </button>
                                 <button
-                                  onClick={() => handleAction(task.id, "retweet")}
-                                  disabled={task.actions?.find((a: any) => a.action === 'retweet')?.completed}
+                                  onClick={() =>
+                                    handleAction(task.id, "retweet")
+                                  }
+                                  disabled={
+                                    task.actions?.find(
+                                      (a: any) => a.action === "retweet",
+                                    )?.completed
+                                  }
                                   className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all ${getActionButtonClass(
                                     taskState.retweet,
-                                    task.actions?.find((a: any) => a.action === 'retweet')?.completed
+                                    task.actions?.find(
+                                      (a: any) => a.action === "retweet",
+                                    )?.completed,
                                   )}`}
                                 >
                                   <Repeat2 className="w-4 h-4" />
-                                  {task.actions?.find((a: any) => a.action === 'retweet')?.completed
+                                  {task.actions?.find(
+                                    (a: any) => a.action === "retweet",
+                                  )?.completed
                                     ? "Retweeted"
                                     : taskState.retweet === "error"
-                                    ? "Failed"
-                                    : "Retweet"}
+                                      ? "Failed"
+                                      : "Retweet"}
                                 </button>
                               </div>
                             )}
@@ -747,9 +847,10 @@ export function XTasksModal({ isOpen, onClose, onTasksViewed }: XTasksModalProps
                   <h3 className="text-xl font-bold">Disconnect X Account?</h3>
                 </div>
               </div>
-              
+
               <p className="text-gray-600 mb-6 leading-relaxed">
-                If you disconnect, you won't be able to connect again for 24 hours. Are you sure you want to continue?
+                If you disconnect, you won't be able to connect again for 24
+                hours. Are you sure you want to continue?
               </p>
 
               <div className="flex gap-3">
