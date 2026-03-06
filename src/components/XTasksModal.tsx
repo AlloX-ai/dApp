@@ -95,6 +95,10 @@ export function XTasksModal({
     "idle" | "success" | "error"
   >("idle");
   const [promoPosted, setPromoPosted] = useState(false);
+  const [promoTimerEndTime, setPromoTimerEndTime] = useState<number | null>(
+    null,
+  );
+  const [promoTimerRemaining, setPromoTimerRemaining] = useState<string>("");
   const [actionStates, setActionStates] = useState<{
     [key: string]: {
       like: "idle" | "loading" | "success" | "error";
@@ -192,6 +196,53 @@ export function XTasksModal({
     }
   }, [twitterStatus.cooldown]);
 
+  // Restore promo timer from localStorage on mount
+  useEffect(() => {
+    if (isOpen) {
+      const savedEndTime = localStorage.getItem("promoTimerEndTime");
+      if (savedEndTime) {
+        const endTime = parseInt(savedEndTime);
+        if (endTime > Date.now()) {
+          setPromoTimerEndTime(endTime);
+          setPromoPosted(true);
+        } else {
+          localStorage.removeItem("promoTimerEndTime");
+        }
+      }
+    }
+  }, [isOpen]);
+
+  // Timer effect for promo verification countdown
+  useEffect(() => {
+    if (promoTimerEndTime) {
+      const interval = setInterval(() => {
+        const now = Date.now();
+        const remaining = promoTimerEndTime - now;
+
+        if (remaining <= 0) {
+          setPromoTimerEndTime(null);
+          setPromoTimerRemaining("");
+          localStorage.removeItem("promoTimerEndTime");
+          clearInterval(interval);
+        } else {
+          const seconds = Math.ceil(remaining / 1000);
+          setPromoTimerRemaining(`${seconds}s`);
+        }
+      }, 100);
+
+      return () => clearInterval(interval);
+    }
+  }, [promoTimerEndTime]);
+
+  // Clear timer when promo task is completed
+  useEffect(() => {
+    if (promoTask.completedToday) {
+      setPromoTimerEndTime(null);
+      setPromoTimerRemaining("");
+      localStorage.removeItem("promoTimerEndTime");
+    }
+  }, [promoTask.completedToday]);
+
   const handleConnect = async () => {
     try {
       await linkTwitter();
@@ -230,6 +281,11 @@ export function XTasksModal({
     const randomTweet =
       tweetVariants[Math.floor(Math.random() * tweetVariants.length)];
     postPromoTweet(randomTweet);
+
+    // Start 60-second timer
+    const endTime = Date.now() + 60000;
+    setPromoTimerEndTime(endTime);
+    localStorage.setItem("promoTimerEndTime", endTime.toString());
     setPromoPosted(true);
   };
 
@@ -237,7 +293,12 @@ export function XTasksModal({
     try {
       setPromoVerifyState("idle");
       await verifyPromoTweet();
+      fetchSocialPoints();
       setPromoVerifyState("success");
+      // Clear timer and localStorage on successful verification
+      setPromoTimerEndTime(null);
+      setPromoTimerRemaining("");
+      localStorage.removeItem("promoTimerEndTime");
     } catch (err) {
       setPromoVerifyState("error");
       setTimeout(() => {
@@ -424,80 +485,60 @@ export function XTasksModal({
           </div>
         </div>
 
+        {!twitterStatus.linked || loading.tasks ? (
+          <div className="flex gap-2 mb-6 px-6">
+            <button
+              disabled
+              className="flex-1 px-6 py-3 rounded-xl font-semibold bg-black text-white cursor-not-allowed text-xs md:text-base"
+            >
+              Available (-)
+            </button>
+            <button
+              disabled
+              className="flex-1 px-6 py-3 rounded-xl font-semibold bg-gray-200 text-gray-700 cursor-not-allowed text-xs md:text-base"
+            >
+              Completed (-)
+            </button>
+          </div>
+        ) : (
+          <div className="flex gap-2 mb-6 px-6">
+            <button
+              onClick={() => setCurrentTab("available")}
+              className={`flex-1 px-6 py-3 rounded-xl font-semibold text-xs md:text-base transition-all ${
+                currentTab === "available"
+                  ? "bg-black text-white"
+                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+              }`}
+            >
+              Available ({availableTasks.length})
+            </button>
+            <button
+              onClick={() => setCurrentTab("completed")}
+              className={`flex-1 px-6 py-3 rounded-xl font-semibold text-xs md:text-base transition-all ${
+                currentTab === "completed"
+                  ? "bg-black text-white"
+                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+              }`}
+            >
+              Completed ({completedTasks.length})
+            </button>
+          </div>
+        )}
         {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[calc(80vh-190px)]">
+        <div className="p-6 overflow-y-auto max-h-[calc(80vh-270px)]">
           {!twitterStatus.linked || loading.tasks ? (
             <>
               {/* Tabs (same layout as connected) */}
-              <div className="flex gap-2 mb-6">
-                <button
-                  disabled
-                  className="flex-1 px-6 py-3 rounded-xl font-semibold bg-black text-white cursor-not-allowed text-xs md:text-base"
-                >
-                  Available (-)
-                </button>
-                <button
-                  disabled
-                  className="flex-1 px-6 py-3 rounded-xl font-semibold bg-gray-200 text-gray-700 cursor-not-allowed text-xs md:text-base"
-                >
-                  Completed (-)
-                </button>
-              </div>
 
-              {/* Skeleton Cards */}
-              <div className="space-y-4">
-                {[1, 2, 3].map((i) => (
-                  <div
-                    key={i}
-                    className="bg-white/60 backdrop-blur-xl border border-white/60 rounded-2xl p-6 animate-pulse"
-                  >
-                    <div className="flex items-start gap-4">
-                      {/* Icon skeleton */}
-                      <div className="w-12 h-12 bg-gray-300 rounded-xl flex-shrink-0"></div>
-
-                      {/* Content skeleton */}
-                      <div className="flex-1">
-                        <div className="h-6 bg-gray-300 rounded-lg w-3/4 mb-2"></div>
-                        <div className="h-4 bg-gray-200 rounded-lg w-full mb-2"></div>
-                        <div className="flex items-center gap-4 mb-4">
-                          <div className="h-3 bg-gray-200 rounded w-24"></div>
-                          <div className="h-3 bg-gray-200 rounded w-20"></div>
-                        </div>
-                        <div className="flex gap-3">
-                          <div className="h-10 bg-gray-300 rounded-xl w-24"></div>
-                          <div className="h-10 bg-gray-300 rounded-xl w-28"></div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+              <div className="flex justify-center items-center">
+                <h3 className="text-lg font-bold mb-1 bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
+                  Connect your account to view tasks!
+                </h3>
               </div>
             </>
           ) : (
             <>
               {/* Tabs */}
-              <div className="flex gap-2 mb-6">
-                <button
-                  onClick={() => setCurrentTab("available")}
-                  className={`flex-1 px-6 py-3 rounded-xl font-semibold text-xs md:text-base transition-all ${
-                    currentTab === "available"
-                      ? "bg-black text-white"
-                      : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                  }`}
-                >
-                  Available ({availableTasks.length})
-                </button>
-                <button
-                  onClick={() => setCurrentTab("completed")}
-                  className={`flex-1 px-6 py-3 rounded-xl font-semibold text-xs md:text-base transition-all ${
-                    currentTab === "completed"
-                      ? "bg-black text-white"
-                      : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                  }`}
-                >
-                  Completed ({completedTasks.length})
-                </button>
-              </div>
 
               {/* Tasks List */}
               <div className="space-y-4">
@@ -563,45 +604,66 @@ export function XTasksModal({
                             <div className="flex gap-3">
                               <button
                                 onClick={handlePromoPost}
-                                className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl font-semibold transition-all shadow-md hover:shadow-lg"
+                                disabled={promoTimerEndTime !== null}
+                                className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl font-semibold transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                               >
                                 <ExternalLink className="w-4 h-4" />
                                 Post
                               </button>
-                              <button
-                                onClick={handlePromoVerify}
-                                disabled={
-                                  promoTask.completedToday || !promoPosted
-                                }
-                                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold transition-all shadow-md ${
-                                  promoTask.completedToday || !promoPosted
-                                    ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                                    : promoVerifyState === "success"
-                                      ? "bg-green-500 text-white"
-                                      : promoVerifyState === "error"
-                                        ? "bg-red-500 text-white"
-                                        : "bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white hover:shadow-lg"
-                                }`}
-                              >
-                                <svg
-                                  className="w-4 h-4"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                  stroke="currentColor"
+                              <div className="group relative">
+                                <button
+                                  onClick={handlePromoVerify}
+                                  disabled={
+                                    promoTask.completedToday ||
+                                    promoTimerEndTime !== null ||
+                                    promoVerifyState === "success"
+                                  }
+                                  className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold transition-all shadow-md ${
+                                    promoTimerEndTime !== null
+                                      ? "bg-gray-400 text-white cursor-not-allowed"
+                                      : promoVerifyState === "success"
+                                        ? "bg-green-500 text-white"
+                                        : promoVerifyState === "error"
+                                          ? "bg-red-500 text-white"
+                                          : promoTask.completedToday
+                                            ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                                            : "bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white hover:shadow-lg"
+                                  }`}
                                 >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M5 13l4 4L19 7"
-                                  />
-                                </svg>
-                                {promoVerifyState === "success"
-                                  ? "Verified"
-                                  : promoVerifyState === "error"
-                                    ? "Failed"
-                                    : "Verify"}
-                              </button>
+                                  {promoTimerEndTime !== null ? (
+                                    <>
+                                      <Clock className="w-4 h-4" />
+                                      {promoTimerRemaining}
+                                    </>
+                                  ) : (
+                                    <>
+                                      <svg
+                                        className="w-4 h-4"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={2}
+                                          d="M5 13l4 4L19 7"
+                                        />
+                                      </svg>
+                                      {promoVerifyState === "success"
+                                        ? "Verified"
+                                        : promoVerifyState === "error"
+                                          ? "Failed"
+                                          : "Verify"}
+                                    </>
+                                  )}
+                                </button>
+                                {promoTimerEndTime !== null && (
+                                  <div className="absolute bottom-full right-0 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                                    You can verify after the timer ends
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           )}
 
@@ -716,9 +778,7 @@ export function XTasksModal({
                           {/* Icon */}
                           <div className="w-12 h-12 bg-black rounded-xl flex items-center justify-center flex-shrink-0 hidden md:flex">
                             <img
-                              src={
-                                "https://cdn.allox.ai/allox/alloxWhite.svg"
-                              }
+                              src={"https://cdn.allox.ai/allox/alloxWhite.svg"}
                               alt=""
                               className="h-10 flex"
                             />
@@ -784,7 +844,7 @@ export function XTasksModal({
                                   )}
                                 </button>
                                 <button
-                                   onClick={(e) => {
+                                  onClick={(e) => {
                                     e.stopPropagation();
                                     e.preventDefault();
                                     handleAction(task.id, "retweet");
@@ -792,7 +852,8 @@ export function XTasksModal({
                                   disabled={
                                     task.actions?.find(
                                       (a: any) => a.action === "retweet",
-                                    )?.completed || taskState.retweet === "loading"
+                                    )?.completed ||
+                                    taskState.retweet === "loading"
                                   }
                                   className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all ${getActionButtonClass(
                                     taskState.retweet,
@@ -807,11 +868,11 @@ export function XTasksModal({
                                   ) : task.actions?.find(
                                       (a: any) => a.action === "retweet",
                                     )?.completed ? (
-                                    "Retweeted"
+                                    "Reposted"
                                   ) : taskState.retweet === "error" ? (
                                     "Failed"
                                   ) : (
-                                    "Retweet"
+                                    "Repost"
                                   )}
                                 </button>
                               </div>

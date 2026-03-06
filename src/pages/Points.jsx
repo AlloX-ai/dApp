@@ -55,6 +55,17 @@ export function PointsPage() {
   const [claiming, setClaiming] = useState(false);
   const [claimError, setClaimError] = useState(null);
 
+  const html = document.querySelector("html");
+
+
+    useEffect(() => {
+    if (showXTasksModal) {
+      html.classList.add("hidescroll");
+    } else {
+      html.classList.remove("hidescroll");
+    }
+  }, [showXTasksModal]);
+
   const handleXTasksClick = () => {
     setShowXTasksModal(true);
   };

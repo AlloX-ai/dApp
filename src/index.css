@@ -567,3 +567,7 @@ h6 {
     opacity: 0.5;
   }
 }
+
+.hidescroll {
+  overflow: hidden !important;
+}
