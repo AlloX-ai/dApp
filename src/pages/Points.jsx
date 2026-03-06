@@ -47,6 +47,7 @@ export function PointsPage() {
   const [showXTasksModal, setShowXTasksModal] = useState(false);
   const [showFAQModal, setShowFAQModal] = useState(false);
 
+  // local state kept for backward compatibility but UI now uses Redux newCount
   const [newTasksCount, setNewTasksCount] = useState(4);
   const [expandedFaq, setExpandedFaq] = useState(null);
   const [showTooltip, setShowTooltip] = useState(false);
@@ -351,11 +352,7 @@ export function PointsPage() {
                 )}
 
                 {/* Notification Badge for X Tasks */}
-                {/* {isXTasks && newTasksCount > 0 && (
-                  <div className="absolute top-3 right-3 w-6 h-6 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
-                    {newTasksCount}
-                  </div>
-                )} */}
+                
 
                 {/* Arrow indicator for clickable items */}
                 {/* {way.isClickable &&
@@ -365,19 +362,26 @@ export function PointsPage() {
                       <ArrowRight className="w-4 h-4 text-white" />
                     </div>
                   )} */}
-                <div className="flex items-center gap-2">
-                  <div>
-                    {/* Icon */}
-                    <div className="mb-4">
-                      <div
-                        className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-4 ${"bg-black"}`}
-                      >
-                        {CustomIcon ? (
-                          <CustomIcon className="w-5 h-5 text-white" />
-                        ) : Icon ? (
-                          <Icon className="w-5 h-5 text-white" />
-                        ) : null}
+                  <div className="flex items-center gap-2">
+                    <div>
+                      {/* Icon */}
+                    <div className="flex align-center gap-2">
+                        <div className="mb-4">
+                        <div
+                          className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-4 ${"bg-black"}`}
+                        >
+                          {CustomIcon ? (
+                            <CustomIcon className="w-5 h-5 text-white" />
+                          ) : Icon ? (
+                            <Icon className="w-5 h-5 text-white" />
+                          ) : null}
+                        </div>
                       </div>
+                      {isXTasks && newCount > 0 && (
+                    <div className="px-2 py-1 bg-red-500 text-white text-xs font-bold rounded-full w-fit h-fit">
+                      {newCount} new
+                    </div>
+                  )}
                     </div>
 
                     {/* Content */}

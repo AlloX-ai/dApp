@@ -8,6 +8,7 @@ import {
   Sparkles,
   ExternalLink,
   Coins,
+  Loader2,
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
@@ -96,8 +97,8 @@ export function XTasksModal({
   const [promoPosted, setPromoPosted] = useState(false);
   const [actionStates, setActionStates] = useState<{
     [key: string]: {
-      like: "idle" | "success" | "error";
-      retweet: "idle" | "success" | "error";
+      like: "idle" | "loading" | "success" | "error";
+      retweet: "idle" | "loading" | "success" | "error";
     };
   }>({});
   const lastErrorRef = useRef<string | null>(null);
@@ -247,27 +248,25 @@ export function XTasksModal({
 
   const handleAction = async (taskId: string, action: "like" | "retweet") => {
     try {
-      // Set loading state
+      // Set loading state before doing anything else
       setActionStates((prev) => ({
         ...prev,
         [taskId]: {
           ...prev[taskId],
-          [action === "like" ? "like" : "retweet"]: "idle",
+          [action]: "loading",
         },
       }));
 
-      // Open tweet in new tab
-
-      // Small delay before verification
+      // Small delay before verification (allows user to open tweet)
       setTimeout(async () => {
         try {
-          await verifyTaskAction(taskId, action)
+          await verifyTaskAction(taskId, action);
           fetchSocialPoints();
           setActionStates((prev) => ({
             ...prev,
             [taskId]: {
               ...prev[taskId],
-              [action === "like" ? "like" : "retweet"]: "success",
+              [action]: "success",
             },
           }));
         } catch (err) {
@@ -275,7 +274,7 @@ export function XTasksModal({
             ...prev,
             [taskId]: {
               ...prev[taskId],
-              [action === "like" ? "like" : "repost"]: "error",
+              [action]: "error",
             },
           }));
           // Reset to idle after 2 seconds
@@ -284,7 +283,7 @@ export function XTasksModal({
               ...prev,
               [taskId]: {
                 ...prev[taskId],
-                [action === "like" ? "like" : "retweet"]: "idle",
+                [action]: "idle",
               },
             }));
           }, 2000);
@@ -296,11 +295,14 @@ export function XTasksModal({
   };
 
   const getActionButtonClass = (
-    state: "idle" | "success" | "error",
+    state: "idle" | "loading" | "success" | "error",
     isCompleted: boolean,
   ) => {
     if (isCompleted) {
       return "bg-green-500 text-white cursor-not-allowed";
+    }
+    if (state === "loading") {
+      return "bg-gray-500 text-white cursor-wait";
     }
     if (state === "success") {
       return "bg-green-500 text-white";
@@ -761,7 +763,7 @@ export function XTasksModal({
                                   disabled={
                                     task.actions?.find(
                                       (a: any) => a.action === "like",
-                                    )?.completed
+                                    )?.completed || taskState.like === "loading"
                                   }
                                   className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all ${getActionButtonClass(
                                     taskState.like,
@@ -771,11 +773,15 @@ export function XTasksModal({
                                   )}`}
                                 >
                                   <ThumbsUp className="w-4 h-4" />
-                                  {task.liked
-                                    ? "Liked"
-                                    : taskState.like === "error"
-                                      ? "Failed"
-                                      : "Like"}
+                                  {taskState.like === "loading" ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : task.liked ? (
+                                    "Liked"
+                                  ) : taskState.like === "error" ? (
+                                    "Failed"
+                                  ) : (
+                                    "Like"
+                                  )}
                                 </button>
                                 <button
                                    onClick={(e) => {
@@ -786,7 +792,7 @@ export function XTasksModal({
                                   disabled={
                                     task.actions?.find(
                                       (a: any) => a.action === "retweet",
-                                    )?.completed
+                                    )?.completed || taskState.retweet === "loading"
                                   }
                                   className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all ${getActionButtonClass(
                                     taskState.retweet,
@@ -796,13 +802,17 @@ export function XTasksModal({
                                   )}`}
                                 >
                                   <Repeat2 className="w-4 h-4" />
-                                  {task.actions?.find(
-                                    (a: any) => a.action === "retweet",
-                                  )?.completed
-                                    ? "Retweeted"
-                                    : taskState.retweet === "error"
-                                      ? "Failed"
-                                      : "Retweet"}
+                                  {taskState.retweet === "loading" ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : task.actions?.find(
+                                      (a: any) => a.action === "retweet",
+                                    )?.completed ? (
+                                    "Retweeted"
+                                  ) : taskState.retweet === "error" ? (
+                                    "Failed"
+                                  ) : (
+                                    "Retweet"
+                                  )}
                                 </button>
                               </div>
                             )}
