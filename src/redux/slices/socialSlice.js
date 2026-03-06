@@ -3,6 +3,7 @@ import { createSlice } from "@reduxjs/toolkit";
 const initialState = {
   // Twitter/X account status
   twitterStatus: {
+    socialPoints: 0,
     linked: false,
     username: null,
     displayName: null,
@@ -39,6 +40,10 @@ const initialState = {
     taskCount: 0,
   },
 
+  // Seen posts tracking
+  seenPosts: [],
+  newCount: 0,
+
   // UI state
   loading: {
     status: false,
@@ -64,6 +69,9 @@ const socialSlice = createSlice({
     // Set tasks
     setTasks: (state, action) => {
       state.tasks = action.payload;
+    },
+    setSocialPoints: (state, action) => {
+      state.socialPoints = action.payload;
     },
 
     // Update task action status
@@ -95,6 +103,15 @@ const socialSlice = createSlice({
       state.loading[key] = value;
     },
 
+    // Seen posts tracking
+    setSeenPosts: (state, action) => {
+      state.seenPosts = action.payload;
+    },
+
+    setNewCount: (state, action) => {
+      state.newCount = action.payload;
+    },
+
     // Error handling
     setError: (state, action) => {
       state.error = action.payload;
@@ -113,6 +130,7 @@ const socialSlice = createSlice({
 
 export const {
   setTwitterStatus,
+  setSocialPoints,
   setTasks,
   updateTaskAction,
   setPromoTask,
@@ -121,6 +139,8 @@ export const {
   setError,
   clearError,
   resetSocialState,
+  setSeenPosts,
+  setNewCount,
 } = socialSlice.actions;
 
 export default socialSlice.reducer;

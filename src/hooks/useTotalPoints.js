@@ -10,9 +10,12 @@ export function useTotalPoints() {
   const { user } = useAuth();
   const pointsBalance = useSelector((state) => state.points?.balance);
   const checkinStatus = useSelector((state) => state.checkin?.status);
+  const socialPoints = useSelector((state) => state.social?.socialPoints);
   const optimisticCheckinPoints = useSelector(
     (state) => state.checkin?.optimisticPoints ?? 0,
   );
+  
+
   
   return useMemo(() => {
     const userPoints =
@@ -24,8 +27,9 @@ export function useTotalPoints() {
       (checkinStatus?.totalPointsEarned ?? 0) + optimisticCheckinPoints;
     const u = Number(userPoints) || 0;
     const d = Number(dailyBonusPoints) || 0;
+    const s = Number(socialPoints) || 0;
     return {
-      totalPoints: u + d,
+      totalPoints: u + d + s,
       userPoints: u,
       dailyBonusPoints: d,
     };

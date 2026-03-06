@@ -9,10 +9,11 @@ import {
   ExternalLink,
   Coins,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useSocial } from "../hooks/useSocial";
 import { useSelector } from "react-redux";
+import { toast } from "sonner";
 
 // Custom X (Twitter) Logo Component
 function XLogo({ className }: { className?: string }) {
@@ -68,9 +69,11 @@ export function XTasksModal({
     tasks,
     promoTask,
     taskStats,
+    socialPoints,
     loading,
     error,
     fetchTwitterStatus,
+    fetchSocialPoints,
     linkTwitter,
     unlinkTwitter,
     fetchTasks,
@@ -78,6 +81,7 @@ export function XTasksModal({
     postPromoTweet,
     verifyPromoTweet,
     clearError,
+    markAllAsSeen,
   } = useSocial();
 
   const [currentTab, setCurrentTab] = useState<"available" | "completed">(
@@ -96,6 +100,7 @@ export function XTasksModal({
       retweet: "idle" | "success" | "error";
     };
   }>({});
+  const lastErrorRef = useRef<string | null>(null);
 
   // initialize action states when tasks load
   useEffect(() => {
@@ -132,13 +137,22 @@ export function XTasksModal({
     twitterStatus.linked,
   ]);
 
-  // Clear error and promoPosted when modal closes
+  // Show error toast when error occurs
+  useEffect(() => {
+    if (error && error !== lastErrorRef.current) {
+      lastErrorRef.current = error;
+      toast.error(error);
+      clearError();
+    }
+  }, [error, clearError]);
+
+  // Clear promoPosted when modal closes
   useEffect(() => {
     if (!isOpen) {
-      clearError();
       setPromoPosted(false);
+      markAllAsSeen();
     }
-  }, [isOpen, clearError]);
+  }, [isOpen, markAllAsSeen]);
 
   // Timer effect for disconnect countdown
   useEffect(() => {
@@ -243,15 +257,12 @@ export function XTasksModal({
       }));
 
       // Open tweet in new tab
-      const task = tasks.find((t: any) => t.id === taskId);
-      if (task) {
-        window.open(task.tweetUrl, "_blank");
-      }
 
       // Small delay before verification
       setTimeout(async () => {
         try {
-          await verifyTaskAction(taskId, action);
+          await verifyTaskAction(taskId, action)
+          fetchSocialPoints();
           setActionStates((prev) => ({
             ...prev,
             [taskId]: {
@@ -312,7 +323,7 @@ export function XTasksModal({
     return likeAction?.completed && retweetAction?.completed;
   });
 
-  const totalStarsToday = taskStats.totalPointsEarned;
+  const totalStarsToday = socialPoints;
 
   if (!isOpen) return null;
 
@@ -355,7 +366,7 @@ export function XTasksModal({
                   <Coins className="size-4 text-amber-500" />
 
                   <span className="text-sm font-bold">
-                    {totalStarsToday} points today
+                    {totalStarsToday} points
                   </span>
                 </div>
 
@@ -412,11 +423,6 @@ export function XTasksModal({
         </div>
 
         {/* Content */}
-        {error && (
-          <div className="mx-6 mb-4 p-3 bg-red-100 text-red-800 rounded-lg">
-            {error}
-          </div>
-        )}
         <div className="p-6 overflow-y-auto max-h-[calc(80vh-190px)]">
           {!twitterStatus.linked || loading.tasks ? (
             <>
@@ -424,13 +430,13 @@ export function XTasksModal({
               <div className="flex gap-2 mb-6">
                 <button
                   disabled
-                  className="flex-1 px-6 py-3 rounded-xl font-semibold bg-black text-white cursor-not-allowed"
+                  className="flex-1 px-6 py-3 rounded-xl font-semibold bg-black text-white cursor-not-allowed text-xs md:text-base"
                 >
                   Available (-)
                 </button>
                 <button
                   disabled
-                  className="flex-1 px-6 py-3 rounded-xl font-semibold bg-gray-200 text-gray-700 cursor-not-allowed"
+                  className="flex-1 px-6 py-3 rounded-xl font-semibold bg-gray-200 text-gray-700 cursor-not-allowed text-xs md:text-base"
                 >
                   Completed (-)
                 </button>
@@ -471,7 +477,7 @@ export function XTasksModal({
               <div className="flex gap-2 mb-6">
                 <button
                   onClick={() => setCurrentTab("available")}
-                  className={`flex-1 px-6 py-3 rounded-xl font-semibold transition-all ${
+                  className={`flex-1 px-6 py-3 rounded-xl font-semibold text-xs md:text-base transition-all ${
                     currentTab === "available"
                       ? "bg-black text-white"
                       : "bg-gray-200 text-gray-700 hover:bg-gray-300"
@@ -481,7 +487,7 @@ export function XTasksModal({
                 </button>
                 <button
                   onClick={() => setCurrentTab("completed")}
-                  className={`flex-1 px-6 py-3 rounded-xl font-semibold transition-all ${
+                  className={`flex-1 px-6 py-3 rounded-xl font-semibold text-xs md:text-base transition-all ${
                     currentTab === "completed"
                       ? "bg-black text-white"
                       : "bg-gray-200 text-gray-700 hover:bg-gray-300"
@@ -537,7 +543,7 @@ export function XTasksModal({
                                   Resets Daily
                                 </span>
                                 <div className="flex items-center gap-1 font-bold text-transparent bg-gradient-to-r from-yellow-500 to-orange-500 bg-clip-text">
-                                  <Star className="w-4 h-4 fill-yellow-500 text-yellow-500" />
+                                  <Coins className="w-4 h-4 fill-yellow-500 text-yellow-500" />
                                   {promoTask.points} points
                                 </div>
                               </div>
@@ -699,12 +705,17 @@ export function XTasksModal({
                         key={task.id}
                         className="bg-white/60 backdrop-blur-xl border border-white/60 rounded-2xl p-6 hover:shadow-lg transition-all"
                       >
-                        <div className="flex items-start gap-4">
+                        <a
+                          href={task.tweetUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-start gap-4"
+                        >
                           {/* Icon */}
-                          <div className="w-12 h-12 bg-gray-300 rounded-xl flex items-center justify-center flex-shrink-0 hidden md:flex">
+                          <div className="w-12 h-12 bg-black rounded-xl flex items-center justify-center flex-shrink-0 hidden md:flex">
                             <img
                               src={
-                                "https://cdn.allox.ai/allox/AlloX-mobile.svg"
+                                "https://cdn.allox.ai/allox/alloxWhite.svg"
                               }
                               alt=""
                               className="h-10 flex"
@@ -742,7 +753,11 @@ export function XTasksModal({
                             {currentTab === "available" && (
                               <div className="flex gap-3 mt-4">
                                 <button
-                                  onClick={() => handleAction(task.id, "like")}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                    handleAction(task.id, "like");
+                                  }}
                                   disabled={
                                     task.actions?.find(
                                       (a: any) => a.action === "like",
@@ -763,9 +778,11 @@ export function XTasksModal({
                                       : "Like"}
                                 </button>
                                 <button
-                                  onClick={() =>
-                                    handleAction(task.id, "retweet")
-                                  }
+                                   onClick={(e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                    handleAction(task.id, "retweet");
+                                  }}
                                   disabled={
                                     task.actions?.find(
                                       (a: any) => a.action === "retweet",
@@ -811,7 +828,7 @@ export function XTasksModal({
                               </div>
                             )}
                           </div>
-                        </div>
+                        </a>
                       </div>
                     );
                   })

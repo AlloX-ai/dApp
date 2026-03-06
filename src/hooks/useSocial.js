@@ -3,6 +3,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { apiCall } from "../utils/api";
 import {
   setTwitterStatus,
+  setSocialPoints,
   setTasks,
   updateTaskAction,
   setPromoTask,
@@ -10,17 +11,23 @@ import {
   setLoading,
   setError,
   clearError,
+  setSeenPosts,
+  setNewCount,
 } from "../redux/slices/socialSlice";
+import { toast } from "sonner";
 
 export function useSocial() {
   const dispatch = useDispatch();
   const {
     twitterStatus,
     tasks,
+    socialPoints,
     promoTask,
     taskStats,
     loading,
     error,
+    seenPosts,
+    newCount,
   } = useSelector((state) => state.social);
 
   // Fetch Twitter status on mount
@@ -33,6 +40,20 @@ export function useSocial() {
       dispatch(setTwitterStatus(data));
     } catch (err) {
       dispatch(setError(err.message || "Failed to fetch Twitter status"));
+    } finally {
+      dispatch(setLoading({ key: "status", value: false }));
+    }
+  }, [dispatch]);
+  // Fetch Twitter status on mount
+  const fetchSocialPoints = useCallback(async () => {
+    try {
+      dispatch(setLoading({ key: "status", value: true }));
+      dispatch(clearError());
+
+      const data = await apiCall("/twitter/points");
+      dispatch(setSocialPoints(data.totalPoints));
+    } catch (err) {
+      dispatch(setError(err.message || "Failed to fetch total points"));
     } finally {
       dispatch(setLoading({ key: "status", value: false }));
     }
@@ -116,6 +137,25 @@ export function useSocial() {
     }
   }, [dispatch]);
 
+  // Load seen posts from localStorage
+  const loadSeenPosts = useCallback(() => {
+    const stored = JSON.parse(localStorage.getItem("seenPosts")) || [];
+    dispatch(setSeenPosts(stored));
+    // Calculate new count
+    const newTasksCount = tasks.filter(
+      (task) => !stored.includes(task.id)
+    ).length;
+    dispatch(setNewCount(newTasksCount));
+  }, [dispatch, tasks]);
+
+  // Mark all tasks as seen
+  const markAllAsSeen = useCallback(() => {
+    const allIds = tasks.map((task) => task.id);
+    dispatch(setSeenPosts(allIds));
+    localStorage.setItem("seenPosts", JSON.stringify(allIds));
+    dispatch(setNewCount(0));
+  }, [dispatch, tasks]);
+
   // Verify task action
   const verifyTaskAction = useCallback(async (taskId, action) => {
     try {
@@ -181,7 +221,7 @@ export function useSocial() {
   // Post promo tweet
   const postPromoTweet = useCallback((tweetText) => {
     const encodedText = encodeURIComponent(tweetText);
-    window.open(`https://twitter.com/intent/tweet?text=${encodedText}`, '_blank');
+    window.open(`https://twitter.com/intent/tweet`, '_blank');
   }, []);
 
   // Verify promo tweet
@@ -233,7 +273,7 @@ export function useSocial() {
     if (params.get('success') === 'true') {
       const username = params.get('username');
       // Show success message
-      alert(`Linked to @${username}!`);
+      toast(`Linked to @${username}!`);
       // Refresh status
       fetchTwitterStatus();
       // Clear URL parameters
@@ -268,16 +308,22 @@ export function useSocial() {
     // State
     twitterStatus,
     tasks,
+    socialPoints,
     promoTask,
     taskStats,
     loading,
     error,
+    seenPosts,
+    newCount,
 
     // Actions
     fetchTwitterStatus,
+    fetchSocialPoints,
     linkTwitter,
     unlinkTwitter,
     fetchTasks,
+    loadSeenPosts,
+    markAllAsSeen,
     verifyTaskAction,
     postPromoTweet,
     verifyPromoTweet,

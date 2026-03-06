@@ -72,6 +72,9 @@ export function PointsPage() {
     user?.season1?.rateLimit?.messagesRemaining;
 
   const checkinStatus = useSelector((state) => state.checkin?.status);
+    const socialPoints = useSelector((state) => state.social?.socialPoints);
+    const newCount = useSelector((state) => state.social?.newCount);
+  
   const lastClaimed = useMemo(() => {
     for (let i = checkinStatus?.rewards?.length - 1; i >= 0; i--) {
       if (checkinStatus.rewards[i].claimed === true) {
@@ -175,6 +178,8 @@ export function PointsPage() {
       customIcon: XLogo,
       comingSoon: false,
       isClickable: true,
+      userPoints:
+        getFormattedNumber(socialPoints || 0, 0) || 0,
     },
   ];
   const handleClaimPoints = async () => {
