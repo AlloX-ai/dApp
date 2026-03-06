@@ -174,7 +174,7 @@ export function PointsPage() {
       icon: null,
       customIcon: XLogo,
       comingSoon: false,
-      isClickable: false,
+      isClickable: true,
     },
   ];
   const handleClaimPoints = async () => {
@@ -214,10 +214,12 @@ export function PointsPage() {
     } else if (id === 4) {
       dispatch(openCheckinModal());
     } else if (id === 5) {
+      // navigate("/referrals", { replace: true });
+    } else if (id === 7) {
       navigate("/referrals", { replace: true });
     } else if (id > 1 && id <= 3) {
       navigate("/", { replace: true });
-    } else if (id === 5) {
+    } else if (id === 6) {
       handleXTasksClick();
     }
   };
@@ -326,7 +328,7 @@ export function PointsPage() {
               <div
                 key={way.id}
                 onClick={() => {
-                  if (isXTasks || way.id === 5) {
+                  if (isXTasks) {
                     handleXTasksClick();
                   } else {
                     handleClick(way.id);
@@ -474,7 +476,7 @@ export function PointsPage() {
 
       <div
         onClick={() => {
-          handleClick(5);
+          handleClick(7);
         }}
         className="relative overflow-hidden rounded-2xl h-[90px] bg-gradient-to-r from-purple-500 via-pink-500 to-purple-600 border-2 border-purple-400 cursor-pointer hover:shadow-2xl transition-all duration-300 group"
       >
