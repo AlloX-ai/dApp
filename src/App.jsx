@@ -623,7 +623,7 @@ function App() {
         >
           <Route index element={<ChatPage />} />
           <Route path="/portfolio" element={<PortfolioPage />} />
-          <Route path="/season1" element={<Season1 />} />
+          <Route path="/spring-series" element={<Season1 />} />
           <Route path="/rewards" element={<PointsPage />} />
 
           <Route path="/trending" element={<TradingPage />} />

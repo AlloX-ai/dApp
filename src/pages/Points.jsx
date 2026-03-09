@@ -438,8 +438,12 @@ export function PointsPage() {
                           (way.id === 2 && rateLimit < 3) ||
                           (way.id === 3 && rateLimit === 0)
                             ? "bg-green-500"
-                            : (way.id === 2 && rateLimit >= 3) ||
-                                (way.id === 3 && rateLimit > 0)
+                            : (way.id === 2 &&
+                                  rateLimit >= 3 &&
+                                  rateLimit < 20) ||
+                                (way.id === 3 &&
+                                  rateLimit > 0 &&
+                                  rateLimit < 20)
                               ? "bg-orange-500"
                               : "bg-black hover:bg-gray-800"
                         }`}
