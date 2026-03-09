@@ -32,6 +32,7 @@ const initialState = {
     timesCompleted: 0,
     daily: true,
   },
+  followTask: {},
 
   // Task statistics
   taskStats: {
@@ -92,6 +93,10 @@ const socialSlice = createSlice({
     setPromoTask: (state, action) => {
       state.promoTask = { ...state.promoTask, ...action.payload };
     },
+    // Set promo task
+    setFollowTask: (state, action) => {
+      state.followTask = { ...action.payload };
+    },
 
     // Set task stats
     setTaskStats: (state, action) => {
@@ -138,6 +143,7 @@ export const {
   setTasks,
   updateTaskAction,
   setPromoTask,
+  setFollowTask,
   setTaskStats,
   setLoading,
   setError,

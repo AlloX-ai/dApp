@@ -7,6 +7,7 @@ import {
   setTasks,
   updateTaskAction,
   setPromoTask,
+  setFollowTask,
   setTaskStats,
   setLoading,
   setError,
@@ -24,6 +25,7 @@ export function useSocial() {
     tasks,
     socialPoints,
     promoTask,
+    followTask,
     taskStats,
     loading,
     error,
@@ -127,6 +129,7 @@ export function useSocial() {
       }));
       dispatch(setTasks(normalized));
       dispatch(setPromoTask(data.promoTask));
+      dispatch(setFollowTask(data.followTask));
       dispatch(setTaskStats({
         totalPointsAvailable: data.totalPointsAvailable,
         totalPointsEarned: data.totalPointsEarned,
@@ -268,6 +271,59 @@ export function useSocial() {
     }
   }, [dispatch, promoTask.timesCompleted]);
 
+  // Verify follow task
+  const verifyFollowTask = useCallback(async () => {
+    try {
+      dispatch(setLoading({ key: "followVerify", value: true }));
+      dispatch(clearError());
+
+      const data = await apiCall("/twitter/verify-follow", {
+        method: "POST",
+      });
+
+      // Update follow task using API payload when available.
+      if (data.followTask) {
+        dispatch(setFollowTask(data.followTask));
+      } else {
+        dispatch(setFollowTask({
+          ...followTask,
+          completedToday: true,
+          timesCompleted: (followTask?.timesCompleted || 0) + 1,
+        }));
+      }
+
+      // Keep points in sync without refetching tasks.
+      if (typeof data.totalPoints === "number") {
+        dispatch(setTaskStats({
+          totalPointsEarned: data.totalPoints,
+        }));
+      }
+
+      return data;
+    } catch (err) {
+      let errorMessage = "Failed to verify follow task";
+
+      if (err.status === 400) {
+        if (err.data?.error === "ALREADY_COMPLETED") {
+          errorMessage = "Already completed";
+        } else if (err.data?.error === "NOT_FOUND") {
+          errorMessage = "Could not verify follow task. Try again in a moment.";
+        }
+      } else if (err.status === 401) {
+        errorMessage = "Token expired. Please re-link your X account.";
+      } else if (err.status === 403) {
+        errorMessage = "Account not linked. Please link your X account.";
+      } else if (err.status === 429) {
+        errorMessage = "Too many attempts. Wait a moment.";
+      }
+
+      dispatch(setError(errorMessage));
+      throw err;
+    } finally {
+      dispatch(setLoading({ key: "followVerify", value: false }));
+    }
+  }, [dispatch, followTask]);
+
   // Handle URL parameters for auth callback
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -316,6 +372,7 @@ export function useSocial() {
     tasks,
     socialPoints,
     promoTask,
+    followTask,
     taskStats,
     loading,
     error,
@@ -334,6 +391,7 @@ export function useSocial() {
     verifyTaskAction,
     postPromoTweet,
     verifyPromoTweet,
+    verifyFollowTask,
     clearError,
   };
 }

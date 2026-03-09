@@ -71,6 +71,7 @@ export function XTasksModal({
     twitterStatus,
     tasks,
     promoTask,
+    followTask,
     taskStats,
     socialPoints,
     loading,
@@ -83,6 +84,7 @@ export function XTasksModal({
     verifyTaskAction,
     postPromoTweet,
     verifyPromoTweet,
+    verifyFollowTask,
     clearError,
     markAllAsSeen,
   } = useSocial();
@@ -103,6 +105,16 @@ export function XTasksModal({
     null,
   );
   const [promoTimerRemaining, setPromoTimerRemaining] = useState<string>("");
+
+
+  const [followVerifyState, setFollowVerifyState] = useState<
+    "idle" | "success" | "error"
+  >("idle");
+  const [followPosted, setFollowPosted] = useState(false);
+  const [followTimerEndTime, setFollowTimerEndTime] = useState<number | null>(
+    null,
+  );
+  const [followTimerRemaining, setFollowTimerRemaining] = useState<string>("");
 
   // 15‑second cooldown used after any action/verify call
   const [actionCooldownEndTime, setActionCooldownEndTime] = useState<number | null>(
@@ -417,6 +429,31 @@ export function XTasksModal({
     }
   };
 
+    const handleFollowVerify = async () => {
+    startActionCooldown();
+
+    if (!checkLimit()) {
+      toast.error(
+        "You have reached your limit. Please wait until you can perform this action again.",
+      );
+      return;
+    }
+    try {
+      setFollowVerifyState("idle");
+      await verifyFollowTask();
+      setFollowVerifyState("success");
+      // Clear timer and localStorage on successful verification
+      setFollowTimerEndTime(null);
+      setFollowTimerRemaining("");
+      localStorage.removeItem("followTimerEndTime");
+    } catch (err) {
+      setFollowVerifyState("error");
+      setTimeout(() => {
+        setFollowVerifyState("idle");
+      }, 2000);
+    }
+  };
+
   const handleAction = useCallback(async (taskId: string, action: "like" | "retweet") => {
     startActionCooldown();
 
@@ -506,9 +543,13 @@ export function XTasksModal({
     return likeAction?.completed && retweetAction?.completed;
   });
 
-  const totalStarsToday = socialPoints;
+  const isFollowCompleted = Boolean(
+    followTask?.completed || followTask?.completedToday,
+  );
+  const isPromoCompleted = Boolean(promoTask?.completedToday);
+  const hasFollowTask = Boolean(followTask && Object.keys(followTask).length > 0);
 
-  
+  const totalStarsToday = socialPoints;
 
   if (!isOpen) return null;
 
@@ -750,6 +791,188 @@ export function XTasksModal({
               {/* Tasks List */}
         <div className="p-6 overflow-y-auto max-h-[calc(80vh-270px)]">
               <div className="space-y-4">
+                {currentTab === "available" && hasFollowTask && !isFollowCompleted && (
+            
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="relative bg-gradient-to-br from-purple-500 via-indigo-500 to-blue-500 rounded-2xl p-[2px] shadow-xl hover:shadow-2xl transition-all"
+                  >
+                 
+                    <div className="absolute inset-0 bg-gradient-to-br from-purple-400 via-indigo-400 to-blue-400 rounded-2xl blur-xl opacity-50"></div>
+
+                    <div className="relative bg-white/95 backdrop-blur-xl rounded-2xl p-6">
+                      <div className="flex items-start gap-4">
+                        <div className="relative w-12 h-12 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-xl hidden md:flex items-center justify-center flex-shrink-0 shadow-lg">
+                          <Sparkles className="w-6 h-6 text-white" />
+                          <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/30 to-transparent rounded-xl animate-pulse"></div>
+                        </div>
+
+                        <div className="flex-1">
+                          <div className="flex items-start justify-between mb-2">
+                            <div>
+                              <div className="inline-flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-lg mb-2">
+                                <Star className="w-3 h-3 text-white fill-white" />
+                                <span className="text-xs font-bold text-white">
+                                  FOLLOW US
+                                </span>
+                              </div>
+
+                              <h3 className="text-lg font-bold mb-1 bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
+                                {followTask.title}
+                              </h3>
+                              <p className="text-sm text-gray-600 mb-2">
+                                {followTask.description}
+                              </p>
+
+                              <div className="flex items-center gap-4 text-xs text-gray-500 mb-3">
+                              
+                                <div className="flex items-center gap-1 font-bold text-transparent bg-gradient-to-r from-yellow-500 to-orange-500 bg-clip-text">
+                                  <Coins className="w-4 h-4 fill-yellow-500 text-yellow-500" />
+                                  {followTask.points} points
+                                </div>
+                              </div>
+
+                             
+                            </div>
+                          </div>
+
+                          {/* Action Buttons */}
+                          {!isFollowCompleted && (
+                            <div className="flex gap-3">
+                              <a
+                                href={"https://x.com/alloxdotai"}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl font-semibold transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                <ExternalLink className="w-4 h-4" />
+                                Follow
+                              </a>
+                              <div className="group relative">
+                                <button
+                                  onClick={handleFollowVerify}
+                                  disabled={isLimited ||
+                                    actionCooldownEndTime !== null
+                                  }
+                                  className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold transition-all shadow-md ${
+                                    isLimited 
+                                      ? "bg-gray-400 text-white cursor-not-allowed"
+                                      : followVerifyState === "success"
+                                        ? "bg-green-500 text-white"
+                                        : followVerifyState === "error"
+                                          ? "bg-red-500 text-white"
+                                          : isFollowCompleted
+                                            ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                                            : "bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white hover:shadow-lg"
+                                  }`}
+                                >
+                                  <>
+                                      <svg
+                                        className="w-4 h-4"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={2}
+                                          d="M5 13l4 4L19 7"
+                                        />
+                                      </svg>
+                                      {followVerifyState === "success"
+                                        ? "Verified"
+                                        : followVerifyState === "error"
+                                          ? "Failed"
+                                          : "Verify"}
+                                    </>
+                                </button>
+                                {followTimerEndTime !== null && (
+                                  <div className="absolute bottom-full right-0 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                                    You can verify after the timer ends
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {isFollowCompleted && (
+                            <div className="flex items-center gap-2 text-green-600 font-semibold text-sm">
+                              <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                                <svg
+                                  className="w-3 h-3 text-white"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={3}
+                                    d="M5 13l4 4L19 7"
+                                  />
+                                </svg>
+                              </div>
+                              Completed
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
+                {currentTab === "completed" && hasFollowTask && isFollowCompleted && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="relative bg-gradient-to-br from-green-500 via-emerald-500 to-teal-500 rounded-2xl p-[2px] shadow-xl"
+                  >
+                    <div className="relative bg-white/95 backdrop-blur-xl rounded-2xl p-6">
+                      <div className="flex items-start gap-4">
+                        <div className="relative w-12 h-12 bg-gradient-to-br from-green-600 to-emerald-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
+                          <Sparkles className="w-6 h-6 text-white" />
+                        </div>
+
+                        <div className="flex-1">
+                          <div className="inline-flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-lg mb-2">
+                            <Star className="w-3 h-3 text-white fill-white" />
+                            <span className="text-xs font-bold text-white">
+                              FOLLOW US
+                            </span>
+                          </div>
+
+                          <h3 className="text-lg font-bold mb-1 bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+                            {followTask.title}
+                          </h3>
+                          <p className="text-sm text-gray-600 mb-2">
+                            {followTask.description}
+                          </p>
+
+                          <div className="flex items-center gap-2 text-green-600 font-semibold text-sm mt-4">
+                            <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                              <svg
+                                className="w-3 h-3 text-white"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={3}
+                                  d="M5 13l4 4L19 7"
+                                />
+                              </svg>
+                            </div>
+                            Completed
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
                 {currentTab === "available" && !promoTask.completedToday && (
             
                   <motion.div
@@ -899,7 +1122,7 @@ export function XTasksModal({
                   </motion.div>
                 )}
 
-                {currentTab === "completed" && promoTask.completedToday && (
+                {currentTab === "completed" && isPromoCompleted && (
                   /* Premium Daily Promo Task - Completed View */
                   <motion.div
                     initial={{ opacity: 0, y: -10 }}
@@ -954,7 +1177,9 @@ export function XTasksModal({
                 )}
 
                 {(currentTab === "available" ? availableTasks : completedTasks)
-                  .length === 0 ? (
+                  .length === 0 &&
+                ((currentTab === "available" && isFollowCompleted && isPromoCompleted) ||
+                  (currentTab === "completed" && !isFollowCompleted && !isPromoCompleted)) ? (
                   <div className="text-center py-12 text-gray-500">
                     {currentTab === "available"
                       ? "No available tasks at the moment"
