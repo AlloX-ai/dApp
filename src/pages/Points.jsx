@@ -12,6 +12,9 @@ import {
   HelpCircle,
   Check,
   ChevronRight,
+  Loader2,
+  X,
+  Info,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
@@ -44,15 +47,40 @@ export function PointsPage() {
   const [showXTasksModal, setShowXTasksModal] = useState(false);
   const [showFAQModal, setShowFAQModal] = useState(false);
 
+  // local state kept for backward compatibility but UI now uses Redux newCount
   const [newTasksCount, setNewTasksCount] = useState(4);
   const [expandedFaq, setExpandedFaq] = useState(null);
+  const [showTooltip, setShowTooltip] = useState(false);
+  const [showWelcomeGiftModal, setShowWelcomeGiftModal] = useState(false);
+  const [claiming, setClaiming] = useState(false);
+  const [claimError, setClaimError] = useState(null);
+
+  const html = document.querySelector("html");
+
+
+    useEffect(() => {
+    if (showXTasksModal) {
+      html.classList.add("hidescroll");
+    } else {
+      html.classList.remove("hidescroll");
+    }
+  }, [showXTasksModal]);
+  const params = new URLSearchParams(window.location.search);
+    const error = params.get('error');
+      const message = params.get('message');
+      const success = params.get('success');
+
+      console.log(params, error, message, success);
+      
+
+
 
   const handleXTasksClick = () => {
     setShowXTasksModal(true);
   };
 
   const handleTasksViewed = () => {
-    setNewTasksCount(0);
+    setNewTasksCount(0); // Reset count when tasks are viewed
   };
 
   const navigate = useNavigate();
@@ -64,10 +92,14 @@ export function PointsPage() {
     user?.season1?.rateLimit?.remaining ??
     user?.season1?.rateLimit?.messagesRemaining;
 
-  const [showWelcomeGiftModal, setShowWelcomeGiftModal] = useState(false);
-  const [claiming, setClaiming] = useState(false);
-  const [claimError, setClaimError] = useState(null);
   const checkinStatus = useSelector((state) => state.checkin?.status);
+    const socialPoints = useSelector((state) => state.social?.socialPoints);
+    const newCount = useSelector((state) => state.social?.newCount);
+
+
+
+    
+  
   const lastClaimed = useMemo(() => {
     for (let i = checkinStatus?.rewards?.length - 1; i >= 0; i--) {
       if (checkinStatus.rewards[i].claimed === true) {
@@ -165,12 +197,14 @@ export function PointsPage() {
     {
       id: 6,
       name: "Social Tasks",
-      points: "200",
+      points: "1000",
       description: "Complete social media tasks",
       icon: null,
       customIcon: XLogo,
-      comingSoon: true,
-      isClickable: false,
+      comingSoon: false,
+      isClickable: true,
+      userPoints:
+        getFormattedNumber(socialPoints || 0, 0) || 0,
     },
   ];
   const handleClaimPoints = async () => {
@@ -210,9 +244,13 @@ export function PointsPage() {
     } else if (id === 4) {
       dispatch(openCheckinModal());
     } else if (id === 5) {
+      // navigate("/referrals", { replace: true });
+    } else if (id === 7) {
       navigate("/referrals", { replace: true });
     } else if (id > 1 && id <= 3) {
       navigate("/", { replace: true });
+    } else if (id === 6) {
+      handleXTasksClick();
     }
   };
 
@@ -320,8 +358,8 @@ export function PointsPage() {
               <div
                 key={way.id}
                 onClick={() => {
-                  if (isXTasks || way.id === 5) {
-                    // handleXTasksClick();
+                  if (isXTasks) {
+                    handleXTasksClick();
                   } else {
                     handleClick(way.id);
                   }
@@ -338,11 +376,7 @@ export function PointsPage() {
                 )}
 
                 {/* Notification Badge for X Tasks */}
-                {/* {isXTasks && newTasksCount > 0 && (
-                  <div className="absolute top-3 right-3 w-6 h-6 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
-                    {newTasksCount}
-                  </div>
-                )} */}
+                
 
                 {/* Arrow indicator for clickable items */}
                 {/* {way.isClickable &&
@@ -352,19 +386,26 @@ export function PointsPage() {
                       <ArrowRight className="w-4 h-4 text-white" />
                     </div>
                   )} */}
-                <div className="flex items-center gap-2">
-                  <div>
-                    {/* Icon */}
-                    <div className="mb-4">
-                      <div
-                        className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-4 ${"bg-black"}`}
-                      >
-                        {CustomIcon ? (
-                          <CustomIcon className="w-5 h-5 text-white" />
-                        ) : Icon ? (
-                          <Icon className="w-5 h-5 text-white" />
-                        ) : null}
+                  <div className="flex items-center gap-2">
+                    <div>
+                      {/* Icon */}
+                    <div className="flex align-center gap-2">
+                        <div className="mb-4">
+                        <div
+                          className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-4 ${"bg-black"}`}
+                        >
+                          {CustomIcon ? (
+                            <CustomIcon className="w-5 h-5 text-white" />
+                          ) : Icon ? (
+                            <Icon className="w-5 h-5 text-white" />
+                          ) : null}
+                        </div>
                       </div>
+                      {isXTasks && newCount > 0 && (
+                    <div className="px-2 py-1 bg-red-500 text-white text-xs font-bold rounded-full w-fit h-fit">
+                      {newCount} new
+                    </div>
+                  )}
                     </div>
 
                     {/* Content */}
@@ -468,7 +509,7 @@ export function PointsPage() {
 
       <div
         onClick={() => {
-          handleClick(5);
+          handleClick(7);
         }}
         className="relative overflow-hidden rounded-2xl h-[90px] bg-gradient-to-r from-purple-500 via-pink-500 to-purple-600 border-2 border-purple-400 cursor-pointer hover:shadow-2xl transition-all duration-300 group"
       >
@@ -509,6 +550,72 @@ export function PointsPage() {
 
       {/* FAQ Modal */}
       <FAQModal isOpen={showFAQModal} onClose={() => setShowFAQModal(false)} />
+      {/* Welcome Bonus Claim Modal */}
+      {showWelcomeGiftModal && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          onClick={() => {
+            if (!claiming) setShowWelcomeGiftModal(false);
+          }}
+        >
+          <div
+            className="glass-card max-w-sm w-full p-8 relative animate-fade-in flex flex-col items-center text-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                if (!claiming) setShowWelcomeGiftModal(false);
+              }}
+              className="absolute top-4 right-4 p-1 rounded-lg hover:bg-black/5 text-gray-500"
+              aria-label="Close"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="flex items-center gap-2 mb-2">
+              <h3 className="text-xl font-bold">Welcome Bonus</h3>
+            </div>
+            <p className="text-sm text-gray-600 mb-6">
+              Exclusive Web3 Community Benefit.
+            </p>
+            <div className="flex items-center justify-center gap-2 mb-1">
+              <span className="text-4xl font-bold">
+                {INITIAL_CLAIM_POINTS.toLocaleString()}
+              </span>
+            </div>
+            <p className="text-sm text-gray-500 mb-8">Points</p>
+            {!isConnected && (
+              <p className="text-sm text-amber-600 mb-4">
+                Connect your wallet to claim.
+              </p>
+            )}
+            {claimError && (
+              <p className="text-sm text-red-600 mb-2">{claimError}</p>
+            )}
+            <button
+              onClick={handleClaimPoints}
+              disabled={claiming || !isConnected}
+              className="w-full py-4 rounded-2xl font-medium bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {claiming ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Claiming...
+                </>
+              ) : (
+                "Claim"
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+
+      <XTasksModal
+        isOpen={showXTasksModal}
+        onClose={() => setShowXTasksModal(false)}
+        onTasksViewed={handleTasksViewed}
+      />
     </div>
   );
 }
