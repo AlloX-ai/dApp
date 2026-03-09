@@ -197,7 +197,7 @@ export function PointsPage() {
     {
       id: 6,
       name: "Social Tasks",
-      points: "200",
+      points: "1000",
       description: "Complete social media tasks",
       icon: null,
       customIcon: XLogo,

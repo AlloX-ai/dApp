@@ -84,6 +84,7 @@ export function XTasksModal({
     verifyTaskAction,
     postPromoTweet,
     verifyPromoTweet,
+    fetchSocialPoints,
     verifyFollowTask,
     clearError,
     markAllAsSeen,
@@ -416,6 +417,7 @@ export function XTasksModal({
     try {
       setPromoVerifyState("idle");
       await verifyPromoTweet();
+      await fetchSocialPoints(); // Refresh points after successful verification
       setPromoVerifyState("success");
       // Clear timer and localStorage on successful verification
       setPromoTimerEndTime(null);
@@ -442,6 +444,7 @@ export function XTasksModal({
       setFollowVerifyState("idle");
       await verifyFollowTask();
       setFollowVerifyState("success");
+      await fetchSocialPoints(); // Refresh points after successful verification
       // Clear timer and localStorage on successful verification
       setFollowTimerEndTime(null);
       setFollowTimerRemaining("");
@@ -927,22 +930,29 @@ export function XTasksModal({
                   <motion.div
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="relative bg-gradient-to-br from-green-500 via-emerald-500 to-teal-500 rounded-2xl p-[2px] shadow-xl"
+                    className="relative bg-gradient-to-br from-black-500 via-black-500 to-black-500 rounded-2xl p-[2px] shadow-xl"
                   >
                     <div className="relative bg-white/95 backdrop-blur-xl rounded-2xl p-6">
                       <div className="flex items-start gap-4">
-                        <div className="relative w-12 h-12 bg-gradient-to-br from-green-600 to-emerald-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
-                          <Sparkles className="w-6 h-6 text-white" />
-                        </div>
+                          <div className="w-12 h-12 bg-black rounded-xl flex items-center justify-center flex-shrink-0 hidden md:flex">
+                            <img
+                              src={"https://cdn.allox.ai/allox/alloxWhite.svg"}
+                              alt=""
+                              className="h-10 flex"
+                            />
+                          </div>
 
                         <div className="flex-1">
-                          <div className="inline-flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-lg mb-2">
+                          <div className="inline-flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-green-400 to-teal-400 rounded-lg mb-2">
                             <Star className="w-3 h-3 text-white fill-white" />
                             <span className="text-xs font-bold text-white">
                               FOLLOW US
                             </span>
                           </div>
-
+                           <div className="flex items-center gap-1 font-bold text-transparent bg-gradient-to-r from-yellow-500 to-orange-500 bg-clip-text text-xs">
+                                  <Coins className="w-4 h-4 fill-yellow-500 text-yellow-500" />
+                                  1000 points
+                                </div>
                           <h3 className="text-lg font-bold mb-1 bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
                             {followTask.title}
                           </h3>
@@ -1144,7 +1154,10 @@ export function XTasksModal({
                               DAILY PROMO
                             </span>
                           </div>
-
+                          <div className="flex items-center gap-1 font-bold text-transparent bg-gradient-to-r from-yellow-500 to-orange-500 bg-clip-text text-xs">
+                                  <Coins className="w-4 h-4 fill-yellow-500 text-yellow-500" />
+                                  500 points
+                                </div>
                           <h3 className="text-lg font-bold mb-1 bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
                             {promoTask.title}
                           </h3>
