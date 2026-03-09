@@ -65,17 +65,13 @@ export function PointsPage() {
       html.classList.remove("hidescroll");
     }
   }, [showXTasksModal]);
-
-  useEffect(() => {
   const params = new URLSearchParams(window.location.search);
     const error = params.get('error');
       const message = params.get('message');
       const success = params.get('success');
-      if(message || error || success) {
-        setShowXTasksModal(true);
-      }
 
-}, [])
+      console.log(params, error, message, success);
+      
 
 
 

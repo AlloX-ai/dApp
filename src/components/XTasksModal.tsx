@@ -75,6 +75,7 @@ export function XTasksModal({
     socialPoints,
     loading,
     error,
+    requirementError,
     fetchTwitterStatus,
     fetchSocialPoints,
     linkTwitter,
@@ -180,6 +181,9 @@ export function XTasksModal({
       clearError();
     }
   }, [error, clearError]);
+
+  console.log(error, "error");
+  
 
   // Clear promoPosted when modal closes
   useEffect(() => {
@@ -533,14 +537,14 @@ export function XTasksModal({
                 {/* Right side - Username and Disconnect */}
                 <div className="flex flex-col items-end gap-1">
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold">
+                    <span className="font-semibold text-lg">
                       @{twitterStatus.username}
                     </span>
                   </div>
                   <button
                     onClick={handleDisconnectClick}
                     disabled={loading.unlink}
-                    className="text-sm text-red-600 hover:text-red-700 underline font-medium transition-colors disabled:opacity-50"
+                    className="text-xs text-red-400 hover:text-red-700 underline font-medium transition-colors disabled:opacity-50"
                   >
                     {loading.unlink ? "Disconnecting..." : "Disconnect"}
                   </button>
@@ -666,12 +670,11 @@ export function XTasksModal({
           </>
         )}
         {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[calc(80vh-270px)]">
-          {!twitterStatus.linked || loading.tasks ? (
+          {!twitterStatus.linked  ? (
             <>
               {/* Tabs (same layout as connected) */}
 
-              {error ? 
+              {requirementError ? 
             <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -702,7 +705,7 @@ export function XTasksModal({
                     <div className="bg-white border border-red-200 rounded-xl p-4 mb-6 w-full max-w-md">
                       <p className="text-sm font-semibold text-red-900 mb-2">Requirements:</p>
                       <ul className="text-sm text-red-700 space-y-1 text-left">
-                        <li>{error}</li>
+                        <li>{requirementError}</li>
                       </ul>
                     </div>
                   </div>
@@ -715,36 +718,37 @@ export function XTasksModal({
               </div>  
             }
             </>
+          ) : loading.tasks ? (
+            <div className="flex justify-center items-center p-6">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+            </div>
           ) : (
             <>
               {/* Tabs */}
 
               {/* Tasks List */}
+        <div className="p-6 overflow-y-auto max-h-[calc(80vh-270px)]">
               <div className="space-y-4">
                 {currentTab === "available" && !promoTask.completedToday && (
-                  /* Premium Daily Promo Task */
+            
                   <motion.div
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
                     className="relative bg-gradient-to-br from-purple-500 via-indigo-500 to-blue-500 rounded-2xl p-[2px] shadow-xl hover:shadow-2xl transition-all"
                   >
-                    {/* Glow effect */}
+                 
                     <div className="absolute inset-0 bg-gradient-to-br from-purple-400 via-indigo-400 to-blue-400 rounded-2xl blur-xl opacity-50"></div>
 
                     <div className="relative bg-white/95 backdrop-blur-xl rounded-2xl p-6">
                       <div className="flex items-start gap-4">
-                        {/* Premium Icon */}
                         <div className="relative w-12 h-12 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-xl hidden md:flex items-center justify-center flex-shrink-0 shadow-lg">
                           <Sparkles className="w-6 h-6 text-white" />
-                          {/* Shimmer effect */}
                           <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/30 to-transparent rounded-xl animate-pulse"></div>
                         </div>
 
-                        {/* Content */}
                         <div className="flex-1">
                           <div className="flex items-start justify-between mb-2">
                             <div>
-                              {/* Daily tag */}
                               <div className="inline-flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-lg mb-2">
                                 <Star className="w-3 h-3 text-white fill-white" />
                                 <span className="text-xs font-bold text-white">
@@ -770,7 +774,6 @@ export function XTasksModal({
                                 </div>
                               </div>
 
-                              {/* Tweet Preview Box (sample text) */}
                               <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 mb-4 text-sm text-gray-700 italic">
                                 "Help me earn points by tweeting about
                                 @alloxdotai!" (must mention @alloxdotai)
@@ -1100,9 +1103,10 @@ export function XTasksModal({
                   })
                 )}
               </div>
+              </div>
             </>
           )}
-        </div>
+      
       </motion.div>
 
       {/* Disconnect Confirmation Modal */}

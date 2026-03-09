@@ -10,6 +10,7 @@ import {
   setTaskStats,
   setLoading,
   setError,
+  setRequirementError,
   clearError,
   setSeenPosts,
   setNewCount,
@@ -26,6 +27,7 @@ export function useSocial() {
     taskStats,
     loading,
     error,
+    requirementError,
     seenPosts,
     newCount,
   } = useSelector((state) => state.social);
@@ -301,7 +303,7 @@ export function useSocial() {
       if(error && message) {
         toast.error(message);
       }
-
+      dispatch(setRequirementError(message))
       dispatch(setError(errorMessage));
       // Clear URL parameters
       window.history.replaceState({}, document.title, window.location.pathname);
@@ -317,6 +319,7 @@ export function useSocial() {
     taskStats,
     loading,
     error,
+    requirementError,
     seenPosts,
     newCount,
 

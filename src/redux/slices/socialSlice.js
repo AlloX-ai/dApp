@@ -55,6 +55,7 @@ const initialState = {
   },
 
   error: null,
+  requirementError: null, 
 };
 
 const socialSlice = createSlice({
@@ -116,6 +117,9 @@ const socialSlice = createSlice({
     setError: (state, action) => {
       state.error = action.payload;
     },
+    setRequirementError: (state, action) => {
+      state.requirementError = action.payload;
+    },
 
     clearError: (state) => {
       state.error = null;
@@ -137,6 +141,7 @@ export const {
   setTaskStats,
   setLoading,
   setError,
+  setRequirementError,
   clearError,
   resetSocialState,
   setSeenPosts,
