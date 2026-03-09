@@ -9,12 +9,14 @@ import {
   ExternalLink,
   Coins,
   Loader2,
+  Info,
 } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useSocial } from "../hooks/useSocial";
 import { useSelector } from "react-redux";
 import { toast } from "sonner";
+import { useApiLimiter } from "../hooks/useApiLimiter";
 
 // Custom X (Twitter) Logo Component
 function XLogo({ className }: { className?: string }) {
@@ -85,6 +87,8 @@ export function XTasksModal({
     markAllAsSeen,
   } = useSocial();
 
+  const { checkLimit, remaining, resetTime, isLimited } = useApiLimiter();
+
   const [currentTab, setCurrentTab] = useState<"available" | "completed">(
     "available",
   );
@@ -99,6 +103,13 @@ export function XTasksModal({
     null,
   );
   const [promoTimerRemaining, setPromoTimerRemaining] = useState<string>("");
+
+  // 15‑second cooldown used after any action/verify call
+  const [actionCooldownEndTime, setActionCooldownEndTime] = useState<number | null>(
+    null,
+  );
+  const [actionCooldownRemaining, setActionCooldownRemaining] = useState<string>("");
+
   const [actionStates, setActionStates] = useState<{
     [key: string]: {
       like: "idle" | "loading" | "success" | "error";
@@ -107,6 +118,25 @@ export function XTasksModal({
   }>({});
   const lastErrorRef = useRef<string | null>(null);
 
+  const [secondsLeft, setSecondsLeft] = useState(0);
+
+  useEffect(() => {
+    if (!resetTime) return;
+
+    const interval = setInterval(() => {
+      const remaining = Math.max(0, Math.ceil((resetTime - Date.now()) / 1000));
+      setSecondsLeft(remaining);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [resetTime]);
+
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  };
   // initialize action states when tasks load
   useEffect(() => {
     const states: any = {};
@@ -209,6 +239,17 @@ export function XTasksModal({
           localStorage.removeItem("promoTimerEndTime");
         }
       }
+
+      // also restore action cooldown timer
+      const savedActionEnd = localStorage.getItem("actionCooldownEndTime");
+      if (savedActionEnd) {
+        const endTime = parseInt(savedActionEnd);
+        if (endTime > Date.now()) {
+          setActionCooldownEndTime(endTime);
+        } else {
+          localStorage.removeItem("actionCooldownEndTime");
+        }
+      }
     }
   }, [isOpen]);
 
@@ -233,6 +274,28 @@ export function XTasksModal({
       return () => clearInterval(interval);
     }
   }, [promoTimerEndTime]);
+
+  // Timer effect for short action cooldown
+  useEffect(() => {
+    if (actionCooldownEndTime) {
+      const interval = setInterval(() => {
+        const now = Date.now();
+        const remaining = actionCooldownEndTime - now;
+
+        if (remaining <= 0) {
+          setActionCooldownEndTime(null);
+          setActionCooldownRemaining("");
+          localStorage.removeItem("actionCooldownEndTime");
+          clearInterval(interval);
+        } else {
+          const seconds = Math.ceil(remaining / 1000);
+          setActionCooldownRemaining(`${seconds}s`);
+        }
+      }, 100);
+
+      return () => clearInterval(interval);
+    }
+  }, [actionCooldownEndTime]);
 
   // Clear timer when promo task is completed
   useEffect(() => {
@@ -270,6 +333,14 @@ export function XTasksModal({
 
   const handlePromoPost = () => {
     // Use one of the random tweet variants
+
+    if (!checkLimit()) {
+      toast.error(
+        "You have reached your limit. Please wait until you can perform this action again.",
+      );
+      return;
+    }
+
     const tweetVariants = [
       "Just discovered @alloxdotai — AI-powered crypto portfolios! 🚀\n\nCheck it out: https://allox.ai",
       "Excited about @alloxdotai's AI-driven portfolio management! The future of DeFi is here 🧠💎\n\nhttps://allox.ai",
@@ -289,7 +360,22 @@ export function XTasksModal({
     setPromoPosted(true);
   };
 
+  // start a short cooldown and persist it
+  const startActionCooldown = () => {
+    const end = Date.now() + 10000; // 15 seconds
+    setActionCooldownEndTime(end);
+    localStorage.setItem("actionCooldownEndTime", end.toString());
+  };
+
   const handlePromoVerify = async () => {
+    startActionCooldown();
+
+    if (!checkLimit()) {
+      toast.error(
+        "You have reached your limit. Please wait until you can perform this action again.",
+      );
+      return;
+    }
     try {
       setPromoVerifyState("idle");
       await verifyPromoTweet();
@@ -307,7 +393,15 @@ export function XTasksModal({
     }
   };
 
-  const handleAction = async (taskId: string, action: "like" | "retweet") => {
+  const handleAction = useCallback(async (taskId: string, action: "like" | "retweet") => {
+    startActionCooldown();
+
+    if (!checkLimit()) {
+      toast.error(
+        "You have reached your limit. Please wait until you can perform this action again.",
+      );
+      return;
+    }
     try {
       // Set loading state before doing anything else
       setActionStates((prev) => ({
@@ -353,10 +447,10 @@ export function XTasksModal({
     } catch (err) {
       // Error handled in hook
     }
-  };
+  }, [verifyTaskAction, fetchSocialPoints,checkLimit]);
 
   const getActionButtonClass = (
-    state: "idle" | "loading" | "success" | "error",
+    state: "idle" | "loading" | "success" | "error" | "limited",
     isCompleted: boolean,
   ) => {
     if (isCompleted) {
@@ -364,6 +458,9 @@ export function XTasksModal({
     }
     if (state === "loading") {
       return "bg-gray-500 text-white cursor-wait";
+    }
+    if (state === "limited") {
+      return "bg-gray-500 text-white cursor-wait ";
     }
     if (state === "success") {
       return "bg-green-500 text-white";
@@ -396,7 +493,7 @@ export function XTasksModal({
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
-        className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl w-full max-w-4xl h-[80vh] overflow-hidden border border-white/60"
+        className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl w-full max-w-4xl h-[90vh] overflow-hidden border border-white/60"
       >
         {/* Header */}
         <div className="p-6 border-b border-gray-200 bg-white/60">
@@ -452,11 +549,20 @@ export function XTasksModal({
             ) : (
               <>
                 {/* Left side - Not connected */}
-                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2">
                   <XLogo className="w-5 h-5" />
-                  <span className="font-semibold text-gray-600">
-                    Not Connected
-                  </span>
+                  <span className="font-semibold text-gray-600">Not Connected</span>
+                  {/* Requirements Tooltip */}
+                  <div className="group relative">
+                    <Info className="w-4 h-4 text-gray-500 cursor-help" />
+                    <div className="absolute left-0 top-full mt-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 w-fit">
+                      <p className="font-semibold mb-1">Requirements:</p>
+                      <ul className="space-y-0.5">
+                        <li>- Account should be more than 6 months old</li>
+                        <li>- Account should have 50 or more followers</li>
+                      </ul>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Right side - Connect button or timer */}
@@ -485,8 +591,10 @@ export function XTasksModal({
           </div>
         </div>
 
+        
+
         {!twitterStatus.linked || loading.tasks ? (
-          <div className="flex gap-2 mb-6 px-6">
+          <div className="flex gap-2 mb-6 px-6 mt-4">
             <button
               disabled
               className="flex-1 px-6 py-3 rounded-xl font-semibold bg-black text-white cursor-not-allowed text-xs md:text-base"
@@ -501,28 +609,61 @@ export function XTasksModal({
             </button>
           </div>
         ) : (
-          <div className="flex gap-2 mb-6 px-6">
-            <button
-              onClick={() => setCurrentTab("available")}
-              className={`flex-1 px-6 py-3 rounded-xl font-semibold text-xs md:text-base transition-all ${
-                currentTab === "available"
-                  ? "bg-black text-white"
-                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+          <>
+            <div className="flex gap-2 mb-6 px-6 mt-4">
+              <button
+                onClick={() => setCurrentTab("available")}
+                className={`flex-1 px-6 py-3 rounded-xl font-semibold text-xs md:text-base transition-all ${
+                  currentTab === "available"
+                    ? "bg-black text-white"
+                    : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                }`}
+              >
+                Available ({availableTasks.length})
+              </button>
+              <button
+                onClick={() => setCurrentTab("completed")}
+                className={`flex-1 px-6 py-3 rounded-xl font-semibold text-xs md:text-base transition-all ${
+                  currentTab === "completed"
+                    ? "bg-black text-white"
+                    : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                }`}
+              >
+                Completed ({completedTasks.length})
+              </button>
+            </div>
+            <div
+              className={`mb-4 p-3 rounded-xl border mx-6 ${
+                isLimited
+                  ? "bg-red-50 border-red-200"
+                  : "bg-blue-50 border-blue-200"
               }`}
             >
-              Available ({availableTasks.length})
-            </button>
-            <button
-              onClick={() => setCurrentTab("completed")}
-              className={`flex-1 px-6 py-3 rounded-xl font-semibold text-xs md:text-base transition-all ${
-                currentTab === "completed"
-                  ? "bg-black text-white"
-                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-              }`}
-            >
-              Completed ({completedTasks.length})
-            </button>
-          </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Clock
+                    className={`w-4 h-4 ${isLimited ? "text-red-600" : "text-blue-600"}`}
+                  />
+                  <span
+                    className={`text-sm font-medium ${isLimited ? "text-red-700" : "text-blue-700"}`}
+                  >
+                    {isLimited
+                      ? `Task limit reached. Reset in ${formatTime(secondsLeft)}`
+                      : `You can check ${remaining} more tasks in the next 15 minutes`}
+                  </span>
+                </div>
+                <span
+                  className={`text-xs font-semibold px-2 py-1 rounded-lg ${
+                    isLimited
+                      ? "bg-red-200 text-red-700"
+                      : "bg-blue-200 text-blue-700"
+                  }`}
+                >
+                  {remaining}/5
+                </span>
+              </div>
+            </div>
+          </>
         )}
         {/* Content */}
         <div className="p-6 overflow-y-auto max-h-[calc(80vh-270px)]">
@@ -530,11 +671,49 @@ export function XTasksModal({
             <>
               {/* Tabs (same layout as connected) */}
 
+              {error ? 
+            <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-red-50 border-2 border-red-200 rounded-2xl p-8"
+                >
+                  <div className="flex flex-col items-center text-center">
+                    <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                      <svg
+                        className="w-8 h-8 text-red-600"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                        />
+                      </svg>
+                    </div>
+                    
+                    <h3 className="text-xl font-bold text-red-900 mb-2">Connection Failed</h3>
+                    <p className="text-red-700 mb-4 max-w-md">
+                      Your X account couldn't be connected because it doesn't meet the requirements.
+                    </p>
+                    
+                    <div className="bg-white border border-red-200 rounded-xl p-4 mb-6 w-full max-w-md">
+                      <p className="text-sm font-semibold text-red-900 mb-2">Requirements:</p>
+                      <ul className="text-sm text-red-700 space-y-1 text-left">
+                        <li>{error}</li>
+                      </ul>
+                    </div>
+                  </div>
+                </motion.div>
+              :
               <div className="flex justify-center items-center">
                 <h3 className="text-lg font-bold mb-1 bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
                   Connect your account to view tasks!
                 </h3>
-              </div>
+              </div>  
+            }
             </>
           ) : (
             <>
@@ -615,11 +794,14 @@ export function XTasksModal({
                                   onClick={handlePromoVerify}
                                   disabled={
                                     promoTask.completedToday ||
+                                    !promoPosted ||
                                     promoTimerEndTime !== null ||
-                                    promoVerifyState === "success"
+                                    promoVerifyState === "success" ||
+                                    isLimited ||
+                                    actionCooldownEndTime !== null
                                   }
                                   className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold transition-all shadow-md ${
-                                    promoTimerEndTime !== null
+                                    !promoPosted || promoTimerEndTime !== null || isLimited || actionCooldownEndTime !== null
                                       ? "bg-gray-400 text-white cursor-not-allowed"
                                       : promoVerifyState === "success"
                                         ? "bg-green-500 text-white"
@@ -630,10 +812,12 @@ export function XTasksModal({
                                             : "bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white hover:shadow-lg"
                                   }`}
                                 >
-                                  {promoTimerEndTime !== null ? (
+                                  {promoTimerEndTime !== null || actionCooldownEndTime !== null ? (
                                     <>
                                       <Clock className="w-4 h-4" />
-                                      {promoTimerRemaining}
+                                      {actionCooldownEndTime !== null
+                                        ? actionCooldownRemaining
+                                        : promoTimerRemaining}
                                     </>
                                   ) : (
                                     <>
@@ -823,9 +1007,15 @@ export function XTasksModal({
                                   disabled={
                                     task.actions?.find(
                                       (a: any) => a.action === "like",
-                                    )?.completed || taskState.like === "loading"
+                                    )?.completed ||
+                                    taskState.like === "loading" ||
+                                    isLimited ||
+                                    actionCooldownEndTime !== null
                                   }
-                                  className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all ${getActionButtonClass(
+                                  className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all ${
+                                    (isLimited || actionCooldownEndTime !== null) &&
+                                    getActionButtonClass("limited", false)
+                                  } ${getActionButtonClass(
                                     taskState.like,
                                     task.actions?.find(
                                       (a: any) => a.action === "like",
@@ -853,9 +1043,14 @@ export function XTasksModal({
                                     task.actions?.find(
                                       (a: any) => a.action === "retweet",
                                     )?.completed ||
-                                    taskState.retweet === "loading"
+                                    taskState.retweet === "loading" ||
+                                    isLimited ||
+                                    actionCooldownEndTime !== null
                                   }
-                                  className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all ${getActionButtonClass(
+                                  className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all ${
+                                    (isLimited || actionCooldownEndTime !== null) &&
+                                    getActionButtonClass("limited", false)
+                                  } ${getActionButtonClass(
                                     taskState.retweet,
                                     task.actions?.find(
                                       (a: any) => a.action === "retweet",

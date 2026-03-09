@@ -66,6 +66,19 @@ export function PointsPage() {
     }
   }, [showXTasksModal]);
 
+  useEffect(() => {
+  const params = new URLSearchParams(window.location.search);
+    const error = params.get('error');
+      const message = params.get('message');
+      const success = params.get('success');
+      if(message || error || success) {
+        setShowXTasksModal(true);
+      }
+
+}, [])
+
+
+
   const handleXTasksClick = () => {
     setShowXTasksModal(true);
   };

@@ -273,7 +273,7 @@ export function useSocial() {
     if (params.get('success') === 'true') {
       const username = params.get('username');
       // Show success message
-      toast(`Linked to @${username}!`);
+      toast.success(`Linked to @${username}!`);
       // Refresh status
       fetchTwitterStatus();
       // Clear URL parameters
