@@ -77,7 +77,6 @@ export function XTasksModal({
     error,
     requirementError,
     fetchTwitterStatus,
-    fetchSocialPoints,
     linkTwitter,
     unlinkTwitter,
     fetchTasks,
@@ -118,6 +117,9 @@ export function XTasksModal({
     };
   }>({});
   const lastErrorRef = useRef<string | null>(null);
+  const hasFetchedStatusRef = useRef(false);
+  const hasFetchedTasksRef = useRef(false);
+  const hasViewedTasksRef = useRef(false);
 
   const [secondsLeft, setSecondsLeft] = useState(0);
 
@@ -156,22 +158,44 @@ export function XTasksModal({
     setActionStates(states);
   }, [tasks]);
 
-  // Fetch data when modal opens
+  // Fetch status once per open cycle
   useEffect(() => {
-    if (isOpen) {
-      fetchTwitterStatus();
-      if (twitterStatus.linked) {
-        fetchTasks();
-      }
-      onTasksViewed();
+    if (!isOpen) {
+      hasFetchedStatusRef.current = false;
+      return;
     }
-  }, [
-    isOpen,
-    fetchTwitterStatus,
-    fetchTasks,
-    onTasksViewed,
-    twitterStatus.linked,
-  ]);
+
+    if (!hasFetchedStatusRef.current) {
+      fetchTwitterStatus();
+      hasFetchedStatusRef.current = true;
+    }
+  }, [isOpen, fetchTwitterStatus]);
+
+  // Fetch tasks once per open cycle when account is linked
+  useEffect(() => {
+    if (!isOpen) {
+      hasFetchedTasksRef.current = false;
+      return;
+    }
+
+    if (twitterStatus.linked && !hasFetchedTasksRef.current) {
+      fetchTasks();
+      hasFetchedTasksRef.current = true;
+    }
+  }, [isOpen, twitterStatus.linked, fetchTasks]);
+
+  // Mark tasks as viewed once per open cycle
+  useEffect(() => {
+    if (!isOpen) {
+      hasViewedTasksRef.current = false;
+      return;
+    }
+
+    if (!hasViewedTasksRef.current) {
+      onTasksViewed();
+      hasViewedTasksRef.current = true;
+    }
+  }, [isOpen, onTasksViewed]);
 
   // Show error toast when error occurs
   useEffect(() => {
@@ -181,9 +205,6 @@ export function XTasksModal({
       clearError();
     }
   }, [error, clearError]);
-
-  console.log(error, "error");
-  
 
   // Clear promoPosted when modal closes
   useEffect(() => {
@@ -383,7 +404,6 @@ export function XTasksModal({
     try {
       setPromoVerifyState("idle");
       await verifyPromoTweet();
-      fetchSocialPoints();
       setPromoVerifyState("success");
       // Clear timer and localStorage on successful verification
       setPromoTimerEndTime(null);
@@ -420,7 +440,6 @@ export function XTasksModal({
       setTimeout(async () => {
         try {
           await verifyTaskAction(taskId, action);
-          fetchSocialPoints();
           setActionStates((prev) => ({
             ...prev,
             [taskId]: {
@@ -451,7 +470,7 @@ export function XTasksModal({
     } catch (err) {
       // Error handled in hook
     }
-  }, [verifyTaskAction, fetchSocialPoints,checkLimit]);
+  }, [verifyTaskAction, checkLimit]);
 
   const getActionButtonClass = (
     state: "idle" | "loading" | "success" | "error" | "limited",
@@ -488,6 +507,8 @@ export function XTasksModal({
   });
 
   const totalStarsToday = socialPoints;
+
+  
 
   if (!isOpen) return null;
 
