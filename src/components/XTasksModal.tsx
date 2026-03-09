@@ -825,7 +825,7 @@ export function XTasksModal({
                                     actionCooldownEndTime !== null
                                   }
                                   className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold transition-all shadow-md ${
-                                    !promoPosted || promoTimerEndTime !== null || isLimited || actionCooldownEndTime !== null
+                                    !promoPosted || promoTimerEndTime !== null || isLimited 
                                       ? "bg-gray-400 text-white cursor-not-allowed"
                                       : promoVerifyState === "success"
                                         ? "bg-green-500 text-white"
@@ -836,12 +836,10 @@ export function XTasksModal({
                                             : "bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white hover:shadow-lg"
                                   }`}
                                 >
-                                  {promoTimerEndTime !== null || actionCooldownEndTime !== null ? (
+                                  {promoTimerEndTime !== null ? (
                                     <>
                                       <Clock className="w-4 h-4" />
-                                      {actionCooldownEndTime !== null
-                                        ? actionCooldownRemaining
-                                        : promoTimerRemaining}
+                                      {promoTimerRemaining}
                                     </>
                                   ) : (
                                     <>
@@ -975,7 +973,7 @@ export function XTasksModal({
                     return (
                       <div
                         key={task.id}
-                        className="bg-white/60 backdrop-blur-xl border border-white/60 rounded-2xl p-6 hover:shadow-lg transition-all"
+                        className="relative bg-white/60 backdrop-blur-xl border border-white/60 rounded-2xl p-6 hover:shadow-lg transition-all"
                       >
                         <a
                           href={task.tweetUrl}
@@ -1119,6 +1117,13 @@ export function XTasksModal({
                             )}
                           </div>
                         </a>
+
+                        {currentTab === "available" && actionCooldownEndTime !== null && (
+                          <div className="pointer-events-none absolute bottom-3 right-3 inline-flex items-center gap-1 rounded-lg bg-gray-900/90 px-2 py-1 text-xs font-semibold text-white">
+                            <Clock className="h-3.5 w-3.5" />
+                            {actionCooldownRemaining}
+                          </div>
+                        )}
                       </div>
                     );
                   })
