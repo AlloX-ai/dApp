@@ -137,7 +137,7 @@ export default function FAQModal({
                         </div>
                         <p className="text-sm">
                           Think of Points as your regular paycheck and Gems as
-                          your investment portfolio—both valuable, but Gems
+                          your investment portfolio, both valuable, but Gems
                           offer significantly higher long-term value.
                         </p>
                       </div>
@@ -207,8 +207,7 @@ export default function FAQModal({
                               Direct Referrals
                             </div>
                             <div className="text-sm">
-                              Earn Gems when your referral completes their first
-                              stake (based on stake amount)
+                             Earn 20% of all Gems your direct referrals earn
                             </div>
                           </div>
                         </div>
@@ -405,7 +404,7 @@ export default function FAQModal({
                         </li>
                       </ul>
                       <p className="text-xs text-gray-600 italic">
-                        Keep earning and building your rewards—every Point and
+                        Keep earning and building your rewards. Every Point and
                         Gem counts toward your future benefits!
                       </p>
                     </div>

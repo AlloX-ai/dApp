@@ -57,8 +57,7 @@ export function PointsPage() {
 
   const html = document.querySelector("html");
 
-
-    useEffect(() => {
+  useEffect(() => {
     if (showXTasksModal) {
       html.classList.add("hidescroll");
     } else {
@@ -66,14 +65,11 @@ export function PointsPage() {
     }
   }, [showXTasksModal]);
   const params = new URLSearchParams(window.location.search);
-    const error = params.get('error');
-      const message = params.get('message');
-      const success = params.get('success');
+  const error = params.get("error");
+  const message = params.get("message");
+  const success = params.get("success");
 
-      console.log(params, error, message, success);
-      
-
-
+  console.log(params, error, message, success);
 
   const handleXTasksClick = () => {
     setShowXTasksModal(true);
@@ -93,13 +89,9 @@ export function PointsPage() {
     user?.season1?.rateLimit?.messagesRemaining;
 
   const checkinStatus = useSelector((state) => state.checkin?.status);
-    const socialPoints = useSelector((state) => state.social?.socialPoints);
-    const newCount = useSelector((state) => state.social?.newCount);
+  const socialPoints = useSelector((state) => state.social?.socialPoints);
+  const newCount = useSelector((state) => state.social?.newCount);
 
-
-
-    
-  
   const lastClaimed = useMemo(() => {
     for (let i = checkinStatus?.rewards?.length - 1; i >= 0; i--) {
       if (checkinStatus.rewards[i].claimed === true) {
@@ -203,8 +195,7 @@ export function PointsPage() {
       customIcon: XLogo,
       comingSoon: false,
       isClickable: true,
-      userPoints:
-        getFormattedNumber(socialPoints || 0, 0) || 0,
+      userPoints: getFormattedNumber(socialPoints || 0, 0) || 0,
     },
   ];
   const handleClaimPoints = async () => {
@@ -262,7 +253,7 @@ export function PointsPage() {
   return (
     <div className="space-y-6 flex-1 px-6 py-8 portfolio-wrapper ms-auto w-full overflow-y-auto">
       {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-center gap-3">
+      <div className="flex flex-col md:flex-row justify-between md:items-center gap-3">
         <div>
           <h2 className="text-3xl font-bold mb-2">Rewards</h2>
           <p className="text-gray-600 text-sm">
@@ -272,7 +263,7 @@ export function PointsPage() {
         </div>
         <button
           onClick={() => setShowFAQModal(true)}
-          className="bg-white rounded-full px-3 py-2 hover:bg-gray-50 transition-colors flex items-center gap-2 text-xs whitespace-nowrap hover:bg-gray-200 transition-colors"
+          className="bg-white w-fit rounded-full px-3 py-2 hover:bg-gray-50 transition-colors flex items-center gap-2 text-xs whitespace-nowrap hover:bg-gray-200 transition-colors"
         >
           <HelpCircle size={14} className="text-blue-600" />
           <span className="font-medium">FAQs</span>
@@ -376,7 +367,6 @@ export function PointsPage() {
                 )}
 
                 {/* Notification Badge for X Tasks */}
-                
 
                 {/* Arrow indicator for clickable items */}
                 {/* {way.isClickable &&
@@ -386,11 +376,11 @@ export function PointsPage() {
                       <ArrowRight className="w-4 h-4 text-white" />
                     </div>
                   )} */}
-                  <div className="flex items-center gap-2">
-                    <div>
-                      {/* Icon */}
+                <div className="flex items-center gap-2">
+                  <div>
+                    {/* Icon */}
                     <div className="flex align-center gap-2">
-                        <div className="mb-4">
+                      <div className="mb-4">
                         <div
                           className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-4 ${"bg-black"}`}
                         >
@@ -402,10 +392,10 @@ export function PointsPage() {
                         </div>
                       </div>
                       {isXTasks && newCount > 0 && (
-                    <div className="px-2 py-1 bg-red-500 text-white text-xs font-bold rounded-full w-fit h-fit">
-                      {newCount} new
-                    </div>
-                  )}
+                        <div className="px-2 py-1 bg-red-500 text-white text-xs font-bold rounded-full w-fit h-fit">
+                          {newCount} new
+                        </div>
+                      )}
                     </div>
 
                     {/* Content */}
@@ -537,7 +527,7 @@ export function PointsPage() {
           </div>
 
           <button className="flex items-center gap-2 px-6 py-3 bg-white hover:bg-white/95 text-purple-600 rounded-xl font-bold shadow-lg transition-all flex-shrink-0">
-            <span className="hidden sm:inline">Coming Soon</span>
+            <span className="hidden sm:inline">Start Earning</span>
             <ChevronRight
               size={20}
               className="group-hover:translate-x-1 transition-transform"
