@@ -50,6 +50,7 @@ import {
 } from "./redux/slices/chatSlice";
 import { store } from "./redux/store";
 import { PointsPage } from "./pages/Points";
+import { useSocial } from "./hooks/useSocial";
 
 const SOLANA_MAINNET_CHAIN_ID = 101;
 const PREFERRED_CHAIN_STORAGE_KEY = "walletPreferredChainId";
@@ -78,6 +79,7 @@ async function tryRestorePhantomSession(dispatch) {
 }
 
 function LaunchAppLayout() {
+
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const wasConnectedRef = useRef(false);
@@ -85,6 +87,12 @@ function LaunchAppLayout() {
   const prevWalletTypeRef = useRef(undefined);
   const authTriggeredRef = useRef(false);
   const { connector } = getAccount(wagmiClient);
+
+  const {fetchSocialPoints, loadSeenPosts} = useSocial();
+   useEffect(() => {
+     fetchSocialPoints();
+     loadSeenPosts();
+   }, [fetchSocialPoints, loadSeenPosts]);
 
   const { address, isConnected, walletModal, walletType, checkinModal } =
     useSelector((state) => state.wallet);
@@ -623,7 +631,7 @@ function App() {
         >
           <Route index element={<ChatPage />} />
           <Route path="/portfolio" element={<PortfolioPage />} />
-          <Route path="/season1" element={<Season1 />} />
+          <Route path="/spring-series" element={<Season1 />} />
           <Route path="/rewards" element={<PointsPage />} />
 
           <Route path="/trending" element={<TradingPage />} />

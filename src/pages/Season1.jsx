@@ -7,21 +7,21 @@ export function Season1() {
   const seasons = [
     {
       number: 1,
-      status: "Active",
+      status: "Ended",
       reward: "$5,000",
       timeline: "Feb 23 - Mar 9",
-      active: true,
-    },
-    {
-      number: 2,
-      status: "Coming Soon",
-      reward: "$8,000",
-      timeline: "TBA",
       active: false,
     },
     {
+      number: 2,
+      status: "Active",
+      reward: "$8,000",
+      timeline: "Mar 10 - Mar 31",
+      active: true,
+    },
+    {
       number: 3,
-      status: "Coming Soon",
+      status: "Upcoming",
       reward: "$12,000",
       timeline: "TBA",
       active: false,
@@ -31,36 +31,38 @@ export function Season1() {
   const tiers = [
     {
       name: "Tier 1",
-      users: "First 500 users",
-      winners: "25 winners",
+      users: "First 1,000 users",
+      winners: "40 winners",
       reward: "100 USDT each",
-      total: "$2,500",
+      total: "$4,000",
     },
     {
       name: "Tier 2",
-      users: "Next 5,000 users",
-      winners: "30 winners",
+      users: "Next 10,000 users",
+      winners: "50 winners",
       reward: "50 USDT each",
-      total: "$1,500",
+      total: "$2,500",
     },
     {
       name: "Tier 3",
-      users: "Next 10,000 users",
-      winners: "200 winners",
+      users: "Next 25,000 users",
+      winners: "300 winners",
       reward: "5 USDT each",
-      total: "$1,000",
+      total: "$1,500",
     },
   ];
 
   useEffect(() => {
     window.scrollTo(0, 0);
-    document.title = "Season 1";
+    document.title = "Spring Series";
   }, []);
 
   return (
     <div className="flex-1 px-6 py-8 portfolio-wrapper ms-auto w-full overflow-y-auto space-y-6">
       <div className="flex flex-col sm:flex-row items-center justify-between">
-        <h2 className="text-xl md:text-3xl font-bold">Season 1 Campaign</h2>
+        <h2 className="text-xl md:text-3xl font-bold">
+          Spring Series Campaign
+        </h2>
         <div className="flex items-center gap-2 px-4 py-2 bg-black rounded-xl">
           <Trophy size={18} className="text-white" />
           <span className="text-white text-sm font-bold">$25,000 Total</span>
@@ -76,7 +78,7 @@ export function Season1() {
               season.active ? "ring-2 ring-black" : "opacity-60"
             }`}
           >
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center relative justify-between mb-3">
               <div
                 className={`px-3 py-1 rounded-lg text-xs font-bold ${
                   season.active
@@ -95,24 +97,23 @@ export function Season1() {
                   >
                     <Info className="w-3 h-3 text-gray-600" />
                   </button>
-                  {showTooltip && (
-                    <div className="absolute left-0 top-full mt-2 w-80 p-4 bg-white rounded-xl shadow-lg border border-gray-200 z-50">
-                      <div className="space-y-2 text-sm text-gray-700">
-                        <p>
-                          Winners will be randomly selected from each tier after
-                          the season ends. Selection will take place within 7
-                          days.
-                        </p>
-                        <p className="pt-2 border-t border-gray-200">
-                          Rewards will be displayed in each season tab once
-                          finalized.
-                        </p>
-                      </div>
-                    </div>
-                  )}
                 </div>
               ) : (
                 <Lock size={18} className="text-gray-400" />
+              )}
+              {showTooltip && season.active && (
+                <div className="absolute right-0 top-full mt-2 w-80 p-4 bg-white rounded-xl shadow-lg border border-gray-200 z-50">
+                  <div className="space-y-2 text-sm text-gray-700">
+                    <p>
+                      Winners will be randomly selected from each tier after the
+                      season ends. Selection will take place within 7 days.
+                    </p>
+                    <p className="pt-2 border-t border-gray-200">
+                      Rewards will be displayed in each season tab once
+                      finalized.
+                    </p>
+                  </div>
+                </div>
               )}
             </div>
             <div className="text-2xl font-bold mb-2">{season.reward}</div>
@@ -127,7 +128,7 @@ export function Season1() {
                   season.active ? "text-green-600" : "text-gray-500"
                 }`}
               >
-                {season.active ? season.status : "Upcoming"}
+                {season.status}
               </div>
             </div>
           </div>
@@ -170,7 +171,7 @@ export function Season1() {
 
       {/* Season 1 Prize Distribution */}
       <div className="glass-card p-6">
-        <h3 className="text-xl font-bold mb-4">Season 1 Prize Distribution</h3>
+        <h3 className="text-xl font-bold mb-4">Season 2 Prize Distribution</h3>
         <div className="space-y-4">
           {tiers.map((tier, index) => (
             <div
@@ -198,7 +199,7 @@ export function Season1() {
         <div className="mt-4 pt-4 border-t border-gray-200">
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-600">Total USDT distributed</div>
-            <div className="text-2xl font-bold">$5,000</div>
+            <div className="text-2xl font-bold">$8,000</div>
           </div>
         </div>
       </div>
