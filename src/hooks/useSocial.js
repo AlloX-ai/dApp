@@ -260,8 +260,7 @@ export function useSocial() {
 
       return data;
     } catch (err) {
-      dispatch(setError(err.message || "Unable to verify Telegram join"));
-      throw err;
+      throw err.message;
     } finally {
       dispatch(setLoading({ key: "telegramVerify", value: false }));
     }
@@ -293,8 +292,7 @@ export function useSocial() {
 
       return data;
     } catch (err) {
-      dispatch(setError(err.message || "Unable to verify Telegram announcements"));
-      throw err;
+      throw err.message;
     } finally {
       dispatch(setLoading({ key: "telegramAnnVerify", value: false }));
     }

@@ -29,6 +29,7 @@ import { XTasksModal } from "../components/XTasksModal";
 import { motion, AnimatePresence } from "motion/react";
 import FAQModal from "../components/FaqModal";
 import getFormattedNumber from "../hooks/get-formatted-number";
+import { useSocial } from "../hooks/useSocial";
 // Custom X (Twitter) Logo Component
 function XLogo({ className }) {
   return (
@@ -81,6 +82,9 @@ export function PointsPage() {
   const handleTasksViewed = () => {
     setNewTasksCount(0); // Reset count when tasks are viewed
   };
+
+      const {fetchSocialPoints,fetchAllPoints} = useSocial();
+  
 
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -547,7 +551,11 @@ export function PointsPage() {
       {/* X Tasks Modal */}
       <XTasksModal
         isOpen={showXTasksModal}
-        onClose={() => setShowXTasksModal(false)}
+        onClose={() => {
+          setShowXTasksModal(false);
+          fetchSocialPoints(); // Refresh points when modal is closed
+          fetchAllPoints();
+        }}
         onTasksViewed={handleTasksViewed}
       />
 

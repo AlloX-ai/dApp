@@ -1128,18 +1128,18 @@ export function XTasksModal({
                           )}
                           <button
                             onClick={handleTelegramVerifyAnnouncements}
-                            disabled={telegramAnnouncementsCompletedForTab || loading.telegramVerify || telegramAnnouncementsVerifyState === "loading"}
+                            disabled={telegramAnnouncementsCompletedForTab || loading.telegramAnnVerify || telegramAnnouncementsVerifyState === "loading"}
                             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
                               telegramAnnouncementsCompletedForTab || telegramAnnouncementsVerifyState === "success"
                                 ? "bg-green-500 text-white"
                                 : telegramAnnouncementsVerifyState === "error"
                                   ? "bg-red-500 text-white"
-                                  : telegramAnnouncementsVerifyState === "loading" || loading.telegramVerify
+                                  : telegramAnnouncementsVerifyState === "loading" || loading.telegramAnnVerify
                                     ? "bg-gray-400 text-white cursor-wait"
                                     : "bg-sky-600 hover:bg-sky-700 text-white"
                             }`}
                           >
-                            {telegramAnnouncementsVerifyState === "loading" || loading.telegramVerify ? (
+                            {telegramAnnouncementsVerifyState === "loading" || loading.telegramAnnVerify ? (
                               <Loader2 className="w-4 h-4 animate-spin" />
                             ) : (
                               <Send className="w-4 h-4" />
