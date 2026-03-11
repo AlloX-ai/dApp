@@ -70,7 +70,6 @@ export function PointsPage() {
       const message = params.get('message');
       const success = params.get('success');
 
-      console.log(params, error, message, success);
       
 
 
@@ -94,6 +93,7 @@ export function PointsPage() {
 
   const checkinStatus = useSelector((state) => state.checkin?.status);
     const socialPoints = useSelector((state) => state.social?.socialPoints);
+    const telegramPoints = useSelector((state) => state.social?.telegramPoints);
     const newCount = useSelector((state) => state.social?.newCount);
 
 
@@ -204,9 +204,12 @@ export function PointsPage() {
       comingSoon: false,
       isClickable: true,
       userPoints:
-        getFormattedNumber(socialPoints || 0, 0) || 0,
+        getFormattedNumber(socialPoints + telegramPoints || 0, 0) || 0,
     },
   ];
+
+
+
   const handleClaimPoints = async () => {
     setClaimError(null);
     setClaiming(true);

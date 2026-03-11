@@ -91,8 +91,10 @@ export function XTasksModal({
     fetchSocialPoints,
     verifyFollowTask,
     verifyTelegramJoin,
+    verifyTelegramAnnouncements,
     clearError,
     markAllAsSeen,
+    telegramPoints,
   } = useSocial();
 
   const { checkLimit, remaining, resetTime, isLimited } = useApiLimiter();
@@ -127,6 +129,7 @@ export function XTasksModal({
     null,
   );
   const [followTimerRemaining, setFollowTimerRemaining] = useState<string>("");
+  const [dummyScore, setDummyScore] = useState<number>(0);
 
   // 15‑second cooldown used after any action/verify call
   const [actionCooldownEndTime, setActionCooldownEndTime] = useState<number | null>(
@@ -146,6 +149,7 @@ export function XTasksModal({
   const hasViewedTasksRef = useRef(false);
 
   const [secondsLeft, setSecondsLeft] = useState(0);
+
 
   useEffect(() => {
     if (!resetTime) return;
@@ -396,6 +400,7 @@ export function XTasksModal({
       await verifyTelegramJoin();
       setTelegramVerifyState("success");
       toast.success("Telegram join verified. 1000 points awarded.");
+      setDummyScore((prev) => prev + 1000);
       await fetchSocialPoints();
     } catch (err: any) {
       const message = err?.message || "Unable to verify Telegram join";
@@ -416,9 +421,10 @@ export function XTasksModal({
       setTelegramAnnouncementsVerifyState("loading");
 
       try {
-        await verifyTelegramJoin("announcements");
+        await verifyTelegramAnnouncements();
         setTelegramAnnouncementsVerifyState("success");
         toast.success("Telegram announcements join verified. 1000 points awarded.");
+        setDummyScore((prev) => prev + 1000);
         await fetchSocialPoints();
       } catch (err: any) {
         const message = err?.message || "Unable to verify Telegram announcements join";
@@ -446,12 +452,7 @@ export function XTasksModal({
   const handlePromoPost = () => {
     // Use one of the random tweet variants
 
-    if (!checkLimit()) {
-      toast.error(
-        "You have reached your limit. Please wait until you can perform this action again.",
-      );
-      return;
-    }
+  
 
     const tweetVariants = [
       "Just discovered @alloxdotai — AI-powered crypto portfolios! 🚀\n\nCheck it out: https://allox.ai",
@@ -636,7 +637,38 @@ export function XTasksModal({
     completedAt: null,
   };
 
-  const totalStarsToday = socialPoints;
+  const isWithin24Hours = (completedAt?: string | null) => {
+    if (!completedAt) return false;
+    const completedTime = new Date(completedAt).getTime();
+    if (Number.isNaN(completedTime)) return false;
+    return Date.now() - completedTime < 24 * 60 * 60 * 1000;
+  };
+
+  const telegramJoinCompletedForTab =
+    Boolean(telegramJoinTask.completed) && isWithin24Hours(telegramJoinTask.completedAt);
+  const telegramAnnouncementsCompletedForTab =
+    Boolean(telegramAnnouncementsTask.completed) &&
+    isWithin24Hours(telegramAnnouncementsTask.completedAt);
+
+  const telegramAvailableCount = telegramStatus.linked
+    ? (telegramJoinCompletedForTab ? 0 : 1) +
+      (telegramAnnouncementsCompletedForTab ? 0 : 1)
+    : 0;
+  const telegramCompletedCount = telegramStatus.linked
+    ? (telegramJoinCompletedForTab ? 1 : 0) +
+      (telegramAnnouncementsCompletedForTab ? 1 : 0)
+    : 0;
+
+  const availableExtraCount =
+    (twitterStatus.linked && hasFollowTask && !isFollowCompleted ? 1 : 0) +
+    (twitterStatus.linked && !isPromoCompleted ? 1 : 0) +
+    telegramAvailableCount;
+  const completedExtraCount =
+    (twitterStatus.linked && hasFollowTask && isFollowCompleted ? 1 : 0) +
+    (twitterStatus.linked && isPromoCompleted ? 1 : 0) +
+    telegramCompletedCount;
+
+  const totalStarsToday = socialPoints + telegramPoints;
 
   if (!isOpen) return null;
 
@@ -680,7 +712,7 @@ export function XTasksModal({
                     <Coins className="size-4 text-amber-500" />
 
                     <span className="text-sm font-bold">
-                      {totalStarsToday} points
+                      {totalStarsToday + dummyScore} points
                     </span>
                   </div>
 
@@ -780,7 +812,7 @@ export function XTasksModal({
 
         
 
-        {!twitterStatus.linked || loading.tasks ? (
+        {!(twitterStatus.linked || telegramStatus.linked) || (twitterStatus.linked && loading.tasks) ? (
           <div className="flex gap-2 mb-6 px-6 mt-4">
             <button
               disabled
@@ -806,7 +838,7 @@ export function XTasksModal({
                     : "bg-gray-200 text-gray-700 hover:bg-gray-300"
                 }`}
               >
-                Available ({availableTasks.length})
+                Available ({availableTasks.length + availableExtraCount})
               </button>
               <button
                 onClick={() => setCurrentTab("completed")}
@@ -816,7 +848,7 @@ export function XTasksModal({
                     : "bg-gray-200 text-gray-700 hover:bg-gray-300"
                 }`}
               >
-                Completed ({completedTasks.length})
+                Completed ({completedTasks.length + completedExtraCount})
               </button>
             </div>
             <div
@@ -853,7 +885,7 @@ export function XTasksModal({
           </>
         )}
         {/* Content */}
-          {!twitterStatus.linked  ? (
+          {!(twitterStatus.linked || telegramStatus.linked)  ? (
             <>
               <div className="p-6 overflow-y-auto max-h-[calc(80vh-270px)]">
                 <div className="space-y-4">
@@ -873,19 +905,21 @@ export function XTasksModal({
                       <div className="rounded-2xl border border-sky-200/60 bg-gradient-to-r from-sky-50 to-cyan-50 p-4">
                         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                           <div>
-                            <h3 className="text-sm font-bold text-sky-900">Telegram Task: Join Allox Channel</h3>
+                            <h3 className="text-sm font-bold text-sky-900">Join Allox Channel</h3>
                             <p className="text-sm text-sky-800">
                               Join the Allox Telegram channel and verify to earn {telegramJoinTask.points} points.
                             </p>
                           </div>
                           <div className="flex gap-2">
-                            <button
-                              onClick={handleTelegramJoin}
-                              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-sky-200 text-sky-700 text-sm font-semibold hover:bg-sky-100 transition-colors"
-                            >
-                              <ExternalLink className="w-4 h-4" />
-                              Join Channel
-                            </button>
+                            {!telegramJoinTask.completed && (
+                              <button
+                                onClick={handleTelegramJoin}
+                                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-sky-200 text-sky-700 text-sm font-semibold hover:bg-sky-100 transition-colors"
+                              >
+                                <ExternalLink className="w-4 h-4" />
+                                Join
+                              </button>
+                            )}
                             <button
                               onClick={handleTelegramVerifyJoin}
                               disabled={telegramJoinTask.completed || loading.telegramVerify || telegramVerifyState === "loading"}
@@ -904,7 +938,7 @@ export function XTasksModal({
                               ) : (
                                 <Send className="w-4 h-4" />
                               )}
-                              {telegramJoinTask.completed || telegramVerifyState === "success" ? "Verified" : telegramVerifyState === "error" ? "Failed" : "Verify Join"}
+                              {telegramJoinTask.completed || telegramVerifyState === "success" ? "Verified" : telegramVerifyState === "error" ? "Failed" : "Verify"}
                             </button>
                           </div>
                         </div>
@@ -913,38 +947,40 @@ export function XTasksModal({
                       <div className="rounded-2xl border border-sky-200/60 bg-gradient-to-r from-sky-50 to-cyan-50 p-4">
                         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                           <div>
-                            <h3 className="text-sm font-bold text-sky-900">Telegram Task: Join Allox Announcements</h3>
+                            <h3 className="text-sm font-bold text-sky-900">Join Allox Announcements</h3>
                             <p className="text-sm text-sky-800">
                               Join the announcements channel and verify to earn {telegramAnnouncementsTask.points} points.
                             </p>
                           </div>
                           <div className="flex gap-2">
-                            <button
-                              onClick={handleTelegramJoinAnnouncements}
-                              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-sky-200 text-sky-700 text-sm font-semibold hover:bg-sky-100 transition-colors"
-                            >
-                              <ExternalLink className="w-4 h-4" />
-                              Join Announcements
-                            </button>
+                            {!telegramAnnouncementsTask.completed && (
+                              <button
+                                onClick={handleTelegramJoinAnnouncements}
+                                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-sky-200 text-sky-700 text-sm font-semibold hover:bg-sky-100 transition-colors"
+                              >
+                                <ExternalLink className="w-4 h-4" />
+                                Join
+                              </button>
+                            )}
                             <button
                               onClick={handleTelegramVerifyAnnouncements}
-                              disabled={telegramAnnouncementsTask.completed || loading.telegramVerify || telegramAnnouncementsVerifyState === "loading"}
+                              disabled={telegramAnnouncementsTask.completed || loading.telegramAnnVerify || telegramAnnouncementsVerifyState === "loading"}
                               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
                                 telegramAnnouncementsTask.completed || telegramAnnouncementsVerifyState === "success"
                                   ? "bg-green-500 text-white"
                                   : telegramAnnouncementsVerifyState === "error"
                                     ? "bg-red-500 text-white"
-                                    : telegramAnnouncementsVerifyState === "loading" || loading.telegramVerify
+                                    : telegramAnnouncementsVerifyState === "loading" || loading.telegramAnnVerify
                                       ? "bg-gray-400 text-white cursor-wait"
                                       : "bg-sky-600 hover:bg-sky-700 text-white"
                               }`}
                             >
-                              {telegramAnnouncementsVerifyState === "loading" || loading.telegramVerify ? (
+                              {telegramAnnouncementsVerifyState === "loading" || loading.telegramAnnVerify ? (
                                 <Loader2 className="w-4 h-4 animate-spin" />
                               ) : (
                                 <Send className="w-4 h-4" />
                               )}
-                              {telegramAnnouncementsTask.completed || telegramAnnouncementsVerifyState === "success" ? "Verified" : telegramAnnouncementsVerifyState === "error" ? "Failed" : "Verify Join"}
+                              {telegramAnnouncementsTask.completed || telegramAnnouncementsVerifyState === "success" ? "Verified" : telegramAnnouncementsVerifyState === "error" ? "Failed" : "Verify"}
                             </button>
                           </div>
                         </div>
@@ -965,7 +1001,7 @@ export function XTasksModal({
                           className="flex items-center gap-2 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl transition-colors text-sm font-medium disabled:opacity-50"
                         >
                           <Send className="w-4 h-4" />
-                          {loading.telegramAuth ? "Connecting..." : "Connect Telegram"}
+                          {loading.telegramAuth ? "Connecting..." : "Connect"}
                         </button>
                       </div>
                     </div>
@@ -983,7 +1019,7 @@ export function XTasksModal({
                         className="flex items-center gap-2 px-4 py-2 bg-black hover:bg-gray-800 text-white rounded-xl transition-colors text-sm font-medium disabled:opacity-50"
                       >
                         <XLogo className="w-4 h-4" />
-                        {loading.auth ? "Connecting..." : "Connect X"}
+                        {loading.auth ? "Connecting..." : "Connect "}
                       </button>
                     </div>
                   </div>
@@ -1014,35 +1050,39 @@ export function XTasksModal({
                         className="flex items-center gap-2 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl transition-colors text-sm font-medium disabled:opacity-50"
                       >
                         <Send className="w-4 h-4" />
-                        {loading.telegramAuth ? "Connecting..." : "Connect Telegram"}
+                        {loading.telegramAuth ? "Connecting..." : "Connect"}
                       </button>
                     </div>
                   </div>
                 )}
 
-                {telegramStatus.linked && (
+                {telegramStatus.linked && (currentTab === "available"
+                  ? !telegramJoinCompletedForTab
+                  : telegramJoinCompletedForTab) && (
                   <>
                     <div className="rounded-2xl border border-sky-200/60 bg-gradient-to-r from-sky-50 to-cyan-50 p-4">
                       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                         <div>
-                          <h3 className="text-sm font-bold text-sky-900">Telegram Task: Join Allox Channel</h3>
+                          <h3 className="text-sm font-bold text-sky-900">Join Allox Channel</h3>
                           <p className="text-sm text-sky-800">
                             Join the Allox Telegram channel and verify to earn {telegramJoinTask.points} points.
                           </p>
                         </div>
                         <div className="flex gap-2">
-                          <button
-                            onClick={handleTelegramJoin}
-                            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-sky-200 text-sky-700 text-sm font-semibold hover:bg-sky-100 transition-colors"
-                          >
-                            <ExternalLink className="w-4 h-4" />
-                            Join Channel
-                          </button>
+                          {!telegramJoinCompletedForTab && (
+                            <button
+                              onClick={handleTelegramJoin}
+                              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-sky-200 text-sky-700 text-sm font-semibold hover:bg-sky-100 transition-colors"
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                              Join
+                            </button>
+                          )}
                           <button
                             onClick={handleTelegramVerifyJoin}
-                            disabled={telegramJoinTask.completed || loading.telegramVerify || telegramVerifyState === "loading"}
+                            disabled={telegramJoinCompletedForTab || loading.telegramVerify || telegramVerifyState === "loading"}
                             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
-                              telegramJoinTask.completed || telegramVerifyState === "success"
+                              telegramJoinCompletedForTab || telegramVerifyState === "success"
                                 ? "bg-green-500 text-white"
                                 : telegramVerifyState === "error"
                                   ? "bg-red-500 text-white"
@@ -1056,33 +1096,41 @@ export function XTasksModal({
                             ) : (
                               <Send className="w-4 h-4" />
                             )}
-                            {telegramJoinTask.completed || telegramVerifyState === "success" ? "Verified" : telegramVerifyState === "error" ? "Failed" : "Verify Join"}
+                            {telegramJoinCompletedForTab || telegramVerifyState === "success" ? "Verified" : telegramVerifyState === "error" ? "Failed" : "Verify"}
                           </button>
                         </div>
                       </div>
                     </div>
+                  </>
+                )}
 
+                {telegramStatus.linked && (currentTab === "available"
+                  ? !telegramAnnouncementsCompletedForTab
+                  : telegramAnnouncementsCompletedForTab) && (
+                  <>
                     <div className="rounded-2xl border border-sky-200/60 bg-gradient-to-r from-sky-50 to-cyan-50 p-4">
                       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                         <div>
-                          <h3 className="text-sm font-bold text-sky-900">Telegram Task: Join Allox Announcements</h3>
+                          <h3 className="text-sm font-bold text-sky-900">Join Allox Announcements</h3>
                           <p className="text-sm text-sky-800">
                             Join the announcements channel and verify to earn {telegramAnnouncementsTask.points} points.
                           </p>
                         </div>
                         <div className="flex gap-2">
-                          <button
-                            onClick={handleTelegramJoinAnnouncements}
-                            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-sky-200 text-sky-700 text-sm font-semibold hover:bg-sky-100 transition-colors"
-                          >
-                            <ExternalLink className="w-4 h-4" />
-                            Join Announcements
-                          </button>
+                          {!telegramAnnouncementsCompletedForTab && (
+                            <button
+                              onClick={handleTelegramJoinAnnouncements}
+                              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-sky-200 text-sky-700 text-sm font-semibold hover:bg-sky-100 transition-colors"
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                              Join
+                            </button>
+                          )}
                           <button
                             onClick={handleTelegramVerifyAnnouncements}
-                            disabled={telegramAnnouncementsTask.completed || loading.telegramVerify || telegramAnnouncementsVerifyState === "loading"}
+                            disabled={telegramAnnouncementsCompletedForTab || loading.telegramVerify || telegramAnnouncementsVerifyState === "loading"}
                             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
-                              telegramAnnouncementsTask.completed || telegramAnnouncementsVerifyState === "success"
+                              telegramAnnouncementsCompletedForTab || telegramAnnouncementsVerifyState === "success"
                                 ? "bg-green-500 text-white"
                                 : telegramAnnouncementsVerifyState === "error"
                                   ? "bg-red-500 text-white"
@@ -1096,7 +1144,7 @@ export function XTasksModal({
                             ) : (
                               <Send className="w-4 h-4" />
                             )}
-                            {telegramAnnouncementsTask.completed || telegramAnnouncementsVerifyState === "success" ? "Verified" : telegramAnnouncementsVerifyState === "error" ? "Failed" : "Verify Join"}
+                            {telegramAnnouncementsCompletedForTab || telegramAnnouncementsVerifyState === "success" ? "Verified" : telegramAnnouncementsVerifyState === "error" ? "Failed" : "Verify"}
                           </button>
                         </div>
                       </div>
@@ -1104,7 +1152,26 @@ export function XTasksModal({
                   </>
                 )}
 
-                {currentTab === "available" && hasFollowTask && !isFollowCompleted && (
+                {!twitterStatus.linked && currentTab === "available" && (
+                  <div className="rounded-2xl border border-indigo-200/60 bg-gradient-to-r from-indigo-50 to-purple-50 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-sm font-bold text-indigo-900">Connect X to get rewards</h3>
+                        <p className="text-sm text-indigo-800">Link your X account to unlock X task rewards.</p>
+                      </div>
+                      <button
+                        onClick={handleConnect}
+                        disabled={loading.auth || !twitterStatus.cooldown.allowed}
+                        className="flex items-center gap-2 px-4 py-2 bg-black hover:bg-gray-800 text-white rounded-xl transition-colors text-sm font-medium disabled:opacity-50"
+                      >
+                        <XLogo className="w-4 h-4" />
+                        {loading.auth ? "Connecting..." : "Connect X"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {twitterStatus.linked && currentTab === "available" && hasFollowTask && !isFollowCompleted && (
             
                   <motion.div
                     initial={{ opacity: 0, y: -10 }}
@@ -1236,7 +1303,7 @@ export function XTasksModal({
                   </motion.div>
                 )}
 
-                {currentTab === "completed" && hasFollowTask && isFollowCompleted && (
+                {twitterStatus.linked && currentTab === "completed" && hasFollowTask && isFollowCompleted && (
                   <motion.div
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -1293,7 +1360,7 @@ export function XTasksModal({
                     </div>
                   </motion.div>
                 )}
-                {currentTab === "available" && !promoTask.completedToday && (
+                {twitterStatus.linked && currentTab === "available" && !promoTask.completedToday && (
             
                   <motion.div
                     initial={{ opacity: 0, y: -10 }}
@@ -1442,7 +1509,7 @@ export function XTasksModal({
                   </motion.div>
                 )}
 
-                {currentTab === "completed" && isPromoCompleted && (
+                {twitterStatus.linked && currentTab === "completed" && isPromoCompleted && (
                   /* Premium Daily Promo Task - Completed View */
                   <motion.div
                     initial={{ opacity: 0, y: -10 }}
@@ -1499,7 +1566,7 @@ export function XTasksModal({
                   </motion.div>
                 )}
 
-                {(currentTab === "available" ? availableTasks : completedTasks)
+                {twitterStatus.linked && (currentTab === "available" ? availableTasks : completedTasks)
                   .length === 0 &&
                 ((currentTab === "available" && isFollowCompleted && isPromoCompleted) ||
                   (currentTab === "completed" && !isFollowCompleted && !isPromoCompleted)) ? (
@@ -1509,6 +1576,7 @@ export function XTasksModal({
                       : "No completed tasks yet"}
                   </div>
                 ) : (
+                  twitterStatus.linked &&
                   (currentTab === "available"
                     ? availableTasks
                     : completedTasks

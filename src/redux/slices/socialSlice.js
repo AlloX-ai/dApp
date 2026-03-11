@@ -22,6 +22,8 @@ const initialState = {
     },
   },
 
+  telegramPoints: 0, 
+
   // Daily tasks
   socialPoints: 0,
   tasks: [],
@@ -54,6 +56,7 @@ const initialState = {
     },
   },
 
+
   // Task statistics
   taskStats: {
     totalPointsAvailable: 0,
@@ -75,6 +78,7 @@ const initialState = {
     promoVerify: false,
     telegramAuth: false,
     telegramVerify: false,
+    telegramAnnVerify: false,
   },
 
   error: null,
@@ -100,6 +104,10 @@ const socialSlice = createSlice({
 
     setTelegramStatus: (state, action) => {
       state.telegramStatus = { ...state.telegramStatus, ...action.payload };
+    },
+
+    setTelegramPoints: (state, action) => {
+      state.telegramPoints = action.payload;
     },
 
     resetTelegramStatus: (state) => {
@@ -200,6 +208,7 @@ export const {
   resetSocialState,
   setSeenPosts,
   setNewCount,
+  setTelegramPoints,
 } = socialSlice.actions;
 
 export default socialSlice.reducer;
