@@ -21,7 +21,7 @@ import {
 import { toast } from "sonner";
 
 const TELEGRAM_BOT_ID = "8677110292";
-const TELEGRAM_APP_ORIGIN = "https://betatools.dyp.finance/rewards/";
+const TELEGRAM_APP_ORIGIN = "https://app.allox.ai/rewards/";
 const TELEGRAM_CALLBACK_BASE = "https://api.allox.ai/telegram/callback";
 
 let telegramAuthInFlight = null;
@@ -72,7 +72,6 @@ export function useSocial() {
       const data = await apiCall("/twitter/status");
       dispatch(setTwitterStatus(data));
       dispatch(setFollowTask(data.followTask));
-
     } catch (err) {
       dispatch(setError(err.message || "Failed to fetch Twitter status"));
     } finally {
@@ -94,7 +93,6 @@ export function useSocial() {
     }
   }, [dispatch]);
 
-
   const fetchAllPoints = useCallback(async () => {
     try {
       dispatch(setLoading({ key: "status", value: true }));
@@ -102,8 +100,10 @@ export function useSocial() {
 
       const data = await apiCall("/auth/me");
       console.log(data, "Data");
-      
-      dispatch(setTelegramPoints(data?.season1?.pointsBreakdown?.fromTelegram ?? 0));
+
+      dispatch(
+        setTelegramPoints(data?.season1?.pointsBreakdown?.fromTelegram ?? 0),
+      );
     } catch (err) {
       dispatch(setError(err.message || "Failed to fetch total points"));
     } finally {
@@ -140,24 +140,30 @@ export function useSocial() {
     window.location.href = oauthUrl;
   }, []);
 
-  const applyTelegramStatus = useCallback((statusPayload) => {
-    const normalizedStatus = normalizeTelegramStatus(statusPayload);
-    dispatch(setTelegramStatus(normalizedStatus));
-    return normalizedStatus;
-  }, [dispatch]);
+  const applyTelegramStatus = useCallback(
+    (statusPayload) => {
+      const normalizedStatus = normalizeTelegramStatus(statusPayload);
+      dispatch(setTelegramStatus(normalizedStatus));
+      return normalizedStatus;
+    },
+    [dispatch],
+  );
 
-  const fetchTelegramStatus = useCallback(async ({ suppressError = false } = {}) => {
-    try {
-      const statusResult = await apiCall("/telegram/status");
-      applyTelegramStatus(statusResult);
-      return statusResult;
-    } catch (err) {
-      if (!suppressError) {
-        dispatch(setError(err.message || "Failed to fetch Telegram status"));
+  const fetchTelegramStatus = useCallback(
+    async ({ suppressError = false } = {}) => {
+      try {
+        const statusResult = await apiCall("/telegram/status");
+        applyTelegramStatus(statusResult);
+        return statusResult;
+      } catch (err) {
+        if (!suppressError) {
+          dispatch(setError(err.message || "Failed to fetch Telegram status"));
+        }
+        throw err;
       }
-      throw err;
-    }
-  }, [applyTelegramStatus, dispatch]);
+    },
+    [applyTelegramStatus, dispatch],
+  );
 
   const processTelegramAuthFromHash = useCallback(async () => {
     const hash = window.location.hash || "";
@@ -177,11 +183,17 @@ export function useSocial() {
 
         // If Telegram is already linked on backend, skip /telegram/link entirely.
         try {
-          const statusResult = await fetchTelegramStatus({ suppressError: true });
+          const statusResult = await fetchTelegramStatus({
+            suppressError: true,
+          });
           const isLinked = Boolean(statusResult?.linked);
 
           if (isLinked) {
-            window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+            window.history.replaceState(
+              {},
+              document.title,
+              window.location.pathname + window.location.search,
+            );
             lastProcessedTelegramAuthHash = hash;
             return statusResult;
           }
@@ -214,7 +226,11 @@ export function useSocial() {
           `Telegram linked${normalizedStatus.username ? `: @${normalizedStatus.username}` : ""}`,
         );
 
-        window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+        window.history.replaceState(
+          {},
+          document.title,
+          window.location.pathname + window.location.search,
+        );
         lastProcessedTelegramAuthHash = hash;
 
         return { linkResult: result, statusResult };
@@ -242,17 +258,18 @@ export function useSocial() {
 
       const data = await apiCall("/telegram/verify-join", {
         method: "POST",
-     
       });
 
       const completedAt = data?.completedAt ?? new Date().toISOString();
-        dispatch(setTelegramStatus({
+      dispatch(
+        setTelegramStatus({
           joinTask: {
             completed: true,
             points: telegramStatus?.joinTask?.points ?? 1000,
             completedAt,
           },
-        }));
+        }),
+      );
 
       if (typeof data.totalPoints === "number") {
         dispatch(setTaskStats({ totalPointsEarned: data.totalPoints }));
@@ -266,7 +283,6 @@ export function useSocial() {
     }
   }, [dispatch, telegramStatus?.joinTask?.points]);
 
-
   const verifyTelegramAnnouncements = useCallback(async () => {
     try {
       dispatch(setLoading({ key: "telegramAnnVerify", value: true }));
@@ -274,17 +290,18 @@ export function useSocial() {
 
       const data = await apiCall("/telegram/verify-announcements", {
         method: "POST",
-     
       });
 
       const completedAt = data?.completedAt ?? new Date().toISOString();
-        dispatch(setTelegramStatus({
+      dispatch(
+        setTelegramStatus({
           announcementsTask: {
             completed: true,
             points: telegramStatus?.announcementsTask?.points ?? 1000,
             completedAt,
           },
-        }));
+        }),
+      );
 
       if (typeof data.totalPoints === "number") {
         dispatch(setTaskStats({ totalPointsEarned: data.totalPoints }));
@@ -307,24 +324,26 @@ export function useSocial() {
       const data = await apiCall("/twitter/unlink", { method: "POST" });
 
       // Update status to unlinked
-      dispatch(setTwitterStatus({
-        linked: false,
-        username: null,
-        displayName: null,
-        profileImageUrl: null,
-        followersCount: null,
-        linkedAt: null,
-        cooldown: {
-          allowed: false,
-          hoursLeft: 24,
-          relinkAt: data.relinkAt,
-        },
-        promoTask: {
-          completed: false,
-          points: 500,
-          completedAt: null,
-        },
-      }));
+      dispatch(
+        setTwitterStatus({
+          linked: false,
+          username: null,
+          displayName: null,
+          profileImageUrl: null,
+          followersCount: null,
+          linkedAt: null,
+          cooldown: {
+            allowed: false,
+            hoursLeft: 24,
+            relinkAt: data.relinkAt,
+          },
+          promoTask: {
+            completed: false,
+            points: 500,
+            completedAt: null,
+          },
+        }),
+      );
 
       return data;
     } catch (err) {
@@ -349,11 +368,13 @@ export function useSocial() {
       }));
       dispatch(setTasks(normalized));
       dispatch(setPromoTask(data.promoTask));
-      dispatch(setTaskStats({
-        totalPointsAvailable: data.totalPointsAvailable,
-        totalPointsEarned: data.totalPointsEarned,
-        taskCount: data.taskCount,
-      }));
+      dispatch(
+        setTaskStats({
+          totalPointsAvailable: data.totalPointsAvailable,
+          totalPointsEarned: data.totalPointsEarned,
+          taskCount: data.taskCount,
+        }),
+      );
     } catch (err) {
       dispatch(setError(err.message || "Failed to fetch tasks"));
     } finally {
@@ -367,7 +388,7 @@ export function useSocial() {
     dispatch(setSeenPosts(stored));
     // Calculate new count
     const newTasksCount = tasks.filter(
-      (task) => !stored.includes(task.id)
+      (task) => !stored.includes(task.id),
     ).length;
     dispatch(setNewCount(newTasksCount));
   }, [dispatch, tasks]);
@@ -381,71 +402,82 @@ export function useSocial() {
   }, [dispatch, tasks]);
 
   // Verify task action
-  const verifyTaskAction = useCallback(async (taskId, action) => {
-    try {
-      dispatch(setLoading({ key: "verify", value: true }));
-      dispatch(clearError());
+  const verifyTaskAction = useCallback(
+    async (taskId, action) => {
+      try {
+        dispatch(setLoading({ key: "verify", value: true }));
+        dispatch(clearError());
 
-      const data = await apiCall(`/twitter/verify/${taskId}/${action}`, {
-        method: "POST",
-      });
+        const data = await apiCall(`/twitter/verify/${taskId}/${action}`, {
+          method: "POST",
+        });
 
-      // Update task action status
-      dispatch(updateTaskAction({
-        taskId,
-        action,
-        completed: true,
-        verifiedAt: new Date().toISOString(),
-      }));
-
-      // If bonusDetected is present, update the other action as completed too
-      if (data.bonusDetected) {
-        const bonusActions = Object.keys(data.bonusDetected).filter(k => data.bonusDetected[k]);
-        bonusActions.forEach((bonusAction) => {
-          // update state only if not already completed
-          dispatch(updateTaskAction({
+        // Update task action status
+        dispatch(
+          updateTaskAction({
             taskId,
-            action: bonusAction,
+            action,
             completed: true,
             verifiedAt: new Date().toISOString(),
-          }));
-        });
-      }
+          }),
+        );
 
-      // Update task stats
-      dispatch(setTaskStats({
-        totalPointsEarned: data.totalPoints,
-      }));
-
-      return data;
-    } catch (err) {
-      let errorMessage = "Failed to verify action";
-
-      if (err.status === 400) {
-        if (err.data?.error === "ALREADY_COMPLETED") {
-          errorMessage = "Already completed";
-        } else if (err.data?.error === "NOT_FOUND") {
-          errorMessage = "Could not verify. Try again in a moment.";
+        // If bonusDetected is present, update the other action as completed too
+        if (data.bonusDetected) {
+          const bonusActions = Object.keys(data.bonusDetected).filter(
+            (k) => data.bonusDetected[k],
+          );
+          bonusActions.forEach((bonusAction) => {
+            // update state only if not already completed
+            dispatch(
+              updateTaskAction({
+                taskId,
+                action: bonusAction,
+                completed: true,
+                verifiedAt: new Date().toISOString(),
+              }),
+            );
+          });
         }
-      } else if (err.status === 401) {
-        errorMessage = "Token expired. Please re-link your X account.";
-      } else if (err.status === 403) {
-        errorMessage = "Account not linked. Please link your X account.";
-      } else if (err.status === 429) {
-        errorMessage = "Too many attempts. Wait a moment.";
-      }
 
-      dispatch(setError(errorMessage));
-      throw err;
-    } finally {
-      dispatch(setLoading({ key: "verify", value: false }));
-    }
-  }, [dispatch, tasks]);
+        // Update task stats
+        dispatch(
+          setTaskStats({
+            totalPointsEarned: data.totalPoints,
+          }),
+        );
+
+        return data;
+      } catch (err) {
+        let errorMessage = "Failed to verify action";
+
+        if (err.status === 400) {
+          if (err.data?.error === "ALREADY_COMPLETED") {
+            errorMessage = "Already completed";
+          } else if (err.data?.error === "NOT_FOUND") {
+            errorMessage = "Could not verify. Try again in a moment.";
+          }
+        } else if (err.status === 401) {
+          errorMessage = "Token expired. Please re-link your X account.";
+        } else if (err.status === 403) {
+          errorMessage = "Account not linked. Please link your X account.";
+        } else if (err.status === 429) {
+          errorMessage = "Too many attempts. Wait a moment.";
+        }
+
+        dispatch(setError(errorMessage));
+        throw err;
+      } finally {
+        dispatch(setLoading({ key: "verify", value: false }));
+      }
+    },
+    [dispatch, tasks],
+  );
 
   // Post promo tweet
   const postPromoTweet = useCallback((tweetText) => {
     const encodedText = encodeURIComponent(tweetText);
-    window.open(`https://twitter.com/intent/tweet`, '_blank');
+    window.open(`https://twitter.com/intent/tweet`, "_blank");
   }, []);
 
   // Verify promo tweet
@@ -459,15 +491,19 @@ export function useSocial() {
       });
 
       // Update promo task
-      dispatch(setPromoTask({
-        completedToday: true,
-        timesCompleted: promoTask.timesCompleted + 1,
-      }));
+      dispatch(
+        setPromoTask({
+          completedToday: true,
+          timesCompleted: promoTask.timesCompleted + 1,
+        }),
+      );
 
       // Update task stats
-      dispatch(setTaskStats({
-        totalPointsEarned: data.totalPoints,
-      }));
+      dispatch(
+        setTaskStats({
+          totalPointsEarned: data.totalPoints,
+        }),
+      );
 
       return data;
     } catch (err) {
@@ -504,18 +540,22 @@ export function useSocial() {
       if (data.followTask) {
         dispatch(setFollowTask(data.followTask));
       } else {
-        dispatch(setFollowTask({
-          ...followTask,
-          completedToday: true,
-          timesCompleted: (followTask?.timesCompleted || 0) + 1,
-        }));
+        dispatch(
+          setFollowTask({
+            ...followTask,
+            completedToday: true,
+            timesCompleted: (followTask?.timesCompleted || 0) + 1,
+          }),
+        );
       }
 
       // Keep points in sync without refetching tasks.
       if (typeof data.totalPoints === "number") {
-        dispatch(setTaskStats({
-          totalPointsEarned: data.totalPoints,
-        }));
+        dispatch(
+          setTaskStats({
+            totalPointsEarned: data.totalPoints,
+          }),
+        );
       }
 
       return data;
@@ -547,8 +587,8 @@ export function useSocial() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
 
-    if (params.get('success') === 'true') {
-      const username = params.get('username');
+    if (params.get("success") === "true") {
+      const username = params.get("username");
       // Show success message
       toast.success(`Linked to @${username}!`);
       // Refresh status
@@ -557,28 +597,28 @@ export function useSocial() {
       window.history.replaceState({}, document.title, window.location.pathname);
     }
 
-    if (params.get('error')) {
-      const error = params.get('error');
-      const message = params.get('message');
+    if (params.get("error")) {
+      const error = params.get("error");
+      const message = params.get("message");
 
-      let errorMessage = 'Something went wrong. Please try again.';
+      let errorMessage = "Something went wrong. Please try again.";
 
       switch (error) {
-        case 'denied':
-          errorMessage = 'Authorization cancelled';
+        case "denied":
+          errorMessage = "Authorization cancelled";
           break;
-        case 'requirements':
-          errorMessage = message || 'Account does not meet requirements';
+        case "requirements":
+          errorMessage = message || "Account does not meet requirements";
           break;
-        case 'already_linked_other':
-          errorMessage = 'This X account is already linked to another wallet';
+        case "already_linked_other":
+          errorMessage = "This X account is already linked to another wallet";
           break;
       }
 
-      if(error && message) {
+      if (error && message) {
         toast.error(message);
       }
-      dispatch(setRequirementError(message))
+      dispatch(setRequirementError(message));
       dispatch(setError(errorMessage));
       // Clear URL parameters
       window.history.replaceState({}, document.title, window.location.pathname);
