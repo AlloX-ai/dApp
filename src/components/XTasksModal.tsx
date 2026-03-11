@@ -737,7 +737,7 @@ export function XTasksModal({
                   {/* Left side - Not connected */}
                   <div className="flex items-center gap-2">
                     <XLogo className="w-5 h-5" />
-                    <span className="font-semibold text-gray-600">Not Connected</span>
+                    <span className="text-xs sm:text-base font-semibold text-gray-600">Not Connected</span>
                     {/* Requirements Tooltip */}
                     <div className="group relative">
                       <Info className="w-4 h-4 text-gray-500 cursor-help" />
@@ -783,7 +783,7 @@ export function XTasksModal({
                 </div>
                 <div>
                   <p className="text-xs text-gray-500 font-medium uppercase">Telegram</p>
-                  <p className="font-semibold text-gray-700">
+                  <p className="text-xs sm:text-base font-semibold text-gray-700">
                     {telegramStatus.linked
                       ? `@${telegramStatus.username || "telegram_user"}`
                       : "Not Connected"}
@@ -1035,7 +1035,7 @@ export function XTasksModal({
               {/* Tabs */}
 
               {/* Tasks List */}
-        <div className="p-6 overflow-y-auto max-h-[calc(80vh-270px)]">
+        <div className="p-6 overflow-y-auto max-h-[calc(80vh-340px)] sm:max-h-[calc(80vh-270px)]">
               <div className="space-y-4">
                 {!telegramStatus.linked && (
                   <div className="rounded-2xl border border-sky-200/60 bg-gradient-to-r from-sky-50 to-cyan-50 p-4">
@@ -1165,7 +1165,7 @@ export function XTasksModal({
                         className="flex items-center gap-2 px-4 py-2 bg-black hover:bg-gray-800 text-white rounded-xl transition-colors text-sm font-medium disabled:opacity-50"
                       >
                         <XLogo className="w-4 h-4" />
-                        {loading.auth ? "Connecting..." : "Connect X"}
+                        {loading.auth ? "Connecting..." : "Connect"}
                       </button>
                     </div>
                   </div>
