@@ -667,6 +667,8 @@ export function XTasksModal({
     (twitterStatus.linked && hasFollowTask && isFollowCompleted ? 1 : 0) +
     (twitterStatus.linked && isPromoCompleted ? 1 : 0) +
     telegramCompletedCount;
+  const currentTabTelegramCount =
+    currentTab === "available" ? telegramAvailableCount : telegramCompletedCount;
 
   const totalStarsToday = socialPoints + telegramPoints;
 
@@ -1566,8 +1568,9 @@ export function XTasksModal({
                   </motion.div>
                 )}
 
-                {twitterStatus.linked && (currentTab === "available" ? availableTasks : completedTasks)
-                  .length === 0 &&
+                {twitterStatus.linked &&
+                (currentTab === "available" ? availableTasks : completedTasks).length +
+                  currentTabTelegramCount === 0 &&
                 ((currentTab === "available" && isFollowCompleted && isPromoCompleted) ||
                   (currentTab === "completed" && !isFollowCompleted && !isPromoCompleted)) ? (
                   <div className="text-center py-12 text-gray-500">
