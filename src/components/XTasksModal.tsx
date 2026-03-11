@@ -18,7 +18,7 @@ import { useSocial } from "../hooks/useSocial";
 import { toast } from "sonner";
 import { useApiLimiter } from "../hooks/useApiLimiter";
 const TELEGRAM_CHANNEL_URL = "https://t.me/alloxai";
-const TELEGRAM_ANNOUNCEMENTS_URL = "https://t.me/alloxdotai_announcements";
+const TELEGRAM_ANNOUNCEMENTS_URL = "https://t.me/alloxdotai";
 
 // Custom X (Twitter) Logo Component
 function XLogo({ className }: { className?: string }) {
