@@ -29,6 +29,7 @@ import { XTasksModal } from "../components/XTasksModal";
 import { motion, AnimatePresence } from "motion/react";
 import FAQModal from "../components/FaqModal";
 import getFormattedNumber from "../hooks/get-formatted-number";
+import { useSocial } from "../hooks/useSocial";
 // Custom X (Twitter) Logo Component
 function XLogo({ className }) {
   return (
@@ -70,7 +71,6 @@ export function PointsPage() {
       const message = params.get('message');
       const success = params.get('success');
 
-      console.log(params, error, message, success);
       
 
 
@@ -83,6 +83,9 @@ export function PointsPage() {
     setNewTasksCount(0); // Reset count when tasks are viewed
   };
 
+      const {fetchSocialPoints,fetchAllPoints} = useSocial();
+  
+
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { user, setUser, claimSeason1 } = useAuth();
@@ -94,6 +97,7 @@ export function PointsPage() {
 
   const checkinStatus = useSelector((state) => state.checkin?.status);
     const socialPoints = useSelector((state) => state.social?.socialPoints);
+    const telegramPoints = useSelector((state) => state.social?.telegramPoints);
     const newCount = useSelector((state) => state.social?.newCount);
 
 
@@ -197,16 +201,19 @@ export function PointsPage() {
     {
       id: 6,
       name: "Social Tasks",
-      points: "1000",
+      points: "500",
       description: "Complete social media tasks",
       icon: null,
       customIcon: XLogo,
       comingSoon: false,
       isClickable: true,
       userPoints:
-        getFormattedNumber(socialPoints || 0, 0) || 0,
+        getFormattedNumber(socialPoints + telegramPoints || 0, 0) || 0,
     },
   ];
+
+
+
   const handleClaimPoints = async () => {
     setClaimError(null);
     setClaiming(true);
@@ -548,7 +555,11 @@ export function PointsPage() {
       {/* X Tasks Modal */}
       <XTasksModal
         isOpen={showXTasksModal}
-        onClose={() => setShowXTasksModal(false)}
+        onClose={() => {
+          setShowXTasksModal(false);
+          fetchSocialPoints(); // Refresh points when modal is closed
+          fetchAllPoints();
+        }}
         onTasksViewed={handleTasksViewed}
       />
 

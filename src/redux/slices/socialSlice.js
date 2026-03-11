@@ -22,7 +22,10 @@ const initialState = {
     },
   },
 
+  telegramPoints: 0, 
+
   // Daily tasks
+  socialPoints: 0,
   tasks: [],
   promoTask: {
     type: "promo",
@@ -33,6 +36,26 @@ const initialState = {
     daily: true,
   },
   followTask: {},
+
+  // Telegram status
+  telegramStatus: {
+    linked: false,
+    username: null,
+    firstName: null,
+    photoUrl: null,
+    linkedAt: null,
+    joinTask: {
+      completed: false,
+      points: 1000,
+      completedAt: null,
+    },
+    announcementsTask: {
+      completed: false,
+      points: 1000,
+      completedAt: null,
+    },
+  },
+
 
   // Task statistics
   taskStats: {
@@ -53,6 +76,9 @@ const initialState = {
     verify: false,
     unlink: false,
     promoVerify: false,
+    telegramAuth: false,
+    telegramVerify: false,
+    telegramAnnVerify: false,
   },
 
   error: null,
@@ -74,6 +100,34 @@ const socialSlice = createSlice({
     },
     setSocialPoints: (state, action) => {
       state.socialPoints = action.payload;
+    },
+
+    setTelegramStatus: (state, action) => {
+      state.telegramStatus = { ...state.telegramStatus, ...action.payload };
+    },
+
+    setTelegramPoints: (state, action) => {
+      state.telegramPoints = action.payload;
+    },
+
+    resetTelegramStatus: (state) => {
+      state.telegramStatus = {
+        linked: false,
+        username: null,
+        firstName: null,
+        photoUrl: null,
+        linkedAt: null,
+        joinTask: {
+          completed: false,
+          points: 1000,
+          completedAt: null,
+        },
+        announcementsTask: {
+          completed: false,
+          points: 1000,
+          completedAt: null,
+        },
+      };
     },
 
     // Update task action status
@@ -140,6 +194,8 @@ const socialSlice = createSlice({
 export const {
   setTwitterStatus,
   setSocialPoints,
+  setTelegramStatus,
+  resetTelegramStatus,
   setTasks,
   updateTaskAction,
   setPromoTask,
@@ -152,6 +208,7 @@ export const {
   resetSocialState,
   setSeenPosts,
   setNewCount,
+  setTelegramPoints,
 } = socialSlice.actions;
 
 export default socialSlice.reducer;
