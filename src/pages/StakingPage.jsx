@@ -145,56 +145,42 @@ export function StakingPage() {
               </div>
               <div className="flex justify-between items-end">
                 <div>
-                  <div className="text-sm text-gray-600 mb-1">Min. Reward</div>
-                  <div className="text-2xl font-bold text-purple-600 flex gap-1 items-center">
-                    <Gem className="text-purple-600" /> {option.apy}
+                  <div className="text-sm text-gray-600 mb-1">APY</div>
+                  <div className="text-2xl font-bold text-green-600">
+                    {option.apy}%
                   </div>
                 </div>
                 <div className="text-right">
                   <div className="text-sm text-gray-600 mb-1">Lock Period</div>
-                  {/* <div className="font-medium">{option.lockPeriod}</div> */}
-                  <div className="grid grid-cols-3 gap-3">
-                    <button className="py-1 px-2 bg-white/80 border border-gray-200 rounded-xl text-sm font-medium hover:bg-white hover:border-gray-300 hover:shadow-md transition-all duration-200">
-                      30D
-                    </button>
-                    <button className="py-1 px-2 bg-black text-white rounded-xl text-sm font-medium hover:bg-gray-800 hover:shadow-lg transition-all duration-200">
-                      90D
-                    </button>
-                    <button className="py-1 px-2 bg-white/80 border border-gray-200 rounded-xl text-sm font-medium hover:bg-white hover:border-gray-300 hover:shadow-md transition-all duration-200">
-                      180D
-                    </button>
-                  </div>
+                  <div className="font-medium">{option.lockPeriod}</div>
                 </div>
               </div>
             </div>
 
             {/* Stake Section */}
-            <div className="border-t border-gray-200/50 pt-3">
+            <div className="border-t border-gray-200/50 pt-6">
               {/* <h4 className="font-semibold mb-4">Stake Tokens</h4> */}
               <div className="space-y-3">
-                {/* <div className="flex justify-between text-sm">
+                <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Available Balance</span>
                   <span className="font-medium">1,250.00 {option.token}</span>
-                </div> */}
+                </div>
 
                 <div className="mt-2">
-                  {/* <label className="text-sm text-gray-600 mb-2 block">
-                    Amount to Stake
-                  </label> */}
                   <input
                     type="number"
                     placeholder="0.00"
                     className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
                   />
                 </div>
-                {/* <div className="flex justify-end gap-2 text-sm">
+                <div className="flex justify-end gap-2 text-sm">
                   <span className="text-gray-600">Approved Amount</span>
                   <span className="font-medium">1,000.00 {option.token}</span>
-                </div> */}
+                </div>
                 <div className="flex justify-between text-sm bg-purple-50 p-3 rounded-lg">
-                  <span className="text-gray-600">Instant Rewards</span>
-                  <span className="font-semibold text-purple-600 flex items-center gap-2">
-                    0 <Gem className="text-purple-600" size={14} />
+                  <span className="text-gray-600">Estimated Rewards</span>
+                  <span className="font-semibold text-purple-600">
+                    ~125.00 {option.token}
                   </span>
                 </div>
                 <button
@@ -211,23 +197,23 @@ export function StakingPage() {
                 <div className="border-t border-gray-200/50 pt-3">
                   <h4 className="font-semibold mb-4">My Rewards</h4>
                   <div className="space-y-3">
-                    <div className="flex flex-row gap-2 md:gap-0 justify-between items-start md:items-center bg-green-50 p-3 rounded-xl">
-                      {/* <div> */}
-                      <div className="text-sm text-gray-600 mb-1">
-                        Gems Earned
+                    <div className="flex flex-col md:flex-row gap-2 md:gap-0 justify-between items-start md:items-center bg-green-50 p-3 rounded-xl">
+                      <div>
+                        <div className="text-sm text-gray-600 mb-1">
+                          Total Earned
+                        </div>
+                        <div className="text-xl font-bold text-green-600 flex items-center gap-2">
+                          0.042 BNB
+                        </div>
                       </div>
-                      <div className="text-xl font-bold text-green-600 flex items-center gap-2">
-                        0 <Gem size={20} />
-                      </div>
-                      {/* </div> */}
-                      {/* <div className="grid grid-cols-2 gap-3 w-full md:w-fit">
+                      <div className="grid grid-cols-2 gap-3 w-full md:w-fit">
                         <button className="px-4 py-2 rounded-xl bg-transparent border border-black text-black font-medium hover:bg-black transition-colors hover:text-white duration-200 hover:shadow-lg">
                           Claim
                         </button>
                         <button className="px-4 py-2 rounded-xl bg-transparent border border-black text-black font-medium hover:bg-black transition-colors hover:text-white duration-200 hover:shadow-lg">
                           Reinvest
                         </button>
-                      </div> */}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -255,7 +241,7 @@ export function StakingPage() {
                           disabled
                           className="w-full px-4 py-2 rounded-xl flex items-center gap-2 bg-gray-200 text-gray-500 font-medium cursor-not-allowed"
                         >
-                          <Lock size={18}/> Withdraw
+                          <Lock size={18} /> Withdraw
                         </button>
                       </div>
                     </div>
