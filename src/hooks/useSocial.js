@@ -21,7 +21,7 @@ import {
 import { toast } from "sonner";
 
 const TELEGRAM_BOT_ID = "8677110292";
-const TELEGRAM_APP_ORIGIN = "https://app.allox.ai/rewards/";
+const TELEGRAM_APP_ORIGIN = "https://betatools.dyp.finance/rewards/";
 const TELEGRAM_CALLBACK_BASE = "https://api.allox.ai/telegram/callback";
 
 let telegramAuthInFlight = null;
