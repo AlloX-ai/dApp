@@ -88,11 +88,6 @@ function LaunchAppLayout() {
   const authTriggeredRef = useRef(false);
   const { connector } = getAccount(wagmiClient);
 
-  const {fetchSocialPoints, loadSeenPosts} = useSocial();
-   useEffect(() => {
-     fetchSocialPoints();
-     loadSeenPosts();
-   }, [fetchSocialPoints, loadSeenPosts]);
 
   const { address, isConnected, walletModal, walletType, checkinModal } =
     useSelector((state) => state.wallet);
@@ -104,6 +99,16 @@ function LaunchAppLayout() {
     addOptimisticCheckinPoints,
     loading: checkinLoading,
   } = useCheckin();
+
+
+    const {fetchSocialPoints,fetchAllPoints, loadSeenPosts} = useSocial();
+   useEffect(() => {
+     fetchSocialPoints();
+     fetchAllPoints();
+     loadSeenPosts();
+   }, [fetchSocialPoints, fetchAllPoints, loadSeenPosts]);
+
+
 
   const handleDisconnect = async () => {
     // if (walletType === "phantom") {

@@ -4,6 +4,7 @@ import { apiCall } from "../utils/api";
 import {
   setTwitterStatus,
   setSocialPoints,
+  setTelegramStatus,
   setTasks,
   updateTaskAction,
   setPromoTask,
@@ -15,8 +16,34 @@ import {
   clearError,
   setSeenPosts,
   setNewCount,
+  setTelegramPoints,
 } from "../redux/slices/socialSlice";
 import { toast } from "sonner";
+
+const TELEGRAM_BOT_ID = "8677110292";
+const TELEGRAM_APP_ORIGIN = "https://betatools.dyp.finance/rewards/";
+const TELEGRAM_CALLBACK_BASE = "https://api.allox.ai/telegram/callback";
+
+let telegramAuthInFlight = null;
+let lastProcessedTelegramAuthHash = null;
+
+const normalizeTelegramStatus = (payload) => ({
+  linked: Boolean(payload?.linked),
+  username: payload?.username ?? null,
+  firstName: payload?.firstName ?? null,
+  photoUrl: payload?.photoUrl ?? null,
+  linkedAt: payload?.linkedAt ?? null,
+  joinTask: {
+    completed: Boolean(payload?.joinTask?.completed),
+    points: payload?.joinTask?.points ?? 1000,
+    completedAt: payload?.joinTask?.completedAt ?? null,
+  },
+  announcementsTask: {
+    completed: Boolean(payload?.announcementsTask?.completed),
+    points: payload?.announcementsTask?.points ?? 1000,
+    completedAt: payload?.announcementsTask?.completedAt ?? null,
+  },
+});
 
 export function useSocial() {
   const dispatch = useDispatch();
@@ -24,8 +51,10 @@ export function useSocial() {
     twitterStatus,
     tasks,
     socialPoints,
+    telegramPoints,
     promoTask,
     followTask,
+    telegramStatus,
     taskStats,
     loading,
     error,
@@ -42,6 +71,8 @@ export function useSocial() {
 
       const data = await apiCall("/twitter/status");
       dispatch(setTwitterStatus(data));
+      dispatch(setFollowTask(data.followTask));
+
     } catch (err) {
       dispatch(setError(err.message || "Failed to fetch Twitter status"));
     } finally {
@@ -63,6 +94,23 @@ export function useSocial() {
     }
   }, [dispatch]);
 
+
+  const fetchAllPoints = useCallback(async () => {
+    try {
+      dispatch(setLoading({ key: "status", value: true }));
+      dispatch(clearError());
+
+      const data = await apiCall("/auth/me");
+      console.log(data, "Data");
+      
+      dispatch(setTelegramPoints(data?.season1?.pointsBreakdown?.fromTelegram ?? 0));
+    } catch (err) {
+      dispatch(setError(err.message || "Failed to fetch total points"));
+    } finally {
+      dispatch(setLoading({ key: "status", value: false }));
+    }
+  }, [dispatch]);
+
   // Link Twitter account
   const linkTwitter = useCallback(async () => {
     try {
@@ -77,6 +125,178 @@ export function useSocial() {
       dispatch(setLoading({ key: "auth", value: false }));
     }
   }, [dispatch]);
+
+  const linkTelegram = useCallback((jwtToken) => {
+    const token = jwtToken || localStorage.getItem("authToken");
+
+    if (!token) {
+      throw new Error("Connect your wallet first to link Telegram");
+    }
+
+    const callbackUrl = encodeURIComponent(
+      `${TELEGRAM_CALLBACK_BASE}?state=${token}`,
+    );
+    const oauthUrl = `https://oauth.telegram.org/auth?bot_id=${TELEGRAM_BOT_ID}&origin=${encodeURIComponent(TELEGRAM_APP_ORIGIN)}&request_access=write&return_to=${callbackUrl}`;
+    window.location.href = oauthUrl;
+  }, []);
+
+  const applyTelegramStatus = useCallback((statusPayload) => {
+    const normalizedStatus = normalizeTelegramStatus(statusPayload);
+    dispatch(setTelegramStatus(normalizedStatus));
+    return normalizedStatus;
+  }, [dispatch]);
+
+  const fetchTelegramStatus = useCallback(async ({ suppressError = false } = {}) => {
+    try {
+      const statusResult = await apiCall("/telegram/status");
+      applyTelegramStatus(statusResult);
+      return statusResult;
+    } catch (err) {
+      if (!suppressError) {
+        dispatch(setError(err.message || "Failed to fetch Telegram status"));
+      }
+      throw err;
+    }
+  }, [applyTelegramStatus, dispatch]);
+
+  const processTelegramAuthFromHash = useCallback(async () => {
+    const hash = window.location.hash || "";
+
+    if (!hash.includes("tgAuthResult=")) return null;
+
+    if (hash === lastProcessedTelegramAuthHash) return null;
+
+    if (telegramAuthInFlight) {
+      return telegramAuthInFlight;
+    }
+
+    const runner = async () => {
+      try {
+        dispatch(setLoading({ key: "telegramAuth", value: true }));
+        dispatch(clearError());
+
+        // If Telegram is already linked on backend, skip /telegram/link entirely.
+        try {
+          const statusResult = await fetchTelegramStatus({ suppressError: true });
+          const isLinked = Boolean(statusResult?.linked);
+
+          if (isLinked) {
+            window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+            lastProcessedTelegramAuthHash = hash;
+            return statusResult;
+          }
+        } catch (statusErr) {
+          // Continue to /telegram/link when status isn't available/not linked.
+        }
+
+        const base64 = hash.split("tgAuthResult=")[1]?.split("&")[0];
+        if (!base64) {
+          throw new Error("Missing Telegram auth result");
+        }
+
+        const normalized = base64.replace(/-/g, "+").replace(/_/g, "/");
+        const padded = normalized.padEnd(
+          normalized.length + ((4 - (normalized.length % 4)) % 4),
+          "=",
+        );
+        const authData = JSON.parse(atob(padded));
+
+        const result = await apiCall("/telegram/link", {
+          method: "POST",
+          body: JSON.stringify(authData),
+        });
+
+        // After successful link, always fetch canonical status payload.
+        const statusResult = await fetchTelegramStatus({ suppressError: true });
+        const normalizedStatus = normalizeTelegramStatus(statusResult);
+
+        toast.success(
+          `Telegram linked${normalizedStatus.username ? `: @${normalizedStatus.username}` : ""}`,
+        );
+
+        window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+        lastProcessedTelegramAuthHash = hash;
+
+        return { linkResult: result, statusResult };
+      } catch (err) {
+        dispatch(setError(err.message || "Failed to link Telegram"));
+        throw err;
+      } finally {
+        dispatch(setLoading({ key: "telegramAuth", value: false }));
+      }
+    };
+
+    telegramAuthInFlight = runner();
+
+    try {
+      return await telegramAuthInFlight;
+    } finally {
+      telegramAuthInFlight = null;
+    }
+  }, [dispatch, fetchTelegramStatus]);
+
+  const verifyTelegramJoin = useCallback(async () => {
+    try {
+      dispatch(setLoading({ key: "telegramVerify", value: true }));
+      dispatch(clearError());
+
+      const data = await apiCall("/telegram/verify-join", {
+        method: "POST",
+     
+      });
+
+      const completedAt = data?.completedAt ?? new Date().toISOString();
+        dispatch(setTelegramStatus({
+          joinTask: {
+            completed: true,
+            points: telegramStatus?.joinTask?.points ?? 1000,
+            completedAt,
+          },
+        }));
+
+      if (typeof data.totalPoints === "number") {
+        dispatch(setTaskStats({ totalPointsEarned: data.totalPoints }));
+      }
+
+      return data;
+    } catch (err) {
+      throw err.message;
+    } finally {
+      dispatch(setLoading({ key: "telegramVerify", value: false }));
+    }
+  }, [dispatch, telegramStatus?.joinTask?.points]);
+
+
+  const verifyTelegramAnnouncements = useCallback(async () => {
+    try {
+      dispatch(setLoading({ key: "telegramAnnVerify", value: true }));
+      dispatch(clearError());
+
+      const data = await apiCall("/telegram/verify-announcements", {
+        method: "POST",
+     
+      });
+
+      const completedAt = data?.completedAt ?? new Date().toISOString();
+        dispatch(setTelegramStatus({
+          announcementsTask: {
+            completed: true,
+            points: telegramStatus?.announcementsTask?.points ?? 1000,
+            completedAt,
+          },
+        }));
+
+      if (typeof data.totalPoints === "number") {
+        dispatch(setTaskStats({ totalPointsEarned: data.totalPoints }));
+      }
+
+      return data;
+    } catch (err) {
+      throw err.message;
+    } finally {
+      dispatch(setLoading({ key: "telegramAnnVerify", value: false }));
+    }
+  }, [dispatch, telegramStatus?.announcementsTask?.points]);
 
   // Unlink Twitter account
   const unlinkTwitter = useCallback(async () => {
@@ -129,7 +349,6 @@ export function useSocial() {
       }));
       dispatch(setTasks(normalized));
       dispatch(setPromoTask(data.promoTask));
-      dispatch(setFollowTask(data.followTask));
       dispatch(setTaskStats({
         totalPointsAvailable: data.totalPointsAvailable,
         totalPointsEarned: data.totalPointsEarned,
@@ -366,24 +585,33 @@ export function useSocial() {
     }
   }, [dispatch, fetchTwitterStatus]);
 
+  useEffect(() => {
+    processTelegramAuthFromHash().catch(() => {});
+  }, [processTelegramAuthFromHash]);
+
   return {
     // State
     twitterStatus,
     tasks,
     socialPoints,
+    telegramPoints,
     promoTask,
     followTask,
+    telegramStatus,
     taskStats,
     loading,
     error,
     requirementError,
     seenPosts,
     newCount,
-
     // Actions
     fetchTwitterStatus,
     fetchSocialPoints,
+    fetchAllPoints,
     linkTwitter,
+    linkTelegram,
+    fetchTelegramStatus,
+    applyTelegramStatus,
     unlinkTwitter,
     fetchTasks,
     loadSeenPosts,
@@ -392,6 +620,9 @@ export function useSocial() {
     postPromoTweet,
     verifyPromoTweet,
     verifyFollowTask,
+    processTelegramAuthFromHash,
+    verifyTelegramJoin,
+    verifyTelegramAnnouncements,
     clearError,
   };
 }

@@ -10,13 +10,15 @@ import {
   Coins,
   Loader2,
   Info,
+  Send,
 } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useSocial } from "../hooks/useSocial";
-import { useSelector } from "react-redux";
 import { toast } from "sonner";
 import { useApiLimiter } from "../hooks/useApiLimiter";
+const TELEGRAM_CHANNEL_URL = "https://t.me/alloxai";
+const TELEGRAM_ANNOUNCEMENTS_URL = "https://t.me/alloxdotai";
 
 // Custom X (Twitter) Logo Component
 function XLogo({ className }: { className?: string }) {
@@ -69,16 +71,18 @@ export function XTasksModal({
 }: XTasksModalProps) {
   const {
     twitterStatus,
+    telegramStatus,
     tasks,
     promoTask,
     followTask,
-    taskStats,
     socialPoints,
     loading,
     error,
     requirementError,
     fetchTwitterStatus,
+    fetchTelegramStatus,
     linkTwitter,
+    linkTelegram,
     unlinkTwitter,
     fetchTasks,
     verifyTaskAction,
@@ -86,8 +90,11 @@ export function XTasksModal({
     verifyPromoTweet,
     fetchSocialPoints,
     verifyFollowTask,
+    verifyTelegramJoin,
+    verifyTelegramAnnouncements,
     clearError,
     markAllAsSeen,
+    telegramPoints,
   } = useSocial();
 
   const { checkLimit, remaining, resetTime, isLimited } = useApiLimiter();
@@ -95,6 +102,12 @@ export function XTasksModal({
   const [currentTab, setCurrentTab] = useState<"available" | "completed">(
     "available",
   );
+  const [telegramVerifyState, setTelegramVerifyState] = useState<
+    "idle" | "loading" | "success" | "error"
+  >("idle");
+  const [telegramAnnouncementsVerifyState, setTelegramAnnouncementsVerifyState] = useState<
+    "idle" | "loading" | "success" | "error"
+  >("idle");
   const [showDisconnectModal, setShowDisconnectModal] = useState(false);
   const [disconnectTime, setDisconnectTime] = useState<number | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<string>("");
@@ -116,6 +129,7 @@ export function XTasksModal({
     null,
   );
   const [followTimerRemaining, setFollowTimerRemaining] = useState<string>("");
+  const [dummyScore, setDummyScore] = useState<number>(0);
 
   // 15‑second cooldown used after any action/verify call
   const [actionCooldownEndTime, setActionCooldownEndTime] = useState<number | null>(
@@ -135,6 +149,7 @@ export function XTasksModal({
   const hasViewedTasksRef = useRef(false);
 
   const [secondsLeft, setSecondsLeft] = useState(0);
+
 
   useEffect(() => {
     if (!resetTime) return;
@@ -180,9 +195,10 @@ export function XTasksModal({
 
     if (!hasFetchedStatusRef.current) {
       fetchTwitterStatus();
+      fetchTelegramStatus({ suppressError: true }).catch(() => {});
       hasFetchedStatusRef.current = true;
     }
-  }, [isOpen, fetchTwitterStatus]);
+  }, [isOpen, fetchTwitterStatus, fetchTelegramStatus]);
 
   // Fetch tasks once per open cycle when account is linked
   useEffect(() => {
@@ -356,6 +372,70 @@ export function XTasksModal({
     setShowDisconnectModal(true);
   };
 
+  const handleTelegramConnect = () => {
+    try {
+      linkTelegram();
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to start Telegram linking");
+    }
+  };
+
+  const handleTelegramJoin = () => {
+    window.open(TELEGRAM_CHANNEL_URL, "_blank", "noopener,noreferrer");
+  };
+
+  const handleTelegramJoinAnnouncements = () => {
+    window.open(TELEGRAM_ANNOUNCEMENTS_URL, "_blank", "noopener,noreferrer");
+  };
+
+  const handleTelegramVerifyJoin = async () => {
+    if (!telegramStatus.linked) {
+      toast.error("Connect Telegram first");
+      return;
+    }
+
+    setTelegramVerifyState("loading");
+
+    try {
+      await verifyTelegramJoin();
+      setTelegramVerifyState("success");
+      toast.success("Telegram join verified. 1000 points awarded.");
+      setDummyScore((prev) => prev + 1000);
+      await fetchSocialPoints();
+    } catch (err: any) {
+      const message = err?.message || "Unable to verify Telegram join";
+      toast.error(message);
+      setTelegramVerifyState("error");
+      setTimeout(() => {
+        setTelegramVerifyState("idle");
+      }, 2000);
+    }
+  };
+
+    const handleTelegramVerifyAnnouncements = async () => {
+      if (!telegramStatus.linked) {
+        toast.error("Connect Telegram first");
+        return;
+      }
+
+      setTelegramAnnouncementsVerifyState("loading");
+
+      try {
+        await verifyTelegramAnnouncements();
+        setTelegramAnnouncementsVerifyState("success");
+        toast.success("Telegram announcements join verified. 1000 points awarded.");
+        setDummyScore((prev) => prev + 1000);
+        await fetchSocialPoints();
+      } catch (err: any) {
+        const message = err?.message || "Unable to verify Telegram announcements join";
+        toast.error(message);
+        setTelegramAnnouncementsVerifyState("error");
+        setTimeout(() => {
+          setTelegramAnnouncementsVerifyState("idle");
+        }, 2000);
+      }
+    };
+
   const handleConfirmDisconnect = async () => {
     try {
       await unlinkTwitter();
@@ -372,12 +452,7 @@ export function XTasksModal({
   const handlePromoPost = () => {
     // Use one of the random tweet variants
 
-    if (!checkLimit()) {
-      toast.error(
-        "You have reached your limit. Please wait until you can perform this action again.",
-      );
-      return;
-    }
+  
 
     const tweetVariants = [
       "Just discovered @alloxdotai — AI-powered crypto portfolios! 🚀\n\nCheck it out: https://allox.ai",
@@ -551,8 +626,51 @@ export function XTasksModal({
   );
   const isPromoCompleted = Boolean(promoTask?.completedToday);
   const hasFollowTask = Boolean(followTask && Object.keys(followTask).length > 0);
+  const telegramJoinTask = telegramStatus?.joinTask || {
+    completed: false,
+    points: 1000,
+    completedAt: null,
+  };
+  const telegramAnnouncementsTask = telegramStatus?.announcementsTask || {
+    completed: false,
+    points: 1000,
+    completedAt: null,
+  };
 
-  const totalStarsToday = socialPoints;
+  const isWithin24Hours = (completedAt?: string | null) => {
+    if (!completedAt) return false;
+    const completedTime = new Date(completedAt).getTime();
+    if (Number.isNaN(completedTime)) return false;
+    return Date.now() - completedTime < 24 * 60 * 60 * 1000;
+  };
+
+  const telegramJoinCompletedForTab =
+    Boolean(telegramJoinTask.completed) && isWithin24Hours(telegramJoinTask.completedAt);
+  const telegramAnnouncementsCompletedForTab =
+    Boolean(telegramAnnouncementsTask.completed) &&
+    isWithin24Hours(telegramAnnouncementsTask.completedAt);
+
+  const telegramAvailableCount = telegramStatus.linked
+    ? (telegramJoinCompletedForTab ? 0 : 1) +
+      (telegramAnnouncementsCompletedForTab ? 0 : 1)
+    : 0;
+  const telegramCompletedCount = telegramStatus.linked
+    ? (telegramJoinCompletedForTab ? 1 : 0) +
+      (telegramAnnouncementsCompletedForTab ? 1 : 0)
+    : 0;
+
+  const availableExtraCount =
+    (twitterStatus.linked && hasFollowTask && !isFollowCompleted ? 1 : 0) +
+    (twitterStatus.linked && !isPromoCompleted ? 1 : 0) +
+    telegramAvailableCount;
+  const completedExtraCount =
+    (twitterStatus.linked && hasFollowTask && isFollowCompleted ? 1 : 0) +
+    (twitterStatus.linked && isPromoCompleted ? 1 : 0) +
+    telegramCompletedCount;
+  const currentTabTelegramCount =
+    currentTab === "available" ? telegramAvailableCount : telegramCompletedCount;
+
+  const totalStarsToday = socialPoints + telegramPoints;
 
   if (!isOpen) return null;
 
@@ -587,82 +705,116 @@ export function XTasksModal({
           </div>
 
           {/* User Info / Connection Status */}
-          <div className="flex items-center justify-between bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-200/50 rounded-2xl p-4">
-            {twitterStatus.linked ? (
-              <>
-                {/* Left side - Points */}
-                <div className="flex items-center gap-2 px-3 py-1 bg-white rounded-lg">
-                  <Coins className="size-4 text-amber-500" />
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="flex items-center justify-between bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-200/50 rounded-2xl p-4">
+              {twitterStatus.linked ? (
+                <>
+                  {/* Left side - Points */}
+                  <div className="flex items-center gap-2 px-3 py-1 bg-white rounded-lg">
+                    <Coins className="size-4 text-amber-500" />
 
-                  <span className="text-sm font-bold">
-                    {totalStarsToday} points
-                  </span>
-                </div>
-
-                {/* Right side - Username and Disconnect */}
-                <div className="flex flex-col items-end gap-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-lg">
-                      @{twitterStatus.username}
+                    <span className="text-sm font-bold">
+                      {totalStarsToday + dummyScore} points
                     </span>
                   </div>
-                  <button
-                    onClick={handleDisconnectClick}
-                    disabled={loading.unlink}
-                    className="text-xs text-red-400 hover:text-red-700 underline font-medium transition-colors disabled:opacity-50"
-                  >
-                    {loading.unlink ? "Disconnecting..." : "Disconnect"}
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                {/* Left side - Not connected */}
-                  <div className="flex items-center gap-2">
-                  <XLogo className="w-5 h-5" />
-                  <span className="font-semibold text-gray-600">Not Connected</span>
-                  {/* Requirements Tooltip */}
-                  <div className="group relative">
-                    <Info className="w-4 h-4 text-gray-500 cursor-help" />
-                    <div className="absolute left-0 top-full mt-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 w-fit">
-                      <p className="font-semibold mb-1">Requirements:</p>
-                      <ul className="space-y-0.5">
-                        <li>- Account should be more than 6 months old</li>
-                        <li>- Account should have 50 or more followers</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
 
-                {/* Right side - Connect button or timer */}
-                {!twitterStatus.cooldown.allowed ? (
-                  <div className="group relative">
-                    <div className="flex items-center gap-2 px-4 py-2 bg-gray-300 text-gray-600 rounded-xl text-sm font-medium cursor-not-allowed">
-                      <Clock className="w-4 h-4" />
-                      {timeRemaining || "24:00:00"}
+                  {/* Right side - Username and Disconnect */}
+                  <div className="flex flex-col items-end gap-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-lg">
+                        @{twitterStatus.username}
+                      </span>
                     </div>
-                    <div className="absolute right-0 top-full mt-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                      You can connect again after the timer ends
+                    <button
+                      onClick={handleDisconnectClick}
+                      disabled={loading.unlink}
+                      className="text-xs text-red-400 hover:text-red-700 underline font-medium transition-colors disabled:opacity-50"
+                    >
+                      {loading.unlink ? "Disconnecting..." : "Disconnect"}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* Left side - Not connected */}
+                  <div className="flex items-center gap-2">
+                    <XLogo className="w-5 h-5" />
+                    <span className="text-xs sm:text-base font-semibold text-gray-600">Not Connected</span>
+                    {/* Requirements Tooltip */}
+                    <div className="group relative">
+                      <Info className="w-4 h-4 text-gray-500 cursor-help" />
+                      <div className="absolute left-0 top-full mt-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 w-fit">
+                        <p className="font-semibold mb-1">Requirements:</p>
+                        <ul className="space-y-0.5">
+                          <li>- Account should be more than 6 months old</li>
+                          <li>- Account should have 50 or more followers</li>
+                        </ul>
+                      </div>
                     </div>
                   </div>
-                ) : (
-                  <button
-                    onClick={handleConnect}
-                    disabled={loading.auth}
-                    className="flex items-center gap-2 px-4 py-2 bg-black hover:bg-gray-800 text-white rounded-xl transition-colors text-sm font-medium disabled:opacity-50"
-                  >
-                    <XLogo className="w-4 h-4" />
-                    {loading.auth ? "Connecting..." : "Connect"}
-                  </button>
-                )}
-              </>
-            )}
+
+                  {/* Right side - Connect button or timer */}
+                  {!twitterStatus.cooldown.allowed ? (
+                    <div className="group relative">
+                      <div className="flex items-center gap-2 px-4 py-2 bg-gray-300 text-gray-600 rounded-xl text-sm font-medium cursor-not-allowed">
+                        <Clock className="w-4 h-4" />
+                        {timeRemaining || "24:00:00"}
+                      </div>
+                      <div className="absolute right-0 top-full mt-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                        You can connect again after the timer ends
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={handleConnect}
+                      disabled={loading.auth}
+                      className="flex items-center gap-2 px-4 py-2 bg-black hover:bg-gray-800 text-white rounded-xl transition-colors text-sm font-medium disabled:opacity-50"
+                    >
+                      <XLogo className="w-4 h-4" />
+                      {loading.auth ? "Connecting..." : "Connect"}
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between bg-gradient-to-br from-sky-50 to-cyan-50 border border-sky-200/50 rounded-2xl p-4">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-sky-500 rounded-lg flex items-center justify-center">
+                  <Send className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 font-medium uppercase">Telegram</p>
+                  <p className="text-xs sm:text-base font-semibold text-gray-700">
+                    {telegramStatus.linked
+                      ? `@${telegramStatus.username || "telegram_user"}`
+                      : "Not Connected"}
+                  </p>
+                </div>
+              </div>
+
+              {!telegramStatus.linked ? (
+                <button
+                  onClick={handleTelegramConnect}
+                  disabled={loading.telegramAuth}
+                  className="flex items-center gap-2 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl transition-colors text-sm font-medium disabled:opacity-50"
+                >
+                  <Send className="w-4 h-4" />
+                  {loading.telegramAuth ? "Connecting..." : "Connect"}
+                </button>
+              ) : (
+                <div className="px-3 py-1 bg-white rounded-lg text-sm font-semibold text-sky-700">
+                  Connected
+                </div>
+              )}
+            </div>
           </div>
+
         </div>
 
         
 
-        {!twitterStatus.linked || loading.tasks ? (
+        {!(twitterStatus.linked || telegramStatus.linked) || (twitterStatus.linked && loading.tasks) ? (
           <div className="flex gap-2 mb-6 px-6 mt-4">
             <button
               disabled
@@ -688,7 +840,7 @@ export function XTasksModal({
                     : "bg-gray-200 text-gray-700 hover:bg-gray-300"
                 }`}
               >
-                Available ({availableTasks.length})
+                Available ({availableTasks.length + availableExtraCount})
               </button>
               <button
                 onClick={() => setCurrentTab("completed")}
@@ -698,7 +850,7 @@ export function XTasksModal({
                     : "bg-gray-200 text-gray-700 hover:bg-gray-300"
                 }`}
               >
-                Completed ({completedTasks.length})
+                Completed ({completedTasks.length + completedExtraCount})
               </button>
             </div>
             <div
@@ -735,53 +887,146 @@ export function XTasksModal({
           </>
         )}
         {/* Content */}
-          {!twitterStatus.linked  ? (
+          {!(twitterStatus.linked || telegramStatus.linked)  ? (
             <>
-              {/* Tabs (same layout as connected) */}
+              <div className="p-6 overflow-y-auto max-h-[calc(80vh-270px)]">
+                <div className="space-y-4">
+                  {requirementError && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="bg-red-50 border-2 border-red-200 rounded-2xl p-6"
+                    >
+                      <h3 className="text-lg font-bold text-red-900 mb-2">X Connection Failed</h3>
+                      <p className="text-red-700">{requirementError}</p>
+                    </motion.div>
+                  )}
 
-              {requirementError ? 
-            <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="bg-red-50 border-2 border-red-200 rounded-2xl p-8"
-                >
-                  <div className="flex flex-col items-center text-center">
-                    <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
-                      <svg
-                        className="w-8 h-8 text-red-600"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                        />
-                      </svg>
+                  {telegramStatus.linked && (
+                    <>
+                      <div className="rounded-2xl border border-sky-200/60 bg-gradient-to-r from-sky-50 to-cyan-50 p-4">
+                        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                          <div>
+                            <h3 className="text-sm font-bold text-sky-900">Join Allox Channel</h3>
+                            <p className="text-sm text-sky-800">
+                              Join the Allox Telegram channel and verify to earn {telegramJoinTask.points} points.
+                            </p>
+                          </div>
+                          <div className="flex gap-2">
+                            {!telegramJoinTask.completed && (
+                              <button
+                                onClick={handleTelegramJoin}
+                                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-sky-200 text-sky-700 text-sm font-semibold hover:bg-sky-100 transition-colors"
+                              >
+                                <ExternalLink className="w-4 h-4" />
+                                Join
+                              </button>
+                            )}
+                            <button
+                              onClick={handleTelegramVerifyJoin}
+                              disabled={telegramJoinTask.completed || loading.telegramVerify || telegramVerifyState === "loading"}
+                              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
+                                telegramJoinTask.completed || telegramVerifyState === "success"
+                                  ? "bg-green-500 text-white"
+                                  : telegramVerifyState === "error"
+                                    ? "bg-red-500 text-white"
+                                    : telegramVerifyState === "loading" || loading.telegramVerify
+                                      ? "bg-gray-400 text-white cursor-wait"
+                                      : "bg-sky-600 hover:bg-sky-700 text-white"
+                              }`}
+                            >
+                              {telegramVerifyState === "loading" || loading.telegramVerify ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Send className="w-4 h-4" />
+                              )}
+                              {telegramJoinTask.completed || telegramVerifyState === "success" ? "Verified" : telegramVerifyState === "error" ? "Failed" : "Verify"}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="rounded-2xl border border-sky-200/60 bg-gradient-to-r from-sky-50 to-cyan-50 p-4">
+                        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                          <div>
+                            <h3 className="text-sm font-bold text-sky-900">Join Allox Announcements</h3>
+                            <p className="text-sm text-sky-800">
+                              Join the announcements channel and verify to earn {telegramAnnouncementsTask.points} points.
+                            </p>
+                          </div>
+                          <div className="flex gap-2">
+                            {!telegramAnnouncementsTask.completed && (
+                              <button
+                                onClick={handleTelegramJoinAnnouncements}
+                                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-sky-200 text-sky-700 text-sm font-semibold hover:bg-sky-100 transition-colors"
+                              >
+                                <ExternalLink className="w-4 h-4" />
+                                Join
+                              </button>
+                            )}
+                            <button
+                              onClick={handleTelegramVerifyAnnouncements}
+                              disabled={telegramAnnouncementsTask.completed || loading.telegramAnnVerify || telegramAnnouncementsVerifyState === "loading"}
+                              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
+                                telegramAnnouncementsTask.completed || telegramAnnouncementsVerifyState === "success"
+                                  ? "bg-green-500 text-white"
+                                  : telegramAnnouncementsVerifyState === "error"
+                                    ? "bg-red-500 text-white"
+                                    : telegramAnnouncementsVerifyState === "loading" || loading.telegramAnnVerify
+                                      ? "bg-gray-400 text-white cursor-wait"
+                                      : "bg-sky-600 hover:bg-sky-700 text-white"
+                              }`}
+                            >
+                              {telegramAnnouncementsVerifyState === "loading" || loading.telegramAnnVerify ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Send className="w-4 h-4" />
+                              )}
+                              {telegramAnnouncementsTask.completed || telegramAnnouncementsVerifyState === "success" ? "Verified" : telegramAnnouncementsVerifyState === "error" ? "Failed" : "Verify"}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {!telegramStatus.linked && (
+                    <div className="rounded-2xl border border-sky-200/60 bg-gradient-to-r from-sky-50 to-cyan-50 p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <h3 className="text-sm font-bold text-sky-900">Connect Telegram to get rewards</h3>
+                          <p className="text-sm text-sky-800">Link Telegram to unlock 2 Telegram reward tasks.</p>
+                        </div>
+                        <button
+                          onClick={handleTelegramConnect}
+                          disabled={loading.telegramAuth}
+                          className="flex items-center gap-2 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl transition-colors text-sm font-medium disabled:opacity-50"
+                        >
+                          <Send className="w-4 h-4" />
+                          {loading.telegramAuth ? "Connecting..." : "Connect"}
+                        </button>
+                      </div>
                     </div>
-                    
-                    <h3 className="text-xl font-bold text-red-900 mb-2">Connection Failed</h3>
-                    <p className="text-red-700 mb-4 max-w-md">
-                      Your X account couldn't be connected because it doesn't meet the requirements.
-                    </p>
-                    
-                    <div className="bg-white border border-red-200 rounded-xl p-4 mb-6 w-full max-w-md">
-                      <p className="text-sm font-semibold text-red-900 mb-2">Requirements:</p>
-                      <ul className="text-sm text-red-700 space-y-1 text-left">
-                        <li>{requirementError}</li>
-                      </ul>
+                  )}
+
+                  <div className="rounded-2xl border border-indigo-200/60 bg-gradient-to-r from-indigo-50 to-purple-50 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-sm font-bold text-indigo-900">Connect X to get rewards</h3>
+                        <p className="text-sm text-indigo-800">Link your X account to unlock X task rewards.</p>
+                      </div>
+                      <button
+                        onClick={handleConnect}
+                        disabled={loading.auth || !twitterStatus.cooldown.allowed}
+                        className="flex items-center gap-2 px-4 py-2 bg-black hover:bg-gray-800 text-white rounded-xl transition-colors text-sm font-medium disabled:opacity-50"
+                      >
+                        <XLogo className="w-4 h-4" />
+                        {loading.auth ? "Connecting..." : "Connect "}
+                      </button>
                     </div>
                   </div>
-                </motion.div>
-              :
-              <div className="flex justify-center items-center">
-                <h3 className="text-lg font-bold mb-1 bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
-                  Connect your account to view tasks!
-                </h3>
-              </div>  
-            }
+                </div>
+              </div>
             </>
           ) : loading.tasks ? (
             <div className="flex justify-center items-center p-6">
@@ -792,9 +1037,143 @@ export function XTasksModal({
               {/* Tabs */}
 
               {/* Tasks List */}
-        <div className="p-6 overflow-y-auto max-h-[calc(80vh-270px)]">
+        <div className="p-6 overflow-y-auto max-h-[calc(80vh-340px)] sm:max-h-[calc(80vh-270px)]">
               <div className="space-y-4">
-                {currentTab === "available" && hasFollowTask && !isFollowCompleted && (
+                {!telegramStatus.linked && (
+                  <div className="rounded-2xl border border-sky-200/60 bg-gradient-to-r from-sky-50 to-cyan-50 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-sm font-bold text-sky-900">Connect Telegram to get rewards</h3>
+                        <p className="text-sm text-sky-800">Link Telegram to unlock Channel and Announcements tasks.</p>
+                      </div>
+                      <button
+                        onClick={handleTelegramConnect}
+                        disabled={loading.telegramAuth}
+                        className="flex items-center gap-2 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl transition-colors text-sm font-medium disabled:opacity-50"
+                      >
+                        <Send className="w-4 h-4" />
+                        {loading.telegramAuth ? "Connecting..." : "Connect"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {telegramStatus.linked && (currentTab === "available"
+                  ? !telegramJoinCompletedForTab
+                  : telegramJoinCompletedForTab) && (
+                  <>
+                    <div className="rounded-2xl border border-sky-200/60 bg-gradient-to-r from-sky-50 to-cyan-50 p-4">
+                      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                        <div>
+                          <h3 className="text-sm font-bold text-sky-900">Join Allox Channel</h3>
+                          <p className="text-sm text-sky-800">
+                            Join the Allox Telegram channel and verify to earn {telegramJoinTask.points} points.
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          {!telegramJoinCompletedForTab && (
+                            <button
+                              onClick={handleTelegramJoin}
+                              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-sky-200 text-sky-700 text-sm font-semibold hover:bg-sky-100 transition-colors"
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                              Join
+                            </button>
+                          )}
+                          <button
+                            onClick={handleTelegramVerifyJoin}
+                            disabled={telegramJoinCompletedForTab || loading.telegramVerify || telegramVerifyState === "loading"}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
+                              telegramJoinCompletedForTab || telegramVerifyState === "success"
+                                ? "bg-green-500 text-white"
+                                : telegramVerifyState === "error"
+                                  ? "bg-red-500 text-white"
+                                  : telegramVerifyState === "loading" || loading.telegramVerify
+                                    ? "bg-gray-400 text-white cursor-wait"
+                                    : "bg-sky-600 hover:bg-sky-700 text-white"
+                            }`}
+                          >
+                            {telegramVerifyState === "loading" || loading.telegramVerify ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Send className="w-4 h-4" />
+                            )}
+                            {telegramJoinCompletedForTab || telegramVerifyState === "success" ? "Verified" : telegramVerifyState === "error" ? "Failed" : "Verify"}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {telegramStatus.linked && (currentTab === "available"
+                  ? !telegramAnnouncementsCompletedForTab
+                  : telegramAnnouncementsCompletedForTab) && (
+                  <>
+                    <div className="rounded-2xl border border-sky-200/60 bg-gradient-to-r from-sky-50 to-cyan-50 p-4">
+                      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                        <div>
+                          <h3 className="text-sm font-bold text-sky-900">Join Allox Announcements</h3>
+                          <p className="text-sm text-sky-800">
+                            Join the announcements channel and verify to earn {telegramAnnouncementsTask.points} points.
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          {!telegramAnnouncementsCompletedForTab && (
+                            <button
+                              onClick={handleTelegramJoinAnnouncements}
+                              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-sky-200 text-sky-700 text-sm font-semibold hover:bg-sky-100 transition-colors"
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                              Join
+                            </button>
+                          )}
+                          <button
+                            onClick={handleTelegramVerifyAnnouncements}
+                            disabled={telegramAnnouncementsCompletedForTab || loading.telegramAnnVerify || telegramAnnouncementsVerifyState === "loading"}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
+                              telegramAnnouncementsCompletedForTab || telegramAnnouncementsVerifyState === "success"
+                                ? "bg-green-500 text-white"
+                                : telegramAnnouncementsVerifyState === "error"
+                                  ? "bg-red-500 text-white"
+                                  : telegramAnnouncementsVerifyState === "loading" || loading.telegramAnnVerify
+                                    ? "bg-gray-400 text-white cursor-wait"
+                                    : "bg-sky-600 hover:bg-sky-700 text-white"
+                            }`}
+                          >
+                            {telegramAnnouncementsVerifyState === "loading" || loading.telegramAnnVerify ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Send className="w-4 h-4" />
+                            )}
+                            {telegramAnnouncementsCompletedForTab || telegramAnnouncementsVerifyState === "success" ? "Verified" : telegramAnnouncementsVerifyState === "error" ? "Failed" : "Verify"}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {!twitterStatus.linked && currentTab === "available" && (
+                  <div className="rounded-2xl border border-indigo-200/60 bg-gradient-to-r from-indigo-50 to-purple-50 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-sm font-bold text-indigo-900">Connect X to get rewards</h3>
+                        <p className="text-sm text-indigo-800">Link your X account to unlock X task rewards.</p>
+                      </div>
+                      <button
+                        onClick={handleConnect}
+                        disabled={loading.auth || !twitterStatus.cooldown.allowed}
+                        className="flex items-center gap-2 px-4 py-2 bg-black hover:bg-gray-800 text-white rounded-xl transition-colors text-sm font-medium disabled:opacity-50"
+                      >
+                        <XLogo className="w-4 h-4" />
+                        {loading.auth ? "Connecting..." : "Connect"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {twitterStatus.linked && currentTab === "available" && hasFollowTask && !isFollowCompleted && (
             
                   <motion.div
                     initial={{ opacity: 0, y: -10 }}
@@ -926,7 +1305,7 @@ export function XTasksModal({
                   </motion.div>
                 )}
 
-                {currentTab === "completed" && hasFollowTask && isFollowCompleted && (
+                {twitterStatus.linked && currentTab === "completed" && hasFollowTask && isFollowCompleted && (
                   <motion.div
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -983,7 +1362,7 @@ export function XTasksModal({
                     </div>
                   </motion.div>
                 )}
-                {currentTab === "available" && !promoTask.completedToday && (
+                {twitterStatus.linked && currentTab === "available" && !promoTask.completedToday && (
             
                   <motion.div
                     initial={{ opacity: 0, y: -10 }}
@@ -1132,7 +1511,7 @@ export function XTasksModal({
                   </motion.div>
                 )}
 
-                {currentTab === "completed" && isPromoCompleted && (
+                {twitterStatus.linked && currentTab === "completed" && isPromoCompleted && (
                   /* Premium Daily Promo Task - Completed View */
                   <motion.div
                     initial={{ opacity: 0, y: -10 }}
@@ -1189,8 +1568,9 @@ export function XTasksModal({
                   </motion.div>
                 )}
 
-                {(currentTab === "available" ? availableTasks : completedTasks)
-                  .length === 0 &&
+                {twitterStatus.linked &&
+                (currentTab === "available" ? availableTasks : completedTasks).length +
+                  currentTabTelegramCount === 0 &&
                 ((currentTab === "available" && isFollowCompleted && isPromoCompleted) ||
                   (currentTab === "completed" && !isFollowCompleted && !isPromoCompleted)) ? (
                   <div className="text-center py-12 text-gray-500">
@@ -1199,6 +1579,7 @@ export function XTasksModal({
                       : "No completed tasks yet"}
                   </div>
                 ) : (
+                  twitterStatus.linked &&
                   (currentTab === "available"
                     ? availableTasks
                     : completedTasks
