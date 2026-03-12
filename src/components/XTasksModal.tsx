@@ -637,22 +637,38 @@ export function XTasksModal({
     completedAt: null,
   };
 
-  const isWithin24Hours = (completedAt?: string | null) => {
-    if (!completedAt) return false;
+  const isCompletedTaskExpired = (
+    completed?: boolean,
+    completedAt?: string | null,
+  ) => {
+    if (!completed || !completedAt) return false;
     const completedTime = new Date(completedAt).getTime();
     if (Number.isNaN(completedTime)) return false;
-    return Date.now() - completedTime < 24 * 60 * 60 * 1000;
+    return Date.now() - completedTime > 24 * 60 * 60 * 1000;
   };
 
+  const telegramJoinExpired = isCompletedTaskExpired(
+    telegramJoinTask.completed,
+    telegramJoinTask.completedAt,
+  );
+  const telegramAnnouncementsExpired = isCompletedTaskExpired(
+    telegramAnnouncementsTask.completed,
+    telegramAnnouncementsTask.completedAt,
+  );
+
+  const telegramJoinAvailableForTab =
+    !telegramJoinTask.completed && !telegramJoinExpired;
   const telegramJoinCompletedForTab =
-    Boolean(telegramJoinTask.completed) && isWithin24Hours(telegramJoinTask.completedAt);
+    Boolean(telegramJoinTask.completed) && !telegramJoinExpired;
+
+  const telegramAnnouncementsAvailableForTab =
+    !telegramAnnouncementsTask.completed && !telegramAnnouncementsExpired;
   const telegramAnnouncementsCompletedForTab =
-    Boolean(telegramAnnouncementsTask.completed) &&
-    isWithin24Hours(telegramAnnouncementsTask.completedAt);
+    Boolean(telegramAnnouncementsTask.completed) && !telegramAnnouncementsExpired;
 
   const telegramAvailableCount = telegramStatus.linked
-    ? (telegramJoinCompletedForTab ? 0 : 1) +
-      (telegramAnnouncementsCompletedForTab ? 0 : 1)
+    ? (telegramJoinAvailableForTab ? 1 : 0) +
+      (telegramAnnouncementsAvailableForTab ? 1 : 0)
     : 0;
   const telegramCompletedCount = telegramStatus.linked
     ? (telegramJoinCompletedForTab ? 1 : 0) +
@@ -1059,7 +1075,7 @@ export function XTasksModal({
                 )}
 
                 {telegramStatus.linked && (currentTab === "available"
-                  ? !telegramJoinCompletedForTab
+                  ? telegramJoinAvailableForTab
                   : telegramJoinCompletedForTab) && (
                   <>
                     <div className="rounded-2xl border border-sky-200/60 bg-gradient-to-r from-sky-50 to-cyan-50 p-4">
@@ -1107,7 +1123,7 @@ export function XTasksModal({
                 )}
 
                 {telegramStatus.linked && (currentTab === "available"
-                  ? !telegramAnnouncementsCompletedForTab
+                  ? telegramAnnouncementsAvailableForTab
                   : telegramAnnouncementsCompletedForTab) && (
                   <>
                     <div className="rounded-2xl border border-sky-200/60 bg-gradient-to-r from-sky-50 to-cyan-50 p-4">
