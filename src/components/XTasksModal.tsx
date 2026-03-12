@@ -907,9 +907,9 @@ export function XTasksModal({
                       <div className="rounded-2xl border border-sky-200/60 bg-gradient-to-r from-sky-50 to-cyan-50 p-4">
                         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                           <div>
-                            <h3 className="text-sm font-bold text-sky-900">Join Allox Channel</h3>
+                            <h3 className="text-sm font-bold text-sky-900">Join Allox Group</h3>
                             <p className="text-sm text-sky-800">
-                              Join the Allox Telegram channel and verify to earn {telegramJoinTask.points} points.
+                              Join the Allox Telegram group and verify to earn {telegramJoinTask.points} points.
                             </p>
                           </div>
                           <div className="flex gap-2">
@@ -1065,9 +1065,9 @@ export function XTasksModal({
                     <div className="rounded-2xl border border-sky-200/60 bg-gradient-to-r from-sky-50 to-cyan-50 p-4">
                       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                         <div>
-                          <h3 className="text-sm font-bold text-sky-900">Join Allox Channel</h3>
+                          <h3 className="text-sm font-bold text-sky-900">Join Allox Group</h3>
                           <p className="text-sm text-sky-800">
-                            Join the Allox Telegram channel and verify to earn {telegramJoinTask.points} points.
+                            Join the Allox Telegram group and verify to earn {telegramJoinTask.points} points.
                           </p>
                         </div>
                         <div className="flex gap-2">
