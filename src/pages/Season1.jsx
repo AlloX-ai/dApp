@@ -1,8 +1,18 @@
 import { Flame, Trophy, Lock, Calendar, Info } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useSelector } from "react-redux";
+import { season1_winners } from "../constants/addresses";
 
 export function Season1() {
   const [showTooltip, setShowTooltip] = useState(false);
+
+  const { address } = useSelector((state) => state.wallet);
+
+  const winner = useMemo(() => {
+    return season1_winners.find((item) => {
+      return item.address.toLowerCase() === address?.toLowerCase();
+    });
+  }, [address]);
 
   const seasons = [
     {
@@ -74,62 +84,86 @@ export function Season1() {
         {seasons.map((season) => (
           <div
             key={season.number}
-            className={`glass-card p-5 ${
-              season.active ? "ring-2 ring-black" : "opacity-60"
+            className={`p-5 ${season.active ? "glass-card" : "glass-card-disabled"} ${
+              season.active ? "ring-2 ring-black" : ""
             }`}
           >
-            <div className="flex items-center relative justify-between mb-3">
-              <div
-                className={`px-3 py-1 rounded-lg text-xs font-bold ${
-                  season.active
-                    ? "bg-black text-white"
-                    : "bg-gray-200 text-gray-600"
-                }`}
-              >
-                Season {season.number}
-              </div>
-              {season.active ? (
-                <div className="relative">
-                  <button
-                    onMouseEnter={() => setShowTooltip(true)}
-                    onMouseLeave={() => setShowTooltip(false)}
-                    className="w-5 h-5 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors"
-                  >
-                    <Info className="w-3 h-3 text-gray-600" />
-                  </button>
+            <div className={season.active ? "opacity-100" : "opacity-60"}>
+              <div className="flex items-center relative justify-between mb-3">
+                <div
+                  className={`px-3 py-1 rounded-lg text-xs font-bold ${
+                    season.active
+                      ? "bg-black text-white"
+                      : "bg-gray-200 text-gray-600"
+                  }`}
+                >
+                  Season {season.number}
                 </div>
-              ) : (
-                <Lock size={18} className="text-gray-400" />
-              )}
-              {showTooltip && season.active && (
-                <div className="absolute right-0 top-full mt-2 w-80 p-4 bg-white rounded-xl shadow-lg border border-gray-200 z-50">
-                  <div className="space-y-2 text-sm text-gray-700">
-                    <p>
-                      Winners will be randomly selected from each tier after the
-                      season ends. Selection will take place within 7 days.
-                    </p>
-                    <p className="pt-2 border-t border-gray-200">
-                      Rewards will be displayed in each season tab once
-                      finalized.
-                    </p>
+                {season.active ? (
+                  <div className="relative">
+                    <button
+                      onMouseEnter={() => setShowTooltip(true)}
+                      onMouseLeave={() => setShowTooltip(false)}
+                      className="w-5 h-5 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors"
+                    >
+                      <Info className="w-3 h-3 text-gray-600" />
+                    </button>
+                  </div>
+                ) : (
+                  <Lock size={18} className="text-gray-400" />
+                )}
+                {showTooltip && season.active && (
+                  <div className="absolute right-0 top-full mt-2 w-80 p-4 bg-white rounded-xl shadow-lg border border-gray-200 z-50">
+                    <div className="space-y-2 text-sm text-gray-700">
+                      <p>
+                        Winners will be randomly selected from each tier after
+                        the season ends. Selection will take place within 7
+                        days.
+                      </p>
+                      <p className="pt-2 border-t border-gray-200">
+                        Rewards will be displayed in each season tab once
+                        finalized.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="text-2xl font-bold mb-2">{season.reward}</div>
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <Calendar size={14} />
+                {season.timeline}
+              </div>
+            </div>
+
+            <div className="mt-3 pt-3 border-t relative border-gray-200 flex justify-between gap-2 items-center">
+              <div className="flex flex-col">
+                <div className="text-xs text-gray-600">Status</div>
+                <div
+                  className={`text-sm font-medium ${
+                    season.active ? "text-green-600" : "text-gray-500"
+                  }`}
+                >
+                  {season.status}
+                </div>
+              </div>
+              {season.number === 1 && (
+                <div
+                  className={` ${
+                    winner
+                      ? "absolute right-0 top-3 bg-linear-to-r from-green-50 to-emerald-100 rounded-xl py-1 px-2 border-2 border-emerald-200"
+                      : ""
+                  } flex flex-col `}
+                >
+                  <div className="text-xs text-gray-600">Rewards</div>
+                  <div
+                    className={`text-sm font-medium ${
+                      winner ? "text-green-600" : "text-gray-500"
+                    }`}
+                  >
+                    ${winner ? winner.reward : 0}
                   </div>
                 </div>
               )}
-            </div>
-            <div className="text-2xl font-bold mb-2">{season.reward}</div>
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <Calendar size={14} />
-              {season.timeline}
-            </div>
-            <div className="mt-3 pt-3 border-t border-gray-200">
-              <div className="text-xs text-gray-600">Status</div>
-              <div
-                className={`text-sm font-medium ${
-                  season.active ? "text-green-600" : "text-gray-500"
-                }`}
-              >
-                {season.status}
-              </div>
             </div>
           </div>
         ))}
