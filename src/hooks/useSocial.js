@@ -99,7 +99,6 @@ export function useSocial() {
       dispatch(clearError());
 
       const data = await apiCall("/auth/me");
-      console.log(data, "Data");
 
       dispatch(
         setTelegramPoints(data?.season1?.pointsBreakdown?.fromTelegram ?? 0),

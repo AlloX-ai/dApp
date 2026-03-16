@@ -90,7 +90,7 @@ export function ChatPage() {
   const [claiming, setClaiming] = useState(false);
   const [claimError, setClaimError] = useState(null);
   const [claimSuccess, setClaimSuccess] = useState(false);
-  const [claimedPoints, setClaimedPoints] = useState(0);
+  // const [claimedPoints, setClaimedPoints] = useState(0);
   const [displayedTextById, setDisplayedTextById] = useState({});
   const [typingMessageId, setTypingMessageId] = useState(null);
   const [onchainBlocked, setOnchainBlocked] = useState(null);
@@ -163,7 +163,9 @@ export function ChatPage() {
             ...stored,
             season1: { ...(stored?.season1 ?? {}), claimed: status.claimed },
           });
-        } catch (_) {}
+        } catch (e) {
+          console.error(e);
+        }
       }
     } catch (e) {
       if (e?.status !== 401) console.warn("Chat status fetch failed:", e);
@@ -218,12 +220,12 @@ export function ChatPage() {
         };
         setUser(updatedUser);
         dispatch(setPointsBalance(u.points ?? 0));
-        setClaimedPoints(u.points ?? 0);
+        // setClaimedPoints(u.points ?? 0);
         setClaimSuccess(true);
         setShowWelcomeGiftModal(false);
         setTimeout(() => {
           setClaimSuccess(false);
-          setClaimedPoints(0);
+          // setClaimedPoints(0);
         }, 4000);
       } else {
         setClaimError(claimData?.message || "Claim failed. Please try again.");
@@ -1695,7 +1697,7 @@ export function ChatPage() {
               Congratulations!
             </h3>
             <p className="text-gray-600 mb-1">
-              You claimed your Season 1 points.
+              You claimed your Season 2 points.
             </p>
             {/* <p className="text-sm text-gray-500">Start chatting to use them.</p> */}
           </div>

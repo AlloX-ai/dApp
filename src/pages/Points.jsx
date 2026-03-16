@@ -26,10 +26,11 @@ import {
 } from "../redux/slices/pointsSlice";
 import { openCheckinModal } from "../redux/slices/walletSlice";
 import { XTasksModal } from "../components/XTasksModal";
-import { motion, AnimatePresence } from "motion/react";
+// import { motion, AnimatePresence } from "motion/react";
 import FAQModal from "../components/FaqModal";
 import getFormattedNumber from "../hooks/get-formatted-number";
 import { useSocial } from "../hooks/useSocial";
+
 // Custom X (Twitter) Logo Component
 function XLogo({ className }) {
   return (
@@ -49,42 +50,37 @@ export function PointsPage() {
   const [showFAQModal, setShowFAQModal] = useState(false);
 
   // local state kept for backward compatibility but UI now uses Redux newCount
-  const [newTasksCount, setNewTasksCount] = useState(4);
-  const [expandedFaq, setExpandedFaq] = useState(null);
-  const [showTooltip, setShowTooltip] = useState(false);
+  // const [newTasksCount, setNewTasksCount] = useState(4);
+  // const [expandedFaq, setExpandedFaq] = useState(null);
+  // const [showTooltip, setShowTooltip] = useState(false);
   const [showWelcomeGiftModal, setShowWelcomeGiftModal] = useState(false);
   const [claiming, setClaiming] = useState(false);
   const [claimError, setClaimError] = useState(null);
+  const { isConnected } = useSelector((state) => state.wallet);
 
   const html = document.querySelector("html");
 
-
-    useEffect(() => {
+  useEffect(() => {
     if (showXTasksModal) {
       html.classList.add("hidescroll");
     } else {
       html.classList.remove("hidescroll");
     }
   }, [showXTasksModal]);
-  const params = new URLSearchParams(window.location.search);
-    const error = params.get('error');
-      const message = params.get('message');
-      const success = params.get('success');
-
-      
-
-
+  // const params = new URLSearchParams(window.location.search);
+  // const error = params.get('error');
+  //   const message = params.get('message');
+  //   const success = params.get('success');
 
   const handleXTasksClick = () => {
     setShowXTasksModal(true);
   };
 
   const handleTasksViewed = () => {
-    setNewTasksCount(0); // Reset count when tasks are viewed
+    // setNewTasksCount(0); // Reset count when tasks are viewed
   };
 
-      const {fetchSocialPoints,fetchAllPoints} = useSocial();
-  
+  const { fetchSocialPoints, fetchAllPoints } = useSocial();
 
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -96,14 +92,10 @@ export function PointsPage() {
     user?.season1?.rateLimit?.messagesRemaining;
 
   const checkinStatus = useSelector((state) => state.checkin?.status);
-    const socialPoints = useSelector((state) => state.social?.socialPoints);
-    const telegramPoints = useSelector((state) => state.social?.telegramPoints);
-    const newCount = useSelector((state) => state.social?.newCount);
+  const socialPoints = useSelector((state) => state.social?.socialPoints);
+  const telegramPoints = useSelector((state) => state.social?.telegramPoints);
+  const newCount = useSelector((state) => state.social?.newCount);
 
-
-
-    
-  
   const lastClaimed = useMemo(() => {
     for (let i = checkinStatus?.rewards?.length - 1; i >= 0; i--) {
       if (checkinStatus.rewards[i].claimed === true) {
@@ -211,8 +203,6 @@ export function PointsPage() {
         getFormattedNumber(socialPoints + telegramPoints || 0, 0) || 0,
     },
   ];
-
-
 
   const handleClaimPoints = async () => {
     setClaimError(null);
@@ -383,7 +373,6 @@ export function PointsPage() {
                 )}
 
                 {/* Notification Badge for X Tasks */}
-                
 
                 {/* Arrow indicator for clickable items */}
                 {/* {way.isClickable &&
@@ -393,11 +382,11 @@ export function PointsPage() {
                       <ArrowRight className="w-4 h-4 text-white" />
                     </div>
                   )} */}
-                  <div className="flex items-center gap-2">
-                    <div>
-                      {/* Icon */}
+                <div className="flex items-center gap-2">
+                  <div>
+                    {/* Icon */}
                     <div className="flex align-center gap-2">
-                        <div className="mb-4">
+                      <div className="mb-4">
                         <div
                           className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-4 ${"bg-black"}`}
                         >
@@ -409,10 +398,10 @@ export function PointsPage() {
                         </div>
                       </div>
                       {isXTasks && newCount > 0 && (
-                    <div className="px-2 py-1 bg-red-500 text-white text-xs font-bold rounded-full w-fit h-fit">
-                      {newCount} new
-                    </div>
-                  )}
+                        <div className="px-2 py-1 bg-red-500 text-white text-xs font-bold rounded-full w-fit h-fit">
+                          {newCount} new
+                        </div>
+                      )}
                     </div>
 
                     {/* Content */}
