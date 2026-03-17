@@ -193,8 +193,7 @@ export default function FAQModal({
                   >
                     <div className="px-4 pb-4 pl-[52px] text-sm text-gray-700 space-y-3">
                       <p>
-                        The <strong>Referral Program</strong> is currently the
-                        primary way to earn Gems:
+                        There are different ways to earn Gems:
                       </p>
                       <div className="bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-4 space-y-2">
                         <div className="flex items-start gap-2">
@@ -224,6 +223,20 @@ export default function FAQModal({
                             <div className="text-sm">
                               Earn 5% of all Gems your direct referrals earn
                               from their own referrals
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <Sparkles
+                            size={16}
+                            className="text-purple-600 mt-0.5 flex-shrink-0"
+                          />
+                          <div>
+                            <div className="font-semibold text-purple-900">
+                              Spring Series Campaign
+                            </div>
+                            <div className="text-sm">
+                             Win direct Gem rewards through seasonal campaign competitions
                             </div>
                           </div>
                         </div>
