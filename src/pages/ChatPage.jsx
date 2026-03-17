@@ -106,6 +106,8 @@ export function ChatPage() {
     error: null,
     portfolioId: null,
   });
+  const [executionPrompt, setExecutionPrompt] = useState(null);
+  const executionPromptResolverRef = useRef(null);
 
   useEffect(() => {
     const aiMessages = currentMessages.filter(
@@ -318,6 +320,8 @@ export function ChatPage() {
         next.completed = 0;
         next.currentSymbol = null;
         next.portfolioId = null;
+        setExecutionPrompt(null);
+        executionPromptResolverRef.current = null;
       } else if (update.step === "QUOTE_COMPLETE") {
         next.total = (update.quotedCount || 0) + (update.failedCount || 0);
       } else if (
@@ -327,8 +331,11 @@ export function ChatPage() {
         update.step === "POSITION_STATUS"
       ) {
         next.currentSymbol = update.symbol || null;
+      } else if (update.step === "POSITION_REJECTED") {
+        next.currentSymbol = null;
       } else if (
         update.step === "POSITION_CONFIRMED" ||
+        update.step === "POSITION_CANCELLED" ||
         update.step === "POSITION_FAILED" ||
         update.step === "POSITION_ERROR"
       ) {
@@ -346,6 +353,22 @@ export function ChatPage() {
     });
   }, []);
 
+  const promptExecutionDecision = useCallback(({ symbol, executionOrderId }) => {
+    return new Promise((resolve) => {
+      executionPromptResolverRef.current = resolve;
+      setExecutionPrompt({ symbol, executionOrderId });
+    });
+  }, []);
+
+  const resolveExecutionPrompt = (decision) => {
+    const resolve = executionPromptResolverRef.current;
+    executionPromptResolverRef.current = null;
+    setExecutionPrompt(null);
+    if (typeof resolve === "function") {
+      resolve(decision);
+    }
+  };
+
   const handleStartExecution = useCallback(
     async (execution) => {
       try {
@@ -357,6 +380,7 @@ export function ChatPage() {
         }));
         const portfolioId = await executePortfolioOnChain(execution, {
           onUpdate: handleExecutionUpdate,
+          onPrompt: promptExecutionDecision,
         });
         setExecutionState((prev) => ({
           ...prev,
@@ -364,7 +388,7 @@ export function ChatPage() {
           portfolioId,
         }));
         if (portfolioId) {
-          window.location.href = `/portfolio/${portfolioId}`;
+          window.location.href = `/portfolio`;
         }
       } catch (error) {
         setExecutionState((prev) => ({
@@ -384,7 +408,7 @@ export function ChatPage() {
         );
       }
     },
-    [dispatch, handleExecutionUpdate],
+    [dispatch, handleExecutionUpdate, promptExecutionDecision],
   );
 
   const handleSendMessage = () => {
@@ -552,7 +576,6 @@ export function ChatPage() {
     [
       isReadOnly,
       isConnected,
-      pointsBalance,
       messagesRemaining,
       dispatch,
       ensureAuthenticated,
@@ -1649,6 +1672,33 @@ export function ChatPage() {
                         : `Swaps completed: ${executionState.completed}/${executionState.total}`}
                     </p>
                   </div>
+                </div>
+              </div>
+            )}
+            {executionState.isExecuting && executionPrompt && (
+              <div className="mt-3 glass-card p-4 border border-amber-200/60 bg-amber-50/50 text-sm">
+                <p className="font-medium text-gray-900 mb-1">
+                  Swap failed for {executionPrompt.symbol}
+                </p>
+                <p className="text-xs text-gray-700 mb-3">
+                  You rejected the wallet transaction. Would you like to retry or
+                  skip this token?
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => resolveExecutionPrompt("retry")}
+                    className="px-3 py-2 rounded-xl bg-gray-900 text-white text-xs font-medium hover:bg-gray-800"
+                  >
+                    Retry
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => resolveExecutionPrompt("skip")}
+                    className="px-3 py-2 rounded-xl bg-white border border-gray-200 text-xs font-medium hover:bg-gray-50"
+                  >
+                    Skip
+                  </button>
                 </div>
               </div>
             )}

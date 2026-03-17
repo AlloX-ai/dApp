@@ -5,7 +5,18 @@ const EXECUTION_API_BASE = "/execution";
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-export async function executePortfolioOnChain(execution, { onUpdate } = {}) {
+const isUserRejectedTx = (error) => {
+  // MetaMask / EIP-1193 user rejected request
+  if (!error) return false;
+  if (error.code === 4001) return true;
+  const msg = String(error.message || error).toLowerCase();
+  return msg.includes("user rejected") || msg.includes("rejected the request");
+};
+
+export async function executePortfolioOnChain(
+  execution,
+  { onUpdate, onPrompt } = {},
+) {
   const { chain, sourceToken, positions, portfolioData } = execution;
 
   const jwt = localStorage.getItem("authToken");
@@ -14,11 +25,20 @@ export async function executePortfolioOnChain(execution, { onUpdate } = {}) {
   }
 
   if (!window.ethereum) {
-    throw new Error("Wallet not found. Please install a Web3 wallet (e.g. MetaMask).");
+    throw new Error(
+      "Wallet not found. Please install a Web3 wallet (e.g. MetaMask).",
+    );
   }
 
   const provider = new ethers.providers.Web3Provider(window.ethereum);
   const signer = provider.getSigner();
+
+  const network = await provider.getNetwork();
+  if (Number(network.chainId) !== 56) {
+    throw new Error(
+      "Please switch your wallet to BNB Chain (chainId 56) before executing on-chain.",
+    );
+  }
 
   const update = (step, payload) => {
     if (typeof onUpdate === "function") {
@@ -56,119 +76,287 @@ export async function executePortfolioOnChain(execution, { onUpdate } = {}) {
     throw new Error("All quotes failed. Try a different amount or tokens.");
   }
 
-  // ── Step 2: Approve (USDT/USDC only, once) ──
-  if (quoteData.approvalNeeded) {
-    update("APPROVAL_START", {
-      approvalContract: quoteData.approvalContract,
-      fromTokenAddress: quoteData.fromTokenAddress,
-      sourceToken,
-    });
-
+  // ── Step 2: Approve (USDT/USDC only) ──
+  // Collect unique approval targets across Bridgers and PancakeSwap positions
+  if (sourceToken !== "BNB") {
     const erc20Abi = [
       "function approve(address spender, uint256 amount) returns (bool)",
     ];
+    const fromTokenAddress = quoteData.fromTokenAddress;
     const sourceContract = new ethers.Contract(
-      quoteData.fromTokenAddress,
+      fromTokenAddress,
       erc20Abi,
       signer,
     );
 
-    const approveTx = await sourceContract.approve(
-      quoteData.approvalContract,
-      ethers.constants.MaxUint256,
-    );
-    await approveTx.wait();
+    const approvalTargets = new Set();
+    for (const pos of quotedPositions) {
+      const target =
+        pos.swapProvider === "PANCAKESWAP"
+          ? pos.approvalContract
+          : pos.quote?.contractAddress;
+      if (target) {
+        approvalTargets.add(target);
+      }
+    }
 
-    update("APPROVAL_COMPLETE", { txHash: approveTx.hash });
+    if (approvalTargets.size > 0) {
+      update("APPROVAL_START", {
+        fromTokenAddress,
+        sourceToken,
+        approvalTargets: Array.from(approvalTargets),
+      });
+
+      // Approve each unique target (usually 1–2 approvals)
+      // eslint-disable-next-line no-restricted-syntax
+      for (const target of approvalTargets) {
+        // eslint-disable-next-line no-await-in-loop
+        const tx = await sourceContract.approve(
+          target,
+          ethers.constants.MaxUint256,
+        );
+        // eslint-disable-next-line no-await-in-loop
+        await tx.wait();
+        update("APPROVAL_PROGRESS", { target, txHash: tx.hash });
+      }
+
+      update("APPROVAL_COMPLETE", {});
+    }
   }
 
   // ── Step 3: Execute each position sequentially ──
   const confirmedOrderIds = [];
+  const cancelledOrderIds = [];
+  const skipped = [];
 
   for (const pos of quotedPositions) {
-    update("POSITION_START", { symbol: pos.symbol, executionOrderId: pos.executionOrderId });
+    update("POSITION_START", {
+      symbol: pos.symbol,
+      executionOrderId: pos.executionOrderId,
+    });
 
-    try {
-      // 3a. Prepare
-      const prepData = await apiCall(
-        `${EXECUTION_API_BASE}/${pos.executionOrderId}/prepare`,
-        {
-          method: "POST",
-          body: JSON.stringify({ slippage: 3 }),
-        },
-      );
-
-      update("POSITION_PREPARED", {
-        symbol: pos.symbol,
-        executionOrderId: pos.executionOrderId,
-      });
-
-      // 3b. Sign & send
-      const tx = await signer.sendTransaction({
-        data: prepData.txData.data,
-        to: prepData.txData.to,
-        value: prepData.txData.value,
-      });
-
-      update("POSITION_TX_SUBMITTED", {
-        symbol: pos.symbol,
-        executionOrderId: pos.executionOrderId,
-        txHash: tx.hash,
-      });
-
-      const receipt = await tx.wait();
-
-      // 3c. Submit tx hash
-      await apiCall(
-        `${EXECUTION_API_BASE}/${pos.executionOrderId}/submit`,
-        {
-          method: "POST",
-          body: JSON.stringify({ txHash: receipt.transactionHash }),
-        },
-      );
-
-      // 3d. Poll for confirmation
-      let status = "TX_SUBMITTED";
-      let attempts = 0;
-
-      while (!["CONFIRMED", "FAILED"].includes(status) && attempts < 60) {
-        await sleep(4000);
-        const statusData = await apiCall(
-          `${EXECUTION_API_BASE}/${pos.executionOrderId}/status`,
+    let done = false;
+    while (!done) {
+      try {
+        // 1) /prepare → fresh txData
+        const prepData = await apiCall(
+          `${EXECUTION_API_BASE}/${pos.executionOrderId}/prepare`,
+          {
+            method: "POST",
+            body: JSON.stringify({ slippage: 3 }),
+          },
         );
-        status = statusData.status;
-        attempts += 1;
 
-        update("POSITION_STATUS", {
+        update("POSITION_PREPARED", {
           symbol: pos.symbol,
           executionOrderId: pos.executionOrderId,
-          status,
         });
-      }
 
-      if (status === "CONFIRMED") {
-        confirmedOrderIds.push(pos.executionOrderId);
-        update("POSITION_CONFIRMED", {
+        const txData = prepData.txData;
+
+        // 2) Send to wallet
+        let tx;
+        try {
+          tx = await signer.sendTransaction({
+            data: txData.data,
+            to: txData.to,
+            value: txData.value,
+          });
+        } catch (err) {
+          console.error(err);
+          // 4) MetaMask rejects (no txHash): offer Retry/Skip
+          if (isUserRejectedTx(err)) {
+            update("POSITION_REJECTED", {
+              symbol: pos.symbol,
+              executionOrderId: pos.executionOrderId,
+            });
+
+            const decision =
+              typeof onPrompt === "function"
+                ? await onPrompt({
+                    symbol: pos.symbol,
+                    executionOrderId: pos.executionOrderId,
+                  })
+                : "retry";
+
+            if (decision === "skip") {
+              try {
+                await apiCall(
+                  `${EXECUTION_API_BASE}/${pos.executionOrderId}/cancel`,
+                  { method: "POST" },
+                );
+              } catch (err) {
+                console.error(err);
+                // best effort; still treat as skipped to avoid blocking UX
+              }
+              cancelledOrderIds.push(pos.executionOrderId);
+              skipped.push({
+                executionOrderId: pos.executionOrderId,
+                symbol: pos.symbol,
+                reason: "USER_REJECTED",
+              });
+              update("POSITION_CANCELLED", {
+                symbol: pos.symbol,
+                executionOrderId: pos.executionOrderId,
+              });
+              done = true;
+              continue;
+            }
+
+            // retry
+            continue;
+          }
+          throw err;
+        }
+
+        update("POSITION_TX_SUBMITTED", {
           symbol: pos.symbol,
           executionOrderId: pos.executionOrderId,
+          txHash: tx.hash,
         });
-      } else {
-        update("POSITION_FAILED", {
+
+        try {
+          // 3) If wallet succeeds → /submit with txHash
+          const receipt = await tx.wait();
+          await apiCall(
+            `${EXECUTION_API_BASE}/${pos.executionOrderId}/submit`,
+            {
+              method: "POST",
+              body: JSON.stringify({ txHash: receipt.transactionHash }),
+            },
+          );
+
+          // Poll for CONFIRMED/FAILED
+          let status = "TX_SUBMITTED";
+          let attempts = 0;
+
+          while (!["CONFIRMED", "FAILED"].includes(status) && attempts < 60) {
+            await sleep(4000);
+            const statusData = await apiCall(
+              `${EXECUTION_API_BASE}/${pos.executionOrderId}/status`,
+            );
+            status = statusData.status;
+            attempts += 1;
+
+            update("POSITION_STATUS", {
+              symbol: pos.symbol,
+              executionOrderId: pos.executionOrderId,
+              status,
+            });
+          }
+
+          if (status === "CONFIRMED") {
+            confirmedOrderIds.push(pos.executionOrderId);
+            update("POSITION_CONFIRMED", {
+              symbol: pos.symbol,
+              executionOrderId: pos.executionOrderId,
+            });
+          } else {
+            // best effort: cancel failed orders so /complete can accept partial fills
+            try {
+              await apiCall(
+                `${EXECUTION_API_BASE}/${pos.executionOrderId}/cancel`,
+                { method: "POST" },
+              );
+              cancelledOrderIds.push(pos.executionOrderId);
+              skipped.push({
+                executionOrderId: pos.executionOrderId,
+                symbol: pos.symbol,
+                reason: "FAILED",
+              });
+              update("POSITION_CANCELLED", {
+                symbol: pos.symbol,
+                executionOrderId: pos.executionOrderId,
+              });
+            } catch (_) {
+              update("POSITION_FAILED", {
+                symbol: pos.symbol,
+                executionOrderId: pos.executionOrderId,
+              });
+            }
+          }
+
+          done = true;
+        } catch (waitError) {
+          // Handle tx dropped/cancelled by the network or JSON-RPC failures
+          console.error(
+            `JSON-RPC error while waiting for ${pos.symbol} transaction:`,
+            waitError,
+          ); // eslint-disable-line no-console
+
+          const friendly =
+            "The transaction was dropped or cancelled by the network. Skipping to the next token.";
+          update("POSITION_ERROR", {
+            symbol: pos.symbol,
+            executionOrderId: pos.executionOrderId,
+            error: friendly,
+          });
+
+          try {
+            await apiCall(
+              `${EXECUTION_API_BASE}/${pos.executionOrderId}/cancel`,
+              { method: "POST" },
+            );
+            cancelledOrderIds.push(pos.executionOrderId);
+            skipped.push({
+              executionOrderId: pos.executionOrderId,
+              symbol: pos.symbol,
+              reason: "DROPPED_OR_CANCELLED",
+            });
+            update("POSITION_CANCELLED", {
+              symbol: pos.symbol,
+              executionOrderId: pos.executionOrderId,
+            });
+          } catch (_) {
+            // ignore; we've already informed the user and will move on
+          }
+
+          done = true;
+        }
+      } catch (error) {
+        console.error(`Swap failed for ${pos.symbol}:`, error); // eslint-disable-line no-console
+        const friendlyMessage = isUserRejectedTx(error)
+          ? "The transaction was rejected in your wallet."
+          : "The transaction failed unexpectedly. It may have been dropped or replaced. You can try again or skip this token.";
+        update("POSITION_ERROR", {
           symbol: pos.symbol,
           executionOrderId: pos.executionOrderId,
+          error: friendlyMessage,
         });
+
+        // non-user-rejection errors: cancel and continue
+        try {
+          await apiCall(
+            `${EXECUTION_API_BASE}/${pos.executionOrderId}/cancel`,
+            {
+              method: "POST",
+            },
+          );
+          cancelledOrderIds.push(pos.executionOrderId);
+          skipped.push({
+            executionOrderId: pos.executionOrderId,
+            symbol: pos.symbol,
+            reason: "ERROR",
+          });
+          update("POSITION_CANCELLED", {
+            symbol: pos.symbol,
+            executionOrderId: pos.executionOrderId,
+          });
+        } catch (_) {
+          // give up on cancelling; still mark done so flow can proceed
+        }
+        done = true;
       }
-    } catch (error) {
-      console.error(`Swap failed for ${pos.symbol}:`, error); // eslint-disable-line no-console
-      update("POSITION_ERROR", {
-        symbol: pos.symbol,
-        executionOrderId: pos.executionOrderId,
-        error: error?.message || String(error),
-      });
     }
   }
 
   // ── Step 4: Complete — create the portfolio ──
+  const finalizedOrderIds = [...confirmedOrderIds, ...cancelledOrderIds];
+  if (finalizedOrderIds.length === 0) {
+    throw new Error(
+      "No swaps were executed or finalized. Portfolio not created.",
+    );
+  }
   if (confirmedOrderIds.length === 0) {
     throw new Error("No swaps were confirmed. Portfolio not created.");
   }
@@ -185,7 +373,7 @@ export async function executePortfolioOnChain(execution, { onUpdate } = {}) {
   const completeData = await apiCall(`${EXECUTION_API_BASE}/complete`, {
     method: "POST",
     body: JSON.stringify({
-      executionOrderIds: confirmedOrderIds,
+      executionOrderIds: finalizedOrderIds,
       portfolioData: {
         ...portfolioData,
         chain,
@@ -197,8 +385,9 @@ export async function executePortfolioOnChain(execution, { onUpdate } = {}) {
 
   update("COMPLETE", {
     portfolioId: completeData.portfolioId,
+    skipped: completeData.skipped ?? skipped,
+    summary: completeData.summary,
   });
 
   return completeData.portfolioId;
 }
-
