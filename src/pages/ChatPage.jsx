@@ -17,6 +17,7 @@ import {
   INITIAL_CLAIM_POINTS,
 } from "../redux/slices/pointsSlice";
 import { apiCall } from "../utils/api";
+import { executePortfolioOnChain } from "../utils/execution";
 import { useAuth } from "../hooks/useAuth";
 import { NavLink } from "react-router";
 import getFormattedNumber from "../hooks/get-formatted-number";
@@ -97,6 +98,14 @@ export function ChatPage() {
   const [refreshOnchainLoading, setRefreshOnchainLoading] = useState(false);
   const [refreshOnchainMessage, setRefreshOnchainMessage] = useState(null);
   const [statusLoading, setStatusLoading] = useState(false);
+  const [executionState, setExecutionState] = useState({
+    isExecuting: false,
+    currentSymbol: null,
+    completed: 0,
+    total: 0,
+    error: null,
+    portfolioId: null,
+  });
 
   useEffect(() => {
     const aiMessages = currentMessages.filter(
@@ -301,6 +310,83 @@ export function ChatPage() {
     };
   }, []);
 
+  const handleExecutionUpdate = useCallback((update) => {
+    setExecutionState((prev) => {
+      const next = { ...prev, error: null };
+      if (update.step === "QUOTE_START") {
+        next.isExecuting = true;
+        next.completed = 0;
+        next.currentSymbol = null;
+        next.portfolioId = null;
+      } else if (update.step === "QUOTE_COMPLETE") {
+        next.total = (update.quotedCount || 0) + (update.failedCount || 0);
+      } else if (
+        update.step === "POSITION_START" ||
+        update.step === "POSITION_PREPARED" ||
+        update.step === "POSITION_TX_SUBMITTED" ||
+        update.step === "POSITION_STATUS"
+      ) {
+        next.currentSymbol = update.symbol || null;
+      } else if (
+        update.step === "POSITION_CONFIRMED" ||
+        update.step === "POSITION_FAILED" ||
+        update.step === "POSITION_ERROR"
+      ) {
+        next.completed = (prev.completed || 0) + 1;
+        next.currentSymbol = null;
+        if (update.step === "POSITION_ERROR") {
+          next.error = update.error || null;
+        }
+      } else if (update.step === "COMPLETE") {
+        next.isExecuting = false;
+        next.currentSymbol = null;
+        next.portfolioId = update.portfolioId || null;
+      }
+      return next;
+    });
+  }, []);
+
+  const handleStartExecution = useCallback(
+    async (execution) => {
+      try {
+        setExecutionState((prev) => ({
+          ...prev,
+          isExecuting: true,
+          error: null,
+          portfolioId: null,
+        }));
+        const portfolioId = await executePortfolioOnChain(execution, {
+          onUpdate: handleExecutionUpdate,
+        });
+        setExecutionState((prev) => ({
+          ...prev,
+          isExecuting: false,
+          portfolioId,
+        }));
+        if (portfolioId) {
+          window.location.href = `/portfolio/${portfolioId}`;
+        }
+      } catch (error) {
+        setExecutionState((prev) => ({
+          ...prev,
+          isExecuting: false,
+          error: error?.message || "Execution failed. Please try again.",
+        }));
+        dispatch(
+          addCurrentMessage({
+            id: Date.now() + 1,
+            type: "ai",
+            content:
+              error?.message ||
+              "Sorry, something went wrong with on-chain execution.",
+            timestamp: new Date(),
+          }),
+        );
+      }
+    },
+    [dispatch, handleExecutionUpdate],
+  );
+
   const handleSendMessage = () => {
     if (isReadOnly || !message.trim()) return;
     sendChatMessage(message);
@@ -400,6 +486,11 @@ export function ChatPage() {
           };
           setUser(nextUser);
         }
+
+        // Handle on-chain execution handoff
+        if (response.action === "START_EXECUTION" && response.execution) {
+          handleStartExecution(response.execution);
+        }
       } catch (error) {
         if (error?.status === 401) {
           logout();
@@ -467,6 +558,9 @@ export function ChatPage() {
       ensureAuthenticated,
       buildBotMessage,
       logout,
+      handleStartExecution,
+      authUser,
+      setUser,
     ],
   );
 
@@ -596,6 +690,65 @@ export function ChatPage() {
             </div>
           );
         })}
+      </div>
+    );
+  };
+
+  const renderPortfolioPreview = (preview) => {
+    if (!preview || typeof preview !== "object") return null;
+    const chainNames = {
+      BSC: "BNB Chain",
+      ETH: "Ethereum",
+      BASE: "Base",
+      SOL: "Solana",
+    };
+    const chainLabel = chainNames[preview.chain] || preview.chain || "Unknown";
+    const isOnChain = preview.executionMode === "ON_CHAIN";
+
+    return (
+      <div className="mt-4 rounded-2xl border border-gray-200 bg-white/80 shadow-sm p-4 text-sm space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="font-semibold text-gray-900">
+            {chainLabel} ·{" "}
+            {isOnChain ? "On-Chain Execution" : "Paper Trading Preview"}
+          </div>
+          {typeof preview.totalTokens === "number" && (
+            <div className="text-xs text-gray-500">
+              {preview.totalTokens} tokens
+            </div>
+          )}
+        </div>
+        {Array.isArray(preview.positions) && preview.positions.length > 0 && (
+          <div className="mt-2 space-y-1 max-h-40 overflow-y-auto pr-1">
+            {preview.positions.map((p, idx) => (
+              <div
+                key={`${p.symbol || p.name || idx}-${idx}`}
+                className="flex items-center justify-between rounded-xl bg-gray-50 px-3 py-2"
+              >
+                <div className="flex flex-col">
+                  <span className="font-medium text-gray-900 text-xs">
+                    {p.symbol || p.name || `Token ${idx + 1}`}
+                  </span>
+                  {p.narrative && (
+                    <span className="text-[11px] text-gray-500">
+                      {p.narrative}
+                    </span>
+                  )}
+                </div>
+                <div className="text-right text-xs text-gray-700">
+                  {p.allocationUsd != null && (
+                    <div>${Number(p.allocationUsd).toFixed(2)}</div>
+                  )}
+                  {p.entryPriceUsd != null && (
+                    <div className="text-[11px] text-gray-500">
+                      @ ${Number(p.entryPriceUsd).toFixed(4)}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   };
@@ -1461,6 +1614,9 @@ export function ChatPage() {
                         </div>
                       )}
                       {msg.type === "ai" && renderTokens(msg.data?.tokens)}
+                      {msg.type === "ai" &&
+                        msg.data?.portfolioPreview &&
+                        renderPortfolioPreview(msg.data.portfolioPreview)}
                     </div>
                   ) : (
                     msg.content
@@ -1478,6 +1634,28 @@ export function ChatPage() {
                   </span>
                 </div>
               </ChatBubble>
+            )}
+            {executionState.isExecuting && (
+              <div className="mt-4 glass-card p-4 border border-blue-200/60 bg-blue-50/40 flex items-center justify-between gap-3 text-sm">
+                <div className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                  <div>
+                    <p className="font-medium text-gray-900">
+                      Executing on-chain portfolio...
+                    </p>
+                    <p className="text-xs text-gray-600">
+                      {executionState.currentSymbol
+                        ? `Processing ${executionState.currentSymbol} (${executionState.completed}/${executionState.total} done)`
+                        : `Swaps completed: ${executionState.completed}/${executionState.total}`}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+            {executionState.error && (
+              <div className="mt-4 glass-card p-3 border border-red-200/60 bg-red-50/60 text-xs text-red-700">
+                {executionState.error}
+              </div>
             )}
           </div>
         )}
