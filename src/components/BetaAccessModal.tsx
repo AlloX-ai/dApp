@@ -99,13 +99,13 @@ export function BetaAccessModal({
         alt=""
         className="h-10 my-4"
       />
-      <div className="mb-4 w-full max-w-md rounded-2xl bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 p-4 ">
+      <div className="mb-4 w-full max-w-md rounded-2xl bg-gradient-to-br from-yellow-400 via-orange-500 to-amber-600 to-amber-600 p-4 ">
         <div className="flex items-center gap-2">
           <div className="w-10 h-10 bg-white/20 backdrop-blur-xl rounded-2xl flex items-center justify-center flex-shrink-0">
             <Gift size={20} className="text-white" />
           </div>
           <div className="flex-1">
-            <p className="text-sm font-medium text-white mb-1">
+            <p className="text-md font-bold text-white mb-1">
               Welcome Bonus
             </p>
             <p className="text-xs text-white">
@@ -120,7 +120,7 @@ export function BetaAccessModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="text-center mb-6">
-          <h2 className="text-2xl font-bold mb-3">Log in to AlloX</h2>
+          <h2 className="text-2xl font-bold mb-3">Log in</h2>
         </div>
 
         <div className="mb-0">

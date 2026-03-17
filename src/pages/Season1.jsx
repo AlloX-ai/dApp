@@ -237,6 +237,31 @@ export function Season1() {
           </div>
         </div>
       </div>
+       <div className="pt-8 border-t border-gray-200/50">
+          {/* Social Icons */}
+
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-gray-600">
+            <div>© 2026 AlloX Foundation. All rights reserved.</div>
+            <div className="flex gap-6">
+              <a
+                href="https://www.allox.ai/privacy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-black transition-colors"
+              >
+                Privacy
+              </a>
+              <a
+                href="https://www.allox.ai/terms"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-black transition-colors"
+              >
+                Terms
+              </a>
+            </div>
+          </div>
+        </div>
     </div>
   );
 }

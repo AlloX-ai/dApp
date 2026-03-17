@@ -8,6 +8,8 @@ import {
   setCurrentMessages,
   setViewingHistorySessionId,
 } from "../redux/slices/chatSlice";
+import { useMemo } from "react";
+import getFormattedNumber from "../hooks/get-formatted-number";
 
 export function LaunchSidebar() {
   const navigate = useNavigate();
@@ -16,8 +18,25 @@ export function LaunchSidebar() {
   const isConnected = useSelector((state) => state.wallet.isConnected);
   const currentMessages = useSelector((state) => state.chat.currentMessages);
   const hasChatContent = currentMessages?.length > 0;
+    const checkinStatus = useSelector((state) => state.checkin?.status);
+  
 
   const { checkedInToday } = useCheckin();
+
+
+  const lastClaimed = useMemo(() => {
+    for (let i = checkinStatus?.rewards?.length - 1; i >= 0; i--) {
+      if (checkinStatus.rewards[i].claimed === true) {
+        if (i === checkinStatus.rewards.length - 1) {
+          return checkinStatus.rewards[0];
+        } else {
+          return checkinStatus.rewards[i];
+        }
+      }
+    }
+    return checkinStatus?.rewards[0];
+  }, [checkinStatus]);
+
 
   const handleNewChat = (e) => {
     e.stopPropagation();
@@ -44,7 +63,7 @@ export function LaunchSidebar() {
                 }`}
                 aria-current={isActive ? "page" : undefined}
               >
-                <Icon size={20} className="shrink-0" />
+                <Icon size={20} className={`shrink-0 ${id ===  "season1" ? 'text-orange-500 text-orange-600 animate-pulse' : ''}`} />
                 <span className="flex-1 text-left">{label}</span>
                 {isChat && hasChatContent && (
                   <div
@@ -86,7 +105,7 @@ export function LaunchSidebar() {
                   Daily Bonus
                 </div>
                 <div className="text-white font-bold text-sm mb-3">
-                  Get up to 5,000 points
+                  Get {getFormattedNumber(lastClaimed?.points || 0, 0)} points today
                 </div>
                 <button
                   onClick={() => dispatch(openCheckinModal())}

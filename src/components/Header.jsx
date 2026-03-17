@@ -87,14 +87,14 @@ export function Header({
               <div className="flex items-center gap-2">
                 <Coins className="size-4 text-amber-500" />
 
-                <span className="text-sm font-semibold tabular-nums">
+                <span className="text-xs sm:text-sm font-semibold tabular-nums">
                   {totalPoints.toLocaleString()}
                 </span>
               </div>
               {messagesRemaining != null && (
                 <div className="border-l border-gray-200/60 pl-3 flex items-center gap-2">
                   <Gem className="size-4 text-purple-600" />
-                  <span className="text-sm font-semibold tabular-nums">0</span>
+                  <span className="text-xs sm:text-sm font-semibold tabular-nums">0 <span className="text-xs sm:text-sm font-semibold tabular-nums text-[#4A5565]">($0)</span></span>
                 </div>
               )}
             </div>
