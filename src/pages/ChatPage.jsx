@@ -1,5 +1,14 @@
 import { useRef, useEffect, useState, useCallback } from "react";
-import { Send, Loader2, Wallet, Gift, Clock, X, RefreshCw } from "lucide-react";
+import {
+  Send,
+  Loader2,
+  Wallet,
+  Gift,
+  Clock,
+  X,
+  RefreshCw,
+  HelpCircle,
+} from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import { ChatBubble } from "../components/ChatBubble";
 import {
@@ -21,6 +30,7 @@ import { executePortfolioOnChain } from "../utils/execution";
 import { useAuth } from "../hooks/useAuth";
 import { NavLink } from "react-router";
 import getFormattedNumber from "../hooks/get-formatted-number";
+import { toast } from "sonner";
 
 function formatResetAt(resetAt) {
   if (resetAt == null || resetAt === "") return "";
@@ -69,6 +79,7 @@ export function ChatPage() {
   } = useSelector((state) => state.chat);
   const isReadOnly = !!viewingHistorySessionId;
   const isConnected = useSelector((state) => state.wallet.isConnected);
+  const walletChainId = useSelector((state) => state.wallet.chainId);
   const pointsBalance = useSelector((state) => state.points?.balance);
   const messagesRemaining = rateLimit?.remaining;
   const resetAt = rateLimit?.resetAt;
@@ -353,12 +364,15 @@ export function ChatPage() {
     });
   }, []);
 
-  const promptExecutionDecision = useCallback(({ symbol, executionOrderId }) => {
-    return new Promise((resolve) => {
-      executionPromptResolverRef.current = resolve;
-      setExecutionPrompt({ symbol, executionOrderId });
-    });
-  }, []);
+  const promptExecutionDecision = useCallback(
+    ({ symbol, executionOrderId }) => {
+      return new Promise((resolve) => {
+        executionPromptResolverRef.current = resolve;
+        setExecutionPrompt({ symbol, executionOrderId });
+      });
+    },
+    [],
+  );
 
   const resolveExecutionPrompt = (decision) => {
     const resolve = executionPromptResolverRef.current;
@@ -378,17 +392,27 @@ export function ChatPage() {
           error: null,
           portfolioId: null,
         }));
-        const portfolioId = await executePortfolioOnChain(execution, {
+        const completeData = await executePortfolioOnChain(execution, {
           onUpdate: handleExecutionUpdate,
           onPrompt: promptExecutionDecision,
         });
+        const portfolioId = completeData?.portfolioId;
         setExecutionState((prev) => ({
           ...prev,
           isExecuting: false,
           portfolioId,
         }));
         if (portfolioId) {
-          window.location.href = `/portfolio`;
+          // Show the same "portfolio created" message UI used by paper portfolios
+          dispatch(
+            addCurrentMessage({
+              id: Date.now() + 1,
+              type: "ai",
+              content: "✅ Portfolio created!",
+              data: { portfolioId, portfolio: completeData },
+              timestamp: new Date(),
+            }),
+          );
         }
       } catch (error) {
         setExecutionState((prev) => ({
@@ -595,9 +619,16 @@ export function ChatPage() {
     (option) => {
       const message = option?.value ?? option?.label ?? option?.action;
       if (!message) return;
+      // Block selecting BNB Chain (BSC) unless wallet is on BSC mainnet
+      if (String(message).toUpperCase() === "BSC" && walletChainId !== 56) {
+        toast.error(
+          "Please switch your wallet to BNB Chain before continuing.",
+        );
+        return;
+      }
       sendChatMessage(String(message));
     },
-    [sendChatMessage],
+    [sendChatMessage, walletChainId],
   );
 
   // Open claim popup only when user has not already claimed and needs to claim
@@ -729,7 +760,7 @@ export function ChatPage() {
     const isOnChain = preview.executionMode === "ON_CHAIN";
 
     return (
-      <div className="mt-4 rounded-2xl border border-gray-200 bg-white/80 shadow-sm p-4 text-sm space-y-2">
+      <div className="mt-4 rounded-2xl bg-linear-to-br from-blue-50/80 to-purple-50/80 border border-blue-200/50 shadow-sm p-4 text-sm space-y-2">
         <div className="flex items-center justify-between">
           <div className="font-semibold text-gray-900">
             {chainLabel} ·{" "}
@@ -748,15 +779,27 @@ export function ChatPage() {
                 key={`${p.symbol || p.name || idx}-${idx}`}
                 className="flex items-center justify-between rounded-xl bg-gray-50 px-3 py-2"
               >
-                <div className="flex flex-col">
-                  <span className="font-medium text-gray-900 text-xs">
-                    {p.symbol || p.name || `Token ${idx + 1}`}
-                  </span>
-                  {p.narrative && (
-                    <span className="text-[11px] text-gray-500">
-                      {p.narrative}
-                    </span>
+                <div className="flex items-center gap-2 min-w-0">
+                  {p.logo ? (
+                    <img
+                      src={p.logo}
+                      alt={p.symbol || p.name || "token"}
+                      className="w-7 h-7 rounded-full bg-white border border-gray-200"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="w-7 h-7 rounded-full bg-gray-200 border border-gray-200" />
                   )}
+                  <div className="flex flex-col min-w-0">
+                    <span className="font-medium text-gray-900 text-xs truncate">
+                      {p.symbol || p.name || `Token ${idx + 1}`}
+                    </span>
+                    {p.narrative && (
+                      <span className="text-[11px] text-gray-500 truncate">
+                        {p.narrative}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="text-right text-xs text-gray-700">
                   {p.allocationUsd != null && (
@@ -776,13 +819,249 @@ export function ChatPage() {
     );
   };
 
+  const renderOnChainPortfolioCreated = (portfolio) => {
+    if (!portfolio || typeof portfolio !== "object") return null;
+    if (portfolio.executionMode !== "ON_CHAIN") return null;
+    const chainNames = {
+      BSC: "BNB Chain",
+      ETH: "Ethereum",
+      BASE: "Base",
+      SOL: "Solana",
+    };
+    const chainLabel =
+      chainNames[portfolio.chain] || portfolio.chain || "Unknown";
+    const positions = Array.isArray(portfolio.positions)
+      ? portfolio.positions
+      : [];
+    const skipped = Array.isArray(portfolio.skipped) ? portfolio.skipped : [];
+    const summary = portfolio.summary || null;
+
+    const getTxLink = (txHash) =>
+      txHash ? `https://bscscan.com/tx/${txHash}` : null;
+
+    return (
+      <div className="mt-3 rounded-2xl border border-green-200 bg-green-50/70 p-4 text-sm text-green-800 space-y-3">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="font-semibold text-green-900">
+              ✅ On-chain portfolio executed
+            </div>
+            <div className="text-xs text-green-800">
+              {portfolio.name ? `${portfolio.name} · ` : ""}
+              {chainLabel} · {portfolio.status}
+            </div>
+          </div>
+          {portfolio.totalInvestment != null && (
+            <div className="text-right">
+              <div className="text-xs text-green-700">Total executed</div>
+              <div className="font-semibold text-green-900">
+                ${Number(portfolio.totalInvestment).toFixed(2)}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {summary && (
+          <div className="text-xs text-green-800">
+            Summary: {summary.confirmed ?? 0} confirmed ·{" "}
+            {summary.cancelled ?? 0} cancelled ·{" "}
+            {summary.totalOrders ?? positions.length + skipped.length} total
+          </div>
+        )}
+
+        {positions.length > 0 && (
+          <div className="space-y-1">
+            <div className="text-xs font-semibold text-green-900">Swaps</div>
+            <div className="space-y-1 max-h-44 overflow-y-auto pr-1">
+              {positions.map((p, idx) => {
+                const link = getTxLink(p.txHash);
+                return (
+                  <div
+                    key={`${p.symbol || p.name || idx}-${idx}`}
+                    className="flex items-center justify-between rounded-xl bg-white/70 border border-green-200/50 px-3 py-2"
+                  >
+                    <div className="min-w-0">
+                      <div className="text-xs font-medium text-gray-900 truncate">
+                        {p.symbol || p.name || `Token ${idx + 1}`}
+                      </div>
+                      <div className="text-[11px] text-gray-500">
+                        {p.swapProvider ? `${p.swapProvider} · ` : ""}
+                        {p.executionStatus || "—"}
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      {p.allocationUsd != null && (
+                        <div className="text-xs font-medium text-gray-900">
+                          ${Number(p.allocationUsd).toFixed(2)}
+                        </div>
+                      )}
+                      {link && (
+                        <a
+                          className="text-[11px] text-blue-700 underline hover:no-underline"
+                          href={link}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          View tx
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {skipped.length > 0 && (
+          <div className="space-y-1">
+            <div className="text-xs font-semibold text-green-900">Skipped</div>
+            <div className="space-y-1">
+              {skipped.map((s, idx) => (
+                <div
+                  key={`${s.symbol || idx}-${idx}`}
+                  className="flex items-center justify-between rounded-xl bg-white/60 border border-green-200/50 px-3 py-2"
+                >
+                  <div className="text-xs font-medium text-gray-900">
+                    {s.symbol || "Unknown"}
+                  </div>
+                  <div className="text-[11px] text-gray-600">
+                    {s.reason || "Skipped"}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderPaperPortfolioCreated = (portfolio, options) => {
+    if (!portfolio || typeof portfolio !== "object") return null;
+    const positions = Array.isArray(portfolio.positions)
+      ? portfolio.positions
+      : [];
+    const portfolioId = portfolio.id || portfolio.portfolioId || null;
+    const safeOptions = Array.isArray(options) ? options : [];
+
+    return (
+      <div className="mt-3 rounded-2xl border border-green-200 bg-green-50/70 p-4 text-sm text-green-800 space-y-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="font-semibold text-green-900">
+              ✅ Portfolio created (Paper Trading)
+            </div>
+            <div className="text-xs text-green-800">
+              {portfolio.name ? `${portfolio.name}` : "Portfolio"}
+              {portfolioId ? ` · ${portfolioId}` : ""}
+            </div>
+          </div>
+          {typeof portfolio.totalTokens === "number" && (
+            <div className="text-right shrink-0">
+              <div className="text-xs text-green-700">Tokens</div>
+              <div className="font-semibold text-green-900">
+                {portfolio.totalTokens}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {positions.length > 0 && (
+          <div className="space-y-1">
+            <div className="text-xs font-semibold text-green-900">
+              Positions
+            </div>
+            <div className="space-y-1 max-h-56 overflow-y-auto pr-1">
+              {positions.map((p, idx) => (
+                <div
+                  key={`${p.tokenId || p.symbol || idx}-${idx}`}
+                  className="flex items-center justify-between rounded-xl bg-white/70 border border-green-200/50 px-3 py-2 gap-3"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    {p.logo ? (
+                      <img
+                        src={p.logo}
+                        alt={p.symbol || p.name || "token"}
+                        className="w-7 h-7 rounded-full bg-white border border-gray-200"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="w-7 h-7 rounded-full bg-gray-200 border border-gray-200" />
+                    )}
+                    <div className="min-w-0">
+                      <div className="text-xs font-medium text-gray-900 truncate">
+                        {p.symbol || p.name || `Token ${idx + 1}`}
+                      </div>
+                      <div className="text-[11px] text-gray-500 truncate">
+                        {p.narrative ? `${p.narrative} · ` : ""}
+                        {p.riskProfile || ""}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    {p.allocationUsd != null && (
+                      <div className="text-xs font-medium text-gray-900">
+                        ${Number(p.allocationUsd).toFixed(2)}
+                      </div>
+                    )}
+                    {p.tokenAmount != null && p.entryPriceUsd != null && (
+                      <div className="text-[11px] text-gray-500">
+                        {Number(p.tokenAmount).toFixed(4)} @ $
+                        {Number(p.entryPriceUsd).toFixed(4)}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {safeOptions.length > 0 && (
+          <div className="pt-2 border-t border-green-200/60">
+            <div className="flex flex-wrap gap-2">
+              {safeOptions.map((option, index) => (
+                <button
+                  key={`${option.action}-${option.value}-${index}`}
+                  onClick={() => handleOptionClick(option)}
+                  disabled={isReadOnly}
+                  className="px-3 py-2 bg-white/80 border border-gray-200 rounded-xl text-xs font-medium hover:bg-white hover:border-gray-300 hover:shadow-md transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {option.label || option.value || option.action}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // Parse token list line. Supports:
   // - Pipe format: "1. **LINK** (Chainlink): $8.84 USD | MC: $6.26B | Vol: $535M (DeFi)"
   // - Comma format: "1. **LINK** (Chainlink, Ethereum): $9.11 USD, Market Cap: $6.45B, 24h Vol: $567M" with optional "24h Change: +1.5%"
   // - Compact DeFi format: "1. **STABLE** ($0.0278, MC: $573M, Vol: $1.03B)"
   const parseTokenListLine = (line) => {
-    // Pipe format (MC:, Vol:, optional narrative at end)
+    // Comma format without colons:
+    // "1. **LINK (Chainlink)**: $9.84, Market Cap $6.96B, 24h Vol $919M"
+    // or "1. **LINK (Chainlink)**: $9.84 USD, Market Cap $6.96B, 24h Vol $919M"
     let match = line.match(
+      /^(\d+)\.\s+\*\*([A-Z0-9]+)\s*\(([^)]+)\)\*\*:\s*\$?([\d,.]+)\s*(?:USD)?[,]?\s*Market Cap\s*\$?([\d.]+[BMK]?)[,]?\s*24h Vol\s*\$?([\d.]+[BMK]?)/i,
+    );
+    if (match) {
+      return {
+        rank: match[1],
+        ticker: match[2],
+        nameChain: match[3],
+        price: match[4],
+        marketCap: match[5],
+        vol24h: match[6],
+        change24h: null,
+      };
+    }
+    // Pipe format (MC:, Vol:, optional narrative at end)
+    match = line.match(
       /^(\d+)\.\s+\*\*([A-Z0-9]+)\*\*\s*\(([^)]+)\):\s*\$?([\d,.]+)\s*(?:USD)?\s*\|\s*MC:\s*\$?([\d.]+[BMK]?)\s*\|\s*Vol:\s*\$?([\d.]+[BMK]?)(?:\s*\([^)]*\))?\s*$/i,
     );
     if (match) {
@@ -1061,7 +1340,7 @@ export function ChatPage() {
         const hasChange = tokenEntries.some((e) => e.change24h != null);
         const gridCols = hasChange
           ? "grid-cols-[auto_1fr_auto_auto_auto_auto]"
-          : "grid-cols-[auto_1fr_auto_auto_auto]";
+          : "grid-cols-5";
         blocks.push(
           <div
             key={`token-list-${blocks.length}`}
@@ -1070,7 +1349,7 @@ export function ChatPage() {
             <div
               className={`grid ${gridCols} gap-x-4 gap-y-0 px-4 py-2.5 border-b border-gray-200 bg-gray-50/80 text-xs font-semibold text-gray-600 uppercase tracking-wide items-center`}
             >
-              <span className="w-6">#</span>
+              <span className="w-6">Rank</span>
               <span>Token</span>
               <span className="text-right">Price</span>
               <span className="text-right">MC</span>
@@ -1085,13 +1364,13 @@ export function ChatPage() {
                 <span className="w-6 font-semibold text-gray-500">
                   {entry.rank}.
                 </span>
-                <div className="min-w-0">
+                <div className="min-w-0 flex flex-col">
                   <span className="font-bold text-gray-900">
                     {entry.ticker}
                   </span>
                   {entry.nameChain && (
-                    <span className="text-gray-500 text-xs ml-1">
-                      ({entry.nameChain})
+                    <span className="text-gray-500 text-xs ml-0">
+                     ({entry.nameChain})
                     </span>
                   )}
                 </div>
@@ -1406,6 +1685,7 @@ export function ChatPage() {
           jPort += 1;
         }
         if (portfolioTokenEntries.length > 0) {
+          console.log(portfolioTokenEntries);
           pushBullets();
           blocks.push(
             <div
@@ -1617,7 +1897,11 @@ export function ChatPage() {
                       )}
                       {msg.type === "ai" &&
                         completedMessageIdsRef.current.has(msg.id) &&
-                        msg.options?.length > 0 && (
+                        msg.options?.length > 0 &&
+                        !(
+                          msg.data?.portfolio &&
+                          msg.data?.portfolio?.executionMode !== "ON_CHAIN"
+                        ) && (
                           <div className="mt-3 flex flex-wrap gap-2">
                             {msg.options.map((option, index) => (
                               <button
@@ -1631,11 +1915,23 @@ export function ChatPage() {
                             ))}
                           </div>
                         )}
-                      {msg.type === "ai" && msg.data?.portfolioId && (
-                        <div className="mt-3 bg-green-50 border border-green-200 rounded-xl p-3 text-sm text-green-700">
-                          ✅ Portfolio created: {msg.data.portfolioId}
-                        </div>
-                      )}
+                      {msg.type === "ai" &&
+                        msg.data?.portfolio?.executionMode === "ON_CHAIN" &&
+                        renderOnChainPortfolioCreated(msg.data.portfolio)}
+                      {msg.type === "ai" &&
+                        msg.data?.portfolio &&
+                        msg.data?.portfolio?.executionMode !== "ON_CHAIN" &&
+                        renderPaperPortfolioCreated(
+                          msg.data.portfolio,
+                          msg.options,
+                        )}
+                      {msg.type === "ai" &&
+                        !msg.data?.portfolio &&
+                        msg.data?.portfolioId && (
+                          <div className="mt-3 bg-green-50 border border-green-200 rounded-xl p-3 text-sm text-green-700">
+                            ✅ Portfolio created: {msg.data.portfolioId}
+                          </div>
+                        )}
                       {msg.type === "ai" && renderTokens(msg.data?.tokens)}
                       {msg.type === "ai" &&
                         msg.data?.portfolioPreview &&
@@ -1681,8 +1977,8 @@ export function ChatPage() {
                   Swap failed for {executionPrompt.symbol}
                 </p>
                 <p className="text-xs text-gray-700 mb-3">
-                  You rejected the wallet transaction. Would you like to retry or
-                  skip this token?
+                  The wallet did not submit the transaction. Tap Retry to fetch
+                  a fresh nonce and try again.
                 </p>
                 <div className="flex flex-wrap gap-2">
                   <button
@@ -1692,13 +1988,6 @@ export function ChatPage() {
                   >
                     Retry
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => resolveExecutionPrompt("skip")}
-                    className="px-3 py-2 rounded-xl bg-white border border-gray-200 text-xs font-medium hover:bg-gray-50"
-                  >
-                    Skip
-                  </button>
                 </div>
               </div>
             )}
@@ -1707,12 +1996,31 @@ export function ChatPage() {
                 {executionState.error}
               </div>
             )}
+            {executionState.isExecuting && (
+              <div className="mb-4 glass-card p-4 border border-amber-200/50 bg-amber-50/30">
+                <div className="flex items-center gap-2">
+                  <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <HelpCircle size={20} className="text-amber-600" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-900 mb-1">
+                      Important note
+                    </p>
+                    <p className="text-xs text-gray-600">
+                      You can safely confirm transactions even if a failure
+                      warning appears. <b>Note:</b> MetaMask Smart Transactions
+                      may affect execution.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
 
       <div className="shrink-0 fixed left-0 w-full z-4 bottom-0 border-t border-gray-200/50 bg-pattern/95 backdrop-blur-lg">
-        <div className="px-6 py-6 max-w-[1000px] mx-auto w-full">
+        <div className="px-6 py-6 max-w-250 mx-auto w-full">
           {isReadOnly && (
             <div className="mb-4 glass-card p-4 border border-gray-200/50 bg-gray-50/50 flex items-center justify-between gap-4">
               <p className="text-sm text-gray-600">

@@ -108,14 +108,11 @@ export async function executePortfolioOnChain(
       });
 
       // Approve each unique target (usually 1–2 approvals)
-      // eslint-disable-next-line no-restricted-syntax
       for (const target of approvalTargets) {
-        // eslint-disable-next-line no-await-in-loop
         const tx = await sourceContract.approve(
           target,
           ethers.constants.MaxUint256,
         );
-        // eslint-disable-next-line no-await-in-loop
         await tx.wait();
         update("APPROVAL_PROGRESS", { target, txHash: tx.hash });
       }
@@ -157,14 +154,24 @@ export async function executePortfolioOnChain(
         // 2) Send to wallet
         let tx;
         try {
+          const nonce =
+            txData && txData.nonce != null && txData.nonce !== ""
+              ? txData.nonce
+              : undefined;
+          const gasLimit =
+            txData && txData.gasLimit != null && txData.gasLimit !== ""
+              ? txData.gasLimit
+              : undefined;
           tx = await signer.sendTransaction({
             data: txData.data,
             to: txData.to,
             value: txData.value,
+            ...(nonce !== undefined && { nonce }),
+            ...(gasLimit !== undefined && { gasLimit }),
           });
         } catch (err) {
           console.error(err);
-          // 4) MetaMask rejects (no txHash): offer Retry/Skip
+          // 4) MetaMask rejects (no txHash): offer Retry (call /prepare again for fresh nonce)
           if (isUserRejectedTx(err)) {
             update("POSITION_REJECTED", {
               symbol: pos.symbol,
@@ -179,31 +186,11 @@ export async function executePortfolioOnChain(
                   })
                 : "retry";
 
-            if (decision === "skip") {
-              try {
-                await apiCall(
-                  `${EXECUTION_API_BASE}/${pos.executionOrderId}/cancel`,
-                  { method: "POST" },
-                );
-              } catch (err) {
-                console.error(err);
-                // best effort; still treat as skipped to avoid blocking UX
-              }
-              cancelledOrderIds.push(pos.executionOrderId);
-              skipped.push({
-                executionOrderId: pos.executionOrderId,
-                symbol: pos.symbol,
-                reason: "USER_REJECTED",
-              });
-              update("POSITION_CANCELLED", {
-                symbol: pos.symbol,
-                executionOrderId: pos.executionOrderId,
-              });
-              done = true;
+            if (decision === "retry") {
               continue;
             }
 
-            // retry
+            // Default to retry if unknown decision
             continue;
           }
           throw err;
@@ -268,7 +255,8 @@ export async function executePortfolioOnChain(
                 symbol: pos.symbol,
                 executionOrderId: pos.executionOrderId,
               });
-            } catch (_) {
+            } catch (err) {
+              console.error(err);
               update("POSITION_FAILED", {
                 symbol: pos.symbol,
                 executionOrderId: pos.executionOrderId,
@@ -282,7 +270,7 @@ export async function executePortfolioOnChain(
           console.error(
             `JSON-RPC error while waiting for ${pos.symbol} transaction:`,
             waitError,
-          ); // eslint-disable-line no-console
+          );
 
           const friendly =
             "The transaction was dropped or cancelled by the network. Skipping to the next token.";
@@ -307,14 +295,15 @@ export async function executePortfolioOnChain(
               symbol: pos.symbol,
               executionOrderId: pos.executionOrderId,
             });
-          } catch (_) {
+          } catch (err) {
+            console.error(err);
             // ignore; we've already informed the user and will move on
           }
 
           done = true;
         }
       } catch (error) {
-        console.error(`Swap failed for ${pos.symbol}:`, error); // eslint-disable-line no-console
+        console.error(`Swap failed for ${pos.symbol}:`, error);
         const friendlyMessage = isUserRejectedTx(error)
           ? "The transaction was rejected in your wallet."
           : "The transaction failed unexpectedly. It may have been dropped or replaced. You can try again or skip this token.";
@@ -342,7 +331,8 @@ export async function executePortfolioOnChain(
             symbol: pos.symbol,
             executionOrderId: pos.executionOrderId,
           });
-        } catch (_) {
+        } catch (err) {
+          console.error(err);
           // give up on cancelling; still mark done so flow can proceed
         }
         done = true;
@@ -387,7 +377,8 @@ export async function executePortfolioOnChain(
     portfolioId: completeData.portfolioId,
     skipped: completeData.skipped ?? skipped,
     summary: completeData.summary,
+    portfolio: completeData,
   });
 
-  return completeData.portfolioId;
+  return completeData;
 }
