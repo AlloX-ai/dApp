@@ -1,7 +1,8 @@
-import { Flame, Trophy, Lock, Calendar, Info } from "lucide-react";
+import { Flame, Trophy, Lock, Calendar, Info, Gem } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { useSelector } from "react-redux";
 import { season1_winners } from "../constants/addresses";
+import getFormattedNumber from "../hooks/get-formatted-number";
 
 export function Season1() {
   const [showTooltip, setShowTooltip] = useState(false);
@@ -18,21 +19,21 @@ export function Season1() {
     {
       number: 1,
       status: "Ended",
-      reward: "$5,000",
+      reward: 5000,
       timeline: "Feb 23 - Mar 9",
       active: false,
     },
     {
       number: 2,
       status: "Active",
-      reward: "$8,000",
+      reward: 16000,
       timeline: "Mar 10 - Mar 31",
       active: true,
     },
     {
       number: 3,
       status: "Upcoming",
-      reward: "$12,000",
+      reward: 24000,
       timeline: "TBA",
       active: false,
     },
@@ -42,23 +43,23 @@ export function Season1() {
     {
       name: "Tier 1",
       users: "First 1,000 users",
-      winners: "40 winners",
-      reward: "100 USDT each",
-      total: "$4,000",
+      winners: "80 winners",
+      reward: 100,
+      total: 8000,
     },
     {
       name: "Tier 2",
       users: "Next 10,000 users",
-      winners: "50 winners",
-      reward: "50 USDT each",
-      total: "$2,500",
+      winners: "100 winners",
+      reward: 50,
+      total: 5000,
     },
     {
       name: "Tier 3",
       users: "Next 25,000 users",
-      winners: "300 winners",
-      reward: "5 USDT each",
-      total: "$1,500",
+      winners: "600 winners",
+      reward: 5,
+      total: 3000,
     },
   ];
 
@@ -73,12 +74,22 @@ export function Season1() {
         <h2 className="text-xl md:text-3xl font-bold">
           Spring Series Campaign
         </h2>
-        <div className="flex items-center gap-2 px-4 py-2 bg-black rounded-xl">
-          <Trophy size={18} className="text-white" />
-          <span className="text-white text-sm font-bold">$25,000 Total</span>
+        <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl shadow-lg">
+          <Gem size={18} className="text-white" />
+          <span className="text-white text-sm font-bold">
+            9,000 ($45,000 Total)
+          </span>
         </div>
       </div>
-
+      <div className="bg-gray-100 border border-gray-300 rounded-xl p-4">
+        <p className="text-sm text-gray-600 leading-relaxed">
+          <strong className="text-gray-800">Important:</strong> Accumulated
+          Points through all AlloX activities are not related to the Spring
+          Series Campaign. Points are counted as future token rewards. The
+          Spring Series Campaign is dedicated to users winning direct Gem
+          rewards that are converted into tokens at launch.
+        </p>
+      </div>
       {/* Seasons Overview */}
       <div className="grid md:grid-cols-3 gap-4">
         {seasons.map((season) => (
@@ -128,7 +139,16 @@ export function Season1() {
                   </div>
                 )}
               </div>
-              <div className="text-2xl font-bold mb-2">{season.reward}</div>
+              <div className="flex items-center gap-2 mb-2">
+                {" "}
+                <Gem size={20} className="text-purple-600" />
+                <span className="text-2xl font-bold">
+                  {getFormattedNumber(season.reward / 5, 0)}
+                </span>
+                <span className="text-sm text-gray-600">
+                  (${getFormattedNumber(season.reward, 0)})
+                </span>
+              </div>
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <Calendar size={14} />
                 {season.timeline}
@@ -160,7 +180,7 @@ export function Season1() {
                       winner ? "text-green-600" : "text-gray-500"
                     }`}
                   >
-                    ${winner ? winner.reward : 0}
+                    ${winner ? getFormattedNumber(winner.reward, 0) : 0}
                   </div>
                 </div>
               )}
@@ -218,14 +238,24 @@ export function Season1() {
                 </div>
                 <div className="flex-1">
                   <div className="font-bold mb-1">{tier.users}</div>
-                  <div className="text-sm text-gray-600">
-                    {tier.winners} selected • {tier.reward}
-                  </div>
+                  <div className="text-sm text-gray-600 flex flex-col sm:flex-row items-start sm:items-center gap-1">
+                    <span>{tier.winners} selected  •</span>
+                <div className="flex items-center gap-1">
+                      <Gem size={14} className="text-purple-600" />
+                      <span className="font-semibold text-purple-700">{getFormattedNumber(tier.reward / 5, 0)}</span>
+                      <span className="text-gray-500">(${getFormattedNumber(tier.reward, 0)})</span>
+                      <span className="text-gray-500">each</span>
+                    </div>
+                    </div>
                 </div>
               </div>
               <div className="text-right hidden sm:block">
                 <div className="text-sm text-gray-600">Total Pool</div>
-                <div className="text-xl font-bold">{tier.total}</div>
+              <div className="flex items-center gap-1 justify-end">
+                  <Gem size={18} className="text-purple-600" />
+                  <span className="text-xl font-bold">{getFormattedNumber(tier.total / 5, 0)}</span>
+                  <span className="text-sm text-gray-600">(${getFormattedNumber(tier.total, 0)})</span>
+                </div>
               </div>
             </div>
           ))}
@@ -233,7 +263,37 @@ export function Season1() {
         <div className="mt-4 pt-4 border-t border-gray-200">
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-600">Total USDT distributed</div>
-            <div className="text-2xl font-bold">$8,000</div>
+             <div className="flex items-center gap-1 justify-end">
+                  <Gem size={18} className="text-purple-600" />
+                              <div className="text-2xl font-bold">3,200</div>
+                    <span className="text-sm text-gray-600">($16,000)</span>
+
+                </div>
+          </div>
+        </div>
+      </div>
+      <div className="pt-8 border-t border-gray-200/50">
+        {/* Social Icons */}
+
+        <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-gray-600">
+          <div>© 2026 AlloX Foundation. All rights reserved.</div>
+          <div className="flex gap-6">
+            <a
+              href="https://www.allox.ai/privacy"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-black transition-colors"
+            >
+              Privacy
+            </a>
+            <a
+              href="https://www.allox.ai/terms"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-black transition-colors"
+            >
+              Terms
+            </a>
           </div>
         </div>
       </div>

@@ -290,15 +290,9 @@ export function PointsPage() {
               </div>
             </div>
           </div>
-          <p className="text-sm text-gray-700 mb-3">
-            Points are the foundational reward currency on AlloX. Earn them
-            through daily activities like creating portfolios, chatting with AI,
-            and completing tasks.
-          </p>
+         <p className="text-sm text-gray-700 mb-3">Points are the foundational reward currency on AlloX. Earn them through daily activities like creating portfolios, chatting with AI, and completing tasks.</p>
           <div className="bg-white/60 border border-blue-200 rounded-lg p-3">
-            <div className="font-semibold text-sm mb-2 text-blue-900">
-              How to Earn:
-            </div>
+            <div className="font-semibold text-sm mb-2 text-blue-900">How to Earn:</div>
             <ul className="space-y-1 text-xs text-gray-700">
               <li>• Welcome bonus and daily activities</li>
               <li>• Creating portfolios and AI interactions</li>
@@ -310,6 +304,8 @@ export function PointsPage() {
 
         {/* Gems Section */}
         <div className="glass-card p-6 bg-gradient-to-br from-purple-50 to-pink-50 border-purple-200/50">
+        <div className="flex align-center justify-between">
+
           <div className="flex items-center gap-3 mb-4">
             <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-pink-600 rounded-2xl flex items-center justify-center">
               <Gem className="w-6 h-6 text-white" />
@@ -321,6 +317,13 @@ export function PointsPage() {
               </div>
             </div>
           </div>
+           <div className="h-fit px-3 py-2 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg">
+            <div className="flex items-center justify-center gap-2 text-white">
+              <Gem size={16} className="flex-shrink-0" />
+              <span className="font-bold text-sm sm:text-base">1 = $5</span>
+            </div>
+          </div>
+        </div>
           <p className="text-sm text-gray-700 mb-3">
             Gems are the <strong>highest value rewards</strong> on AlloX. They
             offer a superior conversion ratio at token launch and unlock
@@ -541,6 +544,32 @@ export function PointsPage() {
           </button>
         </div>
       </div>
+     <div className="pt-8 border-t border-gray-200/50">
+          {/* Social Icons */}
+
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-gray-600">
+            <div>© 2026 AlloX Foundation. All rights reserved.</div>
+            <div className="flex gap-6">
+              <a
+                href="https://www.allox.ai/privacy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-black transition-colors"
+              >
+                Privacy
+              </a>
+              <a
+                href="https://www.allox.ai/terms"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-black transition-colors"
+              >
+                Terms
+              </a>
+            </div>
+          </div>
+        </div>
+
       {/* X Tasks Modal */}
       <XTasksModal
         isOpen={showXTasksModal}
