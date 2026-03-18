@@ -26,14 +26,14 @@ export function Season1() {
     {
       number: 2,
       status: "Active",
-      reward: 8000,
+      reward: 16000,
       timeline: "Mar 10 - Mar 31",
       active: true,
     },
     {
       number: 3,
       status: "Upcoming",
-      reward: 12000,
+      reward: 24000,
       timeline: "TBA",
       active: false,
     },
@@ -43,23 +43,23 @@ export function Season1() {
     {
       name: "Tier 1",
       users: "First 1,000 users",
-      winners: "40 winners",
+      winners: "80 winners",
       reward: 100,
-      total: 4000,
+      total: 8000,
     },
     {
       name: "Tier 2",
       users: "Next 10,000 users",
-      winners: "50 winners",
+      winners: "100 winners",
       reward: 50,
-      total: 2500,
+      total: 5000,
     },
     {
       name: "Tier 3",
       users: "Next 25,000 users",
-      winners: "300 winners",
+      winners: "600 winners",
       reward: 5,
-      total: 1500,
+      total: 3000,
     },
   ];
 
@@ -74,9 +74,11 @@ export function Season1() {
         <h2 className="text-xl md:text-3xl font-bold">
           Spring Series Campaign
         </h2>
-        <div className="flex items-center gap-2 px-4 py-2 bg-black rounded-xl">
-          <Trophy size={18} className="text-white" />
-          <span className="text-white text-sm font-bold">$25,000 Total</span>
+        <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl shadow-lg">
+          <Gem size={18} className="text-white" />
+          <span className="text-white text-sm font-bold">
+            9,000 💎 ($45,000 Total)
+          </span>
         </div>
       </div>
       <div className="bg-gray-100 border border-gray-300 rounded-xl p-4">
@@ -250,7 +252,7 @@ export function Season1() {
                 <div className="text-sm text-gray-600">Total Pool</div>
               <div className="flex items-center gap-1 justify-end">
                   <Gem size={18} className="text-purple-600" />
-                  <span className="text-xl font-bold">{tier.total / 5}</span>
+                  <span className="text-xl font-bold">{getFormattedNumber(tier.total / 5, 0)}</span>
                   <span className="text-sm text-gray-600">(${getFormattedNumber(tier.total)})</span>
                 </div>
               </div>
@@ -262,8 +264,8 @@ export function Season1() {
             <div className="text-sm text-gray-600">Total USDT distributed</div>
              <div className="flex items-center gap-1 justify-end">
                   <Gem size={18} className="text-purple-600" />
-                              <div className="text-2xl font-bold">1,600</div>
-                    <span className="text-sm text-gray-600">($8,000)</span>
+                              <div className="text-2xl font-bold">3,200</div>
+                    <span className="text-sm text-gray-600">($16,000)</span>
 
                 </div>
           </div>
