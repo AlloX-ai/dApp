@@ -77,7 +77,7 @@ export function Season1() {
         <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl shadow-lg">
           <Gem size={18} className="text-white" />
           <span className="text-white text-sm font-bold">
-            9,000 💎 ($45,000 Total)
+            9,000 ($45,000 Total)
           </span>
         </div>
       </div>
@@ -146,7 +146,7 @@ export function Season1() {
                   {getFormattedNumber(season.reward / 5, 0)}
                 </span>
                 <span className="text-sm text-gray-600">
-                  (${getFormattedNumber(season.reward)})
+                  (${getFormattedNumber(season.reward, 0)})
                 </span>
               </div>
               <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -180,7 +180,7 @@ export function Season1() {
                       winner ? "text-green-600" : "text-gray-500"
                     }`}
                   >
-                    ${winner ? winner.reward : 0}
+                    ${winner ? getFormattedNumber(winner.reward, 0) : 0}
                   </div>
                 </div>
               )}
@@ -239,11 +239,12 @@ export function Season1() {
                 <div className="flex-1">
                   <div className="font-bold mb-1">{tier.users}</div>
                   <div className="text-sm text-gray-600 flex flex-col sm:flex-row items-start sm:items-center gap-1">
-                    <span>{tier.winners} selected </span>
+                    <span>{tier.winners} selected  •</span>
                 <div className="flex items-center gap-1">
                       <Gem size={14} className="text-purple-600" />
                       <span className="font-semibold text-purple-700">{getFormattedNumber(tier.reward / 5, 0)}</span>
-                      <span className="text-gray-500">(${getFormattedNumber(tier.reward)})</span>
+                      <span className="text-gray-500">(${getFormattedNumber(tier.reward, 0)})</span>
+                      <span className="text-gray-500">each</span>
                     </div>
                     </div>
                 </div>
@@ -253,7 +254,7 @@ export function Season1() {
               <div className="flex items-center gap-1 justify-end">
                   <Gem size={18} className="text-purple-600" />
                   <span className="text-xl font-bold">{getFormattedNumber(tier.total / 5, 0)}</span>
-                  <span className="text-sm text-gray-600">(${getFormattedNumber(tier.total)})</span>
+                  <span className="text-sm text-gray-600">(${getFormattedNumber(tier.total, 0)})</span>
                 </div>
               </div>
             </div>
