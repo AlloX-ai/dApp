@@ -1,7 +1,73 @@
 import { ethers } from "ethers";
+import {
+  readContract as wagmiReadContract,
+  sendTransaction as wagmiSendTransaction,
+  waitForTransactionReceipt as wagmiWaitForTransactionReceipt,
+} from "@wagmi/core";
+import { encodeFunctionData } from "viem";
 import { apiCall } from "./api";
-
+import { wagmiClient } from "../wagmiConnectors";
 const EXECUTION_API_BASE = "/execution";
+
+const PERMIT2_ADDRESS = "0x31c2F6fcFf4F8759b3Bd5Bf0e1084A055615c768";
+const MAX_UINT256 = BigInt(
+  "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+);
+const MAX_UINT160 = BigInt("0xffffffffffffffffffffffffffffffffffffffff");
+const MAX_UINT48 = BigInt("0xffffffffffff");
+
+const ERC20_ABI = [
+  {
+    name: "approve",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "spender", type: "address" },
+      { name: "amount", type: "uint256" },
+    ],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    name: "allowance",
+    type: "function",
+    stateMutability: "view",
+    inputs: [
+      { name: "owner", type: "address" },
+      { name: "spender", type: "address" },
+    ],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+];
+
+const PERMIT2_ABI = [
+  {
+    name: "approve",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "token", type: "address" },
+      { name: "spender", type: "address" },
+      { name: "amount", type: "uint160" },
+      { name: "expiration", type: "uint48" },
+    ],
+    outputs: [],
+  },
+  {
+    name: "allowance",
+    type: "function",
+    stateMutability: "view",
+    inputs: [
+      { name: "owner", type: "address" },
+      { name: "token", type: "address" },
+      { name: "spender", type: "address" },
+    ],
+    outputs: [
+      { name: "amount", type: "uint160" },
+      { name: "expiration", type: "uint48" },
+      { name: "nonce", type: "uint48" },
+    ],
+  },
+];
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -12,6 +78,170 @@ const isUserRejectedTx = (error) => {
   const msg = String(error.message || error).toLowerCase();
   return msg.includes("user rejected") || msg.includes("rejected the request");
 };
+
+const isExecutionReverted = (error) => {
+  if (!error) return false;
+  const msg = String(error.message || error).toLowerCase();
+  const details = String(error.details || "").toLowerCase();
+  const causeMsg = String(error?.cause?.message || "").toLowerCase();
+  return (
+    msg.includes("execution reverted") ||
+    msg.includes("callexecutionerror") ||
+    msg.includes("code=call_exception") ||
+    details.includes("execution reverted") ||
+    causeMsg.includes("execution reverted")
+  );
+};
+
+const parseBigInt = (value, fallback = 0n) => {
+  if (value == null || value === "") return fallback;
+  try {
+    return BigInt(value);
+  } catch {
+    return fallback;
+  }
+};
+
+const buildApprovalStepCalldata = (approvalStep) => {
+  const method = approvalStep?.tx?.method;
+  const args = approvalStep?.tx?.args || [];
+
+  if (method === "approve(address,uint256)") {
+    return encodeFunctionData({
+      abi: ERC20_ABI,
+      functionName: "approve",
+      args: [args[0], parseBigInt(args[1], MAX_UINT256)],
+    });
+  }
+
+  if (method === "approve(address,address,uint160,uint48)") {
+    return encodeFunctionData({
+      abi: PERMIT2_ABI,
+      functionName: "approve",
+      args: [
+        args[0],
+        args[1],
+        parseBigInt(args[2], MAX_UINT160),
+        parseBigInt(args[3], MAX_UINT48),
+      ],
+    });
+  }
+
+  throw new Error(`Unsupported approval method: ${method || "unknown"}`);
+};
+
+async function executeApprovalSteps({ approvalSteps, account, update, chainId = 56 }) {
+  for (const approvalStep of approvalSteps) {
+    const to = approvalStep?.tx?.to;
+    if (!to) throw new Error("Missing approval transaction target");
+
+    const data = buildApprovalStepCalldata(approvalStep);
+    const txHash = await wagmiSendTransaction(wagmiClient, {
+      account,
+      chainId,
+      to,
+      data,
+      value: 0n,
+    });
+    await wagmiWaitForTransactionReceipt(wagmiClient, { hash: txHash });
+    update("APPROVAL_PROGRESS", {
+      target: to,
+      txHash,
+      type: approvalStep?.step || "APPROVAL_STEP",
+    });
+  }
+}
+
+async function ensureApprovals({
+  permit2Approval,
+  fromTokenAddress,
+  userAddress,
+  requiredAmount,
+  update,
+}) {
+  const permit2Address = permit2Approval?.permit2Address || PERMIT2_ADDRESS;
+  const routerAddress = permit2Approval?.spender;
+
+  if (!fromTokenAddress || !routerAddress) return;
+
+  const chainId = 56;
+  const now = BigInt(Math.floor(Date.now() / 1000));
+
+  // Approval 1: ERC20 approve token -> Permit2
+  const erc20Allowance = await wagmiReadContract(wagmiClient, {
+    address: fromTokenAddress,
+    abi: ERC20_ABI,
+    functionName: "allowance",
+    args: [userAddress, permit2Address],
+    chainId,
+  });
+
+  if (parseBigInt(erc20Allowance) < requiredAmount) {
+    const approveData = encodeFunctionData({
+      abi: ERC20_ABI,
+      functionName: "approve",
+      args: [permit2Address, MAX_UINT256],
+    });
+
+    const txHash = await wagmiSendTransaction(wagmiClient, {
+      account: userAddress,
+      chainId,
+      to: fromTokenAddress,
+      data: approveData,
+      value: 0n,
+    });
+
+    await wagmiWaitForTransactionReceipt(wagmiClient, { hash: txHash });
+    update("APPROVAL_PROGRESS", {
+      target: permit2Address,
+      txHash,
+      type: "ERC20_TO_PERMIT2",
+    });
+  }
+
+  // Approval 2: Permit2 approve token -> Universal Router
+  const permit2AllowanceRaw = await wagmiReadContract(wagmiClient, {
+    address: permit2Address,
+    abi: PERMIT2_ABI,
+    functionName: "allowance",
+    args: [userAddress, fromTokenAddress, routerAddress],
+    chainId,
+  });
+
+  const permit2Amount = parseBigInt(
+    Array.isArray(permit2AllowanceRaw)
+      ? permit2AllowanceRaw[0]
+      : permit2AllowanceRaw?.amount,
+  );
+  const permit2Expiry = parseBigInt(
+    Array.isArray(permit2AllowanceRaw)
+      ? permit2AllowanceRaw[1]
+      : permit2AllowanceRaw?.expiration,
+  );
+
+  if (permit2Amount < requiredAmount || permit2Expiry < now) {
+    const permit2ApproveData = encodeFunctionData({
+      abi: PERMIT2_ABI,
+      functionName: "approve",
+      args: [fromTokenAddress, routerAddress, MAX_UINT160, MAX_UINT48],
+    });
+
+    const txHash = await wagmiSendTransaction(wagmiClient, {
+      account: userAddress,
+      chainId,
+      to: permit2Address,
+      data: permit2ApproveData,
+      value: 0n,
+    });
+
+    await wagmiWaitForTransactionReceipt(wagmiClient, { hash: txHash });
+    update("APPROVAL_PROGRESS", {
+      target: routerAddress,
+      txHash,
+      type: "PERMIT2_TO_ROUTER",
+    });
+  }
+}
 
 export async function executePortfolioOnChain(
   execution,
@@ -32,6 +262,7 @@ export async function executePortfolioOnChain(
 
   const provider = new ethers.providers.Web3Provider(window.ethereum);
   const signer = provider.getSigner();
+  const userAddress = await signer.getAddress();
 
   const network = await provider.getNetwork();
   if (Number(network.chainId) !== 56) {
@@ -76,55 +307,11 @@ export async function executePortfolioOnChain(
     throw new Error("All quotes failed. Try a different amount or tokens.");
   }
 
-  // ── Step 2: Approve (USDT/USDC only) ──
-  // Collect unique approval targets across Bridgers and PancakeSwap positions
-  if (sourceToken !== "BNB") {
-    const erc20Abi = [
-      "function approve(address spender, uint256 amount) returns (bool)",
-    ];
-    const fromTokenAddress = quoteData.fromTokenAddress;
-    const sourceContract = new ethers.Contract(
-      fromTokenAddress,
-      erc20Abi,
-      signer,
-    );
-
-    const approvalTargets = new Set();
-    for (const pos of quotedPositions) {
-      const target =
-        pos.swapProvider === "PANCAKESWAP"
-          ? pos.approvalContract
-          : pos.quote?.contractAddress;
-      if (target) {
-        approvalTargets.add(target);
-      }
-    }
-
-    if (approvalTargets.size > 0) {
-      update("APPROVAL_START", {
-        fromTokenAddress,
-        sourceToken,
-        approvalTargets: Array.from(approvalTargets),
-      });
-
-      // Approve each unique target (usually 1–2 approvals)
-      for (const target of approvalTargets) {
-        const tx = await sourceContract.approve(
-          target,
-          ethers.constants.MaxUint256,
-        );
-        await tx.wait();
-        update("APPROVAL_PROGRESS", { target, txHash: tx.hash });
-      }
-
-      update("APPROVAL_COMPLETE", {});
-    }
-  }
-
-  // ── Step 3: Execute each position sequentially ──
+  // ── Step 2: Execute each position sequentially ──
   const confirmedOrderIds = [];
   const cancelledOrderIds = [];
   const skipped = [];
+  const ensuredApprovalKeys = new Set();
 
   for (const pos of quotedPositions) {
     update("POSITION_START", {
@@ -136,13 +323,55 @@ export async function executePortfolioOnChain(
     while (!done) {
       try {
         // 1) /prepare → fresh txData
-        const prepData = await apiCall(
-          `${EXECUTION_API_BASE}/${pos.executionOrderId}/prepare`,
-          {
-            method: "POST",
-            body: JSON.stringify({ slippage: 3 }),
-          },
-        );
+        let prepData;
+        let prepareAttempts = 0;
+        while (!prepData && prepareAttempts < 5) {
+          prepareAttempts += 1;
+          try {
+            prepData = await apiCall(
+              `${EXECUTION_API_BASE}/${pos.executionOrderId}/prepare`,
+              {
+                method: "POST",
+                body: JSON.stringify({ slippage: 3 }),
+              },
+            );
+          } catch (prepareError) {
+            const approvalSteps = prepareError?.data?.approvalSteps;
+            const needsApproval =
+              prepareError?.status === 428 &&
+              Array.isArray(approvalSteps) &&
+              approvalSteps.length > 0;
+
+            if (!needsApproval) {
+              throw prepareError;
+            }
+
+            update("APPROVAL_START", {
+              symbol: pos.symbol,
+              executionOrderId: pos.executionOrderId,
+              fromTokenAddress: prepareError?.data?.fromTokenAddress,
+              permit2Address: prepareError?.data?.permit2Address,
+              routerAddress: prepareError?.data?.universalRouterAddress,
+            });
+
+            await executeApprovalSteps({
+              approvalSteps,
+              account: userAddress,
+              update,
+            });
+
+            update("APPROVAL_COMPLETE", {
+              symbol: pos.symbol,
+              executionOrderId: pos.executionOrderId,
+            });
+          }
+        }
+
+        if (!prepData) {
+          throw new Error(
+            "Unable to prepare swap after completing required approvals.",
+          );
+        }
 
         update("POSITION_PREPARED", {
           symbol: pos.symbol,
@@ -151,23 +380,72 @@ export async function executePortfolioOnChain(
 
         const txData = prepData.txData;
 
+        // Ensure approvals using /prepare payload (authoritative source).
+        if (sourceToken !== "BNB" && prepData?.approvalNeeded) {
+          const fromTokenAddress =
+            prepData.fromTokenAddress || quoteData.fromTokenAddress;
+          const permit2Approval = prepData.permit2Approval || {
+            permit2Address:
+              prepData.approvalContract || quoteData.approvalContract,
+            spender: txData?.to,
+          };
+          const permit2Address =
+            permit2Approval?.permit2Address || PERMIT2_ADDRESS;
+          const routerAddress = permit2Approval?.spender || txData?.to;
+          const approvalKey = [
+            String(userAddress).toLowerCase(),
+            String(fromTokenAddress || "").toLowerCase(),
+            String(permit2Address || "").toLowerCase(),
+            String(routerAddress || "").toLowerCase(),
+          ].join(":");
+
+          if (
+            fromTokenAddress &&
+            routerAddress &&
+            !ensuredApprovalKeys.has(approvalKey)
+          ) {
+            update("APPROVAL_START", {
+              fromTokenAddress,
+              sourceToken,
+              permit2Address,
+              routerAddress,
+              executionOrderId: pos.executionOrderId,
+            });
+
+            await ensureApprovals({
+              permit2Approval: { permit2Address, spender: routerAddress },
+              fromTokenAddress,
+              userAddress,
+              requiredAmount: parseBigInt(prepData.fromAmount, 0n),
+              update,
+            });
+
+            ensuredApprovalKeys.add(approvalKey);
+            update("APPROVAL_COMPLETE", {
+              executionOrderId: pos.executionOrderId,
+            });
+          }
+        }
+
         // 2) Send to wallet
-        let tx;
+        let txHash;
         try {
           const nonce =
             txData && txData.nonce != null && txData.nonce !== ""
               ? txData.nonce
               : undefined;
-          const gasLimit =
-            txData && txData.gasLimit != null && txData.gasLimit !== ""
-              ? txData.gasLimit
-              : undefined;
-          tx = await signer.sendTransaction({
-            data: txData.data,
+          const value =
+            txData && txData.value != null && txData.value !== ""
+              ? BigInt(txData.value)
+              : 0n;
+
+          txHash = await wagmiSendTransaction(wagmiClient, {
+            account: userAddress,
+            chainId: 56,
             to: txData.to,
-            value: txData.value,
-            ...(nonce !== undefined && { nonce }),
-            ...(gasLimit !== undefined && { gasLimit }),
+            data: txData.data,
+            value,
+            ...(nonce !== undefined && { nonce: Number(nonce) }),
           });
         } catch (err) {
           console.error(err);
@@ -199,17 +477,21 @@ export async function executePortfolioOnChain(
         update("POSITION_TX_SUBMITTED", {
           symbol: pos.symbol,
           executionOrderId: pos.executionOrderId,
-          txHash: tx.hash,
+          txHash,
         });
 
         try {
           // 3) If wallet succeeds → /submit with txHash
-          const receipt = await tx.wait();
+          const receipt = await wagmiWaitForTransactionReceipt(wagmiClient, {
+            hash: txHash,
+          });
           await apiCall(
             `${EXECUTION_API_BASE}/${pos.executionOrderId}/submit`,
             {
               method: "POST",
-              body: JSON.stringify({ txHash: receipt.transactionHash }),
+              body: JSON.stringify({
+                txHash: receipt.transactionHash || receipt.hash || txHash,
+              }),
             },
           );
 
@@ -266,14 +548,15 @@ export async function executePortfolioOnChain(
 
           done = true;
         } catch (waitError) {
-          // Handle tx dropped/cancelled by the network or JSON-RPC failures
+          // Handle on-chain reverts and dropped/cancelled txs
           console.error(
             `JSON-RPC error while waiting for ${pos.symbol} transaction:`,
             waitError,
           );
 
-          const friendly =
-            "The transaction was dropped or cancelled by the network. Skipping to the next token.";
+          const friendly = isExecutionReverted(waitError)
+            ? "The swap transaction reverted on-chain for this token/amount. Skipping to the next token."
+            : "The transaction was dropped or cancelled by the network. Skipping to the next token.";
           update("POSITION_ERROR", {
             symbol: pos.symbol,
             executionOrderId: pos.executionOrderId,
@@ -289,7 +572,9 @@ export async function executePortfolioOnChain(
             skipped.push({
               executionOrderId: pos.executionOrderId,
               symbol: pos.symbol,
-              reason: "DROPPED_OR_CANCELLED",
+              reason: isExecutionReverted(waitError)
+                ? "REVERTED_ONCHAIN"
+                : "DROPPED_OR_CANCELLED",
             });
             update("POSITION_CANCELLED", {
               symbol: pos.symbol,

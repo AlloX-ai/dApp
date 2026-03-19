@@ -1685,7 +1685,6 @@ export function ChatPage() {
           jPort += 1;
         }
         if (portfolioTokenEntries.length > 0) {
-          console.log(portfolioTokenEntries);
           pushBullets();
           blocks.push(
             <div
