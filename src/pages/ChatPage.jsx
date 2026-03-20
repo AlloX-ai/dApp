@@ -67,6 +67,36 @@ function formatResetAt(resetAt) {
   return `${dateStr} at ${timeStr}`;
 }
 
+const NARRATIVE_MODAL_OPTIONS = [
+  {
+    id: "rwa",
+    label: "Real-World Assets (RWA)",
+    description:
+      "Protocols bringing real-world assets like treasuries, real estate, and credit on-chain.",
+    riskProfile: "LOW_TO_MEDIUM",
+  },
+  {
+    id: "ai",
+    label: "AI-Powered Crypto",
+    description:
+      "Projects combining artificial intelligence with decentralized infrastructure and data.",
+    riskProfile: "MEDIUM",
+  },
+  {
+    id: "gaming",
+    label: "Gaming",
+    description: "Blockchain games, gaming platforms, and in-game economies.",
+    riskProfile: "MEDIUM_TO_HIGH",
+  },
+  {
+    id: "depin",
+    label: "DePIN",
+    description:
+      "Decentralized physical infrastructure networks — storage, compute, wireless, IoT, and bandwidth.",
+    riskProfile: "MEDIUM_TO_HIGH",
+  },
+];
+
 export function ChatPage() {
   const dispatch = useDispatch();
   const {
@@ -105,6 +135,9 @@ export function ChatPage() {
   // const [claimedPoints, setClaimedPoints] = useState(0);
   const [displayedTextById, setDisplayedTextById] = useState({});
   const [typingMessageId, setTypingMessageId] = useState(null);
+  const [isNarrativesModalOpen, setIsNarrativesModalOpen] = useState(false);
+  const [recentPortfolios, setRecentPortfolios] = useState([]);
+  const [recentPortfoliosLoading, setRecentPortfoliosLoading] = useState(false);
   const [onchainBlocked, setOnchainBlocked] = useState(null);
   const [refreshOnchainLoading, setRefreshOnchainLoading] = useState(false);
   const [refreshOnchainMessage, setRefreshOnchainMessage] = useState(null);
@@ -614,7 +647,15 @@ export function ChatPage() {
 
   const handleOptionClick = useCallback(
     (option) => {
-      const message = option?.value ?? option?.label ?? option?.action;
+      if (option?.action === "open_narratives_tab") {
+        setIsNarrativesModalOpen(true);
+        return;
+      }
+
+      const message =
+        option?.action === "SEND_MESSAGE"
+          ? (option?.value ?? option?.label)
+          : (option?.value ?? option?.label ?? option?.action);
       if (!message) return;
       // Block selecting BNB Chain (BSC) unless wallet is on BSC mainnet
       if (String(message).toUpperCase() === "BSC" && walletChainId !== 56) {
@@ -627,6 +668,76 @@ export function ChatPage() {
     },
     [sendChatMessage, walletChainId],
   );
+
+  const getPortfolioTimestamp = (p) => {
+    const raw =
+      p?.createdAt ??
+      p?.updatedAt ??
+      p?.created_at ??
+      p?.updated_at ??
+      p?.date ??
+      p?.timestamp;
+    if (raw == null) return 0;
+    const d = typeof raw === "number" ? new Date(raw) : new Date(String(raw));
+    const t = d.getTime();
+    return Number.isFinite(t) ? t : 0;
+  };
+
+  useEffect(() => {
+    if (!isConnected || isReadOnly) return;
+
+    let cancelled = false;
+    const load = async () => {
+      setRecentPortfoliosLoading(true);
+      try {
+        await ensureAuthenticated();
+        const response = await apiCall("/portfolio");
+        const list = Array.isArray(response?.portfolios)
+          ? response.portfolios
+          : [];
+
+        const normalized = list
+          .map((p, idx) => {
+            const id = p?.id ?? p?.portfolioId ?? p?.portfolio_id;
+            return {
+              ...p,
+              id,
+              __ts: getPortfolioTimestamp(p),
+              __idx: idx,
+            };
+          })
+          .filter((p) => p?.id);
+
+        if (cancelled) return;
+
+        const hasAnyTs = normalized.some((p) => p.__ts > 0);
+        const sorted = hasAnyTs
+          ? [...normalized].sort((a, b) => b.__ts - a.__ts || a.__idx - b.__idx)
+          : normalized;
+
+        setRecentPortfolios(
+          sorted.slice(0, 3).map((p) => {
+            const { __ts, __idx, ...rest } = p;
+            // Ensure ESLint sees the destructured fields as used.
+            void __ts;
+            void __idx;
+            return rest;
+          }),
+        );
+      } catch (err) {
+        if (cancelled) return;
+        if (err?.status === 401) logout();
+        setRecentPortfolios([]);
+      } finally {
+        if (!cancelled) setRecentPortfoliosLoading(false);
+      }
+    };
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [isConnected, isReadOnly, ensureAuthenticated, logout]);
 
   // Open claim popup only when user has not already claimed and needs to claim
   useEffect(() => {
@@ -663,15 +774,18 @@ export function ChatPage() {
 
     const batches = createTextBatches(lastAiMessage.content);
     let index = 0;
+    let currentText = "";
     typingMessageRef.current = lastAiMessage.id;
     setTypingMessageId(lastAiMessage.id);
     setDisplayedTextById((prev) => ({ ...prev, [lastAiMessage.id]: "" }));
 
     typingTimerRef.current = setInterval(() => {
+      if (index >= batches.length) return;
+      currentText += batches[index];
       index += 1;
       setDisplayedTextById((prev) => ({
         ...prev,
-        [lastAiMessage.id]: batches.slice(0, index).join(""),
+        [lastAiMessage.id]: currentText,
       }));
       if (index >= batches.length) {
         clearInterval(typingTimerRef.current);
@@ -684,7 +798,7 @@ export function ChatPage() {
           [lastAiMessage.id]: lastAiMessage.content,
         }));
       }
-    }, 120);
+    }, 35);
 
     return () => {
       if (typingTimerRef.current) {
@@ -700,7 +814,9 @@ export function ChatPage() {
     let current = "";
 
     tokens.forEach((token) => {
-      if (current.length >= 80 || current.split(/\s+/).length >= 2) {
+      // Smaller batches + faster tick feels closer to "chat typing".
+      const wordCount = current.trim() ? current.trim().split(/\s+/).length : 0;
+      if (current.length >= 45 || wordCount >= 2) {
         batches.push(current);
         current = "";
       }
@@ -1367,7 +1483,7 @@ export function ChatPage() {
                   </span>
                   {entry.nameChain && (
                     <span className="text-gray-500 text-xs ml-0">
-                     ({entry.nameChain})
+                      ({entry.nameChain})
                     </span>
                   )}
                 </div>
@@ -1831,6 +1947,8 @@ export function ChatPage() {
     return <div className="space-y-2">{blocks}</div>;
   };
 
+  console.log(recentPortfolios);
+
   return (
     <div className="flex-1 flex flex-col">
       <div className="flex-1 flex flex-col overflow-y-auto">
@@ -1864,190 +1982,94 @@ export function ChatPage() {
             </div>
           </div>
         )}
-
-        {currentMessages.length > 0 && (
-          <div
-            className={`py-8 px-6 max-w-[1000px] mx-auto w-full space-y-6 ${isReadOnly ? "chat-padding-readonly" : "chat-padding"}`}
-            ref={speechBoxRef}
-          >
-            {currentMessages.map((msg, index) => {
-              const isUser =
-                msg.type === "user" ||
-                msg.type === "human" ||
-                msg.role === "user";
-              return (
-                <ChatBubble
-                  key={(isUser ? "user" : "ai") + index}
-                  type={isUser ? "user" : "ai"}
-                >
-                  {typeof msg.content === "string" ? (
-                    <div>
-                      {renderFormattedMessage(
-                        msg.type === "ai"
-                          ? msg.id === typingMessageId
-                            ? (displayedTextById[msg.id] ?? "")
-                            : completedMessageIdsRef.current.has(msg.id)
-                              ? msg.content
-                              : (displayedTextById[msg.id] ?? "")
-                          : msg.content,
-                      )}
-                      {msg.type === "ai" &&
-                        completedMessageIdsRef.current.has(msg.id) &&
-                        msg.options?.length > 0 &&
-                        !(
-                          msg.data?.portfolio &&
-                          msg.data?.portfolio?.executionMode !== "ON_CHAIN"
-                        ) && (
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            {msg.options.map((option, index) => (
-                              <button
-                                key={`${option.action}-${option.value}-${index}`}
-                                onClick={() => handleOptionClick(option)}
-                                disabled={isReadOnly}
-                                className="px-3 py-2 bg-white/80 border border-gray-200 rounded-xl text-xs font-medium hover:bg-white hover:border-gray-300 hover:shadow-md transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
-                              >
-                                {option.label || option.value || option.action}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      {msg.type === "ai" &&
-                        msg.data?.portfolio?.executionMode === "ON_CHAIN" &&
-                        renderOnChainPortfolioCreated(msg.data.portfolio)}
-                      {msg.type === "ai" &&
-                        msg.data?.portfolio &&
-                        msg.data?.portfolio?.executionMode !== "ON_CHAIN" &&
-                        renderPaperPortfolioCreated(
-                          msg.data.portfolio,
-                          msg.options,
-                        )}
-                      {msg.type === "ai" &&
-                        !msg.data?.portfolio &&
-                        msg.data?.portfolioId && (
-                          <div className="mt-3 bg-green-50 border border-green-200 rounded-xl p-3 text-sm text-green-700">
-                            ✅ Portfolio created: {msg.data.portfolioId}
-                          </div>
-                        )}
-                      {msg.type === "ai" && renderTokens(msg.data?.tokens)}
-                      {msg.type === "ai" &&
-                        msg.data?.portfolioPreview &&
-                        renderPortfolioPreview(msg.data.portfolioPreview)}
-                    </div>
-                  ) : (
-                    msg.content
-                  )}
-                </ChatBubble>
-              );
-            })}
-
-            {isThinking && (
-              <ChatBubble type="ai">
-                <div className="flex items-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span className="text-sm text-gray-600">
-                    AlloX is thinking...
-                  </span>
-                </div>
-              </ChatBubble>
-            )}
-            {executionState.isExecuting && (
-              <div className="mt-4 glass-card p-4 border border-blue-200/60 bg-blue-50/40 flex items-center justify-between gap-3 text-sm">
-                <div className="flex items-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-                  <div>
-                    <p className="font-medium text-gray-900">
-                      Executing on-chain portfolio...
-                    </p>
-                    <p className="text-xs text-gray-600">
-                      {executionState.currentSymbol
-                        ? `Processing ${executionState.currentSymbol} (${executionState.completed}/${executionState.total} done)`
-                        : `Swaps completed: ${executionState.completed}/${executionState.total}`}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-            {executionState.isExecuting && executionPrompt && (
-              <div className="mt-3 glass-card p-4 border border-amber-200/60 bg-amber-50/50 text-sm">
-                {executionPrompt.type === "QUOTE_FAILED_TOKENS" ? (
-                  <>
-                    <p className="font-medium text-gray-900 mb-1">
-                      Some tokens have no valid swap route
-                    </p>
-                    <p className="text-xs text-gray-700 mb-3">
-                      {(executionPrompt.failedTokens || [])
-                        .map((t) => `${t.symbol} ($${t.allocationUsd ?? 0})`)
-                        .join(", ")}{" "}
-                      were removed and redistributed to{" "}
-                      {executionPrompt.quotedCount || 0} remaining tokens.
-                      Continue with available routes or go back to edit.
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={() => resolveExecutionPrompt("continue")}
-                        className="px-3 py-2 rounded-xl bg-gray-900 text-white text-xs font-medium hover:bg-gray-800"
-                      >
-                        Continue with remaining tokens
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => resolveExecutionPrompt("edit")}
-                        className="px-3 py-2 rounded-xl bg-white border border-gray-300 text-gray-700 text-xs font-medium hover:bg-gray-50"
-                      >
-                        Edit portfolio
-                      </button>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <p className="font-medium text-gray-900 mb-1">
-                      Swap failed for {executionPrompt.symbol}
-                    </p>
-                    <p className="text-xs text-gray-700 mb-3">
-                      The wallet did not submit the transaction. Tap Retry to
-                      fetch a fresh nonce and try again.
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={() => resolveExecutionPrompt("retry")}
-                        className="px-3 py-2 rounded-xl bg-gray-900 text-white text-xs font-medium hover:bg-gray-800"
-                      >
-                        Retry
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-            {executionState.error && (
-              <div className="mt-4 glass-card p-3 border border-red-200/60 bg-red-50/60 text-xs text-red-700">
-                {executionState.error}
-              </div>
-            )}
-            {executionState.isExecuting && (
-              <div className="mb-4 glass-card p-4 border border-amber-200/50 bg-amber-50/30">
-                <div className="flex items-center gap-2">
-                  <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
-                    <HelpCircle size={20} className="text-amber-600" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-900 mb-1">
-                      Important note
-                    </p>
-                    <p className="text-xs text-gray-600">
-                      You can safely confirm transactions even if a failure
-                      warning appears. <b>Note:</b> MetaMask Smart Transactions
-                      may affect execution.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
       </div>
+      {isConnected && !isReadOnly && (
+        <aside className="w-60 shrink-0 hidden lg:block fixed right-7">
+          <div className="sticky top-24">
+            <div className="glass-card p-4 border border-gray-200/50 bg-white/40">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-bold text-gray-900">
+                  Recent portfolios
+                </h3>
+                <span className="text-[10px] uppercase tracking-wide text-gray-500">
+                  3
+                </span>
+              </div>
+
+              {recentPortfoliosLoading ? (
+                <div className="space-y-3">
+                  {[0, 1, 2].map((i) => (
+                    <div
+                      key={i}
+                      className="p-3 rounded-2xl border border-gray-200/60 bg-white/60 animate-pulse"
+                    >
+                      <div className="h-3 bg-gray-200/70 rounded w-2/3 mb-2" />
+                      <div className="h-2 bg-gray-200/60 rounded w-4/5 mb-2" />
+                      <div className="h-2 bg-gray-200/60 rounded w-1/2" />
+                    </div>
+                  ))}
+                </div>
+              ) : recentPortfolios.length > 0 ? (
+                <div className="space-y-3">
+                  {recentPortfolios.map((p) => {
+                    const pid = p?.id;
+                    if (!pid) return null;
+                    const name = p?.name || "Portfolio";
+                    const displayId =
+                      String(pid).length > 12
+                        ? `${String(pid).slice(0, 6)}...${String(pid).slice(
+                            -4,
+                          )}`
+                        : String(pid);
+                    const totalValue =
+                      p?.totalCurrentValue ??
+                      p?.totalCurrentValueUsd ??
+                      p?.totalValue;
+
+                    return (
+                      <button
+                        key={String(pid)}
+                        type="button"
+                        disabled={messagesRemaining === 0}
+                        onClick={() =>
+                          sendChatMessage(
+                            `Tell me more details about my portfolio with ID: ${pid}`,
+                          )
+                        }
+                        className="w-full text-left p-3 rounded-2xl border border-gray-200/60 bg-white/60 hover:bg-white/80 hover:border-gray-300 hover:shadow-md transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="text-sm font-semibold text-gray-900 truncate">
+                              {name}
+                            </div>
+                            <div className="text-[11px] text-gray-600 mt-1 truncate">
+                              ID: {displayId}
+                            </div>
+                            {p?.riskProfile ? (
+                              <div className="text-[11px] text-gray-600 mt-1">
+                                Risk: {String(p.riskProfile).replace(/_/g, " ")}
+                              </div>
+                            ) : null}
+                          </div>
+                        </div>
+
+                        {totalValue != null ? (
+                          <div className="mt-2 text-xs text-gray-700">
+                            Value: {`$${Number(totalValue).toFixed(2)}`}
+                          </div>
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-xs text-gray-500">No portfolios yet.</div>
+              )}
+            </div>
+          </div>
+        </aside>
+      )}
 
       <div className="shrink-0 fixed left-0 w-full z-4 bottom-0 border-t border-gray-200/50 bg-pattern/95 backdrop-blur-lg">
         <div className="px-6 py-6 max-w-250 mx-auto w-full">
@@ -2255,6 +2277,75 @@ export function ChatPage() {
         </div>
       </div>
 
+      {isNarrativesModalOpen && !isReadOnly && (
+        <div
+          className="fixed inset-0 z-[65] flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm"
+          onClick={() => setIsNarrativesModalOpen(false)}
+        >
+          <div
+            className="glass-card max-w-xl w-full p-6 animate-fade-in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">
+                  Choose a narrative
+                </h3>
+                <p className="text-xs text-gray-600 mt-1">
+                  Pick one to explore related narratives.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsNarrativesModalOpen(false)}
+                className="p-2 rounded-xl hover:bg-black/5 text-gray-500"
+                aria-label="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              {NARRATIVE_MODAL_OPTIONS.map((n) => (
+                <button
+                  key={n.id}
+                  type="button"
+                  onClick={() => {
+                    setIsNarrativesModalOpen(false);
+                    sendChatMessage(n.id);
+                  }}
+                  className="w-full text-left rounded-2xl px-4 py-3 bg-white/80 border border-gray-200/70 hover:bg-white hover:border-gray-300 hover:shadow-md transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="font-semibold text-gray-900">
+                        {n.label}
+                      </div>
+                      <div className="text-xs text-gray-600 mt-1">
+                        {n.description}
+                      </div>
+                    </div>
+                    <div className="shrink-0 text-[10px] uppercase tracking-wide bg-white/60 border border-gray-200 text-gray-700 px-2 py-1 rounded-full">
+                      {n.riskProfile.replace(/_/g, " ")}
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-4 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setIsNarrativesModalOpen(false)}
+                className="px-4 py-2 rounded-xl text-sm font-medium bg-white border border-gray-200 hover:bg-gray-50 text-gray-800"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {claimSuccess && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-300">
           <div className="glass-card max-w-sm w-full p-8 text-center animate-in zoom-in-95 duration-300">
@@ -2331,6 +2422,204 @@ export function ChatPage() {
                 "Claim"
               )}
             </button>
+          </div>
+        </div>
+      )}
+
+      {currentMessages.length > 0 && (
+        <div
+          className={`py-8 px-6 max-w-[1100px] mx-auto w-full ${isReadOnly ? "chat-padding-readonly" : "chat-padding"}`}
+          ref={speechBoxRef}
+        >
+          <div className="flex items-start gap-8">
+            <div className="flex-1 min-w-0 space-y-6">
+              {currentMessages.map((msg, index) => {
+                const isUser =
+                  msg.type === "user" ||
+                  msg.type === "human" ||
+                  msg.role === "user";
+                return (
+                  <ChatBubble
+                    key={(isUser ? "user" : "ai") + index}
+                    type={isUser ? "user" : "ai"}
+                  >
+                    {typeof msg.content === "string" ? (
+                      <div>
+                        {msg.type === "ai" && msg.id === typingMessageId ? (
+                          // During typing we avoid markdown parsing on every tick for smoother UX.
+                          <div className="whitespace-pre-wrap text-sm">
+                            {displayedTextById[msg.id] ?? ""}
+                          </div>
+                        ) : (
+                          renderFormattedMessage(
+                            msg.type === "ai"
+                              ? completedMessageIdsRef.current.has(msg.id)
+                                ? msg.content
+                                : (displayedTextById[msg.id] ?? "")
+                              : msg.content,
+                          )
+                        )}
+                        {msg.type === "ai" &&
+                          completedMessageIdsRef.current.has(msg.id) &&
+                          msg.options?.length > 0 &&
+                          !(
+                            msg.data?.portfolio &&
+                            msg.data?.portfolio?.executionMode !== "ON_CHAIN"
+                          ) && (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {msg.options.map((option, index) => (
+                                <button
+                                  key={`${option.action}-${option.value}-${index}`}
+                                  onClick={() => handleOptionClick(option)}
+                                  disabled={isReadOnly}
+                                  className="px-3 py-2 bg-white/80 border border-gray-200 rounded-xl text-xs font-medium hover:bg-white hover:border-gray-300 hover:shadow-md transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+                                >
+                                  {option.label ||
+                                    option.value ||
+                                    option.action}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        {msg.type === "ai" &&
+                          msg.data?.portfolio?.executionMode === "ON_CHAIN" &&
+                          renderOnChainPortfolioCreated(msg.data.portfolio)}
+                        {msg.type === "ai" &&
+                          msg.data?.portfolio &&
+                          msg.data?.portfolio?.executionMode !== "ON_CHAIN" &&
+                          renderPaperPortfolioCreated(
+                            msg.data.portfolio,
+                            msg.options,
+                          )}
+                        {msg.type === "ai" &&
+                          !msg.data?.portfolio &&
+                          msg.data?.portfolioId && (
+                            <div className="mt-3 bg-green-50 border border-green-200 rounded-xl p-3 text-sm text-green-700">
+                              ✅ Portfolio created: {msg.data.portfolioId}
+                            </div>
+                          )}
+                        {msg.type === "ai" && renderTokens(msg.data?.tokens)}
+                        {msg.type === "ai" &&
+                          msg.data?.portfolioPreview &&
+                          renderPortfolioPreview(msg.data.portfolioPreview)}
+                      </div>
+                    ) : (
+                      msg.content
+                    )}
+                  </ChatBubble>
+                );
+              })}
+
+              {isThinking && (
+                <ChatBubble type="ai">
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span className="text-sm text-gray-600">
+                      AlloX is thinking...
+                    </span>
+                  </div>
+                </ChatBubble>
+              )}
+
+              {executionState.isExecuting && (
+                <div className="mt-4 glass-card p-4 border border-blue-200/60 bg-blue-50/40 flex items-center justify-between gap-3 text-sm">
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                    <div>
+                      <p className="font-medium text-gray-900">
+                        Executing on-chain portfolio...
+                      </p>
+                      <p className="text-xs text-gray-600">
+                        {executionState.currentSymbol
+                          ? `Processing ${executionState.currentSymbol} (${executionState.completed}/${executionState.total} done)`
+                          : `Swaps completed: ${executionState.completed}/${executionState.total}`}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {executionState.isExecuting && executionPrompt && (
+                <div className="mt-3 glass-card p-4 border border-amber-200/60 bg-amber-50/50 text-sm">
+                  {executionPrompt.type === "QUOTE_FAILED_TOKENS" ? (
+                    <>
+                      <p className="font-medium text-gray-900 mb-1">
+                        Some tokens have no valid swap route
+                      </p>
+                      <p className="text-xs text-gray-700 mb-3">
+                        {(executionPrompt.failedTokens || [])
+                          .map((t) => `${t.symbol} ($${t.allocationUsd ?? 0})`)
+                          .join(", ")}{" "}
+                        were removed and redistributed to{" "}
+                        {executionPrompt.quotedCount || 0} remaining tokens.
+                        Continue with available routes or go back to edit.
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => resolveExecutionPrompt("continue")}
+                          className="px-3 py-2 rounded-xl bg-gray-900 text-white text-xs font-medium hover:bg-gray-800"
+                        >
+                          Continue with remaining tokens
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => resolveExecutionPrompt("edit")}
+                          className="px-3 py-2 rounded-xl bg-white border border-gray-300 text-gray-700 text-xs font-medium hover:bg-gray-50"
+                        >
+                          Edit portfolio
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <p className="font-medium text-gray-900 mb-1">
+                        Swap failed for {executionPrompt.symbol}
+                      </p>
+                      <p className="text-xs text-gray-700 mb-3">
+                        The wallet did not submit the transaction. Tap Retry to
+                        fetch a fresh nonce and try again.
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => resolveExecutionPrompt("retry")}
+                          className="px-3 py-2 rounded-xl bg-gray-900 text-white text-xs font-medium hover:bg-gray-800"
+                        >
+                          Retry
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {executionState.error && (
+                <div className="mt-4 glass-card p-3 border border-red-200/60 bg-red-50/60 text-xs text-red-700">
+                  {executionState.error}
+                </div>
+              )}
+
+              {executionState.isExecuting && (
+                <div className="mb-4 glass-card p-4 border border-amber-200/50 bg-amber-50/30">
+                  <div className="flex items-center gap-2">
+                    <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
+                      <HelpCircle size={20} className="text-amber-600" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-900 mb-1">
+                        Important note
+                      </p>
+                      <p className="text-xs text-gray-600">
+                        You can safely confirm transactions even if a failure
+                        warning appears. <b>Note:</b> MetaMask Smart
+                        Transactions may affect execution.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
