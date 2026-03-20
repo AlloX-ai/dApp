@@ -364,15 +364,12 @@ export function ChatPage() {
     });
   }, []);
 
-  const promptExecutionDecision = useCallback(
-    ({ symbol, executionOrderId }) => {
-      return new Promise((resolve) => {
-        executionPromptResolverRef.current = resolve;
-        setExecutionPrompt({ symbol, executionOrderId });
-      });
-    },
-    [],
-  );
+  const promptExecutionDecision = useCallback((promptData) => {
+    return new Promise((resolve) => {
+      executionPromptResolverRef.current = resolve;
+      setExecutionPrompt(promptData);
+    });
+  }, []);
 
   const resolveExecutionPrompt = (decision) => {
     const resolve = executionPromptResolverRef.current;
@@ -1972,22 +1969,56 @@ export function ChatPage() {
             )}
             {executionState.isExecuting && executionPrompt && (
               <div className="mt-3 glass-card p-4 border border-amber-200/60 bg-amber-50/50 text-sm">
-                <p className="font-medium text-gray-900 mb-1">
-                  Swap failed for {executionPrompt.symbol}
-                </p>
-                <p className="text-xs text-gray-700 mb-3">
-                  The wallet did not submit the transaction. Tap Retry to fetch
-                  a fresh nonce and try again.
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => resolveExecutionPrompt("retry")}
-                    className="px-3 py-2 rounded-xl bg-gray-900 text-white text-xs font-medium hover:bg-gray-800"
-                  >
-                    Retry
-                  </button>
-                </div>
+                {executionPrompt.type === "QUOTE_FAILED_TOKENS" ? (
+                  <>
+                    <p className="font-medium text-gray-900 mb-1">
+                      Some tokens have no valid swap route
+                    </p>
+                    <p className="text-xs text-gray-700 mb-3">
+                      {(executionPrompt.failedTokens || [])
+                        .map((t) => `${t.symbol} ($${t.allocationUsd ?? 0})`)
+                        .join(", ")}{" "}
+                      were removed and redistributed to{" "}
+                      {executionPrompt.quotedCount || 0} remaining tokens.
+                      Continue with available routes or go back to edit.
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => resolveExecutionPrompt("continue")}
+                        className="px-3 py-2 rounded-xl bg-gray-900 text-white text-xs font-medium hover:bg-gray-800"
+                      >
+                        Continue with remaining tokens
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => resolveExecutionPrompt("edit")}
+                        className="px-3 py-2 rounded-xl bg-white border border-gray-300 text-gray-700 text-xs font-medium hover:bg-gray-50"
+                      >
+                        Edit portfolio
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-medium text-gray-900 mb-1">
+                      Swap failed for {executionPrompt.symbol}
+                    </p>
+                    <p className="text-xs text-gray-700 mb-3">
+                      The wallet did not submit the transaction. Tap Retry to
+                      fetch a fresh nonce and try again.
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => resolveExecutionPrompt("retry")}
+                        className="px-3 py-2 rounded-xl bg-gray-900 text-white text-xs font-medium hover:bg-gray-800"
+                      >
+                        Retry
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             )}
             {executionState.error && (

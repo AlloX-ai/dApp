@@ -296,12 +296,33 @@ export async function executePortfolioOnChain(
 
   const quotedPositions = (quoteData.positions || []).filter((p) => !p.error);
   const failedPositions = (quoteData.positions || []).filter((p) => p.error);
+  const failedTokens = Array.isArray(quoteData.failedTokens)
+    ? quoteData.failedTokens
+    : [];
 
   update("QUOTE_COMPLETE", {
     quotedCount: quotedPositions.length,
     failedCount: failedPositions.length,
     failedPositions,
+    failedTokens,
+    summary: quoteData.summary,
   });
+
+  if (failedTokens.length > 0 && typeof onPrompt === "function") {
+    const decision = await onPrompt({
+      type: "QUOTE_FAILED_TOKENS",
+      failedTokens,
+      quotedCount: quotedPositions.length,
+      summary: quoteData.summary,
+      sourceToken,
+    });
+
+    if (decision === "edit") {
+      throw new Error(
+        "Execution paused. Edit your portfolio and replace tokens without valid swap routes.",
+      );
+    }
+  }
 
   if (quotedPositions.length === 0) {
     throw new Error("All quotes failed. Try a different amount or tokens.");
