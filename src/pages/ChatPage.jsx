@@ -138,6 +138,8 @@ export function ChatPage() {
   const [isNarrativesModalOpen, setIsNarrativesModalOpen] = useState(false);
   const [recentPortfolios, setRecentPortfolios] = useState([]);
   const [recentPortfoliosLoading, setRecentPortfoliosLoading] = useState(false);
+  const [showRecentPortfoliosPanel, setShowRecentPortfoliosPanel] =
+    useState(true);
   const [onchainBlocked, setOnchainBlocked] = useState(null);
   const [refreshOnchainLoading, setRefreshOnchainLoading] = useState(false);
   const [refreshOnchainMessage, setRefreshOnchainMessage] = useState(null);
@@ -356,6 +358,67 @@ export function ChatPage() {
     };
   }, []);
 
+  const getPortfolioTimestamp = (p) => {
+    const raw =
+      p?.createdAt ??
+      p?.updatedAt ??
+      p?.created_at ??
+      p?.updated_at ??
+      p?.date ??
+      p?.timestamp;
+    if (raw == null) return 0;
+    const d = typeof raw === "number" ? new Date(raw) : new Date(String(raw));
+    const t = d.getTime();
+    return Number.isFinite(t) ? t : 0;
+  };
+
+  const fetchRecentPortfolios = useCallback(async () => {
+    if (!isConnected || isReadOnly) {
+      setRecentPortfolios([]);
+      setRecentPortfoliosLoading(false);
+      return;
+    }
+    setRecentPortfoliosLoading(true);
+    try {
+      await ensureAuthenticated();
+      const response = await apiCall("/portfolio");
+      const list = Array.isArray(response?.portfolios)
+        ? response.portfolios
+        : [];
+
+      const normalized = list
+        .map((p, idx) => {
+          const id = p?.id ?? p?.portfolioId ?? p?.portfolio_id;
+          return {
+            ...p,
+            id,
+            __ts: getPortfolioTimestamp(p),
+            __idx: idx,
+          };
+        })
+        .filter((p) => p?.id);
+
+      const hasAnyTs = normalized.some((p) => p.__ts > 0);
+      const sorted = hasAnyTs
+        ? [...normalized].sort((a, b) => b.__ts - a.__ts || a.__idx - b.__idx)
+        : normalized;
+
+      setRecentPortfolios(
+        sorted.slice(0, 3).map((p) => {
+          const { __ts, __idx, ...rest } = p;
+          void __ts;
+          void __idx;
+          return rest;
+        }),
+      );
+    } catch (err) {
+      if (err?.status === 401) logout();
+      setRecentPortfolios([]);
+    } finally {
+      setRecentPortfoliosLoading(false);
+    }
+  }, [isConnected, isReadOnly, ensureAuthenticated, logout]);
+
   const handleExecutionUpdate = useCallback((update) => {
     setExecutionState((prev) => {
       const next = { ...prev, error: null };
@@ -443,6 +506,7 @@ export function ChatPage() {
               timestamp: new Date(),
             }),
           );
+          void fetchRecentPortfolios();
         }
       } catch (error) {
         setExecutionState((prev) => ({
@@ -462,7 +526,7 @@ export function ChatPage() {
         );
       }
     },
-    [dispatch, handleExecutionUpdate, promptExecutionDecision],
+    [dispatch, fetchRecentPortfolios, handleExecutionUpdate, promptExecutionDecision],
   );
 
   const handleSendMessage = () => {
@@ -536,6 +600,15 @@ export function ChatPage() {
           body: JSON.stringify({ message: trimmed }),
         });
         dispatch(addCurrentMessage(buildBotMessage(response)));
+
+        const portfolioCreatedFromChat =
+          response?.portfolioId != null ||
+          (response?.portfolio != null &&
+            (response.portfolio.id != null ||
+              response.portfolio.portfolioId != null));
+        if (portfolioCreatedFromChat) {
+          void fetchRecentPortfolios();
+        }
 
         if (response.points?.total != null) {
           dispatch(setPointsBalance(response.points.total));
@@ -636,6 +709,7 @@ export function ChatPage() {
       buildBotMessage,
       logout,
       handleStartExecution,
+      fetchRecentPortfolios,
       authUser,
       setUser,
     ],
@@ -669,75 +743,9 @@ export function ChatPage() {
     [sendChatMessage, walletChainId],
   );
 
-  const getPortfolioTimestamp = (p) => {
-    const raw =
-      p?.createdAt ??
-      p?.updatedAt ??
-      p?.created_at ??
-      p?.updated_at ??
-      p?.date ??
-      p?.timestamp;
-    if (raw == null) return 0;
-    const d = typeof raw === "number" ? new Date(raw) : new Date(String(raw));
-    const t = d.getTime();
-    return Number.isFinite(t) ? t : 0;
-  };
-
   useEffect(() => {
-    if (!isConnected || isReadOnly) return;
-
-    let cancelled = false;
-    const load = async () => {
-      setRecentPortfoliosLoading(true);
-      try {
-        await ensureAuthenticated();
-        const response = await apiCall("/portfolio");
-        const list = Array.isArray(response?.portfolios)
-          ? response.portfolios
-          : [];
-
-        const normalized = list
-          .map((p, idx) => {
-            const id = p?.id ?? p?.portfolioId ?? p?.portfolio_id;
-            return {
-              ...p,
-              id,
-              __ts: getPortfolioTimestamp(p),
-              __idx: idx,
-            };
-          })
-          .filter((p) => p?.id);
-
-        if (cancelled) return;
-
-        const hasAnyTs = normalized.some((p) => p.__ts > 0);
-        const sorted = hasAnyTs
-          ? [...normalized].sort((a, b) => b.__ts - a.__ts || a.__idx - b.__idx)
-          : normalized;
-
-        setRecentPortfolios(
-          sorted.slice(0, 3).map((p) => {
-            const { __ts, __idx, ...rest } = p;
-            // Ensure ESLint sees the destructured fields as used.
-            void __ts;
-            void __idx;
-            return rest;
-          }),
-        );
-      } catch (err) {
-        if (cancelled) return;
-        if (err?.status === 401) logout();
-        setRecentPortfolios([]);
-      } finally {
-        if (!cancelled) setRecentPortfoliosLoading(false);
-      }
-    };
-
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [isConnected, isReadOnly, ensureAuthenticated, logout]);
+    void fetchRecentPortfolios();
+  }, [fetchRecentPortfolios]);
 
   // Open claim popup only when user has not already claimed and needs to claim
   useEffect(() => {
@@ -1947,8 +1955,6 @@ export function ChatPage() {
     return <div className="space-y-2">{blocks}</div>;
   };
 
-  console.log(recentPortfolios);
-
   return (
     <div className="flex-1 flex flex-col">
       <div className="flex-1 flex flex-col overflow-y-auto">
@@ -1983,17 +1989,27 @@ export function ChatPage() {
           </div>
         )}
       </div>
-      {isConnected && !isReadOnly && (
+      {isConnected && !isReadOnly && showRecentPortfoliosPanel && (
         <aside className="w-60 shrink-0 hidden lg:block fixed right-7">
           <div className="sticky top-24">
             <div className="glass-card p-4 border border-gray-200/50 bg-white/40">
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between gap-2 mb-3">
                 <h3 className="text-sm font-bold text-gray-900">
                   Recent portfolios
                 </h3>
-                <span className="text-[10px] uppercase tracking-wide text-gray-500">
-                  3
-                </span>
+                <div className="flex items-center gap-1 shrink-0">
+                  <span className="text-[10px] uppercase tracking-wide text-gray-500">
+                    3
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowRecentPortfoliosPanel(false)}
+                    className="p-1 rounded-lg hover:bg-black/5 text-gray-500"
+                    aria-label="Hide recent portfolios"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
               </div>
 
               {recentPortfoliosLoading ? (
@@ -2428,7 +2444,7 @@ export function ChatPage() {
 
       {currentMessages.length > 0 && (
         <div
-          className={`py-8 px-6 max-w-[1100px] mx-auto w-full ${isReadOnly ? "chat-padding-readonly" : "chat-padding"}`}
+          className={`py-8 px-6 max-w-250 mx-auto w-full ${isReadOnly ? "chat-padding-readonly" : "chat-padding"}`}
           ref={speechBoxRef}
         >
           <div className="flex items-start gap-8">
