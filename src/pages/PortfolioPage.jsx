@@ -17,7 +17,7 @@ export function PortfolioPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const isConnected = useSelector((state) => state.wallet.isConnected);
-  const { token, ensureAuthenticated, logout } = useAuth();
+  const { ensureAuthenticated, logout } = useAuth();
 
   const goToToken = useCallback(
     (symbol) => {
@@ -45,6 +45,7 @@ export function PortfolioPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [analytics, setAnalytics] = useState(null);
+  const [portfolioInfo, setPortfolioInfo] = useState(null);
   const [analyticsError, setAnalyticsError] = useState("");
   const [isAnalyticsLoading, setIsAnalyticsLoading] = useState(false);
   const [isArchiving, setIsArchiving] = useState(false);
@@ -56,6 +57,10 @@ export function PortfolioPage() {
     return response;
   }, []);
 
+  const getPortfolioInfo = useCallback(async (portfolioId) => {
+    const response = await apiCall(`/portfolio/${portfolioId}`);
+    return response;
+  }, []);
   const handlePortfolioSelect = useCallback(
     async (portfolioId) => {
       setActivePortfolioId(portfolioId);
@@ -67,7 +72,10 @@ export function PortfolioPage() {
       try {
         await ensureAuthenticated();
         const response = await getAnalytics(portfolioId);
+        const portfolioResponse = await getPortfolioInfo(portfolioId);
+
         setAnalytics(response);
+        setPortfolioInfo(portfolioResponse);
       } catch (error) {
         if (error?.status === 401) {
           logout();
@@ -79,7 +87,7 @@ export function PortfolioPage() {
         setIsAnalyticsLoading(false);
       }
     },
-    [ensureAuthenticated, getAnalytics, logout],
+    [ensureAuthenticated, getAnalytics, getPortfolioInfo, logout],
   );
 
   const loadPortfolios = useCallback(async () => {
@@ -154,13 +162,6 @@ export function PortfolioPage() {
     [portfolios, activePortfolioId],
   );
 
-  const positions = Array.isArray(activePortfolio?.positions)
-    ? activePortfolio.positions
-    : [];
-  const tokensWithBalance = positions.filter(
-    (token) => Number(token.amount) > 0,
-  );
-  const filteredTokens = tokensWithBalance;
   const totalBalance = Number(activePortfolio?.totalCurrentValue || 0);
   const totalPnL = Number(activePortfolio?.totalPnL || 0);
   const totalPnLPercent = Number(activePortfolio?.totalPnLPercent || 0);
@@ -170,10 +171,9 @@ export function PortfolioPage() {
   const riskBreakdown = analyticsData?.riskBreakdown || {};
   const topPerformers = analyticsData?.topPerformers || [];
   const bottomPerformers = analyticsData?.bottomPerformers || [];
-  const formatAmount = (amount) =>
-    `${new Intl.NumberFormat("en-US", {
-      maximumFractionDigits: 6,
-    }).format(amount)} `;
+  const positionsInfo = Array.isArray(portfolioInfo?.portfolio?.positions)
+    ? portfolioInfo.portfolio.positions
+    : [];
   return (
     <div className="flex-1 px-6 py-8 portfolio-wrapper ms-auto w-full overflow-y-auto relative">
       <h2 className="text-3xl font-bold mb-6">Portfolio</h2>
@@ -335,7 +335,7 @@ export function PortfolioPage() {
                       <h4 className="text-sm text-gray-500 mb-3">
                         Narrative Breakdown
                       </h4>
-                      <div className="grid md:grid-cols-2 gap-3">
+                      <div className="grid md:grid-cols-3 gap-3">
                         {Object.entries(narrativeBreakdown).map(
                           ([narrative, data]) => (
                             <div
@@ -366,6 +366,158 @@ export function PortfolioPage() {
                     </div>
                   )}
 
+                  {positionsInfo.length > 0 && (
+                    <div className="glass-card p-6">
+                      <div className="flex items-center justify-between gap-4 mb-4">
+                        <h4 className="text-sm text-gray-500">Positions</h4>
+                        <span className="text-xs text-gray-500 shrink-0">
+                          {positionsInfo.length} assets
+                        </span>
+                      </div>
+                      <div className="grid md:grid-cols-3 gap-4">
+                        {positionsInfo.map((pos, idx) => {
+                          const symbol =
+                            pos?.symbol ?? pos?.name ?? `Asset ${idx + 1}`;
+                          const name = pos?.name ?? "";
+                          const logo = pos?.logo;
+                          const narrative = pos?.narrative;
+                          const allocationUsd =
+                            pos?.allocationUsd ?? pos?.allocation_usd ?? null;
+                          const tokenAmount =
+                            pos?.tokenAmount ?? pos?.token_amount ?? null;
+                          const entryPriceUsd =
+                            pos?.entryPriceUsd ?? pos?.entry_price_usd ?? null;
+                          const currentValueUsd =
+                            pos?.currentValueUsd ??
+                            pos?.current_value_usd ??
+                            null;
+                          const pnlUsd = pos?.pnlUsd ?? pos?.pnl_usd ?? null;
+                          const pnlPercent =
+                            pos?.pnlPercent ?? pos?.pnl_percent ?? null;
+
+                          const pnlPositive =
+                            typeof pnlPercent === "number"
+                              ? pnlPercent >= 0
+                              : pnlUsd != null
+                                ? Number(pnlUsd) >= 0
+                                : null;
+
+                          return (
+                            <div
+                              onClick={() => symbol && goToToken(symbol)}
+                              key={`${symbol}-${idx}`}
+                              className="glass-card p-5 cursor-pointer transition-all duration-200 hover:bg-white/80 hover:shadow-lg hover:border hover:border-gray-200/50"
+                            >
+                              <div className="flex items-center gap-4 mb-4">
+                                {logo ? (
+                                  <img
+                                    src={logo}
+                                    alt=""
+                                    className="w-12 h-12 rounded-full bg-white border border-gray-200 object-cover"
+                                    loading="lazy"
+                                  />
+                                ) : (
+                                  <div className="w-12 h-12 rounded-full bg-gray-100 border border-gray-200" />
+                                )}
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <div className="font-bold text-lg truncate">
+                                      {symbol}
+                                    </div>
+                                    {narrative ? (
+                                      <span className="text-xs uppercase tracking-wide text-gray-500 bg-white/70 border border-gray-200/60 px-2 py-1 rounded-full shrink-0">
+                                        {String(narrative).replace(/_/g, " ")}
+                                      </span>
+                                    ) : null}
+                                  </div>
+                                  {name ? (
+                                    <div className="text-sm text-gray-500 truncate">
+                                      {name}
+                                    </div>
+                                  ) : null}
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-3 text-sm">
+                                <div>
+                                  <div className="text-xs text-gray-500">
+                                    Allocation
+                                  </div>
+                                  <div className="font-medium text-gray-900">
+                                    {allocationUsd != null
+                                      ? `$${Number(allocationUsd).toFixed(2)}`
+                                      : "—"}
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <div className="text-xs text-gray-500">
+                                    Current Value
+                                  </div>
+                                  <div className="font-medium text-gray-900">
+                                    {currentValueUsd != null
+                                      ? `$${Number(currentValueUsd).toFixed(2)}`
+                                      : "—"}
+                                  </div>
+                                </div>
+
+                                <div>
+                                  <div className="text-xs text-gray-500">
+                                    Token Amount
+                                  </div>
+                                  <div className="font-medium text-gray-900">
+                                    {tokenAmount != null
+                                      ? getFormattedNumber(tokenAmount, 6)
+                                      : "—"}
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <div className="text-xs text-gray-500">
+                                    Entry Price
+                                  </div>
+                                  <div className="font-medium text-gray-900">
+                                    {entryPriceUsd != null
+                                      ? `$${Number(entryPriceUsd).toFixed(6)}`
+                                      : "—"}
+                                  </div>
+                                </div>
+
+                                <div className="col-span-2">
+                                  <div className="flex items-center justify-between gap-3">
+                                    <div className="text-xs text-gray-500">
+                                      PnL
+                                    </div>
+                                    <div
+                                      className={`text-sm font-medium ${
+                                        pnlPositive == null
+                                          ? "text-gray-700"
+                                          : pnlPositive
+                                            ? "text-green-600"
+                                            : "text-red-600"
+                                      }`}
+                                    >
+                                      {pnlPercent != null ? (
+                                        <>
+                                          {Number(pnlPercent) >= 0 ? "+" : ""}
+                                          {Number(pnlPercent).toFixed(2)}%
+                                        </>
+                                      ) : pnlUsd != null ? (
+                                        <>
+                                          {Number(pnlUsd) >= 0 ? "+" : ""}$
+                                          {Number(pnlUsd).toFixed(2)}
+                                        </>
+                                      ) : (
+                                        "—"
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                   {Object.keys(riskBreakdown).length > 0 && (
                     <div className="glass-card p-6">
                       <h4 className="text-sm text-gray-500 mb-3">
@@ -384,7 +536,7 @@ export function PortfolioPage() {
                               {Number(data.value || 0).toLocaleString()}
                             </div>
                             <div className="text-sm text-gray-500">
-                              {Number(data.percentage) ?? "0.00"}%
+                              {Number(data?.percentage ?? 0).toFixed(2)}%
                             </div>
                           </div>
                         ))}
