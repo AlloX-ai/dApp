@@ -10,11 +10,20 @@ import {
   Award,
   FileText,
   X,
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  BookOpen,
 } from "lucide-react";
 import { useState } from "react";
+import { PortfolioTutorialModal } from "../components/PortfolioTutorialModal";
+import { Link } from "react-router";
 
 export function TradingCompetitionPage() {
   const [showTermsModal, setShowTermsModal] = useState(false);
+  const [showTutorialModal, setShowTutorialModal] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   // Static leaderboard data (positions 1-100)
   const leaderboardData = Array.from({ length: 100 }, (_, i) => {
@@ -64,79 +73,230 @@ export function TradingCompetitionPage() {
 
   const isUserInTopHundred = currentUserPosition <= 100;
 
+  // Pagination calculations
+  const totalPages = Math.ceil(leaderboardData.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentPageData = leaderboardData.slice(startIndex, endIndex);
+
+  const handlePreviousPage = () => {
+    if (currentPage > 1) setCurrentPage(currentPage - 1);
+  };
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) setCurrentPage(currentPage + 1);
+  };
+
   return (
-    <div className="">
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">
-            Trading Competition
-          </h2>
-          <p className="text-gray-600">
-            Create on-chain portfolios on BNB Chain and compete for rewards
-          </p>
-        </div>
-        <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-600 rounded-xl shadow-lg">
-          <Trophy size={18} className="text-white" />
-          <span className="text-white text-sm font-bold">100,000 💎 Pool</span>
+    <div className="space-y-4">
+      {/* Title & Reward Pool Banner */}
+      <div className="flex flex-col sm:flex-row gap-2 items-center justify-between">
+        <h2 className="text-xl sm:text-3xl font-bold text-gray-900">
+          The Allocation Race
+        </h2>
+        <div className="flex items-center gap-3">
+          {/* Reward Pool Badge */}
+          <div className="glass-card px-4 py-2 bg-gradient-to-r from-amber-500/20 to-orange-600/20 border-amber-500/40">
+            <div className="flex items-center gap-2">
+              <div>
+                <div className="text-xs text-gray-600 font-medium">
+                  Total Prize Pool
+                </div>
+                <div className="flex items-center gap-2">
+                  <Gem className="w-5 h-5 text-amber-600" />
+                  <div className="font-bold  text-xs sm:text-base text-gray-900">
+                    100,000 <span className="text-amber-600">($500,000)</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+         
         </div>
       </div>
 
-      {/* Total Reward Pool Card */}
-      <div className="glass-card p-8 text-center">
-        <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl mb-4 shadow-xl">
-          <Gem className="w-10 h-10 text-white" />
-        </div>
-        <h3 className="text-2xl font-bold text-gray-900 mb-2">
-          100,000 Gems Reward Pool
-        </h3>
-        <p className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-500 to-orange-600 mb-4">
-          $500,000 USD
-        </p>
-        <div className="max-w-2xl mx-auto space-y-4">
-          <div className="flex items-start gap-3 text-left">
-            <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-              <BarChart3 className="w-4 h-4 text-blue-600" />
-            </div>
-            <p className="text-gray-600 text-sm">
-              <strong className="text-gray-900">How it works:</strong> Create
-              on-chain portfolios on BNB Chain. Rankings are based on the total
-              USD value of all portfolios you create during the competition
-              period.
-            </p>
+      {/* Compact Two Column Layout */}
+      <div className="grid lg:grid-cols-2 gap-4">
+        {/* Left: Your Position - Compact */}
+        <div className="glass-card p-4">
+          <div className="mb-3">
+            <h3 className="text-lg font-bold text-gray-900">Your Position</h3>
           </div>
-          <div className="flex items-start gap-3 text-left">
-            <div className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-              <TrendingUp className="w-4 h-4 text-purple-600" />
+
+          {/* Compact Position Grid */}
+          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-500 rounded-xl p-3">
+            <div className="space-y-2">
+              {/* Rank - Prominent */}
+              <div className="flex items-center justify-center pb-2 border-b border-blue-200">
+                <div className="flex items-center gap-3">
+                  <div>
+                    <span className="text-[10px] text-gray-500 uppercase font-semibold block">
+                      Your Rank
+                    </span>
+                    <div className="text-xl font-bold text-gray-900">
+                      #{currentUserData.position}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Portfolios */}
+              <div className="flex items-center justify-between py-1.5 border-b border-blue-200">
+                <span className="text-xs text-gray-600 font-semibold">
+                  Portfolios Created
+                </span>
+                <span className="text-lg font-bold text-gray-900">
+                  {currentUserData.portfoliosCreated}
+                </span>
+              </div>
+
+              {/* Wallet */}
+
+              {/* Volume */}
+              <div className="flex items-center justify-between py-1.5 border-b border-blue-200">
+                <span className="text-xs text-gray-600 font-semibold">
+                  Total Volume
+                </span>
+                <span className="text-base font-bold text-gray-900">
+                  ${currentUserData.totalValue.toLocaleString()}
+                </span>
+              </div>
+
+              {/* Reward - Separate Row */}
+              <div className="flex items-center justify-between py-1.5">
+                <span className="text-xs text-gray-600 font-semibold">
+                  Your Reward
+                </span>
+                {currentUserData.gemReward > 0 ? (
+                  <div className="flex items-center gap-1">
+                    <Gem className="w-4 h-4 text-purple-600" />
+                    <span className="text-base font-bold text-gray-900">
+                      {currentUserData.gemReward.toLocaleString()}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="text-xs font-bold text-gray-400">
+                    Top 100 only
+                  </div>
+                )}
+              </div>
             </div>
-            <p className="text-gray-600 text-sm">
-              <strong className="text-gray-900">Top 100 winners:</strong> The
-              top 100 participants with the highest total portfolio value will
-              share the 100,000 Gems reward pool.
-            </p>
+          </div>
+
+          {!isUserInTopHundred && null}
+
+          {/* Create Portfolio Button - Below */}
+          <Link to={"/"} className="btn-primary w-full flex items-center justify-center gap-2 text-sm mt-3">
+            <Plus size={16} />
+            Create Portfolio
+          </Link>
+        </div>
+
+        {/* Right: How it Works & Rewards - Compact */}
+        <div className="glass-card p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-bold text-gray-900">How it Works</h3>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowTermsModal(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+              >
+                <FileText className="w-4 h-4" />
+                Terms
+              </button>
+              <button
+                onClick={() => setShowTutorialModal(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+              >
+                <BookOpen className="w-3.5 h-3.5" />
+                Tutorial
+              </button>
+            </div>
+          </div>
+
+          {/* Compact Steps */}
+          <div className="space-y-2 mb-4">
+            <div className="flex items-start gap-2">
+              <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                <BarChart3 className="w-3 h-3 text-blue-600" />
+              </div>
+              <p className="text-xs text-gray-700">
+                <strong>Create portfolios</strong> on BNB Chain
+              </p>
+            </div>
+            <div className="flex items-start gap-2">
+              <div className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
+                <TrendingUp className="w-3 h-3 text-purple-600" />
+              </div>
+              <p className="text-xs text-gray-700">
+                <strong>Rankings</strong> based on total USD portfolio value
+              </p>
+            </div>
+            <div className="flex items-start gap-2">
+              <div className="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                <Trophy className="w-3 h-3 text-amber-600" />
+              </div>
+              <p className="text-xs text-gray-700">
+                <strong>Top 100</strong> share 100K Gems prize pool
+              </p>
+            </div>
+          </div>
+
+          {/* Compact Reward Tiers */}
+          <div className="border-t border-gray-200 pt-3">
+            <h4 className="text-sm font-bold text-gray-900 mb-2">Rewards</h4>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="bg-gradient-to-br from-amber-50 to-yellow-50 border border-amber-200 rounded-lg p-2">
+                <div className="flex items-center gap-1 mb-1">
+                  <Crown className="w-3 h-3 text-amber-600" />
+                  <span className="font-bold text-xs text-gray-900">Top 3</span>
+                </div>
+                <p className="text-sm font-bold text-amber-600">
+                  22.5K💎($112,500)
+                </p>
+              </div>
+
+              <div className="bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-200 rounded-lg p-2">
+                <div className="flex items-center gap-1 mb-1">
+                  <Trophy className="w-3 h-3 text-purple-600" />
+                  <span className="font-bold text-xs text-gray-900">4-10</span>
+                </div>
+                <p className="text-sm font-bold text-purple-600">4K-1.25K 💎</p>
+              </div>
+
+              <div className="bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-200 rounded-lg p-2">
+                <div className="flex items-center gap-1 mb-1">
+                  <Medal className="w-3 h-3 text-blue-600" />
+                  <span className="font-bold text-xs text-gray-900">11-50</span>
+                </div>
+                <p className="text-sm font-bold text-blue-600">1K-500 💎</p>
+              </div>
+
+              <div className="bg-gradient-to-br from-gray-50 to-slate-50 border border-gray-200 rounded-lg p-2">
+                <div className="flex items-center gap-1 mb-1">
+                  <Award className="w-3 h-3 text-gray-600" />
+                  <span className="font-bold text-xs text-gray-900">
+                    51-100
+                  </span>
+                </div>
+                <p className="text-sm font-bold text-gray-600">250 💎</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Leaderboard */}
+      {/* Leaderboard with Pagination */}
       <div className="glass-card p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-            <Trophy className="w-6 h-6 text-amber-500" />
-            Top 100 Leaderboard
-          </h3>
-          <button
-            onClick={() => setShowTermsModal(true)}
-            className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 font-medium"
-          >
-            <FileText className="w-4 h-4" />
-            Terms of Campaign
-          </button>
-        </div>
+        <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2 mb-4">
+          <Trophy className="w-6 h-6 text-amber-500" />
+          Leaderboard
+        </h3>
 
-        {/* Table Header */}
+        {/* Table */}
         <div className="overflow-x-auto">
           <div className="min-w-[600px]">
+            {/* Table Header */}
             <div className="grid grid-cols-[80px_1fr_140px_140px_140px] gap-4 px-4 py-3 bg-gray-50/60 rounded-lg mb-2">
               <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
                 Rank
@@ -155,10 +315,10 @@ export function TradingCompetitionPage() {
               </div>
             </div>
 
-            {/* Leaderboard Rows - Scrollable */}
-            <div className="space-y-1 max-h-[600px] overflow-y-auto pr-2">
-              {leaderboardData.map((entry) => {
-                // const isTopThree = entry.position <= 3;
+            {/* Table Rows */}
+            <div className="space-y-1">
+              {currentPageData.map((entry) => {
+                const isTopThree = entry.position <= 3;
                 const isCurrentUser =
                   entry.address === currentUserData.address &&
                   isUserInTopHundred;
@@ -240,9 +400,6 @@ export function TradingCompetitionPage() {
                         <span className="text-sm font-bold text-gray-900">
                           {entry.gemReward.toLocaleString()}
                         </span>
-                        <span className="text-xs text-gray-600">
-                          (${(entry.gemReward * 5).toLocaleString()})
-                        </span>
                       </div>
                     </div>
                   </div>
@@ -252,115 +409,68 @@ export function TradingCompetitionPage() {
           </div>
         </div>
 
-        {/* Current User Position Indicator (if not in top 100) */}
-        {!isUserInTopHundred && (
-          <div className="mt-6 pt-6 border-t border-gray-200">
-            <div className="flex items-center gap-2 mb-3">
-              <User className="w-5 h-5 text-blue-600" />
-              <h4 className="text-sm font-bold text-gray-900">Your Position</h4>
-            </div>
-            <div className="grid grid-cols-[80px_1fr_140px_140px_140px] gap-4 px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 backdrop-blur-sm border-2 border-blue-500 rounded-lg shadow-md">
-              {/* Rank */}
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center">
-                  <span className="text-sm font-bold text-white">
-                    {currentUserData.position}
-                  </span>
-                </div>
-              </div>
-
-              {/* Wallet Address */}
-              <div className="flex items-center">
-                <div className="flex items-center gap-2">
-                  <Wallet className="w-4 h-4 text-gray-400" />
-                  <span className="font-mono text-sm text-gray-700">
-                    {currentUserData.address}
-                  </span>
-                  <span className="text-xs font-bold text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">
-                    YOU
-                  </span>
-                </div>
-              </div>
-
-              {/* Portfolios Created */}
-              <div className="flex items-center justify-end">
-                <span className="text-sm font-semibold text-gray-900">
-                  {currentUserData.portfoliosCreated}
-                </span>
-              </div>
-
-              {/* Total Value */}
-              <div className="flex items-center justify-end">
-                <span className="text-sm font-bold text-gray-900">
-                  ${currentUserData.totalValue.toLocaleString()}
-                </span>
-              </div>
-
-              {/* Reward */}
-              <div className="flex items-center justify-end">
-                <div className="flex flex-col items-end">
-                  <span className="text-xs text-gray-500 mb-0.5">
-                    No reward
-                  </span>
-                  <span className="text-xs text-gray-600 italic">
-                    (Top 100 only)
-                  </span>
-                </div>
-              </div>
-            </div>
-            <p className="text-xs text-gray-600 mt-3 text-center">
-              Keep trading! You need to reach the top 100 to earn rewards.
-            </p>
+        {/* Pagination Controls */}
+        <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200">
+          <div className="text-sm text-gray-600">
+            Showing {startIndex + 1}-
+            {Math.min(endIndex, leaderboardData.length)} of{" "}
+            {leaderboardData.length}
           </div>
-        )}
-      </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handlePreviousPage}
+              disabled={currentPage === 1}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+                currentPage === 1
+                  ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                  : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50"
+              }`}
+            >
+              <ChevronLeft size={16} />
+              Previous
+            </button>
 
-      {/* Reward Tiers Info */}
-      <div className="glass-card p-6">
-        <h3 className="text-lg font-bold text-gray-900 mb-4">
-          Reward Distribution
-        </h3>
-        <div className="grid md:grid-cols-4 gap-4">
-          <div className="bg-gradient-to-br from-amber-50 to-yellow-50 border border-amber-200 rounded-xl p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Crown className="w-5 h-5 text-amber-600" />
-              <span className="font-bold text-gray-900">Top 3</span>
-            </div>
-            <p className="text-xl font-bold text-amber-600 mb-1">
-              10,000 - 5,000 💎
-            </p>
-            <p className="text-xs text-gray-600">$50,000 - $25,000 USD</p>
-          </div>
+            <div className="flex items-center gap-1">
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum;
+                if (totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i;
+                } else {
+                  pageNum = currentPage - 2 + i;
+                }
 
-          <div className="bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-200 rounded-xl p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Trophy className="w-5 h-5 text-purple-600" />
-              <span className="font-bold text-gray-900">Rank 4-10</span>
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setCurrentPage(pageNum)}
+                    className={`w-10 h-10 rounded-lg font-semibold transition-all ${
+                      currentPage === pageNum
+                        ? "bg-black text-white"
+                        : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50"
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
             </div>
-            <p className="text-xl font-bold text-purple-600 mb-1">
-              4,000 - 1,250 💎
-            </p>
-            <p className="text-xs text-gray-600">$20,000 - $6,250 USD</p>
-          </div>
 
-          <div className="bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-200 rounded-xl p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Medal className="w-5 h-5 text-blue-600" />
-              <span className="font-bold text-gray-900">Rank 11-50</span>
-            </div>
-            <p className="text-xl font-bold text-blue-600 mb-1">
-              1,000 - 500 💎
-            </p>
-            <p className="text-xs text-gray-600">$5,000 - $2,500 USD</p>
-          </div>
-
-          <div className="bg-gradient-to-br from-gray-50 to-slate-50 border border-gray-200 rounded-xl p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Award className="w-5 h-5 text-gray-600" />
-              <span className="font-bold text-gray-900">Rank 51-100</span>
-            </div>
-            <p className="text-xl font-bold text-gray-600 mb-1">250 💎</p>
-            <p className="text-xs text-gray-600">$1,250 USD</p>
+            <button
+              onClick={handleNextPage}
+              disabled={currentPage === totalPages}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+                currentPage === totalPages
+                  ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                  : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50"
+              }`}
+            >
+              Next
+              <ChevronRight size={16} />
+            </button>
           </div>
         </div>
       </div>
@@ -397,17 +507,15 @@ export function TradingCompetitionPage() {
               {/* Introduction */}
               <div>
                 <p className="text-sm text-gray-700 leading-relaxed">
-                  By participating in the AlloX Trading Competition, you
-                  acknowledge and agree to be bound by these terms and
-                  conditions. Please read them carefully before creating
-                  portfolios.
+                  By participating in the AlloX Allocation Race, you acknowledge
+                  and agree to be bound by these terms and conditions. Please
+                  read them carefully before creating portfolios.
                 </p>
               </div>
 
               {/* Eligibility */}
               <div>
                 <h4 className="text-lg font-bold text-gray-900 mb-2 flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-amber-500" />
                   Eligibility
                 </h4>
                 <ul className="space-y-2 text-sm text-gray-700 ml-4">
@@ -418,13 +526,7 @@ export function TradingCompetitionPage() {
                       Chain
                     </span>
                   </li>
-                  <li className="flex gap-2">
-                    <span className="text-amber-500 font-bold">•</span>
-                    <span>
-                      Must be 18 years or older (or legal age in your
-                      jurisdiction)
-                    </span>
-                  </li>
+
                   <li className="flex gap-2">
                     <span className="text-amber-500 font-bold">•</span>
                     <span>
@@ -438,7 +540,6 @@ export function TradingCompetitionPage() {
               {/* Competition Rules */}
               <div>
                 <h4 className="text-lg font-bold text-gray-900 mb-2 flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-purple-500" />
                   Competition Rules
                 </h4>
                 <ul className="space-y-2 text-sm text-gray-700 ml-4">
@@ -474,65 +575,10 @@ export function TradingCompetitionPage() {
               </div>
 
               {/* Prohibited Activities */}
-              <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-                <h4 className="text-lg font-bold text-red-900 mb-2 flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-red-500" />
-                  Prohibited Activities & Disqualification
-                </h4>
-                <p className="text-sm text-red-800 mb-3 font-semibold">
-                  The following activities are strictly prohibited and will
-                  result in immediate disqualification:
-                </p>
-                <ul className="space-y-2 text-sm text-red-900 ml-4">
-                  <li className="flex gap-2">
-                    <span className="text-red-500 font-bold">✕</span>
-                    <span>
-                      <strong>Wash Trading:</strong> Creating fake transactions
-                      or circular trading to inflate portfolio value
-                    </span>
-                  </li>
-                  <li className="flex gap-2">
-                    <span className="text-red-500 font-bold">✕</span>
-                    <span>
-                      <strong>Multiple Accounts:</strong> Using multiple wallets
-                      or accounts to manipulate rankings
-                    </span>
-                  </li>
-                  <li className="flex gap-2">
-                    <span className="text-red-500 font-bold">✕</span>
-                    <span>
-                      <strong>Bot Usage:</strong> Employing automated systems to
-                      create portfolios or execute trades
-                    </span>
-                  </li>
-                  <li className="flex gap-2">
-                    <span className="text-red-500 font-bold">✕</span>
-                    <span>
-                      <strong>Market Manipulation:</strong> Attempting to
-                      manipulate token prices to inflate portfolio values
-                    </span>
-                  </li>
-                  <li className="flex gap-2">
-                    <span className="text-red-500 font-bold">✕</span>
-                    <span>
-                      <strong>Exploits:</strong> Exploiting bugs, glitches, or
-                      vulnerabilities in the platform
-                    </span>
-                  </li>
-                  <li className="flex gap-2">
-                    <span className="text-red-500 font-bold">✕</span>
-                    <span>
-                      <strong>Collusion:</strong> Coordinating with other
-                      participants to gain unfair advantage
-                    </span>
-                  </li>
-                </ul>
-              </div>
 
               {/* Reward Distribution */}
               <div>
                 <h4 className="text-lg font-bold text-gray-900 mb-2 flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-blue-500" />
                   Reward Distribution
                 </h4>
                 <ul className="space-y-2 text-sm text-gray-700 ml-4">
@@ -543,8 +589,7 @@ export function TradingCompetitionPage() {
                   <li className="flex gap-2">
                     <span className="text-blue-500 font-bold">•</span>
                     <span>
-                      Gems credited to winning wallets within 7 days of campaign
-                      end
+                      Gems credited to winning wallets at token launch event
                     </span>
                   </li>
                   <li className="flex gap-2">
@@ -553,19 +598,12 @@ export function TradingCompetitionPage() {
                       Participants must maintain wallet access to claim rewards
                     </span>
                   </li>
-                  <li className="flex gap-2">
-                    <span className="text-blue-500 font-bold">•</span>
-                    <span>
-                      Unclaimed rewards after 30 days will be forfeited
-                    </span>
-                  </li>
                 </ul>
               </div>
 
               {/* Organizer Rights */}
               <div>
                 <h4 className="text-lg font-bold text-gray-900 mb-2 flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-gray-500" />
                   Organizer Rights
                 </h4>
                 <ul className="space-y-2 text-sm text-gray-700 ml-4">
@@ -621,16 +659,16 @@ export function TradingCompetitionPage() {
             </div>
 
             {/* Footer */}
-            <div className="p-6 border-t border-gray-200 bg-gray-50">
-              <button
-                className="w-full px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-600 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all"
-                onClick={() => setShowTermsModal(false)}
-              >
-                I Understand & Accept
-              </button>
-            </div>
           </div>
         </div>
+      )}
+
+      {/* Portfolio Tutorial Modal */}
+      {showTutorialModal && (
+        <PortfolioTutorialModal
+          isOpen={showTutorialModal}
+          onClose={() => setShowTutorialModal(false)}
+        />
       )}
     </div>
   );
