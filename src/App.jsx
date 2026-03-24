@@ -13,7 +13,6 @@ import { LaunchSidebar } from "./components/LaunchSidebar";
 import { Header } from "./components/Header";
 import { ChatPage } from "./pages/ChatPage";
 import { PortfolioPage } from "./pages/PortfolioPage";
-import { Season1 } from "./pages/Season1";
 import { TradingPage } from "./pages/TradingPage";
 import { StakingPage } from "./pages/StakingPage";
 import { HistoryPage } from "./pages/HistoryPage";
@@ -51,6 +50,7 @@ import {
 import { store } from "./redux/store";
 import { PointsPage } from "./pages/Points";
 import { useSocial } from "./hooks/useSocial";
+import { CampaignsPage } from "./pages/Campaigns";
 
 const SOLANA_MAINNET_CHAIN_ID = 101;
 const PREFERRED_CHAIN_STORAGE_KEY = "walletPreferredChainId";
@@ -79,7 +79,6 @@ async function tryRestorePhantomSession(dispatch) {
 }
 
 function LaunchAppLayout() {
-
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const wasConnectedRef = useRef(false);
@@ -87,7 +86,6 @@ function LaunchAppLayout() {
   const prevWalletTypeRef = useRef(undefined);
   const authTriggeredRef = useRef(false);
   const { connector } = getAccount(wagmiClient);
-
 
   const { address, isConnected, walletModal, walletType, checkinModal } =
     useSelector((state) => state.wallet);
@@ -100,15 +98,12 @@ function LaunchAppLayout() {
     loading: checkinLoading,
   } = useCheckin();
 
-
-    const {fetchSocialPoints,fetchAllPoints, loadSeenPosts} = useSocial();
-   useEffect(() => {
-     fetchSocialPoints();
-     fetchAllPoints();
-     loadSeenPosts();
-   }, [fetchSocialPoints, fetchAllPoints, loadSeenPosts]);
-
-
+  const { fetchSocialPoints, fetchAllPoints, loadSeenPosts } = useSocial();
+  useEffect(() => {
+    fetchSocialPoints();
+    fetchAllPoints();
+    loadSeenPosts();
+  }, [fetchSocialPoints, fetchAllPoints, loadSeenPosts]);
 
   const handleDisconnect = async () => {
     // if (walletType === "phantom") {
@@ -636,7 +631,7 @@ function App() {
         >
           <Route index element={<ChatPage />} />
           <Route path="/portfolio" element={<PortfolioPage />} />
-          <Route path="/spring-series" element={<Season1 />} />
+          <Route path="/campaigns" element={<CampaignsPage />} />
           <Route path="/rewards" element={<PointsPage />} />
 
           <Route path="/trending" element={<TradingPage />} />
