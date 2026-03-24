@@ -2516,7 +2516,7 @@ export function ChatPage() {
               ))}
             </div>
 
-            <div className="mt-4 flex justify-end">
+            {/* <div className="mt-4 flex justify-end">
               <button
                 type="button"
                 onClick={() => setIsNarrativesModalOpen(false)}
@@ -2524,7 +2524,7 @@ export function ChatPage() {
               >
                 Close
               </button>
-            </div>
+            </div> */}
           </div>
         </div>
       )}
