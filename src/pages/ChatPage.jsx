@@ -31,7 +31,7 @@ import {
 import { apiCall } from "../utils/api";
 import { executePortfolioOnChain } from "../utils/execution";
 import { useAuth } from "../hooks/useAuth";
-import { NavLink } from "react-router";
+import { NavLink, useLocation, useNavigate } from "react-router";
 import getFormattedNumber from "../hooks/get-formatted-number";
 import { toast } from "sonner";
 
@@ -102,6 +102,8 @@ const NARRATIVE_MODAL_OPTIONS = [
 
 export function ChatPage() {
   const dispatch = useDispatch();
+  const location = useLocation();
+  const navigate = useNavigate();
   const {
     message,
     currentMessages,
@@ -129,6 +131,7 @@ export function ChatPage() {
   const typingTimerRef = useRef(null);
   const typingMessageRef = useRef(null);
   const completedMessageIdsRef = useRef(new Set());
+  const consumedRouteSuggestionKeysRef = useRef(new Set());
   const [showWalletPrompt, setShowWalletPrompt] = useState(false);
   const [showWelcomeGiftModal, setShowWelcomeGiftModal] = useState(false);
   const [userDismissedClaimModal, setUserDismissedClaimModal] = useState(false);
@@ -776,6 +779,18 @@ export function ChatPage() {
   const handleSuggestionClick = (suggestion) => {
     sendChatMessage(suggestion);
   };
+  useEffect(() => {
+    const suggestion = location.state?.chatSuggestion;
+    if (!suggestion) return;
+    if (consumedRouteSuggestionKeysRef.current.has(location.key)) return;
+    consumedRouteSuggestionKeysRef.current.add(location.key);
+
+    handleSuggestionClick(String(suggestion));
+    navigate(location.pathname + location.search, {
+      replace: true,
+      state: null,
+    });
+  }, [location.state, location.pathname, location.search, navigate]);
 
   const handleOptionClick = useCallback(
     (option) => {
@@ -2165,9 +2180,6 @@ export function ChatPage() {
                   Recent portfolios
                 </h3>
                 <div className="flex items-center gap-1 shrink-0">
-                  <span className="text-[10px] uppercase tracking-wide text-gray-500">
-                    3
-                  </span>
                   <button
                     type="button"
                     onClick={() => setShowRecentPortfoliosPanel(false)}
@@ -2481,7 +2493,7 @@ export function ChatPage() {
               <button
                 type="button"
                 onClick={() => setIsNarrativesModalOpen(false)}
-                className="p-2 rounded-xl hover:bg-black/5 text-gray-500"
+                className="p-2 rounded-xl hover:bg-black/5 text-gray-500 bg-white"
                 aria-label="Close"
               >
                 <X size={18} />
@@ -2508,7 +2520,15 @@ export function ChatPage() {
                         {n.description}
                       </div>
                     </div>
-                    <div className="shrink-0 text-[10px] uppercase tracking-wide bg-white/60 border border-gray-200 text-gray-700 px-2 py-1 rounded-full">
+                    <div
+                      className={`shrink-0 text-[10px] uppercase tracking-wide px-2 py-1 rounded-full border ${
+                        n.riskProfile === "LOW_TO_MEDIUM"
+                          ? "bg-blue-100 border-blue-200 text-blue-700"
+                          : n.riskProfile === "MEDIUM"
+                            ? "bg-yellow-100 border-yellow-200 text-yellow-700"
+                            : "bg-red-100 border-red-200 text-red-700"
+                      }`}
+                    >
                       {n.riskProfile.replace(/_/g, " ")}
                     </div>
                   </div>
