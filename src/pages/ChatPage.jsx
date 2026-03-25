@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, useCallback } from "react";
+import { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import {
   Send,
   Loader2,
@@ -162,6 +162,250 @@ export function ChatPage() {
   const [executionPrompt, setExecutionPrompt] = useState(null);
   const executionPromptResolverRef = useRef(null);
 
+  // Quick portfolio wizard (form-based UX)
+  const QUICK_PORTFOLIO_INTRO_MESSAGE =
+    "Let’s build a quick portfolio. Choose a blockchain, portfolio type, investment amount, risk tolerance, and payment token — then tap Generate to preview the basket.";
+  const [lastBuildMode, setLastBuildMode] = useState("guided"); // "guided" | "quick"
+  const [quickWizardOpen, setQuickWizardOpen] = useState(false);
+  const [quickWizardStep, setQuickWizardStep] = useState(0); // 0..3
+  const [quickError, setQuickError] = useState("");
+  const [quickIsGenerating, setQuickIsGenerating] = useState(false);
+  const [quickIsExecuting, setQuickIsExecuting] = useState(false);
+  const [quickRemoveTarget, setQuickRemoveTarget] = useState(null); // { symbol, name } | null
+  const [quickIsRemoving, setQuickIsRemoving] = useState(false);
+  const [quickForm, setQuickForm] = useState({
+    chain: null, // "BSC" | "ETH" | "BASE"
+    portfolioType: null, // "Diversified" | "Defi" | "RWA" | "AI" | ...
+    amountUsd: null,
+    customAmountUsdText: "",
+    risk: null, // "CONSERVATIVE" | "BALANCED" | "AGGRESSIVE"
+    paymentToken: null, // "BNB" | "USDT" | "USDC"
+  });
+  const [quickBasket, setQuickBasket] = useState([]);
+  const [quickPreviewMeta, setQuickPreviewMeta] = useState(null); // { chain, executionMode, positions... }
+
+  const resetQuickWizard = useCallback(() => {
+    setQuickWizardStep(0);
+    setQuickError("");
+    setQuickIsGenerating(false);
+    setQuickIsExecuting(false);
+    setQuickIsRemoving(false);
+    setQuickRemoveTarget(null);
+    setQuickForm({
+      chain: null,
+      portfolioType: null,
+      amountUsd: null,
+      customAmountUsdText: "",
+      risk: null,
+      paymentToken: null,
+    });
+    setQuickBasket([]);
+    setQuickPreviewMeta(null);
+  }, []);
+
+  const openQuickWizard = useCallback(() => {
+    setLastBuildMode("quick");
+    resetQuickWizard();
+    setQuickWizardOpen(true);
+  }, [resetQuickWizard]);
+
+  const closeQuickWizard = useCallback(() => {
+    setQuickWizardOpen(false);
+  }, []);
+
+  const handleQuickRequestRemoveToken = useCallback((token) => {
+    if (!token?.symbol) return;
+    setQuickRemoveTarget({
+      symbol: String(token.symbol),
+      name: token.name ? String(token.name) : null,
+    });
+  }, []);
+
+  const handleQuickCancelRemoveToken = useCallback(() => {
+    if (quickIsRemoving) return;
+    setQuickRemoveTarget(null);
+  }, [quickIsRemoving]);
+
+  const buildBotMessage = useCallback((data) => {
+    return {
+      id: Date.now() + 1,
+      type: "ai",
+      content: data?.message || "Thanks. What would you like to do next?",
+      options: Array.isArray(data?.options) ? data.options : [],
+      data,
+      timestamp: new Date(),
+    };
+  }, []);
+
+  const parseQuickTokensFromMarkdown = useCallback((markdownText) => {
+    if (typeof markdownText !== "string") return [];
+    const lines = markdownText.split("\n");
+    const tokensHeaderIdx = lines.findIndex((l) =>
+      /^Tokens\s*\(\d+\):/i.test(String(l || "").trim()),
+    );
+    if (tokensHeaderIdx < 0) return [];
+
+    const rows = [];
+    for (let i = tokensHeaderIdx + 1; i < lines.length; i += 1) {
+      const line = String(lines[i] || "").trim();
+      if (!line) break;
+      // Expected format:
+      // "LINK (defi): $20.00 / 2.170597 tokens at $9.2141"
+      const match = line.match(
+        /^([A-Z0-9]+)\s*\(([^)]+)\):\s*\$?([\d.,]+)\s*\/\s*([\d.,]+)\s*tokens?\s+at\s+\$?([\d.,]+)/i,
+      );
+      if (!match) break;
+      const symbol = match[1].toUpperCase();
+      const category = match[2];
+      const allocationUsd = Number(match[3].replace(/,/g, ""));
+      const quantity = Number(match[4].replace(/,/g, ""));
+      const price = Number(match[5].replace(/,/g, ""));
+      rows.push({
+        id: symbol,
+        symbol,
+        category,
+        allocationUsd,
+        quantity,
+        price,
+        logo: null,
+        contractAddress: null,
+      });
+    }
+    return rows;
+  }, []);
+
+  const parseQuickBasketFromResponse = useCallback(
+    (response) => {
+      const preview =
+        response?.portfolioPreview ||
+        response?.data?.portfolioPreview ||
+        response?.portfolio_preview ||
+        response?.data?.portfolio_preview;
+      if (
+        preview &&
+        typeof preview === "object" &&
+        Array.isArray(preview.positions)
+      ) {
+        const positions = preview.positions;
+        const basket = positions
+          .map((p, idx) => {
+            const symbol = String(p?.symbol || p?.name || "").toUpperCase();
+            if (!symbol) return null;
+            return {
+              id: p?.tokenId || p?.contractAddress || `${symbol}-${idx}`,
+              symbol,
+              logo: p?.logo || null,
+              category:
+                p?.category ||
+                p?.narrative ||
+                p?.riskProfile ||
+                quickForm.portfolioType ||
+                null,
+              allocationUsd:
+                p?.allocationUsd ?? p?.allocation_usd ?? p?.allocation ?? null,
+              quantity:
+                p?.tokenAmount ?? p?.token_amount ?? p?.quantity ?? null,
+              price:
+                p?.entryPriceUsd ?? p?.entry_price_usd ?? p?.priceUsd ?? null,
+              contractAddress: p?.contractAddress || null,
+            };
+          })
+          .filter(Boolean);
+        return {
+          previewMeta: {
+            chain: preview.chain || quickForm.chain,
+            executionMode: preview.executionMode || null,
+          },
+          basket,
+        };
+      }
+
+      // Fallback: parse "Tokens (N):" markdown
+      const markdownText = response?.message || response?.content || "";
+      const basket = parseQuickTokensFromMarkdown(markdownText);
+      if (basket.length > 0) {
+        return {
+          previewMeta: {
+            chain: quickForm.chain,
+            executionMode: quickForm.chain === "BSC" ? "ON_CHAIN" : "PAPER",
+          },
+          basket,
+        };
+      }
+
+      return { previewMeta: null, basket: [] };
+    },
+    [parseQuickTokensFromMarkdown, quickForm.chain, quickForm.portfolioType],
+  );
+
+  const handleQuickConfirmRemoveToken = useCallback(async () => {
+    const symbol = quickRemoveTarget?.symbol;
+    if (!symbol) return;
+    if (isReadOnly) return;
+    if (!isConnected) {
+      setShowWalletPrompt(true);
+      return;
+    }
+    try {
+      setQuickIsRemoving(true);
+      setQuickError("");
+
+      dispatch(
+        addCurrentMessage({
+          id: Date.now() + 1,
+          type: "user",
+          content: `remove ${symbol}`,
+          timestamp: new Date(),
+        }),
+      );
+
+      await ensureAuthenticated();
+      const response = await apiCall("/chat/message", {
+        method: "POST",
+        body: JSON.stringify({ message: `remove ${symbol}` }),
+      });
+
+      dispatch(addCurrentMessage(buildBotMessage(response)));
+
+      const { previewMeta, basket } = parseQuickBasketFromResponse(response);
+      if (Array.isArray(basket) && basket.length > 0) {
+        setQuickPreviewMeta(previewMeta);
+        setQuickBasket(basket);
+      } else {
+        // Fallback: remove locally if response parsing fails
+        setQuickBasket((prev) =>
+          prev.filter(
+            (t) =>
+              String(t?.symbol || "").toUpperCase() !==
+              String(symbol).toUpperCase(),
+          ),
+        );
+      }
+
+      setQuickRemoveTarget(null);
+    } catch (e) {
+      if (e?.status === 401) logout();
+      setQuickError(
+        e?.message ||
+          e?.data?.message ||
+          "Failed to remove token. Please try again.",
+      );
+    } finally {
+      setQuickIsRemoving(false);
+    }
+  }, [
+    apiCall,
+    buildBotMessage,
+    dispatch,
+    ensureAuthenticated,
+    isConnected,
+    isReadOnly,
+    logout,
+    parseQuickBasketFromResponse,
+    quickRemoveTarget?.symbol,
+    setShowWalletPrompt,
+  ]);
+
   useEffect(() => {
     const aiMessages = currentMessages.filter(
       (msg) => msg.type === "ai" && typeof msg.content === "string",
@@ -195,6 +439,14 @@ export function ChatPage() {
       }
     };
   }, []);
+
+  // If a new chat starts (messages cleared), close the quick portfolio wizard too.
+  useEffect(() => {
+    if (currentMessages.length === 0) {
+      setQuickWizardOpen(false);
+      resetQuickWizard();
+    }
+  }, [currentMessages.length, resetQuickWizard]);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -353,17 +605,6 @@ export function ChatPage() {
       setRefreshOnchainLoading(false);
     }
   }, [refreshOnchainLoading]);
-
-  const buildBotMessage = useCallback((data) => {
-    return {
-      id: Date.now() + 1,
-      type: "ai",
-      content: data?.message || "Thanks. What would you like to do next?",
-      options: Array.isArray(data?.options) ? data.options : [],
-      data,
-      timestamp: new Date(),
-    };
-  }, []);
 
   const getPortfolioTimestamp = (p) => {
     const raw =
@@ -590,9 +831,267 @@ export function ChatPage() {
     ],
   );
 
+  const QUICK_CHAIN_LABELS = useMemo(
+    () => ({
+      BSC: "BNB Chain (On-Chain Execution)",
+      ETH: "Ethereum (Paper Trading)",
+      BASE: "Base (Paper Trading)",
+    }),
+    [],
+  );
+
+  const QUICK_PORTFOLIO_TYPE_TO_PROMPT = useMemo(
+    () => ({
+      Diversified: "Diversified",
+      Defi: "DeFi",
+      RWA: "Real world assets (RWA)",
+      AI: "AI",
+      Gaming: "Gaming",
+      DePin: "DePin",
+    }),
+    [],
+  );
+
+  const QUICK_RISK_TO_PROMPT = useMemo(
+    () => ({
+      CONSERVATIVE: "conservative(low risk)",
+      BALANCED: "Balanced (medium)",
+      AGGRESSIVE: "Aggressive (High Risk)",
+    }),
+    [],
+  );
+
+  const handleQuickGenerate = useCallback(
+    async (mode) => {
+      setQuickError("");
+      if (isReadOnly) return;
+      if (!isConnected) {
+        setShowWalletPrompt(true);
+        return;
+      }
+      if (messagesRemaining !== null && messagesRemaining <= 0) {
+        toast.error("You have no messages remaining. Try again later.");
+        return;
+      }
+      if (
+        !quickForm.chain ||
+        !quickForm.portfolioType ||
+        !quickForm.amountUsd ||
+        !quickForm.risk
+        //  || !quickForm.paymentToken
+      ) {
+        setQuickError("Please complete all form selections first.");
+        return;
+      }
+
+      try {
+        // const userActionLabel =
+        //   mode === "regenerate" ? "Regenerate" : "Generate";
+        // dispatch(
+        //   addCurrentMessage({
+        //     id: Date.now() + 1,
+        //     type: "user",
+        //     content: userActionLabel,
+        //     timestamp: new Date(),
+        //   }),
+        // );
+
+        setQuickIsGenerating(true);
+        setQuickIsExecuting(false);
+
+        await ensureAuthenticated();
+        const chainLabel =
+          QUICK_CHAIN_LABELS[quickForm.chain] || quickForm.chain;
+        const interestLabel =
+          QUICK_PORTFOLIO_TYPE_TO_PROMPT[quickForm.portfolioType] ||
+          quickForm.portfolioType;
+        const riskLabel =
+          QUICK_RISK_TO_PROMPT[quickForm.risk] || quickForm.risk;
+
+        const prompt = `Build a $${quickForm.amountUsd} ${quickForm.risk} ${quickForm.portfolioType} portfolio on ${quickForm.chain}`;
+
+        const response = await apiCall("/chat/message", {
+          method: "POST",
+          body: JSON.stringify({ message: prompt }),
+        });
+
+        dispatch(addCurrentMessage(buildBotMessage(response)));
+
+        const { previewMeta, basket } = parseQuickBasketFromResponse(response);
+
+        if (!basket || basket.length === 0) {
+          setQuickError(
+            "Could not generate a token basket. Try regenerating or adjusting your inputs.",
+          );
+          return;
+        }
+
+        setQuickPreviewMeta(previewMeta);
+        setQuickBasket(basket);
+        setQuickWizardStep(3);
+      } catch (e) {
+        if (e?.status === 401) logout();
+        setQuickError(
+          e?.message ||
+            e?.data?.message ||
+            "Quick portfolio generation failed. Try again.",
+        );
+      } finally {
+        setQuickIsGenerating(false);
+      }
+    },
+    [
+      QUICK_CHAIN_LABELS,
+      QUICK_PORTFOLIO_TYPE_TO_PROMPT,
+      QUICK_RISK_TO_PROMPT,
+      apiCall,
+      ensureAuthenticated,
+      isConnected,
+      isReadOnly,
+      logout,
+      messagesRemaining,
+      parseQuickBasketFromResponse,
+      quickForm.amountUsd,
+      quickForm.chain,
+      quickForm.paymentToken,
+      quickForm.portfolioType,
+      quickForm.risk,
+      setShowWalletPrompt,
+    ],
+  );
+
+  const handleQuickConfirmAndExecute = useCallback(async () => {
+    setQuickError("");
+    if (quickBasket.length === 0) return;
+    if (isReadOnly) return;
+    if (!isConnected) {
+      setShowWalletPrompt(true);
+      return;
+    }
+
+    try {
+      dispatch(
+        addCurrentMessage({
+          id: Date.now() + 1,
+          type: "user",
+          content: "Confirm and Execute",
+          timestamp: new Date(),
+        }),
+      );
+
+      setQuickIsExecuting(true);
+      setQuickIsGenerating(false);
+
+      await ensureAuthenticated();
+
+      const chainLabel = QUICK_CHAIN_LABELS[quickForm.chain] || quickForm.chain;
+      const interestLabel =
+        QUICK_PORTFOLIO_TYPE_TO_PROMPT[quickForm.portfolioType] ||
+        quickForm.portfolioType;
+      const riskLabel = QUICK_RISK_TO_PROMPT[quickForm.risk] || quickForm.risk;
+
+      const tokenLines = quickBasket
+        .map((t) => {
+          const alloc = Number(t.allocationUsd ?? 0);
+          const qty = t.quantity != null ? Number(t.quantity) : null;
+          const price = t.price != null ? Number(t.price) : null;
+          return `${t.symbol} (${t.category || "token"}): $${alloc.toFixed(
+            2,
+          )} / ${qty != null ? qty : 0} tokens at $${price != null ? price.toFixed(6) : "0"}`;
+        })
+        .join("\n");
+
+      const prompt = `Confirm and execute this quick portfolio.\nChain: ${chainLabel}\nPayment token: ${quickForm.paymentToken}\n- Portfolio type: ${interestLabel}\n- Investment: $${quickForm.amountUsd}\n- Risk tolerance: ${riskLabel}\nTokens:\n${tokenLines}`;
+
+      const response = await apiCall("/chat/message", {
+        method: "POST",
+        body: JSON.stringify({ message: prompt }),
+      });
+
+      // On-chain handoff
+      if (response?.action === "START_EXECUTION" && response.execution) {
+        if (response?.message) {
+          dispatch(addCurrentMessage(buildBotMessage(response)));
+        }
+        setQuickWizardOpen(false);
+        handleStartExecution(response.execution);
+        return;
+      }
+
+      // Paper trading portfolio result
+      dispatch(addCurrentMessage(buildBotMessage(response)));
+      void fetchRecentPortfolios();
+      setQuickWizardOpen(false);
+    } catch (e) {
+      if (e?.status === 401) logout();
+      setQuickError(
+        e?.message || e?.data?.message || "Execution failed. Please try again.",
+      );
+    } finally {
+      setQuickIsExecuting(false);
+    }
+  }, [
+    QUICK_CHAIN_LABELS,
+    QUICK_PORTFOLIO_TYPE_TO_PROMPT,
+    QUICK_RISK_TO_PROMPT,
+    addCurrentMessage,
+    apiCall,
+    buildBotMessage,
+    dispatch,
+    ensureAuthenticated,
+    fetchRecentPortfolios,
+    handleStartExecution,
+    isConnected,
+    isReadOnly,
+    logout,
+    quickBasket,
+    quickForm.amountUsd,
+    quickForm.chain,
+    quickForm.paymentToken,
+    quickForm.portfolioType,
+    quickForm.risk,
+    setShowWalletPrompt,
+  ]);
+
   const handleSendMessage = () => {
     if (isReadOnly || !message.trim()) return;
-    sendChatMessage(message);
+    const trimmed = String(message).trim();
+    if (trimmed === "Build Quick Portfolio") {
+      setMessage("");
+      closeQuickWizard();
+      dispatch(
+        addCurrentMessage({
+          id: Date.now() + 1,
+          type: "user",
+          content: "Build Quick Portfolio",
+          timestamp: new Date(),
+        }),
+      );
+      dispatch(
+        addCurrentMessage({
+          id: Date.now() + 2,
+          type: "ai",
+          content: "",
+          timestamp: new Date(),
+        }),
+      );
+      openQuickWizard();
+      return;
+    }
+    if (trimmed === "Build a Portfolio - Guided") {
+      sendChatMessage("Build a Portfolio");
+      dispatch(setMessage(""));
+      return;
+    }
+    if (trimmed === "Build a Portfolio -- Guided") {
+      sendChatMessage("Build a Portfolio");
+      dispatch(setMessage(""));
+      return;
+    }
+    if (trimmed === "Build a Portfolio") {
+      setLastBuildMode("guided");
+    }
+    sendChatMessage(trimmed);
     dispatch(setMessage(""));
   };
 
@@ -777,7 +1276,39 @@ export function ChatPage() {
   );
 
   const handleSuggestionClick = (suggestion) => {
-    sendChatMessage(suggestion);
+    const s = String(suggestion);
+    if (s === "Build Quick Portfolio") {
+      // dispatch(
+      //   addCurrentMessage({
+      //     id: Date.now() + 1,
+      //     type: "user",
+      //     content: "Build Quick Portfolio",
+      //     timestamp: new Date(),
+      //   }),
+      // );
+      // dispatch(
+      //   addCurrentMessage({
+      //     id: Date.now() + 2,
+      //     type: "ai",
+      //     content: '',
+      //     timestamp: new Date(),
+      //   }),
+      // );
+      openQuickWizard();
+      return;
+    }
+    if (
+      s === "Build a Portfolio - Guided" ||
+      s === "Build a Portfolio -- Guided"
+    ) {
+      setLastBuildMode("guided");
+      sendChatMessage("Build a Portfolio");
+      return;
+    }
+    if (s === "Build a Portfolio") {
+      setLastBuildMode("guided");
+    }
+    sendChatMessage(s);
   };
   useEffect(() => {
     const suggestion = location.state?.chatSuggestion;
@@ -1141,11 +1672,15 @@ export function ChatPage() {
           </NavLink>
           <button
             onClick={() => {
-              handleSuggestionClick("Build a Portfolio");
+              handleSuggestionClick(
+                lastBuildMode === "quick"
+                  ? "Build Quick Portfolio"
+                  : "Build a Portfolio",
+              );
             }}
             className="px-3 py-2 bg-white/80 border border-gray-200 rounded-xl text-xs font-medium hover:bg-white hover:border-gray-300 hover:shadow-md transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            Create another
+            Create another portfolio
           </button>
           {safeOptions.length > 0 && (
             <div className="border-t border-green-200/60">
@@ -1269,6 +1804,28 @@ export function ChatPage() {
             </div>
           </div>
         )}
+
+        <div className="flex gap-2 pt-2">
+          <NavLink
+            to="/portfolio"
+            className="px-3 py-2 bg-white/80 border border-gray-200 rounded-xl text-xs font-medium hover:bg-white hover:border-gray-300 hover:shadow-md transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            View Portfolio
+          </NavLink>
+          <button
+            type="button"
+            onClick={() => {
+              handleSuggestionClick(
+                lastBuildMode === "quick"
+                  ? "Build Quick Portfolio"
+                  : "Build a Portfolio",
+              );
+            }}
+            className="px-3 py-2 bg-white/80 border border-gray-200 rounded-xl text-xs font-medium hover:bg-white hover:border-gray-300 hover:shadow-md transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            Create another portfolio
+          </button>
+        </div>
       </div>
     );
   };
@@ -2140,7 +2697,7 @@ export function ChatPage() {
   return (
     <div className="flex-1 flex flex-col">
       <div className="flex-1 flex flex-col overflow-y-auto">
-        {currentMessages.length === 0 && (
+        {currentMessages.length === 0 && !quickWizardOpen && (
           <div className="h-full flex items-center justify-center px-6">
             <div className="text-center max-w-2xl">
               <h2 className="text-3xl font-bold mb-4">Hello, I'm AlloX</h2>
@@ -2151,7 +2708,8 @@ export function ChatPage() {
 
               <div className="flex flex-wrap gap-2 justify-center mb-8">
                 {[
-                  "Build a Portfolio",
+                  "Build a Portfolio - Guided",
+                  "Build Quick Portfolio",
                   "Explain narratives",
                   "Trending Tokens",
                   "How should I invest $100?",
@@ -2171,100 +2729,106 @@ export function ChatPage() {
           </div>
         )}
       </div>
-      {isConnected && !isReadOnly && showRecentPortfoliosPanel && recentPortfolios.length > 0 && (
-        <aside className="w-60 shrink-0 hidden lg:block fixed right-7">
-          <div className="sticky top-24">
-            <div className="glass-card p-4 border border-gray-200/50 bg-white/40">
-              <div className="flex items-center justify-between gap-2 mb-3">
-                <h3 className="text-sm font-bold text-gray-900">
-                  Recent portfolios
-                </h3>
-                <div className="flex items-center gap-1 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setShowRecentPortfoliosPanel(false)}
-                    className="p-1 rounded-lg hover:bg-black/5 text-gray-500"
-                    aria-label="Hide recent portfolios"
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
-              </div>
-
-              {recentPortfoliosLoading ? (
-                <div className="space-y-3">
-                  {[0, 1, 2].map((i) => (
-                    <div
-                      key={i}
-                      className="p-3 rounded-2xl border border-gray-200/60 bg-white/60 animate-pulse"
+      {isConnected &&
+        !isReadOnly &&
+        showRecentPortfoliosPanel &&
+        recentPortfolios.length > 0 && (
+          <aside className="w-60 shrink-0 hidden lg:block fixed right-7">
+            <div className="sticky top-24">
+              <div className="glass-card p-4 border border-gray-200/50 bg-white/40">
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <h3 className="text-sm font-bold text-gray-900">
+                    Recent portfolios
+                  </h3>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setShowRecentPortfoliosPanel(false)}
+                      className="p-1 rounded-lg hover:bg-black/5 text-gray-500"
+                      aria-label="Hide recent portfolios"
                     >
-                      <div className="h-3 bg-gray-200/70 rounded w-2/3 mb-2" />
-                      <div className="h-2 bg-gray-200/60 rounded w-4/5 mb-2" />
-                      <div className="h-2 bg-gray-200/60 rounded w-1/2" />
-                    </div>
-                  ))}
+                      <X size={16} />
+                    </button>
+                  </div>
                 </div>
-              ) : recentPortfolios.length > 0 ? (
-                <div className="space-y-3">
-                  {recentPortfolios.map((p) => {
-                    const pid = p?.id;
-                    if (!pid) return null;
-                    const name = p?.name || "Portfolio";
-                    const displayId =
-                      String(pid).length > 12
-                        ? `${String(pid).slice(0, 6)}...${String(pid).slice(
-                            -4,
-                          )}`
-                        : String(pid);
-                    const totalValue =
-                      p?.totalCurrentValue ??
-                      p?.totalCurrentValueUsd ??
-                      p?.totalValue;
 
-                    return (
-                      <button
-                        key={String(pid)}
-                        type="button"
-                        disabled={messagesRemaining === 0}
-                        onClick={() =>
-                          sendChatMessage(
-                            `Tell me more details about my portfolio with ID: ${pid}`,
-                          )
-                        }
-                        className="w-full text-left p-3 rounded-2xl border border-gray-200/60 bg-white/60 hover:bg-white/80 hover:border-gray-300 hover:shadow-md transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                {recentPortfoliosLoading ? (
+                  <div className="space-y-3">
+                    {[0, 1, 2].map((i) => (
+                      <div
+                        key={i}
+                        className="p-3 rounded-2xl border border-gray-200/60 bg-white/60 animate-pulse"
                       >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className="text-sm font-semibold text-gray-900 truncate">
-                              {name}
-                            </div>
-                            <div className="text-[11px] text-gray-600 mt-1 truncate">
-                              ID: {displayId}
-                            </div>
-                            {p?.riskProfile ? (
-                              <div className="text-[11px] text-gray-600 mt-1">
-                                Risk: {String(p.riskProfile).replace(/_/g, " ")}
-                              </div>
-                            ) : null}
-                          </div>
-                        </div>
+                        <div className="h-3 bg-gray-200/70 rounded w-2/3 mb-2" />
+                        <div className="h-2 bg-gray-200/60 rounded w-4/5 mb-2" />
+                        <div className="h-2 bg-gray-200/60 rounded w-1/2" />
+                      </div>
+                    ))}
+                  </div>
+                ) : recentPortfolios.length > 0 ? (
+                  <div className="space-y-3">
+                    {recentPortfolios.map((p) => {
+                      const pid = p?.id;
+                      if (!pid) return null;
+                      const name = p?.name || "Portfolio";
+                      const displayId =
+                        String(pid).length > 12
+                          ? `${String(pid).slice(0, 6)}...${String(pid).slice(
+                              -4,
+                            )}`
+                          : String(pid);
+                      const totalValue =
+                        p?.totalCurrentValue ??
+                        p?.totalCurrentValueUsd ??
+                        p?.totalValue;
 
-                        {totalValue != null ? (
-                          <div className="mt-2 text-xs text-gray-700">
-                            Value: {`$${Number(totalValue).toFixed(2)}`}
+                      return (
+                        <button
+                          key={String(pid)}
+                          type="button"
+                          disabled={messagesRemaining === 0}
+                          onClick={() =>
+                            sendChatMessage(
+                              `Tell me more details about my portfolio with ID: ${pid}`,
+                            )
+                          }
+                          className="w-full text-left p-3 rounded-2xl border border-gray-200/60 bg-white/60 hover:bg-white/80 hover:border-gray-300 hover:shadow-md transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="text-sm font-semibold text-gray-900 truncate">
+                                {name}
+                              </div>
+                              <div className="text-[11px] text-gray-600 mt-1 truncate">
+                                ID: {displayId}
+                              </div>
+                              {p?.riskProfile ? (
+                                <div className="text-[11px] text-gray-600 mt-1">
+                                  Risk:{" "}
+                                  {String(p.riskProfile).replace(/_/g, " ")}
+                                </div>
+                              ) : null}
+                            </div>
                           </div>
-                        ) : null}
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="text-xs text-gray-500">No portfolios yet.</div>
-              )}
+
+                          {totalValue != null ? (
+                            <div className="mt-2 text-xs text-gray-700">
+                              Value: {`$${Number(totalValue).toFixed(2)}`}
+                            </div>
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-xs text-gray-500">
+                    No portfolios yet.
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        </aside>
-      )}
+          </aside>
+        )}
 
       <div className="shrink-0 fixed left-0 w-full z-4 bottom-0 border-t border-gray-200/50 bg-pattern/95 backdrop-blur-lg">
         <div className="px-6 py-6 max-w-250 mx-auto w-full">
@@ -2629,13 +3193,336 @@ export function ChatPage() {
         </div>
       )}
 
-      {currentMessages.length > 0 && (
+      {(currentMessages.length > 0 || quickWizardOpen) && (
         <div
           className={`py-8 px-6 max-w-250 mx-auto w-full ${isReadOnly ? "chat-padding-readonly" : "chat-padding"}`}
           ref={speechBoxRef}
         >
           <div className="flex items-start gap-8">
             <div className="flex-1 min-w-0 space-y-6">
+              {quickWizardOpen && (
+                <ChatBubble type="ai">
+                  <div className="space-y-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <h3 className="text-lg font-bold truncate">
+                          Build Quick Portfolio
+                        </h3>
+                        <div className="text-xs text-gray-600 mt-1">
+                          Fill the form and generate portfolio
+                        </div>
+                      </div>
+                    </div>
+
+                    {quickError && (
+                      <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                        {quickError}
+                      </div>
+                    )}
+
+                    <div className="space-y-6">
+                      <div className="rounded-2xl bg-white/70 border border-gray-200/60 p-4 shadow-sm">
+                        <div className="text-sm font-semibold text-gray-900 mb-2">
+                          Which blockchain would you like to build on?
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {[
+                            {
+                              value: "BSC",
+                              label: "BNB Chain (on chain)",
+                              badge: "BSC",
+                              icon: "https://cdn.allox.ai/allox/networks/bnbIcon.svg",
+                            },
+                            {
+                              value: "ETH",
+                              label: "Ethereum",
+                              badge: "ETH",
+                              icon: "https://cdn.allox.ai/allox/networks/eth.svg",
+                            },
+                            {
+                              value: "BASE",
+                              label: "Base",
+                              badge: "BASE",
+                              icon: "https://cdn.allox.ai/allox/networks/base.svg",
+                            },
+                            {
+                              value: "SOL",
+                              label: "Solana",
+                              badge: "SOL",
+                              icon: "https://cdn.allox.ai/allox/networks/solana.svg",
+                            },
+                          ].map((opt) => {
+                            const selected = quickForm.chain === opt.value;
+                            return (
+                              <button
+                                key={opt.value}
+                                type="button"
+                                onClick={() =>
+                                  setQuickForm((p) => ({
+                                    ...p,
+                                    chain: opt.value,
+                                  }))
+                                }
+                                disabled={quickIsGenerating || quickIsExecuting}
+                                className={
+                                  selected
+                                    ? "flex items-center gap-2 px-4 py-2 bg-gray-900 text-white border border-gray-900 rounded-xl text-sm font-medium hover:bg-gray-800 shadow-sm"
+                                    : "flex items-center gap-2 px-4 py-2 bg-white/80 border border-gray-200 rounded-xl text-sm font-medium hover:bg-white hover:border-gray-300"
+                                }
+                              >
+                                <span className="inline-flex items-center gap-2">
+                                  <img
+                                    src={opt.icon}
+                                    alt=""
+                                    className="h-6 w-6"
+                                  />
+                                  {opt.label}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="rounded-2xl bg-white/70 border border-gray-200/60 p-4 shadow-sm">
+                        <div className="text-sm font-semibold text-gray-900 mb-2">
+                          What type of portfolio interests you?
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {[
+                            {
+                              value: "Diversified",
+                              label: "Diversified",
+                              badge: "D",
+                            },
+                            { value: "Defi", label: "DeFi", badge: "DeFi" },
+                            {
+                              value: "RWA",
+                              label: "Real world assets (RWA)",
+                              badge: "RWA",
+                            },
+                            { value: "AI", label: "AI", badge: "AI" },
+                            { value: "Gaming", label: "Gaming", badge: "G" },
+                            { value: "DePin", label: "DePin", badge: "DP" },
+                          ].map((opt) => {
+                            const selected =
+                              quickForm.portfolioType === opt.value;
+                            return (
+                              <button
+                                key={opt.value}
+                                type="button"
+                                onClick={() =>
+                                  setQuickForm((p) => ({
+                                    ...p,
+                                    portfolioType: opt.value,
+                                  }))
+                                }
+                                disabled={quickIsGenerating || quickIsExecuting}
+                                className={
+                                  selected
+                                    ? "px-4 py-2 bg-gray-900 text-white border border-gray-900 rounded-xl text-sm font-medium hover:bg-gray-800 shadow-sm"
+                                    : "px-4 py-2 bg-white/80 border border-gray-200 rounded-xl text-sm font-medium hover:bg-white hover:border-gray-300"
+                                }
+                              >
+                                <span className="inline-flex items-center gap-2">
+                                  {/* <span className="w-5 h-5 rounded-full bg-black/5 border border-gray-200 text-[10px] font-bold flex items-center justify-center">
+                                    {opt.badge}
+                                  </span> */}
+                                  {opt.label}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="rounded-2xl bg-white/70 border border-gray-200/60 p-4 shadow-sm">
+                        <div className="text-sm font-semibold text-gray-900 mb-2">
+                          How much would you like to invest?
+                        </div>
+                        <div className="flex flex-wrap gap-2 mb-3">
+                          {[5, 100, 500].map((amt) => {
+                            const selected = quickForm.amountUsd === amt;
+                            return (
+                              <button
+                                key={amt}
+                                type="button"
+                                onClick={() =>
+                                  setQuickForm((p) => ({
+                                    ...p,
+                                    amountUsd: amt,
+                                    customAmountUsdText: "",
+                                  }))
+                                }
+                                disabled={quickIsGenerating || quickIsExecuting}
+                                className={
+                                  selected
+                                    ? "px-4 py-2 bg-gray-900 text-white border border-gray-900 rounded-xl text-sm font-medium hover:bg-gray-800 shadow-sm"
+                                    : "px-4 py-2 bg-white/80 border border-gray-200 rounded-xl text-sm font-medium hover:bg-white hover:border-gray-300"
+                                }
+                              >
+                                ${amt}
+                              </button>
+                            );
+                          })}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setQuickForm((p) => ({
+                                ...p,
+                                amountUsd: null,
+                              }))
+                            }
+                            disabled={quickIsGenerating || quickIsExecuting}
+                            className={
+                              quickForm.amountUsd == null
+                                ? "px-4 py-2 bg-gray-900 text-white border border-gray-900 rounded-xl text-sm font-medium hover:bg-gray-800 shadow-sm"
+                                : "px-4 py-2 bg-white/80 border border-gray-200 rounded-xl text-sm font-medium hover:bg-white hover:border-gray-300"
+                            }
+                          >
+                            Custom
+                          </button>
+                        </div>
+                        <label className="block text-sm text-gray-700 mb-2">
+                          Custom amount (USD)
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          step="1"
+                          value={quickForm.customAmountUsdText}
+                          placeholder="$ e.g. 250"
+                          onChange={(e) => {
+                            const raw = e.target.value;
+                            setQuickForm((p) => ({
+                              ...p,
+                              customAmountUsdText: raw,
+                              amountUsd: raw.trim() === "" ? null : Number(raw),
+                            }));
+                          }}
+                          disabled={quickIsGenerating || quickIsExecuting}
+                          className="w-full px-4 py-3 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-black/10 bg-white/70"
+                        />
+                      </div>
+
+                      <div className="rounded-2xl bg-white/70 border border-gray-200/60 p-4 shadow-sm">
+                        <div className="text-sm font-semibold text-gray-900 mb-2">
+                          What's your risk tolerance?
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                          {[
+                            {
+                              value: "CONSERVATIVE",
+                              title: "High Cap",
+                              subtitle: "Lower risk",
+                              base: "bg-green-50 border-green-200 text-green-800 hover:border-green-300",
+                              selected:
+                                "bg-green-100 border-green-400 ring-2 ring-green-300/60",
+                            },
+                            {
+                              value: "BALANCED",
+                              title: "Mid Cap",
+                              subtitle: "Medium risk",
+                              base: "bg-blue-50 border-blue-200 text-blue-800 hover:border-blue-300",
+                              selected:
+                                "bg-blue-100 border-blue-400 ring-2 ring-blue-300/60",
+                            },
+                            {
+                              value: "AGGRESSIVE",
+                              title: "Low Cap",
+                              subtitle: "Higher risk",
+                              base: "bg-orange-50 border-orange-200 text-orange-800 hover:border-orange-300",
+                              selected:
+                                "bg-orange-100 border-orange-400 ring-2 ring-orange-300/60",
+                            },
+                          ].map((opt) => {
+                            const selected = quickForm.risk === opt.value;
+                            return (
+                              <button
+                                key={opt.value}
+                                type="button"
+                                onClick={() =>
+                                  setQuickForm((p) => ({
+                                    ...p,
+                                    risk: opt.value,
+                                  }))
+                                }
+                                disabled={quickIsGenerating || quickIsExecuting}
+                                className={` flex flex-col items-center px-4 py-2 rounded-xl border text-left transition-all ${
+                                  selected ? opt.selected : opt.base
+                                }`}
+                              >
+                                <div className="text-sm font-semibold leading-tight">
+                                  {opt.value}
+                                </div>
+                                <div className="text-[11px] opacity-80 leading-tight mt-0.5">
+                                  {opt.subtitle}
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* <div className="rounded-2xl bg-white/70 border border-gray-200/60 p-4 shadow-sm">
+                        <div className="text-sm font-semibold text-gray-900 mb-2">
+                          Choose payment token
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {[
+                            { value: "BNB", label: "BNB" },
+                            { value: "USDT", label: "USDT" },
+                            { value: "USDC", label: "USDC" },
+                          ].map((opt) => {
+                            const selected =
+                              quickForm.paymentToken === opt.value;
+                            return (
+                              <button
+                                key={opt.value}
+                                type="button"
+                                onClick={() =>
+                                  setQuickForm((p) => ({
+                                    ...p,
+                                    paymentToken: opt.value,
+                                  }))
+                                }
+                                disabled={quickIsGenerating || quickIsExecuting}
+                                className={
+                                  selected
+                                    ? "px-4 py-2 bg-gray-900 text-white border border-gray-900 rounded-xl text-sm font-medium hover:bg-gray-800 shadow-sm"
+                                    : "px-4 py-2 bg-white/80 border border-gray-200 rounded-xl text-sm font-medium hover:bg-white hover:border-gray-300"
+                                }
+                              >
+                                {opt.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div> */}
+
+                      <div className="flex justify-end pt-2">
+                        <button
+                          type="button"
+                          onClick={() => void handleQuickGenerate("generate")}
+                          disabled={
+                            quickIsGenerating ||
+                            quickIsExecuting ||
+                            !quickForm.chain ||
+                            !quickForm.portfolioType ||
+                            !quickForm.amountUsd ||
+                            !quickForm.risk
+                            // ||!quickForm.paymentToken
+                          }
+                          className="px-6 py-3 bg-gray-900 text-white border border-gray-900 rounded-2xl text-sm font-semibold hover:bg-gray-800 disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                          {quickIsGenerating ? "Generating..." : "Generate"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </ChatBubble>
+              )}
+
               {currentMessages.map((msg, index) => {
                 const isUser =
                   msg.type === "user" ||
@@ -2681,7 +3568,11 @@ export function ChatPage() {
                                   key={`${option.action}-${option.value}-${index}`}
                                   onClick={() => handleOptionClick(option)}
                                   disabled={isReadOnly}
-                                  className={ option?.value === "confirm" ? 'px-3 py-2 bg-black text-white border border-gray-200 rounded-xl text-xs font-medium hover:bg-gray-800 hover:shadow-md transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed' :"px-3 py-2 bg-white/80 border border-gray-200 rounded-xl text-xs font-medium hover:bg-white hover:border-gray-300 hover:shadow-md transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"}
+                                  className={
+                                    option?.value === "confirm"
+                                      ? "px-3 py-2 bg-black text-white border border-gray-200 rounded-xl text-xs font-medium hover:bg-gray-800 hover:shadow-md transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+                                      : "px-3 py-2 bg-white/80 border border-gray-200 rounded-xl text-xs font-medium hover:bg-white hover:border-gray-300 hover:shadow-md transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+                                  }
                                 >
                                   {option.label ||
                                     option.value ||
@@ -2748,6 +3639,144 @@ export function ChatPage() {
                 </ChatBubble>
               )}
 
+              {/* {quickBasket.length > 0 && (
+                <ChatBubble type="ai">
+                  <div className="space-y-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-semibold text-gray-900">
+                          Token basket preview
+                        </div>
+                        <div className="text-xs text-gray-600 mt-1">
+                          {quickPreviewMeta?.chain
+                            ? `${quickPreviewMeta.chain} · ${
+                                quickPreviewMeta?.executionMode === "ON_CHAIN"
+                                  ? "On-Chain Execution"
+                                  : "Paper Trading Preview"
+                              }`
+                            : ""}
+                        </div>
+                      </div>
+                      
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <table className="w-full min-w-[480px] text-sm bg-gradient-to-br from-blue-50/80 to-purple-50/80 border border-blue-200/50">
+                        <thead>
+                          <tr className="border-b border-gray-200 bg-gray-50/80">
+                            <th className="px-4 py-3 text-left font-semibold text-gray-700">
+                              Token
+                            </th>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-700">
+                              Category
+                            </th>
+                            <th className="px-4 py-3 text-right font-semibold text-gray-700">
+                              Allocation
+                            </th>
+                            <th className="px-4 py-3 text-right font-semibold text-gray-700">
+                              Quantity
+                            </th>
+                            <th className="px-4 py-3 text-right font-semibold text-gray-700">
+                              Price
+                            </th>
+                            <th className="px-4 py-3 text-right font-semibold text-gray-700 w-10" />
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {quickBasket.map((t, idx) => (
+                            <tr
+                              key={String(t.id || `${t.symbol}-${idx}`)}
+                              className="border-b border-gray-100 last:border-0 hover:bg-gray-50/50"
+                            >
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-3 min-w-0">
+                                  {t.logo ? (
+                                    <img
+                                      src={t.logo}
+                                      alt={t.symbol}
+                                      className="w-7 h-7 rounded-full bg-white border border-gray-200 object-cover"
+                                      loading="lazy"
+                                    />
+                                  ) : (
+                                    <div className="w-7 h-7 rounded-full bg-gray-100 border border-gray-200" />
+                                  )}
+                                  <div className="min-w-0">
+                                    <div className="font-bold text-gray-900 truncate">
+                                      {t.symbol}
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 text-gray-800">
+                                {t.category || "—"}
+                              </td>
+                              <td className="px-4 py-3 text-right font-medium text-gray-900">
+                                ${Number(t.allocationUsd ?? 0).toFixed(2)}
+                              </td>
+                              <td className="px-4 py-3 text-right font-medium text-gray-800">
+                                {t.quantity != null
+                                  ? getFormattedNumber(t.quantity, 6)
+                                  : "—"}
+                              </td>
+                              <td className="px-4 py-3 text-right font-medium text-gray-800">
+                                {t.price != null
+                                  ? `$${getFormattedNumber(t.price, 6)}`
+                                  : "—"}
+                              </td>
+                              <td className="px-4 py-3 text-right">
+                                <button
+                                  type="button"
+                                      onClick={() =>
+                                        handleQuickRequestRemoveToken(t)
+                                      }
+                                  disabled={
+                                    quickIsGenerating || quickIsExecuting
+                                  }
+                                  className="p-1 rounded-lg hover:bg-black/5 text-gray-500 disabled:opacity-60"
+                                  aria-label={`Remove ${t.symbol}`}
+                                >
+                                  <X size={16} />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 justify-end pt-2">
+                      <button
+                        type="button"
+                        onClick={() => void handleQuickGenerate("regenerate")}
+                        disabled={
+                          quickIsGenerating ||
+                          quickIsExecuting ||
+                          !quickForm.chain ||
+                          !quickForm.portfolioType ||
+                          !quickForm.amountUsd ||
+                          !quickForm.risk ||
+                          !quickForm.paymentToken
+                        }
+                        className="px-5 py-2 bg-white/80 border border-gray-200 rounded-xl text-sm font-semibold hover:bg-white hover:border-gray-300 disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        Regenerate
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleQuickConfirmAndExecute()}
+                        disabled={
+                          quickIsGenerating ||
+                          quickIsExecuting ||
+                          quickBasket.length === 0
+                        }
+                        className="px-5 py-2 bg-gray-900 text-white border border-gray-900 rounded-xl text-sm font-semibold hover:bg-gray-800 disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                       Confirm
+                      </button>
+                    </div>
+                  </div>
+                </ChatBubble>
+              )} */}
               {executionState.isExecuting && (
                 <div className="mt-4 glass-card p-4 border border-blue-200/60 bg-blue-50/40 flex items-center justify-between gap-3 text-sm">
                   <div className="flex items-center gap-2">
@@ -2761,6 +3790,42 @@ export function ChatPage() {
                           ? `Processing ${executionState.currentSymbol} (${executionState.completed}/${executionState.total} done)`
                           : `Swaps completed: ${executionState.completed}/${executionState.total}`}
                       </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {quickRemoveTarget && (
+                <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+                  <div className="glass-card p-6 max-w-sm w-full mx-4">
+                    <h3 className="text-lg font-semibold mb-2">Remove token</h3>
+                    <p className="text-sm text-gray-700 mb-4">
+                      Remove{" "}
+                      <span className="font-semibold">
+                        {quickRemoveTarget.symbol}
+                      </span>{" "}
+                      {quickRemoveTarget.name
+                        ? `(${quickRemoveTarget.name})`
+                        : ""}{" "}
+                      from this portfolio?
+                    </p>
+                    <div className="flex justify-end gap-2">
+                      <button
+                        type="button"
+                        className="px-3 py-2 text-xs rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-100 disabled:opacity-60"
+                        onClick={handleQuickCancelRemoveToken}
+                        disabled={quickIsRemoving}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        className="px-3 py-2 text-xs rounded-xl bg-red-600 text-white hover:bg-red-700 disabled:opacity-60"
+                        onClick={() => void handleQuickConfirmRemoveToken()}
+                        disabled={quickIsRemoving}
+                      >
+                        {quickIsRemoving ? "Removing..." : "Remove"}
+                      </button>
                     </div>
                   </div>
                 </div>
