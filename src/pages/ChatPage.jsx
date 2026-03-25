@@ -798,7 +798,7 @@ export function ChatPage() {
             addCurrentMessage({
               id: Date.now() + 1,
               type: "ai",
-              content: "✅ Portfolio created!",
+              content: "",
               data: { portfolioId, portfolio: completeData },
               timestamp: new Date(),
             }),
@@ -1526,15 +1526,34 @@ export function ChatPage() {
                     )}
                   </div>
                 </div>
-                <div className="text-right text-xs text-gray-700">
-                  {p.allocationUsd != null && (
-                    <div>${Number(p.allocationUsd).toFixed(2)}</div>
-                  )}
-                  {p.entryPriceUsd != null && (
-                    <div className="text-[11px] text-gray-500">
-                      @ ${Number(p.entryPriceUsd).toFixed(4)}
-                    </div>
-                  )}
+                <div className="flex items-center gap-2 shrink-0">
+                  <div className="text-right text-xs text-gray-700">
+                    {p.allocationUsd != null && (
+                      <div>${Number(p.allocationUsd).toFixed(2)}</div>
+                    )}
+                    {p.entryPriceUsd != null && (
+                      <div className="text-[11px] text-gray-500">
+                        @ ${Number(p.entryPriceUsd).toFixed(4)}
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleQuickRequestRemoveToken({
+                        symbol: p.symbol || p.name,
+                        name: p.name,
+                      });
+                    }}
+                    disabled={isReadOnly || quickIsRemoving}
+                    className="p-1 rounded-lg hover:bg-black/5 text-gray-500 disabled:opacity-60"
+                    aria-label={`Remove ${p.symbol || p.name || "token"}`}
+                    title={`Remove ${p.symbol || p.name || "token"}`}
+                  >
+                    <X size={16} />
+                  </button>
                 </div>
               </div>
             ))}
@@ -1566,21 +1585,32 @@ export function ChatPage() {
       txHash ? `https://bscscan.com/tx/${txHash}` : null;
 
     return (
-      <div className="mt-3 rounded-2xl border border-green-200 bg-green-50/70 p-4 text-sm text-green-800 space-y-3">
-        <div className="flex justify-between gap-3">
-          <div className="flex flex-col gap-2">
-            <div className="font-semibold text-green-900 flex gap-2 items-center">
-              <CheckCircle2
-                size={16}
-                className="text-green-600 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-md"
-              />{" "}
-              On-chain portfolio executed
+      <div className="mt-3 border border-gray-200 bg-white/80 shadow-sm p-4 rounded-2xl space-y-3">
+        <div className="flex justify-center gap-3">
+          <div className="p-6 text-center">
+            <div className="mx-auto w-14 h-14 rounded-full bg-green-100 border border-green-200 flex items-center justify-center">
+              <CheckCircle2 className="w-7 h-7 text-green-600" />
             </div>
-            {/* <div className="text-xs text-green-800">
-              {portfolio.name ? `${portfolio.name} · ` : ""}
-              {chainLabel} · {portfolio.status}
-            </div> */}
+            <div className="mt-1 text-xl font-bold text-gray-900">
+              Portfolio Created!
+            </div>
+            {/* <div className="mt-1 text-sm text-gray-600">
+            {summary?.confirmed != null
+              ? `All ${summary.confirmed} transactions confirmed`
+              : positions.length > 0
+                ? `All ${positions.length} transactions confirmed`
+                : "Transactions confirmed"}
+          </div> */}
+            {portfolio.totalInvestment != null && (
+              <div className="mt-2 text-3xl font-bold text-gray-900">
+                ${Number(portfolio.totalInvestment).toFixed(2)}
+              </div>
+            )}
+            <div className="mt-2 text-xs text-gray-500">
+              {chainLabel} · On-Chain Execution
+            </div>
           </div>
+          {/* 
           {portfolio.totalInvestment != null && (
             <div className="text-right flex  gap-2 items-center">
               <div className="text-xs text-green-700">Total executed</div>
@@ -1588,7 +1618,7 @@ export function ChatPage() {
                 ${Number(portfolio.totalInvestment).toFixed(2)}
               </div>
             </div>
-          )}
+          )} */}
         </div>
 
         {summary && (
@@ -1600,7 +1630,7 @@ export function ChatPage() {
         )}
 
         {positions.length > 0 && (
-          <div className="space-y-1">
+          <div className="space-y-1 space-y-1  border border-green-200 bg-green-50/70 rounded-2xl p-2 text-sm text-green-800">
             <div className="text-xs font-semibold text-green-900">Swaps</div>
             <div className="space-y-1 max-h-44 overflow-y-auto pr-1">
               {positions.map((p, idx) => {
@@ -1644,13 +1674,13 @@ export function ChatPage() {
         )}
 
         {skipped.length > 0 && (
-          <div className="space-y-1">
-            <div className="text-xs font-semibold text-green-900">Skipped</div>
+          <div className="space-y-1 bg-amber-100 p-2 rounded-2xl">
+            <div className="text-xs font-semibold text-orange-900">Skipped</div>
             <div className="space-y-1">
               {skipped.map((s, idx) => (
                 <div
                   key={`${s.symbol || idx}-${idx}`}
-                  className="flex items-center justify-between rounded-xl bg-white/60 border border-green-200/50 px-3 py-2"
+                  className="flex items-center justify-between rounded-xl bg-white/60 border border-orange-200/50 px-3 py-2"
                 >
                   <div className="text-xs font-medium text-gray-900">
                     {s.symbol || "Unknown"}
@@ -1712,33 +1742,41 @@ export function ChatPage() {
     const safeOptions = Array.isArray(options) ? options : [];
 
     return (
-      <div className="mt-3 rounded-2xl border border-green-200 bg-green-50/70 p-4 text-sm text-green-800 space-y-3">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="font-semibold text-green-900 flex gap-2 items-center">
-              <CheckCircle2
-                size={16}
-                className="text-green-600 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-md"
-              />{" "}
-              Portfolio created (Paper Trading)
+       <div className="mt-3 border border-gray-200 bg-white/80 shadow-sm p-4 rounded-2xl space-y-3">
+        <div className="flex items-start justify-center gap-3">
+          <div className="p-6 text-center">
+            <div className="mx-auto w-14 h-14 rounded-full bg-green-100 border border-green-200 flex items-center justify-center">
+              <CheckCircle2 className="w-7 h-7 text-green-600" />
             </div>
-            {/* <div className="text-xs text-green-800">
-              {portfolio.name ? `${portfolio.name}` : "Portfolio"}
-              {portfolioId ? ` · ${portfolioId}` : ""}
-            </div> */}
+            <div className="mt-1 text-xl font-bold text-gray-900">
+              Portfolio Created!
+            </div>
+            {/* <div className="mt-1 text-sm text-gray-600">
+            {summary?.confirmed != null
+              ? `All ${summary.confirmed} transactions confirmed`
+              : positions.length > 0
+                ? `All ${positions.length} transactions confirmed`
+                : "Transactions confirmed"}
+          </div> */}
+            {portfolio.totalInvestment != null && (
+              <div className="mt-2 text-3xl font-bold text-gray-900">
+                ${Number(portfolio.totalInvestment).toFixed(2)}
+              </div>
+            )}
+          
           </div>
-          {typeof portfolio.totalTokens === "number" && (
+          {/* {typeof portfolio.totalTokens === "number" && (
             <div className="text-right shrink-0 flex gap-2 items-center">
               <div className="text-xs text-green-700">Tokens</div>
               <div className="font-semibold text-green-900">
                 {portfolio.totalTokens}
               </div>
             </div>
-          )}
+          )} */}
         </div>
 
         {positions.length > 0 && (
-          <div className="space-y-1">
+          <div className="space-y-1 space-y-1  border border-green-200 bg-green-50/70 rounded-2xl p-2 text-sm text-green-800">
             <div className="text-xs font-semibold text-green-900">
               Positions
             </div>
@@ -2030,28 +2068,56 @@ export function ChatPage() {
       if (isProcessing || status === "processing") {
         return {
           rowClass:
-            "bg-blue-50/80 border border-blue-300/70 hover:bg-blue-100/60",
-          icon: <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-600" />,
+            "bg-blue-100 border-y border-blue-200/80 hover:bg-blue-100/60 transition-colors",
+          leftIcon: (
+            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 border border-blue-200">
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-600" />
+            </span>
+          ),
+          rightLabel: "Processing",
+          rightLabelClass:
+            "text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-full",
         };
       }
       if (status === "success") {
         return {
           rowClass:
-            "bg-green-50/80 border border-green-300/70 hover:bg-green-100/60",
-          icon: <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />,
+            "bg-green-100 border-y border-green-200/80 hover:bg-green-100/60 transition-colors",
+          leftIcon: (
+            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-green-100 border border-green-200">
+              <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
+            </span>
+          ),
+          rightLabel: "Done",
+          rightLabelClass:
+            "text-xs font-semibold text-green-700 bg-green-50 border border-green-200 px-2.5 py-1 rounded-full",
         };
       }
       if (status === "skipped") {
         return {
           rowClass:
-            "bg-amber-50/80 border border-amber-300/80 hover:bg-amber-100/60",
-          icon: <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />,
+            "bg-amber-100 border-y border-amber-200/90 hover:bg-amber-100/60 transition-colors",
+          leftIcon: (
+            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-100 border border-amber-200">
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+            </span>
+          ),
+          rightLabel: "Skipped",
+          rightLabelClass:
+            "text-xs font-semibold text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full",
         };
       }
 
       return {
         rowClass: "border-b border-gray-100 last:border-0 hover:bg-gray-50/50",
-        icon: null,
+        leftIcon: (
+          <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 border border-gray-200">
+            <span className="w-2.5 h-2.5 rounded-full bg-gray-400" />
+          </span>
+        ),
+        rightLabel: "Pending",
+        rightLabelClass:
+          "text-xs font-semibold text-gray-600 bg-gray-50 border border-gray-200 px-2.5 py-1 rounded-full",
       };
     };
 
@@ -2202,16 +2268,21 @@ export function ChatPage() {
                   <span className="w-6 font-semibold text-gray-500">
                     {entry.rank}.
                   </span>
-                  <div className="min-w-0 flex flex-col">
-                    <span className="font-bold text-gray-900 flex items-center gap-1.5">
-                      {rowUi.icon}
-                      {entry.ticker}
-                    </span>
-                    {entry.nameChain && (
-                      <span className="text-gray-500 text-xs ml-0">
-                        ({entry.nameChain})
+                  <div className="min-w-0 flex items-center justify-between gap-3">
+                    <div className="min-w-0 flex flex-col">
+                      <span className="font-bold text-gray-900 flex items-center gap-2 min-w-0">
+                        {rowUi.leftIcon}
+                        <span className="truncate">{entry.ticker}</span>
                       </span>
-                    )}
+                      {entry.nameChain && (
+                        <span className="text-gray-500 text-xs ml-8 truncate">
+                          ({entry.nameChain})
+                        </span>
+                      )}
+                    </div>
+                    {/* <span className={rowUi.rightLabelClass}>
+                      {rowUi.rightLabel}
+                    </span> */}
                   </div>
                   <span className="text-right font-medium text-gray-900">
                     ${entry.price} USD
@@ -2631,11 +2702,18 @@ export function ChatPage() {
                       <tr key={ri} className={rowClass}>
                         {row.map((cell, ci) => (
                           <td key={ci} className="px-4 py-2.5 text-gray-800">
-                            {ci === tokenColumnIndex && rowUi?.icon ? (
-                              <span className="inline-flex items-center gap-1.5">
-                                {rowUi.icon}
-                                {renderInlineBold(cell)}
-                              </span>
+                            {ci === tokenColumnIndex && rowUi ? (
+                              <div className="flex items-center justify-between gap-3">
+                                <span className="inline-flex items-center gap-2 min-w-0">
+                                  {rowUi.leftIcon}
+                                  <span className="truncate">
+                                    {renderInlineBold(cell)}
+                                  </span>
+                                </span>
+                                {/* <span className={rowUi.rightLabelClass}>
+                                  {rowUi.rightLabel}
+                                </span> */}
+                              </div>
                             ) : (
                               renderInlineBold(cell)
                             )}
@@ -2708,8 +2786,9 @@ export function ChatPage() {
 
               <div className="flex flex-wrap gap-2 justify-center mb-8">
                 {[
-                  "Build a Portfolio - Guided",
                   "Build Quick Portfolio",
+                  "Build a Portfolio - Guided",
+
                   "Explain narratives",
                   "Trending Tokens",
                   "How should I invest $100?",
@@ -3389,7 +3468,7 @@ export function ChatPage() {
                         <input
                           type="number"
                           min="1"
-                          step="1"
+                          maxLength={8}
                           value={quickForm.customAmountUsdText}
                           placeholder="$ e.g. 250"
                           onChange={(e) => {
