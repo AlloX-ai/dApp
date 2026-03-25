@@ -1282,7 +1282,7 @@ export function ChatPage() {
     // "1. **LINK (Chainlink)**: $9.84, Market Cap $6.96B, 24h Vol $919M"
     // or "1. **LINK (Chainlink)**: $9.84 USD, Market Cap $6.96B, 24h Vol $919M"
     let match = line.match(
-      /^(\d+)\.\s+\*\*([A-Z0-9]+)\s*\(([^)]+)\)\*\*:\s*\$?([\d,.]+)\s*(?:USD)?[,]?\s*Market Cap\s*\$?([\d.]+[BMK]?)[,]?\s*24h Vol\s*\$?([\d.]+[BMK]?)/i,
+      /^(\d+)\.\s+\*\*([A-Z0-9]+)\s*\(([^)]+)\)\*\*:\s*\$?([\d,.]+)\s*(?:USD)?[,]?\s*Market Cap\s*:?\s*\$?([\d.]+[BMK]?)[,]?\s*24h Vol\s*:?\s*\$?([\d.]+[BMK]?)/i,
     );
     if (match) {
       return {
@@ -2171,7 +2171,7 @@ export function ChatPage() {
           </div>
         )}
       </div>
-      {isConnected && !isReadOnly && showRecentPortfoliosPanel && (
+      {isConnected && !isReadOnly && showRecentPortfoliosPanel && recentPortfolios.length > 0 && (
         <aside className="w-60 shrink-0 hidden lg:block fixed right-7">
           <div className="sticky top-24">
             <div className="glass-card p-4 border border-gray-200/50 bg-white/40">
@@ -2681,7 +2681,7 @@ export function ChatPage() {
                                   key={`${option.action}-${option.value}-${index}`}
                                   onClick={() => handleOptionClick(option)}
                                   disabled={isReadOnly}
-                                  className="px-3 py-2 bg-white/80 border border-gray-200 rounded-xl text-xs font-medium hover:bg-white hover:border-gray-300 hover:shadow-md transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+                                  className={ option?.value === "confirm" ? 'px-3 py-2 bg-black text-white border border-gray-200 rounded-xl text-xs font-medium hover:bg-gray-800 hover:shadow-md transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed' :"px-3 py-2 bg-white/80 border border-gray-200 rounded-xl text-xs font-medium hover:bg-white hover:border-gray-300 hover:shadow-md transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"}
                                 >
                                   {option.label ||
                                     option.value ||
