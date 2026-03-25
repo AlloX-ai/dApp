@@ -2,12 +2,15 @@ import { useRef, useEffect, useState, useCallback } from "react";
 import {
   Send,
   Loader2,
+  CheckCircle2,
+  AlertTriangle,
   Wallet,
   Gift,
   Clock,
   X,
   RefreshCw,
   HelpCircle,
+  Check,
 } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import { ChatBubble } from "../components/ChatBubble";
@@ -28,7 +31,7 @@ import {
 import { apiCall } from "../utils/api";
 import { executePortfolioOnChain } from "../utils/execution";
 import { useAuth } from "../hooks/useAuth";
-import { NavLink } from "react-router";
+import { NavLink, useLocation, useNavigate } from "react-router";
 import getFormattedNumber from "../hooks/get-formatted-number";
 import { toast } from "sonner";
 
@@ -99,6 +102,8 @@ const NARRATIVE_MODAL_OPTIONS = [
 
 export function ChatPage() {
   const dispatch = useDispatch();
+  const location = useLocation();
+  const navigate = useNavigate();
   const {
     message,
     currentMessages,
@@ -126,6 +131,7 @@ export function ChatPage() {
   const typingTimerRef = useRef(null);
   const typingMessageRef = useRef(null);
   const completedMessageIdsRef = useRef(new Set());
+  const consumedRouteSuggestionKeysRef = useRef(new Set());
   const [showWalletPrompt, setShowWalletPrompt] = useState(false);
   const [showWelcomeGiftModal, setShowWelcomeGiftModal] = useState(false);
   const [userDismissedClaimModal, setUserDismissedClaimModal] = useState(false);
@@ -151,6 +157,7 @@ export function ChatPage() {
     total: 0,
     error: null,
     portfolioId: null,
+    tokenStatuses: {},
   });
   const [executionPrompt, setExecutionPrompt] = useState(null);
   const executionPromptResolverRef = useRef(null);
@@ -422,15 +429,40 @@ export function ChatPage() {
   const handleExecutionUpdate = useCallback((update) => {
     setExecutionState((prev) => {
       const next = { ...prev, error: null };
+      const symbolKey = update.symbol
+        ? String(update.symbol).toUpperCase()
+        : null;
       if (update.step === "QUOTE_START") {
         next.isExecuting = true;
         next.completed = 0;
         next.currentSymbol = null;
         next.portfolioId = null;
+        next.tokenStatuses = {};
         setExecutionPrompt(null);
         executionPromptResolverRef.current = null;
       } else if (update.step === "QUOTE_COMPLETE") {
         next.total = (update.quotedCount || 0) + (update.failedCount || 0);
+        if (
+          Array.isArray(update.failedTokens) &&
+          update.failedTokens.length > 0
+        ) {
+          const failedTokenStatuses = update.failedTokens.reduce(
+            (acc, token) => {
+              const failedSymbol = token?.symbol
+                ? String(token.symbol).toUpperCase()
+                : null;
+              if (failedSymbol) {
+                acc[failedSymbol] = "skipped";
+              }
+              return acc;
+            },
+            {},
+          );
+          next.tokenStatuses = {
+            ...prev.tokenStatuses,
+            ...failedTokenStatuses,
+          };
+        }
       } else if (
         update.step === "POSITION_START" ||
         update.step === "POSITION_PREPARED" ||
@@ -438,8 +470,20 @@ export function ChatPage() {
         update.step === "POSITION_STATUS"
       ) {
         next.currentSymbol = update.symbol || null;
+        if (symbolKey) {
+          next.tokenStatuses = {
+            ...prev.tokenStatuses,
+            [symbolKey]: "processing",
+          };
+        }
       } else if (update.step === "POSITION_REJECTED") {
         next.currentSymbol = null;
+        if (symbolKey) {
+          next.tokenStatuses = {
+            ...prev.tokenStatuses,
+            [symbolKey]: "skipped",
+          };
+        }
       } else if (
         update.step === "POSITION_CONFIRMED" ||
         update.step === "POSITION_CANCELLED" ||
@@ -448,6 +492,14 @@ export function ChatPage() {
       ) {
         next.completed = (prev.completed || 0) + 1;
         next.currentSymbol = null;
+        if (symbolKey) {
+          const status =
+            update.step === "POSITION_CONFIRMED" ? "success" : "skipped";
+          next.tokenStatuses = {
+            ...prev.tokenStatuses,
+            [symbolKey]: status,
+          };
+        }
         if (update.step === "POSITION_ERROR") {
           next.error = update.error || null;
         }
@@ -482,8 +534,12 @@ export function ChatPage() {
         setExecutionState((prev) => ({
           ...prev,
           isExecuting: true,
+          currentSymbol: null,
+          completed: 0,
+          total: 0,
           error: null,
           portfolioId: null,
+          tokenStatuses: {},
         }));
         const completeData = await executePortfolioOnChain(execution, {
           onUpdate: handleExecutionUpdate,
@@ -526,7 +582,12 @@ export function ChatPage() {
         );
       }
     },
-    [dispatch, fetchRecentPortfolios, handleExecutionUpdate, promptExecutionDecision],
+    [
+      dispatch,
+      fetchRecentPortfolios,
+      handleExecutionUpdate,
+      promptExecutionDecision,
+    ],
   );
 
   const handleSendMessage = () => {
@@ -718,6 +779,18 @@ export function ChatPage() {
   const handleSuggestionClick = (suggestion) => {
     sendChatMessage(suggestion);
   };
+  useEffect(() => {
+    const suggestion = location.state?.chatSuggestion;
+    if (!suggestion) return;
+    if (consumedRouteSuggestionKeysRef.current.has(location.key)) return;
+    consumedRouteSuggestionKeysRef.current.add(location.key);
+
+    handleSuggestionClick(String(suggestion));
+    navigate(location.pathname + location.search, {
+      replace: true,
+      state: null,
+    });
+  }, [location.state, location.pathname, location.search, navigate]);
 
   const handleOptionClick = useCallback(
     (option) => {
@@ -940,7 +1013,8 @@ export function ChatPage() {
     );
   };
 
-  const renderOnChainPortfolioCreated = (portfolio) => {
+  const renderOnChainPortfolioCreated = (portfolio, options) => {
+    const safeOptions = Array.isArray(options) ? options : [];
     if (!portfolio || typeof portfolio !== "object") return null;
     if (portfolio.executionMode !== "ON_CHAIN") return null;
     const chainNames = {
@@ -962,18 +1036,22 @@ export function ChatPage() {
 
     return (
       <div className="mt-3 rounded-2xl border border-green-200 bg-green-50/70 p-4 text-sm text-green-800 space-y-3">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <div className="font-semibold text-green-900">
-              ✅ On-chain portfolio executed
+        <div className="flex justify-between gap-3">
+          <div className="flex flex-col gap-2">
+            <div className="font-semibold text-green-900 flex gap-2 items-center">
+              <CheckCircle2
+                size={16}
+                className="text-green-600 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-md"
+              />{" "}
+              On-chain portfolio executed
             </div>
-            <div className="text-xs text-green-800">
+            {/* <div className="text-xs text-green-800">
               {portfolio.name ? `${portfolio.name} · ` : ""}
               {chainLabel} · {portfolio.status}
-            </div>
+            </div> */}
           </div>
           {portfolio.totalInvestment != null && (
-            <div className="text-right">
+            <div className="text-right flex  gap-2 items-center">
               <div className="text-xs text-green-700">Total executed</div>
               <div className="font-semibold text-green-900">
                 ${Number(portfolio.totalInvestment).toFixed(2)}
@@ -1054,6 +1132,38 @@ export function ChatPage() {
             </div>
           </div>
         )}
+        <div className="flex gap-2">
+          <NavLink
+            to="/portfolio"
+            className="px-3 py-2 bg-white/80 border border-gray-200 rounded-xl text-xs font-medium hover:bg-white hover:border-gray-300 hover:shadow-md transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            View Portfolio
+          </NavLink>
+          <button
+            onClick={() => {
+              handleSuggestionClick("Build a Portfolio");
+            }}
+            className="px-3 py-2 bg-white/80 border border-gray-200 rounded-xl text-xs font-medium hover:bg-white hover:border-gray-300 hover:shadow-md transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            Create another
+          </button>
+          {safeOptions.length > 0 && (
+            <div className="border-t border-green-200/60">
+              <div className="flex flex-wrap gap-2">
+                {safeOptions.map((option, index) => (
+                  <button
+                    key={`${option.action}-${option.value}-${index}`}
+                    onClick={() => handleOptionClick(option)}
+                    disabled={isReadOnly}
+                    className="px-3 py-2 bg-white/80 border border-gray-200 rounded-xl text-xs font-medium hover:bg-white hover:border-gray-300 hover:shadow-md transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {option.label || option.value || option.action}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     );
   };
@@ -1070,16 +1180,20 @@ export function ChatPage() {
       <div className="mt-3 rounded-2xl border border-green-200 bg-green-50/70 p-4 text-sm text-green-800 space-y-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <div className="font-semibold text-green-900">
-              ✅ Portfolio created (Paper Trading)
+            <div className="font-semibold text-green-900 flex gap-2 items-center">
+              <CheckCircle2
+                size={16}
+                className="text-green-600 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-md"
+              />{" "}
+              Portfolio created (Paper Trading)
             </div>
-            <div className="text-xs text-green-800">
+            {/* <div className="text-xs text-green-800">
               {portfolio.name ? `${portfolio.name}` : "Portfolio"}
               {portfolioId ? ` · ${portfolioId}` : ""}
-            </div>
+            </div> */}
           </div>
           {typeof portfolio.totalTokens === "number" && (
-            <div className="text-right shrink-0">
+            <div className="text-right shrink-0 flex gap-2 items-center">
               <div className="text-xs text-green-700">Tokens</div>
               <div className="font-semibold text-green-900">
                 {portfolio.totalTokens}
@@ -1168,7 +1282,7 @@ export function ChatPage() {
     // "1. **LINK (Chainlink)**: $9.84, Market Cap $6.96B, 24h Vol $919M"
     // or "1. **LINK (Chainlink)**: $9.84 USD, Market Cap $6.96B, 24h Vol $919M"
     let match = line.match(
-      /^(\d+)\.\s+\*\*([A-Z0-9]+)\s*\(([^)]+)\)\*\*:\s*\$?([\d,.]+)\s*(?:USD)?[,]?\s*Market Cap\s*\$?([\d.]+[BMK]?)[,]?\s*24h Vol\s*\$?([\d.]+[BMK]?)/i,
+      /^(\d+)\.\s+\*\*([A-Z0-9]+)\s*\(([^)]+)\)\*\*:\s*\$?([\d,.]+)\s*(?:USD)?[,]?\s*Market Cap\s*:?\s*\$?([\d.]+[BMK]?)[,]?\s*24h Vol\s*:?\s*\$?([\d.]+[BMK]?)/i,
     );
     if (match) {
       return {
@@ -1340,6 +1454,50 @@ export function ChatPage() {
       );
     };
 
+    const normalizeTokenSymbol = (value) =>
+      String(value || "")
+        .replace(/\*\*/g, "")
+        .replace(/\([^)]*\)/g, "")
+        .replace(/[^a-zA-Z0-9]/g, "")
+        .trim()
+        .toUpperCase();
+
+    const getTokenRowExecutionUi = (ticker) => {
+      const symbol = String(ticker || "").toUpperCase();
+      const currentSymbol = String(
+        executionState.currentSymbol || "",
+      ).toUpperCase();
+      const status = executionState.tokenStatuses?.[symbol];
+      const isProcessing = currentSymbol && currentSymbol === symbol;
+
+      if (isProcessing || status === "processing") {
+        return {
+          rowClass:
+            "bg-blue-50/80 border border-blue-300/70 hover:bg-blue-100/60",
+          icon: <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-600" />,
+        };
+      }
+      if (status === "success") {
+        return {
+          rowClass:
+            "bg-green-50/80 border border-green-300/70 hover:bg-green-100/60",
+          icon: <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />,
+        };
+      }
+      if (status === "skipped") {
+        return {
+          rowClass:
+            "bg-amber-50/80 border border-amber-300/80 hover:bg-amber-100/60",
+          icon: <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />,
+        };
+      }
+
+      return {
+        rowClass: "border-b border-gray-100 last:border-0 hover:bg-gray-50/50",
+        icon: null,
+      };
+    };
+
     // Split content by ±X% (optional " 7d" or " 24h") and render green (+) / red (-); text parts get renderInlineBold
     // Handles: "+152% 7d", "+134% 24h", "-2% 7d", "+65% 7d" (core narratives format) and plain "+12.5%"
     const renderWithPercentageColors = (content) => {
@@ -1477,50 +1635,54 @@ export function ChatPage() {
               <span className="text-right">24h Vol</span>
               {hasChange && <span className="text-right">24h %</span>}
             </div>
-            {tokenEntries.map((entry, idx) => (
-              <div
-                key={idx}
-                className={`grid ${gridCols} gap-x-4 gap-y-0 px-4 py-2.5 items-center text-sm border-b border-gray-100 last:border-0 hover:bg-gray-50/50`}
-              >
-                <span className="w-6 font-semibold text-gray-500">
-                  {entry.rank}.
-                </span>
-                <div className="min-w-0 flex flex-col">
-                  <span className="font-bold text-gray-900">
-                    {entry.ticker}
+            {tokenEntries.map((entry, idx) => {
+              const rowUi = getTokenRowExecutionUi(entry.ticker);
+              return (
+                <div
+                  key={idx}
+                  className={`grid ${gridCols} gap-x-4 gap-y-0 px-4 py-2.5 items-center text-sm ${rowUi.rowClass}`}
+                >
+                  <span className="w-6 font-semibold text-gray-500">
+                    {entry.rank}.
                   </span>
-                  {entry.nameChain && (
-                    <span className="text-gray-500 text-xs ml-0">
-                      ({entry.nameChain})
+                  <div className="min-w-0 flex flex-col">
+                    <span className="font-bold text-gray-900 flex items-center gap-1.5">
+                      {rowUi.icon}
+                      {entry.ticker}
+                    </span>
+                    {entry.nameChain && (
+                      <span className="text-gray-500 text-xs ml-0">
+                        ({entry.nameChain})
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-right font-medium text-gray-900">
+                    ${entry.price} USD
+                  </span>
+                  <span className="text-right font-medium text-gray-800">
+                    {entry.marketCap}
+                  </span>
+                  <span className="text-right font-medium text-gray-800">
+                    {entry.vol24h}
+                  </span>
+                  {hasChange && (
+                    <span
+                      className={`text-right font-medium ${
+                        entry.change24h != null
+                          ? Number(entry.change24h) >= 0
+                            ? "text-green-600"
+                            : "text-red-600"
+                          : "text-gray-400"
+                      }`}
+                    >
+                      {entry.change24h != null
+                        ? `${Number(entry.change24h) >= 0 ? "+" : ""}${entry.change24h}%`
+                        : "—"}
                     </span>
                   )}
                 </div>
-                <span className="text-right font-medium text-gray-900">
-                  ${entry.price} USD
-                </span>
-                <span className="text-right font-medium text-gray-800">
-                  {entry.marketCap}
-                </span>
-                <span className="text-right font-medium text-gray-800">
-                  {entry.vol24h}
-                </span>
-                {hasChange && (
-                  <span
-                    className={`text-right font-medium ${
-                      entry.change24h != null
-                        ? Number(entry.change24h) >= 0
-                          ? "text-green-600"
-                          : "text-red-600"
-                        : "text-gray-400"
-                    }`}
-                  >
-                    {entry.change24h != null
-                      ? `${Number(entry.change24h) >= 0 ? "+" : ""}${entry.change24h}%`
-                      : "—"}
-                  </span>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>,
         );
         i = j;
@@ -1874,6 +2036,9 @@ export function ChatPage() {
         }
         const { headers, bodyRows } = parseMarkdownTable(tableLines);
         if (headers?.length && bodyRows.length) {
+          const tokenColumnIndex = headers.findIndex((h) =>
+            /^token$/i.test(String(h || "").trim()),
+          );
           blocks.push(
             <div
               key={`table-${blocks.length}`}
@@ -1893,18 +2058,35 @@ export function ChatPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {bodyRows.map((row, ri) => (
-                    <tr
-                      key={ri}
-                      className="border-b border-gray-100 last:border-0 hover:bg-gray-50/50"
-                    >
-                      {row.map((cell, ci) => (
-                        <td key={ci} className="px-4 py-2.5 text-gray-800">
-                          {renderInlineBold(cell)}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
+                  {bodyRows.map((row, ri) => {
+                    const tokenCell =
+                      tokenColumnIndex >= 0 ? row[tokenColumnIndex] : null;
+                    const tokenSymbol = normalizeTokenSymbol(tokenCell);
+                    const rowUi =
+                      tokenColumnIndex >= 0 && tokenSymbol
+                        ? getTokenRowExecutionUi(tokenSymbol)
+                        : null;
+                    const rowClass =
+                      rowUi?.rowClass ||
+                      "border-b border-gray-100 last:border-0 hover:bg-gray-50/50";
+
+                    return (
+                      <tr key={ri} className={rowClass}>
+                        {row.map((cell, ci) => (
+                          <td key={ci} className="px-4 py-2.5 text-gray-800">
+                            {ci === tokenColumnIndex && rowUi?.icon ? (
+                              <span className="inline-flex items-center gap-1.5">
+                                {rowUi.icon}
+                                {renderInlineBold(cell)}
+                              </span>
+                            ) : (
+                              renderInlineBold(cell)
+                            )}
+                          </td>
+                        ))}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>,
@@ -1989,7 +2171,7 @@ export function ChatPage() {
           </div>
         )}
       </div>
-      {isConnected && !isReadOnly && showRecentPortfoliosPanel && (
+      {isConnected && !isReadOnly && showRecentPortfoliosPanel && recentPortfolios.length > 0 && (
         <aside className="w-60 shrink-0 hidden lg:block fixed right-7">
           <div className="sticky top-24">
             <div className="glass-card p-4 border border-gray-200/50 bg-white/40">
@@ -1998,9 +2180,6 @@ export function ChatPage() {
                   Recent portfolios
                 </h3>
                 <div className="flex items-center gap-1 shrink-0">
-                  <span className="text-[10px] uppercase tracking-wide text-gray-500">
-                    3
-                  </span>
                   <button
                     type="button"
                     onClick={() => setShowRecentPortfoliosPanel(false)}
@@ -2314,7 +2493,7 @@ export function ChatPage() {
               <button
                 type="button"
                 onClick={() => setIsNarrativesModalOpen(false)}
-                className="p-2 rounded-xl hover:bg-black/5 text-gray-500"
+                className="p-2 rounded-xl hover:bg-black/5 text-gray-500 bg-white"
                 aria-label="Close"
               >
                 <X size={18} />
@@ -2341,7 +2520,15 @@ export function ChatPage() {
                         {n.description}
                       </div>
                     </div>
-                    <div className="shrink-0 text-[10px] uppercase tracking-wide bg-white/60 border border-gray-200 text-gray-700 px-2 py-1 rounded-full">
+                    <div
+                      className={`shrink-0 text-[10px] uppercase tracking-wide px-2 py-1 rounded-full border ${
+                        n.riskProfile === "LOW_TO_MEDIUM"
+                          ? "bg-blue-100 border-blue-200 text-blue-700"
+                          : n.riskProfile === "MEDIUM"
+                            ? "bg-yellow-100 border-yellow-200 text-yellow-700"
+                            : "bg-red-100 border-red-200 text-red-700"
+                      }`}
+                    >
                       {n.riskProfile.replace(/_/g, " ")}
                     </div>
                   </div>
@@ -2349,7 +2536,7 @@ export function ChatPage() {
               ))}
             </div>
 
-            <div className="mt-4 flex justify-end">
+            {/* <div className="mt-4 flex justify-end">
               <button
                 type="button"
                 onClick={() => setIsNarrativesModalOpen(false)}
@@ -2357,7 +2544,7 @@ export function ChatPage() {
               >
                 Close
               </button>
-            </div>
+            </div> */}
           </div>
         </div>
       )}
@@ -2454,6 +2641,10 @@ export function ChatPage() {
                   msg.type === "user" ||
                   msg.type === "human" ||
                   msg.role === "user";
+                const isPaperPortfolioMessage =
+                  msg.type === "ai" &&
+                  msg.data?.portfolio &&
+                  msg.data?.portfolio?.executionMode !== "ON_CHAIN";
                 return (
                   <ChatBubble
                     key={(isUser ? "user" : "ai") + index}
@@ -2461,12 +2652,14 @@ export function ChatPage() {
                   >
                     {typeof msg.content === "string" ? (
                       <div>
-                        {msg.type === "ai" && msg.id === typingMessageId ? (
+                        {isPaperPortfolioMessage ? null : msg.type === "ai" &&
+                          msg.id === typingMessageId ? (
                           // During typing we avoid markdown parsing on every tick for smoother UX.
                           <div className="whitespace-pre-wrap text-sm">
                             {displayedTextById[msg.id] ?? ""}
                           </div>
                         ) : (
+                          !isPaperPortfolioMessage &&
                           renderFormattedMessage(
                             msg.type === "ai"
                               ? completedMessageIdsRef.current.has(msg.id)
@@ -2488,7 +2681,7 @@ export function ChatPage() {
                                   key={`${option.action}-${option.value}-${index}`}
                                   onClick={() => handleOptionClick(option)}
                                   disabled={isReadOnly}
-                                  className="px-3 py-2 bg-white/80 border border-gray-200 rounded-xl text-xs font-medium hover:bg-white hover:border-gray-300 hover:shadow-md transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+                                  className={ option?.value === "confirm" ? 'px-3 py-2 bg-black text-white border border-gray-200 rounded-xl text-xs font-medium hover:bg-gray-800 hover:shadow-md transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed' :"px-3 py-2 bg-white/80 border border-gray-200 rounded-xl text-xs font-medium hover:bg-white hover:border-gray-300 hover:shadow-md transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"}
                                 >
                                   {option.label ||
                                     option.value ||
@@ -2498,8 +2691,26 @@ export function ChatPage() {
                             </div>
                           )}
                         {msg.type === "ai" &&
-                          msg.data?.portfolio?.executionMode === "ON_CHAIN" &&
-                          renderOnChainPortfolioCreated(msg.data.portfolio)}
+                          msg.data?.portfolio?.executionMode === "ON_CHAIN" && (
+                            <>
+                              {renderOnChainPortfolioCreated(
+                                msg.data.portfolio,
+                                [
+                                  {
+                                    label: "Explain this portfolio",
+                                    action: "SEND_MESSAGE",
+                                    value: "Explain this portfolio",
+                                  },
+
+                                  {
+                                    label: "Start over",
+                                    value: "Start over",
+                                    action: "SEND_MESSAGE",
+                                  },
+                                ],
+                              )}
+                            </>
+                          )}
                         {msg.type === "ai" &&
                           msg.data?.portfolio &&
                           msg.data?.portfolio?.executionMode !== "ON_CHAIN" &&
