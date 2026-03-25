@@ -251,9 +251,14 @@ export function TradingCompetitionPage() {
                   <Crown className="w-3 h-3 text-amber-600" />
                   <span className="font-bold text-xs text-gray-900">Top 3</span>
                 </div>
+               <div className="flex items-center gap-1">
+                   <Gem className="w-4 h-4 text-amber-600" />
+
                 <p className="text-sm font-bold text-amber-600">
-                  22.5K💎($112,500)
+                  10K-5K
+                  ($112,500)
                 </p>
+               </div>
               </div>
 
               <div className="bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-200 rounded-lg p-2">
@@ -261,7 +266,10 @@ export function TradingCompetitionPage() {
                   <Trophy className="w-3 h-3 text-purple-600" />
                   <span className="font-bold text-xs text-gray-900">4-10</span>
                 </div>
-                <p className="text-sm font-bold text-purple-600">4K-1.25K 💎</p>
+                <div className="flex items-center gap-1">
+                  <Gem className="w-4 h-4 text-purple-600" />
+                  <p className="text-sm font-bold text-purple-600">4K-1.25K</p>
+                </div>
               </div>
 
               <div className="bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-200 rounded-lg p-2">
@@ -269,7 +277,10 @@ export function TradingCompetitionPage() {
                   <Medal className="w-3 h-3 text-blue-600" />
                   <span className="font-bold text-xs text-gray-900">11-50</span>
                 </div>
-                <p className="text-sm font-bold text-blue-600">1K-500 💎</p>
+                <div className="flex items-center gap-1">
+                  <Gem className="w-4 h-4 text-blue-600" />
+                  <p className="text-sm font-bold text-blue-600">1K-500</p>
+                </div>
               </div>
 
               <div className="bg-gradient-to-br from-gray-50 to-slate-50 border border-gray-200 rounded-lg p-2">
@@ -279,7 +290,10 @@ export function TradingCompetitionPage() {
                     51-100
                   </span>
                 </div>
-                <p className="text-sm font-bold text-gray-600">250 💎</p>
+               <div className="flex items-center gap-1">
+                  <Gem className="w-4 h-4 text-gray-600" />
+                  <p className="text-sm font-bold text-gray-600">250</p>
+               </div>
               </div>
             </div>
           </div>

@@ -3,6 +3,8 @@ import { Trophy, Flame, Gem, Calendar, ChevronRight, ChevronLeft } from "lucide-
 import { TradingCompetitionPage } from "./TradingCompetition";
 import { Season1 } from "./Season1";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
+import allocationRace from '../assets/allocationRace.png';
+import springSeries from '../assets/springSeries.png';
 
 export function CampaignsPage() {
   const [activeTab, setActiveTab] = useState(null);
@@ -28,7 +30,7 @@ export function CampaignsPage() {
           {/* Banner Image */}
           <div className="relative h-48 w-full overflow-hidden">
             <ImageWithFallback
-              src="https://images.unsplash.com/photo-1586448910234-297fae7189e6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxmaW5hbmNpYWwlMjB0cmFkaW5nJTIwY29tcGV0aXRpb24lMjBncm93dGglMjBjaGFydHxlbnwxfHx8fDE3NzQzNDgxNjB8MA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral"
+              src={allocationRace}
               alt="Trading Competition"
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             />
@@ -90,7 +92,7 @@ export function CampaignsPage() {
           {/* Banner Image */}
           <div className="relative h-48 w-full overflow-hidden">
             <ImageWithFallback
-              src="https://images.unsplash.com/photo-1721138433441-431153ab4ac1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzcHJpbmclMjBzZWFzb24lMjBibG9vbSUyMGdyYWRpZW50JTIwY29sb3JmdWx8ZW58MXx8fHwxNzc0MzQ4MTYxfDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral"
+              src={springSeries}
               alt="Spring Series"
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             />
