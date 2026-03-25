@@ -35,7 +35,7 @@ export function CampaignsPage() {
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             />
             {/* Gradient Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-b from-amber-900/60 via-orange-900/40 to-transparent" />
+            {/* <div className="absolute inset-0 bg-gradient-to-b from-amber-900/60 via-orange-900/40 to-transparent" /> */}
             
             {/* Badge on Banner */}
             <div className="absolute top-4 right-4 bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold shadow-lg">
@@ -97,7 +97,7 @@ export function CampaignsPage() {
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             />
             {/* Gradient Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-b from-orange-900/60 via-red-900/40 to-transparent" />
+            {/* <div className="absolute inset-0 bg-gradient-to-b from-orange-900/60 via-red-900/40 to-transparent" /> */}
             
             {/* Badge on Banner */}
             <div className="absolute top-4 right-4 bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold shadow-lg">
