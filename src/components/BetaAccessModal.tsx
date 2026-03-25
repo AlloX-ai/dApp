@@ -40,6 +40,12 @@ const WALLET_OPTIONS = [
     walletType: "trust",
   },
   {
+    name: "Gate",
+    icon: "https://cdn.allox.ai/allox/wallets/gateWallet.svg",
+    type: "top",
+    walletType: "gate",
+  },
+  {
     name: "Phantom",
     icon: "https://cdn.allox.ai/allox/wallets/phantom.svg",
     type: "top",
@@ -158,7 +164,7 @@ export function BetaAccessModal({
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600 mb-3">Other wallets</p>
-                <div className="space-y-3 grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="space-y-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {getOtherWallets().map((wallet) => (
                     <button
                       key={wallet.name}
