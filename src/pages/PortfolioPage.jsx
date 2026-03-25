@@ -324,7 +324,7 @@ export function PortfolioPage() {
       return "bg-blue-100 text-blue-700 border-blue-200";
     }
     if (risk === "AGGRESSIVE") {
-      return "bg-red-100 text-red-700 border-red-200";
+      return "bg-orange-50 text-orange-800 border-orange-200";
     }
     return "bg-gray-100 text-gray-700 border-gray-200";
   }, []);
