@@ -256,7 +256,6 @@ export function TradingCompetitionPage() {
 
                 <p className="text-sm font-bold text-amber-600">
                   10K-5K
-                  ($112,500)
                 </p>
                </div>
               </div>
@@ -412,7 +411,10 @@ export function TradingCompetitionPage() {
                       <div className="flex items-center gap-1.5">
                         <Gem className="w-4 h-4 text-purple-600" />
                         <span className="text-sm font-bold text-gray-900">
-                          {entry.gemReward.toLocaleString()} (${(entry.gemReward * 5).toLocaleString()})
+                          {entry.gemReward.toLocaleString()}
+                        </span>
+                        <span className="text-sm font-bold text-gray-600">
+                           (${(entry.gemReward * 5).toLocaleString()})
                         </span>
                       </div>
                     </div>
