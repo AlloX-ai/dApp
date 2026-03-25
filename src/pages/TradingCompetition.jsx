@@ -216,7 +216,7 @@ export function TradingCompetitionPage() {
 
           {/* Compact Steps */}
           <div className="space-y-2 mb-4">
-            <div className="flex items-start gap-2">
+            <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
                 <BarChart3 className="w-3 h-3 text-blue-600" />
               </div>
@@ -224,7 +224,7 @@ export function TradingCompetitionPage() {
                 <strong>Create portfolios</strong> on BNB Chain
               </p>
             </div>
-            <div className="flex items-start gap-2">
+            <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
                 <TrendingUp className="w-3 h-3 text-purple-600" />
               </div>
@@ -232,7 +232,7 @@ export function TradingCompetitionPage() {
                 <strong>Rankings</strong> based on total USD portfolio value
               </p>
             </div>
-            <div className="flex items-start gap-2">
+            <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
                 <Trophy className="w-3 h-3 text-amber-600" />
               </div>
@@ -311,7 +311,7 @@ export function TradingCompetitionPage() {
         <div className="overflow-x-auto">
           <div className="min-w-[600px]">
             {/* Table Header */}
-            <div className="grid grid-cols-[80px_1fr_140px_140px_140px] gap-4 px-4 py-3 bg-gray-50/60 rounded-lg mb-2">
+            <div className="grid grid-cols-[80px_1fr_140px_140px_200px] gap-4 px-4 py-3 bg-gray-50/60 rounded-lg mb-2">
               <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
                 Rank
               </div>
@@ -349,7 +349,7 @@ export function TradingCompetitionPage() {
                 return (
                   <div
                     key={entry.position}
-                    className={`grid grid-cols-[80px_1fr_140px_140px_140px] gap-4 px-4 py-3 ${bgColor} backdrop-blur-sm border border-white/60 rounded-lg hover:shadow-md transition-all ${isCurrentUser ? "ring-2 ring-blue-400" : ""}`}
+                    className={`grid grid-cols-[80px_1fr_140px_140px_200px] gap-4 px-4 py-3 ${bgColor} backdrop-blur-sm border border-white/60 rounded-lg hover:shadow-md transition-all ${isCurrentUser ? "ring-2 ring-blue-400" : ""}`}
                   >
                     {/* Rank */}
                     <div className="flex items-center gap-2">
@@ -412,7 +412,7 @@ export function TradingCompetitionPage() {
                       <div className="flex items-center gap-1.5">
                         <Gem className="w-4 h-4 text-purple-600" />
                         <span className="text-sm font-bold text-gray-900">
-                          {entry.gemReward.toLocaleString()}
+                          {entry.gemReward.toLocaleString()} (${(entry.gemReward * 5).toLocaleString()})
                         </span>
                       </div>
                     </div>
