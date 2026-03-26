@@ -11,6 +11,7 @@ import {
   RefreshCw,
   HelpCircle,
   Check,
+  RefreshCcw,
 } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import { ChatBubble } from "../components/ChatBubble";
@@ -35,6 +36,7 @@ import { useAuth } from "../hooks/useAuth";
 import { NavLink, useLocation, useNavigate } from "react-router";
 import getFormattedNumber from "../hooks/get-formatted-number";
 import { toast } from "sonner";
+import { ethers } from "ethers";
 import ChatMoreInfoModal from "../components/ChatMoreInfoModal";
 
 function formatResetAt(resetAt) {
@@ -118,6 +120,7 @@ export function ChatPage() {
   const isReadOnly = !!viewingHistorySessionId;
   const isConnected = useSelector((state) => state.wallet.isConnected);
   const walletChainId = useSelector((state) => state.wallet.chainId);
+  const walletAddress = useSelector((state) => state.wallet.address);
   const pointsBalance = useSelector((state) => state.points?.balance);
   const messagesRemaining = rateLimit?.remaining;
   const resetAt = rateLimit?.resetAt;
@@ -149,6 +152,13 @@ export function ChatPage() {
   const [recentPortfoliosLoading, setRecentPortfoliosLoading] = useState(false);
   const [showRecentPortfoliosPanel, setShowRecentPortfoliosPanel] =
     useState(true);
+  const [bscBalances, setBscBalances] = useState({
+    loading: false,
+    error: null,
+    bnb: null,
+    usdt: null,
+    usdc: null,
+  });
   const [onchainBlocked, setOnchainBlocked] = useState(null);
   const [refreshOnchainLoading, setRefreshOnchainLoading] = useState(false);
   const [refreshOnchainMessage, setRefreshOnchainMessage] = useState(null);
@@ -693,6 +703,54 @@ export function ChatPage() {
     }
   }, [isConnected, isReadOnly, ensureAuthenticated, logout]);
 
+  const fetchBscBalances = useCallback(async () => {
+    if (!isConnected) return;
+    if (walletChainId !== 56) return;
+    if (!walletAddress) return;
+    if (!window.ethereum) return;
+
+    const USDT_BSC = "0x55d398326f99059fF775485246999027B3197955";
+    const USDC_BSC = "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d";
+    const ERC20_ABI = [
+      "function balanceOf(address owner) view returns (uint256)",
+      "function decimals() view returns (uint8)",
+    ];
+
+    setBscBalances((p) => ({ ...p, loading: true, error: null }));
+    try {
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const bnbWei = await provider.getBalance(walletAddress);
+
+      const usdt = new ethers.Contract(USDT_BSC, ERC20_ABI, provider);
+      const usdc = new ethers.Contract(USDC_BSC, ERC20_ABI, provider);
+
+      const [usdtRaw, usdtDec, usdcRaw, usdcDec] = await Promise.all([
+        usdt.balanceOf(walletAddress),
+        usdt.decimals(),
+        usdc.balanceOf(walletAddress),
+        usdc.decimals(),
+      ]);
+
+      setBscBalances({
+        loading: false,
+        error: null,
+        bnb: Number(ethers.utils.formatEther(bnbWei)),
+        usdt: Number(ethers.utils.formatUnits(usdtRaw, usdtDec)),
+        usdc: Number(ethers.utils.formatUnits(usdcRaw, usdcDec)),
+      });
+    } catch (e) {
+      setBscBalances((p) => ({
+        ...p,
+        loading: false,
+        error: e?.message || "Failed to load balances.",
+      }));
+    }
+  }, [isConnected, walletAddress, walletChainId]);
+
+  useEffect(() => {
+    void fetchBscBalances();
+  }, [fetchBscBalances]);
+
   const handleExecutionUpdate = useCallback((update) => {
     setExecutionState((prev) => {
       const next = { ...prev, error: null };
@@ -910,7 +968,9 @@ export function ChatPage() {
         return;
       }
       if (quickForm.chain === "BSC" && walletChainId !== 56) {
-        toast.error("Please switch your wallet to BNB Chain before continuing.");
+        toast.error(
+          "Please switch your wallet to BNB Chain before continuing.",
+        );
         return;
       }
 
@@ -2934,6 +2994,78 @@ export function ChatPage() {
                 ) : (
                   <div className="text-xs text-gray-500">
                     No portfolios yet.
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-3 glass-card p-4 border border-gray-200/50 bg-white/40">
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <h3 className="text-sm font-bold text-gray-900">
+                    BNB Chain balances
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => void fetchBscBalances()}
+                    disabled={
+                      !isConnected ||
+                      isReadOnly ||
+                      walletChainId !== 56 ||
+                      bscBalances.loading
+                    }
+                    className="text-xs text-gray-500 hover:text-green-600 disabled:opacity-50"
+                  >
+                    <RefreshCcw className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {!isConnected ? (
+                  <div className="text-xs text-gray-600">
+                    Connect your wallet to view balances.
+                  </div>
+                ) : walletChainId !== 56 ? (
+                  <div className="text-xs text-gray-600">
+                    Switch to BNB Chain to view BNB, USDT, and USDC balances.
+                  </div>
+                ) : bscBalances.error ? (
+                  <div className="text-xs text-red-600">
+                    {bscBalances.error}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {[
+                      {
+                        label: "BNB",
+                        value: bscBalances.bnb,
+                        icon: "https://cdn.allox.ai/allox/networks/bnbIcon.svg",
+                      },
+                      {
+                        label: "USDT",
+                        value: bscBalances.usdt,
+                        icon: "https://cdn.allox.ai/allox/tokens/usdt.svg",
+                      },
+                      {
+                        label: "USDC",
+                        value: bscBalances.usdc,
+                        icon: "https://cdn.allox.ai/allox/tokens/usdc.svg",
+                      },
+                    ].map((row) => (
+                      <div
+                        key={row.label}
+                        className="flex items-center justify-between text-xs bg-white/60 border border-gray-200/60 rounded-xl px-3 py-2"
+                      >
+                        <div className="font-semibold text-gray-800 flex items-center gap-2">
+                          <img src={row.icon} className="w-4 h-4" alt="" />{" "}
+                          {row.label}
+                        </div>
+                        <div className="text-gray-900 tabular-nums">
+                          {row.value == null
+                            ? "—"
+                            : Number(row.value).toLocaleString(undefined, {
+                                maximumFractionDigits: 6,
+                              })}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
