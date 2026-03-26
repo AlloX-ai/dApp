@@ -22,6 +22,7 @@ import {
   setViewingHistorySessionId,
   setRateLimit,
   setChatStatus,
+  requestBackendChatReset,
 } from "../redux/slices/chatSlice";
 import { setWalletModal } from "../redux/slices/walletSlice";
 import {
@@ -34,6 +35,7 @@ import { useAuth } from "../hooks/useAuth";
 import { NavLink, useLocation, useNavigate } from "react-router";
 import getFormattedNumber from "../hooks/get-formatted-number";
 import { toast } from "sonner";
+import ChatMoreInfoModal from "../components/ChatMoreInfoModal";
 
 function formatResetAt(resetAt) {
   if (resetAt == null || resetAt === "") return "";
@@ -111,6 +113,7 @@ export function ChatPage() {
     viewingHistorySessionId,
     rateLimit,
     chatStatus,
+    backendResetRequestId,
   } = useSelector((state) => state.chat);
   const isReadOnly = !!viewingHistorySessionId;
   const isConnected = useSelector((state) => state.wallet.isConnected);
@@ -163,8 +166,8 @@ export function ChatPage() {
   const executionPromptResolverRef = useRef(null);
 
   // Quick portfolio wizard (form-based UX)
-  const QUICK_PORTFOLIO_INTRO_MESSAGE =
-    "Let’s build a quick portfolio. Choose a blockchain, portfolio type, investment amount, risk tolerance, and payment token — then tap Generate to preview the basket.";
+
+  const [showMoreInfoModal, setShowMoreInfoModal] = useState(false);
   const [lastBuildMode, setLastBuildMode] = useState("guided"); // "guided" | "quick"
   const [quickWizardOpen, setQuickWizardOpen] = useState(false);
   const [quickWizardStep, setQuickWizardStep] = useState(0); // 0..3
@@ -447,6 +450,29 @@ export function ChatPage() {
       resetQuickWizard();
     }
   }, [currentMessages.length, resetQuickWizard]);
+
+  // Fire a backend-only reset without adding a user message to UI history.
+  useEffect(() => {
+    closeQuickWizard();
+
+    if (!backendResetRequestId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        await ensureAuthenticated();
+        if (cancelled) return;
+        await apiCall("/chat/message", {
+          method: "POST",
+          body: JSON.stringify({ message: "Start over" }),
+        });
+      } catch (e) {
+        if (e?.status === 401) logout();
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [backendResetRequestId, ensureAuthenticated, logout]);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -883,6 +909,10 @@ export function ChatPage() {
         setQuickError("Please complete all form selections first.");
         return;
       }
+      if (quickForm.chain === "BSC" && walletChainId !== 56) {
+        toast.error("Please switch your wallet to BNB Chain before continuing.");
+        return;
+      }
 
       try {
         // const userActionLabel =
@@ -956,6 +986,7 @@ export function ChatPage() {
       quickForm.paymentToken,
       quickForm.portfolioType,
       quickForm.risk,
+      walletChainId,
       setShowWalletPrompt,
     ],
   );
@@ -1096,6 +1127,8 @@ export function ChatPage() {
   };
 
   const handleStartNewChat = () => {
+    closeQuickWizard();
+    dispatch(requestBackendChatReset());
     dispatch(setViewingHistorySessionId(null));
     dispatch(setCurrentMessages([]));
   };
@@ -1695,7 +1728,7 @@ export function ChatPage() {
         )}
         <div className="flex gap-2">
           <NavLink
-            to="/portfolio"
+            to={`/portfolio?portfolio=${portfolio?.id}`}
             className="px-3 py-2 bg-white/80 border border-gray-200 rounded-xl text-xs font-medium hover:bg-white hover:border-gray-300 hover:shadow-md transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
           >
             View Portfolio
@@ -1742,7 +1775,7 @@ export function ChatPage() {
     const safeOptions = Array.isArray(options) ? options : [];
 
     return (
-       <div className="mt-3 border border-gray-200 bg-white/80 shadow-sm p-4 rounded-2xl space-y-3">
+      <div className="mt-3 border border-gray-200 bg-white/80 shadow-sm p-4 rounded-2xl space-y-3">
         <div className="flex items-start justify-center gap-3">
           <div className="p-6 text-center">
             <div className="mx-auto w-14 h-14 rounded-full bg-green-100 border border-green-200 flex items-center justify-center">
@@ -1763,7 +1796,6 @@ export function ChatPage() {
                 ${Number(portfolio.totalInvestment).toFixed(2)}
               </div>
             )}
-          
           </div>
           {/* {typeof portfolio.totalTokens === "number" && (
             <div className="text-right shrink-0 flex gap-2 items-center">
@@ -1845,7 +1877,7 @@ export function ChatPage() {
 
         <div className="flex gap-2 pt-2">
           <NavLink
-            to="/portfolio"
+            to={`/portfolio?portfolio=${portfolio?.id}`}
             className="px-3 py-2 bg-white/80 border border-gray-200 rounded-xl text-xs font-medium hover:bg-white hover:border-gray-300 hover:shadow-md transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
           >
             View Portfolio
@@ -3285,12 +3317,19 @@ export function ChatPage() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <h3 className="text-lg font-bold truncate">
-                          Build Quick Portfolio
+                          Quick Portfolio Builder
                         </h3>
                         <div className="text-xs text-gray-600 mt-1">
                           Fill the form and generate portfolio
                         </div>
                       </div>
+                      <button
+                        onClick={() => setShowMoreInfoModal(true)}
+                        className="border border-gray-200 bg-white rounded-full px-3 py-2 hover:bg-gray-50 transition-colors flex items-center gap-2 text-xs whitespace-nowrap hover:bg-gray-200 transition-colors"
+                      >
+                        <HelpCircle size={14} className="text-blue-600" />
+                        <span className="font-medium">More info</span>
+                      </button>
                     </div>
 
                     {quickError && (
@@ -3299,7 +3338,7 @@ export function ChatPage() {
                       </div>
                     )}
 
-                    <div className="space-y-6">
+                    <div className="space-y-4">
                       <div className="rounded-2xl bg-white/70 border border-gray-200/60 p-4 shadow-sm">
                         <div className="text-sm font-semibold text-gray-900 mb-2">
                           Which blockchain would you like to build on?
@@ -3948,8 +3987,8 @@ export function ChatPage() {
                         Swap failed for {executionPrompt.symbol}
                       </p>
                       <p className="text-xs text-gray-700 mb-3">
-                        The wallet did not submit the transaction. Tap Retry to
-                        fetch a fresh nonce and try again.
+                        The wallet did not submit the transaction. You can retry
+                        with a fresh nonce, or skip this token and continue.
                       </p>
                       <div className="flex flex-wrap gap-2">
                         <button
@@ -3958,6 +3997,13 @@ export function ChatPage() {
                           className="px-3 py-2 rounded-xl bg-gray-900 text-white text-xs font-medium hover:bg-gray-800"
                         >
                           Retry
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => resolveExecutionPrompt("skip")}
+                          className="px-3 py-2 rounded-xl bg-white border border-gray-300 text-gray-700 text-xs font-medium hover:bg-gray-50"
+                        >
+                          Skip
                         </button>
                       </div>
                     </>
@@ -3993,6 +4039,14 @@ export function ChatPage() {
             </div>
           </div>
         </div>
+      )}
+      {showMoreInfoModal && (
+        <ChatMoreInfoModal
+          isOpen={showMoreInfoModal}
+          onClose={() => {
+            setShowMoreInfoModal(false);
+          }}
+        />
       )}
     </div>
   );
