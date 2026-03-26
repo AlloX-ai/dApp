@@ -489,6 +489,33 @@ export async function executePortfolioOnChain(
               continue;
             }
 
+            if (decision === "skip") {
+              try {
+                await apiCall(
+                  `${EXECUTION_API_BASE}/${pos.executionOrderId}/cancel`,
+                  { method: "POST" },
+                );
+                cancelledOrderIds.push(pos.executionOrderId);
+                skipped.push({
+                  executionOrderId: pos.executionOrderId,
+                  symbol: pos.symbol,
+                  reason: "USER_SKIPPED",
+                });
+                update("POSITION_CANCELLED", {
+                  symbol: pos.symbol,
+                  executionOrderId: pos.executionOrderId,
+                });
+              } catch (cancelErr) {
+                console.error(cancelErr);
+                update("POSITION_FAILED", {
+                  symbol: pos.symbol,
+                  executionOrderId: pos.executionOrderId,
+                });
+              }
+              done = true;
+              break;
+            }
+
             // Default to retry if unknown decision
             continue;
           }

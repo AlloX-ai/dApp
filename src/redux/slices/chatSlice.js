@@ -11,6 +11,7 @@ const initialState = {
   viewingHistorySessionId: null,
   rateLimit: { remaining: null, resetAt: null, allowed: null, limit: null },
   chatStatus: { activity: null, points: null, claimed: null },
+  backendResetRequestId: 0,
 };
 
 const chatSlice = createSlice({
@@ -67,6 +68,9 @@ const chatSlice = createSlice({
       if (payload?.points != null) state.chatStatus.points = payload.points;
       if (payload?.claimed != null) state.chatStatus.claimed = payload.claimed;
     },
+    requestBackendChatReset: (state) => {
+      state.backendResetRequestId = (state.backendResetRequestId || 0) + 1;
+    },
   },
 });
 
@@ -85,6 +89,7 @@ export const {
   setViewingHistorySessionId,
   setRateLimit,
   setChatStatus,
+  requestBackendChatReset,
 } = chatSlice.actions;
 
 export default chatSlice.reducer;
