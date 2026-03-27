@@ -41,6 +41,7 @@ import { toast } from "sonner";
 import { ethers } from "ethers";
 import { AnimatePresence, motion } from "motion/react";
 import ChatMoreInfoModal from "../components/ChatMoreInfoModal";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 function formatResetAt(resetAt) {
   if (resetAt == null || resetAt === "") return "";
@@ -151,21 +152,10 @@ export function ChatPage() {
   const [displayedTextById, setDisplayedTextById] = useState({});
   const [typingMessageId, setTypingMessageId] = useState(null);
   const [isNarrativesModalOpen, setIsNarrativesModalOpen] = useState(false);
-  const [recentPortfolios, setRecentPortfolios] = useState([]);
-  const [recentPortfoliosLoading, setRecentPortfoliosLoading] = useState(false);
   const [showRecentPortfoliosPanel, setShowRecentPortfoliosPanel] =
     useState(true);
   const [isBalancesCollapsed, setIsBalancesCollapsed] = useState(false);
-  const [bscBalances, setBscBalances] = useState({
-    loading: false,
-    error: null,
-    bnb: null,
-    usdt: null,
-    usdc: null,
-    bnbUsd: null,
-    usdtUsd: null,
-    usdcUsd: null,
-  });
+  const queryClient = useQueryClient();
   const [onchainBlocked, setOnchainBlocked] = useState(null);
   const [refreshOnchainLoading, setRefreshOnchainLoading] = useState(false);
   const [refreshOnchainMessage, setRefreshOnchainMessage] = useState(null);
@@ -663,14 +653,11 @@ export function ChatPage() {
     return Number.isFinite(t) ? t : 0;
   };
 
-  const fetchRecentPortfolios = useCallback(async () => {
-    if (!isConnected || isReadOnly) {
-      setRecentPortfolios([]);
-      setRecentPortfoliosLoading(false);
-      return;
-    }
-    setRecentPortfoliosLoading(true);
-    try {
+  const recentPortfoliosQuery = useQuery({
+    queryKey: ["recentPortfolios", walletAddress],
+    enabled: isConnected && !isReadOnly,
+    staleTime: 30_000,
+    queryFn: async () => {
       await ensureAuthenticated();
       const response = await apiCall("/portfolio");
       const list = Array.isArray(response?.portfolios)
@@ -680,12 +667,7 @@ export function ChatPage() {
       const normalized = list
         .map((p, idx) => {
           const id = p?.id ?? p?.portfolioId ?? p?.portfolio_id;
-          return {
-            ...p,
-            id,
-            __ts: getPortfolioTimestamp(p),
-            __idx: idx,
-          };
+          return { ...p, id, __ts: getPortfolioTimestamp(p), __idx: idx };
         })
         .filter((p) => p?.id);
 
@@ -694,37 +676,43 @@ export function ChatPage() {
         ? [...normalized].sort((a, b) => b.__ts - a.__ts || a.__idx - b.__idx)
         : normalized;
 
-      setRecentPortfolios(
-        sorted.slice(0, 3).map((p) => {
-          const { __ts, __idx, ...rest } = p;
-          void __ts;
-          void __idx;
-          return rest;
-        }),
-      );
-    } catch (err) {
-      if (err?.status === 401) logout();
-      setRecentPortfolios([]);
-    } finally {
-      setRecentPortfoliosLoading(false);
-    }
-  }, [isConnected, isReadOnly, ensureAuthenticated, logout]);
+      return sorted.slice(0, 3).map((p) => {
+        const { __ts, __idx, ...rest } = p;
+        void __ts;
+        void __idx;
+        return rest;
+      });
+    },
+    meta: { errorMessage: "Failed to load portfolios." },
+  });
 
-  const fetchBscBalances = useCallback(async () => {
-    if (!isConnected) return;
-    if (walletChainId !== 56) return;
-    if (!walletAddress) return;
-    if (!window.ethereum) return;
+  useEffect(() => {
+    const err = recentPortfoliosQuery.error;
+    if (err?.status === 401) logout();
+  }, [recentPortfoliosQuery.error, logout]);
 
-    const USDT_BSC = "0x55d398326f99059fF775485246999027B3197955";
-    const USDC_BSC = "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d";
-    const ERC20_ABI = [
-      "function balanceOf(address owner) view returns (uint256)",
-      "function decimals() view returns (uint8)",
-    ];
+  const recentPortfolios = Array.isArray(recentPortfoliosQuery.data)
+    ? recentPortfoliosQuery.data
+    : [];
+  const recentPortfoliosLoading = recentPortfoliosQuery.isLoading;
 
-    setBscBalances((p) => ({ ...p, loading: true, error: null }));
-    try {
+  const bscBalancesQuery = useQuery({
+    queryKey: ["bscBalances", walletAddress],
+    enabled:
+      isConnected &&
+      !isReadOnly &&
+      walletChainId === 56 &&
+      !!walletAddress &&
+      !!window.ethereum,
+    staleTime: 20_000,
+    queryFn: async () => {
+      const USDT_BSC = "0x55d398326f99059fF775485246999027B3197955";
+      const USDC_BSC = "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d";
+      const ERC20_ABI = [
+        "function balanceOf(address owner) view returns (uint256)",
+        "function decimals() view returns (uint8)",
+      ];
+
       const provider = new ethers.providers.Web3Provider(window.ethereum);
       const bnbWei = await provider.getBalance(walletAddress);
 
@@ -738,11 +726,7 @@ export function ChatPage() {
         usdc.decimals(),
       ]);
 
-      let prices = {
-        bnbUsd: null,
-        usdtUsd: 1,
-        usdcUsd: 1,
-      };
+      let prices = { bnbUsd: null, usdtUsd: 1, usdcUsd: 1 };
       try {
         const priceRes = await fetch(
           "https://api.coingecko.com/api/v3/simple/price?ids=binancecoin,tether,usd-coin&vs_currencies=usd",
@@ -759,28 +743,25 @@ export function ChatPage() {
         // Keep stable fallback prices and continue showing balances.
       }
 
-      setBscBalances({
-        loading: false,
-        error: null,
+      return {
         bnb: Number(ethers.utils.formatEther(bnbWei)),
         usdt: Number(ethers.utils.formatUnits(usdtRaw, usdtDec)),
         usdc: Number(ethers.utils.formatUnits(usdcRaw, usdcDec)),
         bnbUsd: prices.bnbUsd,
         usdtUsd: prices.usdtUsd,
         usdcUsd: prices.usdcUsd,
-      });
-    } catch (e) {
-      setBscBalances((p) => ({
-        ...p,
-        loading: false,
-        error: e?.message || "Failed to load balances.",
-      }));
-    }
-  }, [isConnected, walletAddress, walletChainId]);
+      };
+    },
+  });
 
-  useEffect(() => {
-    void fetchBscBalances();
-  }, [fetchBscBalances]);
+  const bscBalances = bscBalancesQuery.data ?? {
+    bnb: null,
+    usdt: null,
+    usdc: null,
+    bnbUsd: null,
+    usdtUsd: 1,
+    usdcUsd: 1,
+  };
 
   const handleExecutionUpdate = useCallback((update) => {
     setExecutionState((prev) => {
@@ -918,7 +899,9 @@ export function ChatPage() {
               timestamp: new Date(),
             }),
           );
-          void fetchRecentPortfolios();
+          void queryClient.invalidateQueries({
+            queryKey: ["recentPortfolios"],
+          });
         }
       } catch (error) {
         setExecutionState((prev) => ({
@@ -938,12 +921,7 @@ export function ChatPage() {
         );
       }
     },
-    [
-      dispatch,
-      fetchRecentPortfolios,
-      handleExecutionUpdate,
-      promptExecutionDecision,
-    ],
+    [dispatch, handleExecutionUpdate, promptExecutionDecision],
   );
 
   const QUICK_CHAIN_LABELS = useMemo(
@@ -1142,7 +1120,7 @@ export function ChatPage() {
 
       // Paper trading portfolio result
       dispatch(addCurrentMessage(buildBotMessage(response)));
-      void fetchRecentPortfolios();
+      void queryClient.invalidateQueries({ queryKey: ["recentPortfolios"] });
       setQuickWizardOpen(false);
     } catch (e) {
       if (e?.status === 401) logout();
@@ -1161,7 +1139,6 @@ export function ChatPage() {
     buildBotMessage,
     dispatch,
     ensureAuthenticated,
-    fetchRecentPortfolios,
     handleStartExecution,
     isConnected,
     isReadOnly,
@@ -1291,7 +1268,9 @@ export function ChatPage() {
             (response.portfolio.id != null ||
               response.portfolio.portfolioId != null));
         if (portfolioCreatedFromChat) {
-          void fetchRecentPortfolios();
+          void queryClient.invalidateQueries({
+            queryKey: ["recentPortfolios"],
+          });
         }
 
         if (response.points?.total != null) {
@@ -1393,7 +1372,6 @@ export function ChatPage() {
       buildBotMessage,
       logout,
       handleStartExecution,
-      fetchRecentPortfolios,
       authUser,
       setUser,
     ],
@@ -1470,10 +1448,6 @@ export function ChatPage() {
     },
     [sendChatMessage, walletChainId],
   );
-
-  useEffect(() => {
-    void fetchRecentPortfolios();
-  }, [fetchRecentPortfolios]);
 
   // Open claim popup only when user has not already claimed and needs to claim
   useEffect(() => {
@@ -2945,95 +2919,95 @@ export function ChatPage() {
                   className="overflow-hidden"
                 >
                   <div className="glass-card p-4 border border-gray-200/50 bg-white/40">
-                <div className="flex items-center justify-between gap-2 mb-3">
-                  <h3 className="text-sm font-bold text-gray-900">
-                    Recent portfolios
-                  </h3>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => setShowRecentPortfoliosPanel(false)}
-                      className="p-1 rounded-lg hover:bg-black/5 text-gray-500"
-                      aria-label="Hide recent portfolios"
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
-                </div>
-
-                {recentPortfoliosLoading ? (
-                  <div className="space-y-3">
-                    {[0, 1, 2].map((i) => (
-                      <div
-                        key={i}
-                        className="p-3 rounded-2xl border border-gray-200/60 bg-white/60 animate-pulse"
-                      >
-                        <div className="h-3 bg-gray-200/70 rounded w-2/3 mb-2" />
-                        <div className="h-2 bg-gray-200/60 rounded w-4/5 mb-2" />
-                        <div className="h-2 bg-gray-200/60 rounded w-1/2" />
-                      </div>
-                    ))}
-                  </div>
-                ) : recentPortfolios.length > 0 ? (
-                  <div className="space-y-3">
-                    {recentPortfolios.map((p) => {
-                      const pid = p?.id;
-                      if (!pid) return null;
-                      const name = p?.name || "Portfolio";
-                      const displayId =
-                        String(pid).length > 12
-                          ? `${String(pid).slice(0, 6)}...${String(pid).slice(
-                              -4,
-                            )}`
-                          : String(pid);
-                      const totalValue =
-                        p?.totalCurrentValue ??
-                        p?.totalCurrentValueUsd ??
-                        p?.totalValue;
-
-                      return (
+                    <div className="flex items-center justify-between gap-2 mb-3">
+                      <h3 className="text-sm font-bold text-gray-900">
+                        Recent portfolios
+                      </h3>
+                      <div className="flex items-center gap-1 shrink-0">
                         <button
-                          key={String(pid)}
                           type="button"
-                          disabled={messagesRemaining === 0}
-                          onClick={() =>
-                            sendChatMessage(
-                              `Tell me more details about my portfolio with ID: ${pid}`,
-                            )
-                          }
-                          className="w-full text-left p-3 rounded-2xl border border-gray-200/60 bg-white/60 hover:bg-white/80 hover:border-gray-300 hover:shadow-md transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                          onClick={() => setShowRecentPortfoliosPanel(false)}
+                          className="p-1 rounded-lg hover:bg-black/5 text-gray-500"
+                          aria-label="Hide recent portfolios"
                         >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <div className="text-sm font-semibold text-gray-900 truncate">
-                                {name}
+                          <X size={16} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {recentPortfoliosLoading ? (
+                      <div className="space-y-3">
+                        {[0, 1, 2].map((i) => (
+                          <div
+                            key={i}
+                            className="p-3 rounded-2xl border border-gray-200/60 bg-white/60 animate-pulse"
+                          >
+                            <div className="h-3 bg-gray-200/70 rounded w-2/3 mb-2" />
+                            <div className="h-2 bg-gray-200/60 rounded w-4/5 mb-2" />
+                            <div className="h-2 bg-gray-200/60 rounded w-1/2" />
+                          </div>
+                        ))}
+                      </div>
+                    ) : recentPortfolios.length > 0 ? (
+                      <div className="space-y-3">
+                        {recentPortfolios.map((p) => {
+                          const pid = p?.id;
+                          if (!pid) return null;
+                          const name = p?.name || "Portfolio";
+                          const displayId =
+                            String(pid).length > 12
+                              ? `${String(pid).slice(0, 6)}...${String(
+                                  pid,
+                                ).slice(-4)}`
+                              : String(pid);
+                          const totalValue =
+                            p?.totalCurrentValue ??
+                            p?.totalCurrentValueUsd ??
+                            p?.totalValue;
+
+                          return (
+                            <button
+                              key={String(pid)}
+                              type="button"
+                              disabled={messagesRemaining === 0}
+                              onClick={() =>
+                                sendChatMessage(
+                                  `Tell me more details about my portfolio with ID: ${pid}`,
+                                )
+                              }
+                              className="w-full text-left p-3 rounded-2xl border border-gray-200/60 bg-white/60 hover:bg-white/80 hover:border-gray-300 hover:shadow-md transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <div className="text-sm font-semibold text-gray-900 truncate">
+                                    {name}
+                                  </div>
+                                  <div className="text-[11px] text-gray-600 mt-1 truncate">
+                                    ID: {displayId}
+                                  </div>
+                                  {p?.riskProfile ? (
+                                    <div className="text-[11px] text-gray-600 mt-1">
+                                      Risk:{" "}
+                                      {String(p.riskProfile).replace(/_/g, " ")}
+                                    </div>
+                                  ) : null}
+                                </div>
                               </div>
-                              <div className="text-[11px] text-gray-600 mt-1 truncate">
-                                ID: {displayId}
-                              </div>
-                              {p?.riskProfile ? (
-                                <div className="text-[11px] text-gray-600 mt-1">
-                                  Risk:{" "}
-                                  {String(p.riskProfile).replace(/_/g, " ")}
+
+                              {totalValue != null ? (
+                                <div className="mt-2 text-xs text-gray-700">
+                                  Value: {`$${Number(totalValue).toFixed(2)}`}
                                 </div>
                               ) : null}
-                            </div>
-                          </div>
-
-                          {totalValue != null ? (
-                            <div className="mt-2 text-xs text-gray-700">
-                              Value: {`$${Number(totalValue).toFixed(2)}`}
-                            </div>
-                          ) : null}
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="text-xs text-gray-500">
-                    No portfolios yet.
-                  </div>
-                )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="text-xs text-gray-500">
+                        No portfolios yet.
+                      </div>
+                    )}
                   </div>
                 </motion.div>
               )}
@@ -3050,7 +3024,9 @@ export function ChatPage() {
                     onClick={() => setIsBalancesCollapsed((p) => !p)}
                     className="text-xs text-gray-500 hover:text-gray-700"
                     aria-label={
-                      isBalancesCollapsed ? "Expand balances" : "Collapse balances"
+                      isBalancesCollapsed
+                        ? "Expand balances"
+                        : "Collapse balances"
                     }
                   >
                     {isBalancesCollapsed ? (
@@ -3062,12 +3038,12 @@ export function ChatPage() {
                   {!isBalancesCollapsed && (
                     <button
                       type="button"
-                      onClick={() => void fetchBscBalances()}
+                      onClick={() => void bscBalancesQuery.refetch()}
                       disabled={
                         !isConnected ||
                         isReadOnly ||
                         walletChainId !== 56 ||
-                        bscBalances.loading
+                        bscBalancesQuery.isFetching
                       }
                       className="text-xs text-gray-500 hover:text-green-600 disabled:opacity-50"
                       aria-label="Refresh balances"
@@ -3089,9 +3065,10 @@ export function ChatPage() {
                     <div className="text-xs text-gray-600">
                       Switch to BNB Chain to view BNB, USDT, and USDC balances.
                     </div>
-                  ) : bscBalances.error ? (
+                  ) : bscBalancesQuery.error ? (
                     <div className="text-xs text-red-600">
-                      {bscBalances.error}
+                      {bscBalancesQuery.error?.message ||
+                        "Failed to load balances."}
                     </div>
                   ) : (
                     <div className="space-y-2">
@@ -3129,13 +3106,15 @@ export function ChatPage() {
                               : Number(row.value).toLocaleString(undefined, {
                                   maximumFractionDigits: 6,
                                 })}
-                          {row.value != null && row.usdPrice != null && (
-                            <div className="text-xs text-green-600 text-right">
-                              {`$${(Number(row.value) * Number(row.usdPrice)).toLocaleString(undefined, {
-                                maximumFractionDigits: 2,
-                              })}`}
-                            </div>
-                          )}
+                            {row.value != null && row.usdPrice != null && (
+                              <div className="text-xs text-green-600 text-right">
+                                {`$${(
+                                  Number(row.value) * Number(row.usdPrice)
+                                ).toLocaleString(undefined, {
+                                  maximumFractionDigits: 2,
+                                })}`}
+                              </div>
+                            )}
                           </div>
                         </div>
                       ))}
