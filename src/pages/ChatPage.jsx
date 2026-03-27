@@ -12,6 +12,8 @@ import {
   HelpCircle,
   Check,
   RefreshCcw,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import { ChatBubble } from "../components/ChatBubble";
@@ -37,6 +39,7 @@ import { NavLink, useLocation, useNavigate } from "react-router";
 import getFormattedNumber from "../hooks/get-formatted-number";
 import { toast } from "sonner";
 import { ethers } from "ethers";
+import { AnimatePresence, motion } from "motion/react";
 import ChatMoreInfoModal from "../components/ChatMoreInfoModal";
 
 function formatResetAt(resetAt) {
@@ -152,12 +155,16 @@ export function ChatPage() {
   const [recentPortfoliosLoading, setRecentPortfoliosLoading] = useState(false);
   const [showRecentPortfoliosPanel, setShowRecentPortfoliosPanel] =
     useState(true);
+  const [isBalancesCollapsed, setIsBalancesCollapsed] = useState(false);
   const [bscBalances, setBscBalances] = useState({
     loading: false,
     error: null,
     bnb: null,
     usdt: null,
     usdc: null,
+    bnbUsd: null,
+    usdtUsd: null,
+    usdcUsd: null,
   });
   const [onchainBlocked, setOnchainBlocked] = useState(null);
   const [refreshOnchainLoading, setRefreshOnchainLoading] = useState(false);
@@ -731,12 +738,36 @@ export function ChatPage() {
         usdc.decimals(),
       ]);
 
+      let prices = {
+        bnbUsd: null,
+        usdtUsd: 1,
+        usdcUsd: 1,
+      };
+      try {
+        const priceRes = await fetch(
+          "https://api.coingecko.com/api/v3/simple/price?ids=binancecoin,tether,usd-coin&vs_currencies=usd",
+        );
+        if (priceRes.ok) {
+          const priceData = await priceRes.json();
+          prices = {
+            bnbUsd: Number(priceData?.binancecoin?.usd ?? 0) || null,
+            usdtUsd: Number(priceData?.tether?.usd ?? 1) || 1,
+            usdcUsd: Number(priceData?.["usd-coin"]?.usd ?? 1) || 1,
+          };
+        }
+      } catch {
+        // Keep stable fallback prices and continue showing balances.
+      }
+
       setBscBalances({
         loading: false,
         error: null,
         bnb: Number(ethers.utils.formatEther(bnbWei)),
         usdt: Number(ethers.utils.formatUnits(usdtRaw, usdtDec)),
         usdc: Number(ethers.utils.formatUnits(usdcRaw, usdcDec)),
+        bnbUsd: prices.bnbUsd,
+        usdtUsd: prices.usdtUsd,
+        usdcUsd: prices.usdcUsd,
       });
     } catch (e) {
       setBscBalances((p) => ({
@@ -2900,13 +2931,20 @@ export function ChatPage() {
           </div>
         )}
       </div>
-      {isConnected &&
-        !isReadOnly &&
-        showRecentPortfoliosPanel &&
-        recentPortfolios.length > 0 && (
-          <aside className="w-60 shrink-0 hidden lg:block fixed right-7">
-            <div className="sticky top-24">
-              <div className="glass-card p-4 border border-gray-200/50 bg-white/40">
+      {isConnected && !isReadOnly && (
+        <aside className="w-60 shrink-0 hidden lg:block fixed right-7">
+          <div className="sticky top-24">
+            <AnimatePresence initial={false}>
+              {showRecentPortfoliosPanel && recentPortfolios.length > 0 && (
+                <motion.div
+                  key="recent-portfolios-card"
+                  initial={{ opacity: 0, y: 10, height: 0 }}
+                  animate={{ opacity: 1, y: 0, height: "auto" }}
+                  exit={{ opacity: 0, y: -16, height: 0 }}
+                  transition={{ duration: 0.24, ease: "easeInOut" }}
+                  className="overflow-hidden"
+                >
+                  <div className="glass-card p-4 border border-gray-200/50 bg-white/40">
                 <div className="flex items-center justify-between gap-2 mb-3">
                   <h3 className="text-sm font-bold text-gray-900">
                     Recent portfolios
@@ -2996,82 +3034,119 @@ export function ChatPage() {
                     No portfolios yet.
                   </div>
                 )}
-              </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-              <div className="mt-3 glass-card p-4 border border-gray-200/50 bg-white/40">
-                <div className="flex items-center justify-between gap-2 mb-3">
-                  <h3 className="text-sm font-bold text-gray-900">
-                    BNB Chain balances
-                  </h3>
+            <div className="mt-3 glass-card p-4 border border-gray-200/50 bg-white/40">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-sm font-bold text-gray-900">
+                  BNB Chain balances
+                </h3>
+                <div className="flex items-center gap-1">
                   <button
                     type="button"
-                    onClick={() => void fetchBscBalances()}
-                    disabled={
-                      !isConnected ||
-                      isReadOnly ||
-                      walletChainId !== 56 ||
-                      bscBalances.loading
+                    onClick={() => setIsBalancesCollapsed((p) => !p)}
+                    className="text-xs text-gray-500 hover:text-gray-700"
+                    aria-label={
+                      isBalancesCollapsed ? "Expand balances" : "Collapse balances"
                     }
-                    className="text-xs text-gray-500 hover:text-green-600 disabled:opacity-50"
                   >
-                    <RefreshCcw className="w-4 h-4" />
+                    {isBalancesCollapsed ? (
+                      <ChevronDown className="w-4 h-4" />
+                    ) : (
+                      <ChevronUp className="w-4 h-4" />
+                    )}
                   </button>
+                  {!isBalancesCollapsed && (
+                    <button
+                      type="button"
+                      onClick={() => void fetchBscBalances()}
+                      disabled={
+                        !isConnected ||
+                        isReadOnly ||
+                        walletChainId !== 56 ||
+                        bscBalances.loading
+                      }
+                      className="text-xs text-gray-500 hover:text-green-600 disabled:opacity-50"
+                      aria-label="Refresh balances"
+                    >
+                      <RefreshCcw className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
-
-                {!isConnected ? (
-                  <div className="text-xs text-gray-600">
-                    Connect your wallet to view balances.
-                  </div>
-                ) : walletChainId !== 56 ? (
-                  <div className="text-xs text-gray-600">
-                    Switch to BNB Chain to view BNB, USDT, and USDC balances.
-                  </div>
-                ) : bscBalances.error ? (
-                  <div className="text-xs text-red-600">
-                    {bscBalances.error}
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {[
-                      {
-                        label: "BNB",
-                        value: bscBalances.bnb,
-                        icon: "https://cdn.allox.ai/allox/networks/bnbIcon.svg",
-                      },
-                      {
-                        label: "USDT",
-                        value: bscBalances.usdt,
-                        icon: "https://cdn.allox.ai/allox/tokens/usdt.svg",
-                      },
-                      {
-                        label: "USDC",
-                        value: bscBalances.usdc,
-                        icon: "https://cdn.allox.ai/allox/tokens/usdc.svg",
-                      },
-                    ].map((row) => (
-                      <div
-                        key={row.label}
-                        className="flex items-center justify-between text-xs bg-white/60 border border-gray-200/60 rounded-xl px-3 py-2"
-                      >
-                        <div className="font-semibold text-gray-800 flex items-center gap-2">
-                          <img src={row.icon} className="w-4 h-4" alt="" />{" "}
-                          {row.label}
-                        </div>
-                        <div className="text-gray-900 tabular-nums">
-                          {row.value == null
-                            ? "—"
-                            : Number(row.value).toLocaleString(undefined, {
-                                maximumFractionDigits: 6,
-                              })}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
+
+              {!isBalancesCollapsed && (
+                <>
+                  <div className="mb-3" />
+                  {!isConnected ? (
+                    <div className="text-xs text-gray-600">
+                      Connect your wallet to view balances.
+                    </div>
+                  ) : walletChainId !== 56 ? (
+                    <div className="text-xs text-gray-600">
+                      Switch to BNB Chain to view BNB, USDT, and USDC balances.
+                    </div>
+                  ) : bscBalances.error ? (
+                    <div className="text-xs text-red-600">
+                      {bscBalances.error}
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {[
+                        {
+                          label: "BNB",
+                          value: bscBalances.bnb,
+                          usdPrice: bscBalances.bnbUsd,
+                          icon: "https://cdn.allox.ai/allox/networks/bnbIcon.svg",
+                        },
+                        {
+                          label: "USDT",
+                          value: bscBalances.usdt,
+                          usdPrice: bscBalances.usdtUsd,
+                          icon: "https://cdn.allox.ai/allox/tokens/usdt.svg",
+                        },
+                        {
+                          label: "USDC",
+                          value: bscBalances.usdc,
+                          usdPrice: bscBalances.usdcUsd,
+                          icon: "https://cdn.allox.ai/allox/tokens/usdc.svg",
+                        },
+                      ].map((row) => (
+                        <div
+                          key={row.label}
+                          className="flex items-center justify-between text-xs bg-white/60 border border-gray-200/60 rounded-xl px-3 py-2"
+                        >
+                          <div className="font-semibold text-gray-800 flex items-center gap-2">
+                            <img src={row.icon} className="w-4 h-4" alt="" />{" "}
+                            {row.label}
+                          </div>
+                          <div className="text-gray-900 tabular-nums">
+                            {row.value == null
+                              ? "—"
+                              : Number(row.value).toLocaleString(undefined, {
+                                  maximumFractionDigits: 6,
+                                })}
+                          {row.value != null && row.usdPrice != null && (
+                            <div className="text-xs text-green-600 text-right">
+                              {`$${(Number(row.value) * Number(row.usdPrice)).toLocaleString(undefined, {
+                                maximumFractionDigits: 2,
+                              })}`}
+                            </div>
+                          )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
             </div>
-          </aside>
-        )}
+          </div>
+        </aside>
+      )}
 
       <div className="shrink-0 fixed left-0 w-full z-4 bottom-0 border-t border-gray-200/50 bg-pattern/95 backdrop-blur-lg">
         <div className="px-6 py-6 max-w-250 mx-auto w-full">
