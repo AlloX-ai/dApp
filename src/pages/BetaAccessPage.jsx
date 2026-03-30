@@ -26,7 +26,7 @@ export function BetaAccessPage({ onWalletConnect }) {
       .then(() => navigate("/", { replace: true }))
       .catch((err) => {
         console.error("Auth error:", err);
-        toast.error(err?.message || "Failed to sign. Please try again.");
+        // toast.error(err?.message || "Failed to sign. Please try again.");
         authTriggeredRef.current = false;
       })
       .finally(() => setIsSigning(false));

@@ -1,5 +1,5 @@
-import { ethers } from "ethers";
 import {
+  getAccount,
   readContract as wagmiReadContract,
   sendTransaction as wagmiSendTransaction,
   waitForTransactionReceipt as wagmiWaitForTransactionReceipt,
@@ -254,18 +254,16 @@ export async function executePortfolioOnChain(
     throw new Error("You must be logged in before executing a portfolio.");
   }
 
-  if (!window.ethereum) {
+  const accountState = getAccount(wagmiClient);
+  const userAddress = accountState?.address;
+
+  if (!accountState?.isConnected || !userAddress) {
     throw new Error(
-      "Wallet not found. Please install a Web3 wallet (e.g. MetaMask).",
+      "Wallet not connected. Connect your wallet (including WalletConnect/QR) and try again.",
     );
   }
 
-  const provider = new ethers.providers.Web3Provider(window.ethereum);
-  const signer = provider.getSigner();
-  const userAddress = await signer.getAddress();
-
-  const network = await provider.getNetwork();
-  if (Number(network.chainId) !== 56) {
+  if (Number(accountState?.chainId) !== 56) {
     throw new Error(
       "Please switch your wallet to BNB Chain (chainId 56) before executing on-chain.",
     );
