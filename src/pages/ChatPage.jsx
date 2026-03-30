@@ -1596,7 +1596,7 @@ export function ChatPage() {
           )}
         </div>
         {Array.isArray(preview.positions) && preview.positions.length > 0 && (
-          <div className="mt-2 space-y-1 max-h-40 overflow-y-auto pr-1">
+          <div className="mt-2 space-y-1 max-h-80 overflow-y-auto pr-1">
             {preview.positions.map((p, idx) => (
               <div
                 key={`${p.symbol || p.name || idx}-${idx}`}
