@@ -38,7 +38,10 @@ import { useAuth } from "../hooks/useAuth";
 import { NavLink, useLocation, useNavigate } from "react-router";
 import getFormattedNumber from "../hooks/get-formatted-number";
 import { toast } from "sonner";
-import { ethers } from "ethers";
+import { getPublicClient } from "@wagmi/core";
+import { wagmiClient } from "../wagmiConnectors";
+import { bsc } from "wagmi/chains";
+import { erc20Abi, formatEther, formatUnits } from "viem";
 import { AnimatePresence, motion } from "motion/react";
 import ChatMoreInfoModal from "../components/ChatMoreInfoModal";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -702,28 +705,44 @@ export function ChatPage() {
       isConnected &&
       !isReadOnly &&
       walletChainId === 56 &&
-      !!walletAddress &&
-      !!window.ethereum,
+      !!walletAddress,
     staleTime: 20_000,
     queryFn: async () => {
       const USDT_BSC = "0x55d398326f99059fF775485246999027B3197955";
       const USDC_BSC = "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d";
-      const ERC20_ABI = [
-        "function balanceOf(address owner) view returns (uint256)",
-        "function decimals() view returns (uint8)",
-      ];
 
-      const provider = new ethers.providers.Web3Provider(window.ethereum);
-      const bnbWei = await provider.getBalance(walletAddress);
+      const publicClient = getPublicClient(wagmiClient, { chainId: bsc.id });
+      if (!publicClient) {
+        throw new Error("BSC RPC provider unavailable.");
+      }
 
-      const usdt = new ethers.Contract(USDT_BSC, ERC20_ABI, provider);
-      const usdc = new ethers.Contract(USDC_BSC, ERC20_ABI, provider);
+      const bnbWei = await publicClient.getBalance({
+        address: walletAddress,
+      });
 
       const [usdtRaw, usdtDec, usdcRaw, usdcDec] = await Promise.all([
-        usdt.balanceOf(walletAddress),
-        usdt.decimals(),
-        usdc.balanceOf(walletAddress),
-        usdc.decimals(),
+        publicClient.readContract({
+          address: USDT_BSC,
+          abi: erc20Abi,
+          functionName: "balanceOf",
+          args: [walletAddress],
+        }),
+        publicClient.readContract({
+          address: USDT_BSC,
+          abi: erc20Abi,
+          functionName: "decimals",
+        }),
+        publicClient.readContract({
+          address: USDC_BSC,
+          abi: erc20Abi,
+          functionName: "balanceOf",
+          args: [walletAddress],
+        }),
+        publicClient.readContract({
+          address: USDC_BSC,
+          abi: erc20Abi,
+          functionName: "decimals",
+        }),
       ]);
 
       let prices = { bnbUsd: null, usdtUsd: 1, usdcUsd: 1 };
@@ -744,9 +763,9 @@ export function ChatPage() {
       }
 
       return {
-        bnb: Number(ethers.utils.formatEther(bnbWei)),
-        usdt: Number(ethers.utils.formatUnits(usdtRaw, usdtDec)),
-        usdc: Number(ethers.utils.formatUnits(usdcRaw, usdcDec)),
+        bnb: Number(formatEther(bnbWei)),
+        usdt: Number(formatUnits(usdtRaw, usdtDec)),
+        usdc: Number(formatUnits(usdcRaw, usdcDec)),
         bnbUsd: prices.bnbUsd,
         usdtUsd: prices.usdtUsd,
         usdcUsd: prices.usdcUsd,
@@ -1596,7 +1615,7 @@ export function ChatPage() {
           )}
         </div>
         {Array.isArray(preview.positions) && preview.positions.length > 0 && (
-          <div className="mt-2 space-y-1 max-h-40 overflow-y-auto pr-1">
+          <div className="mt-2 space-y-1 max-h-80 overflow-y-auto pr-1">
             {preview.positions.map((p, idx) => (
               <div
                 key={`${p.symbol || p.name || idx}-${idx}`}
