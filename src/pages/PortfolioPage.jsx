@@ -518,7 +518,7 @@ export function PortfolioPage() {
                           Total Value
                         </p>
                         <p className="text-3xl font-bold">
-                          ${totalPortfolioValue.toFixed(2)}
+                          ${getFormattedNumber(totalPortfolioValue)}
                         </p>
                       </div>
                       <div className="glass-card p-5">
@@ -526,7 +526,7 @@ export function PortfolioPage() {
                           Total Invested
                         </p>
                         <p className="text-2xl font-bold text-gray-700">
-                          ${totalInvested.toFixed(2)}
+                          ${getFormattedNumber(totalInvested.toFixed(2))}
                         </p>
                       </div>
                       <div className="glass-card p-5">
@@ -538,8 +538,8 @@ export function PortfolioPage() {
                               : "text-red-600"
                           }`}
                         >
-                          {totalPortfolioPnL >= 0 ? "+" : ""}$
-                          {totalPortfolioPnL.toFixed(2)}
+                          {totalPortfolioPnL >= 0 ? "+" : ""}
+                          ${totalPortfolioPnL.toFixed(2)}
                         </p>
                       </div>
                       <div className="glass-card p-5">

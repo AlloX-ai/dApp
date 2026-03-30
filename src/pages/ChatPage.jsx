@@ -3101,11 +3101,6 @@ export function ChatPage() {
                             {row.label}
                           </div>
                           <div className="text-gray-900 tabular-nums">
-                            {row.value == null
-                              ? "—"
-                              : Number(row.value).toLocaleString(undefined, {
-                                  maximumFractionDigits: 6,
-                                })}
                             {row.value != null && row.usdPrice != null && (
                               <div className="text-xs text-green-600 text-right">
                                 {`$${(
@@ -3115,6 +3110,11 @@ export function ChatPage() {
                                 })}`}
                               </div>
                             )}
+                            {row.value == null
+                              ? "—"
+                              : Number(row.value).toLocaleString(undefined, {
+                                  maximumFractionDigits: 6,
+                                })}
                           </div>
                         </div>
                       ))}
