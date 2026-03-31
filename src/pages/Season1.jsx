@@ -25,17 +25,17 @@ export function Season1() {
     },
     {
       number: 2,
-      status: "Active",
+      status: "Ended",
       reward: 16000,
       timeline: "Mar 10 - Mar 31",
-      active: true,
+      active: false,
     },
     {
       number: 3,
-      status: "Upcoming",
+      status: "Live",
       reward: 24000,
-      timeline: "TBA",
-      active: false,
+      timeline: "Apr 01 - May 01",
+      active: true,
     },
   ];
 
@@ -43,23 +43,30 @@ export function Season1() {
     {
       name: "Tier 1",
       users: "First 1,000 users",
-      winners: "80 winners",
-      reward: 100,
-      total: 8000,
+      winners: "50 winners",
+      reward: 200,
+      total: 10000,
     },
     {
       name: "Tier 2",
-      users: "Next 10,000 users",
-      winners: "100 winners",
-      reward: 50,
-      total: 5000,
+      users: "Next 15,000 users",
+      winners: "75 winners",
+      reward: 100,
+      total: 7500,
     },
     {
       name: "Tier 3",
-      users: "Next 25,000 users",
-      winners: "600 winners",
+      users: "Next 40,000 users",
+      winners: "200 winners",
+      reward: 25,
+      total: 5000,
+    },
+    {
+      name: "Tier 4",
+      users: "Final Pool",
+      winners: "300 winners",
       reward: 5,
-      total: 3000,
+      total: 1500,
     },
   ];
 
@@ -225,7 +232,7 @@ export function Season1() {
 
       {/* Season 1 Prize Distribution */}
       <div className="glass-card p-6">
-        <h3 className="text-xl font-bold mb-4">Season 2 Prize Distribution</h3>
+        <h3 className="text-xl font-bold mb-4">Season 3 Prize Distribution</h3>
         <div className="space-y-4">
           {tiers.map((tier, index) => (
             <div
@@ -239,22 +246,30 @@ export function Season1() {
                 <div className="flex-1">
                   <div className="font-bold mb-1">{tier.users}</div>
                   <div className="text-sm text-gray-600 flex flex-col sm:flex-row items-start sm:items-center gap-1">
-                    <span>{tier.winners} selected  •</span>
-                <div className="flex items-center gap-1">
+                    <span>{tier.winners} selected •</span>
+                    <div className="flex items-center gap-1">
                       <Gem size={14} className="text-purple-600" />
-                      <span className="font-semibold text-purple-700">{getFormattedNumber(tier.reward / 5, 0)}</span>
-                      <span className="text-gray-500">(${getFormattedNumber(tier.reward, 0)})</span>
+                      <span className="font-semibold text-purple-700">
+                        {getFormattedNumber(tier.reward / 5, 0)}
+                      </span>
+                      <span className="text-gray-500">
+                        (${getFormattedNumber(tier.reward, 0)})
+                      </span>
                       <span className="text-gray-500">each</span>
                     </div>
-                    </div>
+                  </div>
                 </div>
               </div>
               <div className="text-right hidden sm:block">
                 <div className="text-sm text-gray-600">Total Pool</div>
-              <div className="flex items-center gap-1 justify-end">
+                <div className="flex items-center gap-1 justify-end">
                   <Gem size={18} className="text-purple-600" />
-                  <span className="text-xl font-bold">{getFormattedNumber(tier.total / 5, 0)}</span>
-                  <span className="text-sm text-gray-600">(${getFormattedNumber(tier.total, 0)})</span>
+                  <span className="text-xl font-bold">
+                    {getFormattedNumber(tier.total / 5, 0)}
+                  </span>
+                  <span className="text-sm text-gray-600">
+                    (${getFormattedNumber(tier.total, 0)})
+                  </span>
                 </div>
               </div>
             </div>
@@ -263,12 +278,11 @@ export function Season1() {
         <div className="mt-4 pt-4 border-t border-gray-200">
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-600">Total USDT distributed</div>
-             <div className="flex items-center gap-1 justify-end">
-                  <Gem size={18} className="text-purple-600" />
-                              <div className="text-2xl font-bold">3,200</div>
-                    <span className="text-sm text-gray-600">($16,000)</span>
-
-                </div>
+            <div className="flex items-center gap-1 justify-end">
+              <Gem size={18} className="text-purple-600" />
+              <div className="text-2xl font-bold">4,800</div>
+              <span className="text-sm text-gray-600">($24,000)</span>
+            </div>
           </div>
         </div>
       </div>

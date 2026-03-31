@@ -1697,7 +1697,7 @@ export function ChatPage() {
               Congratulations!
             </h3>
             <p className="text-gray-600 mb-1">
-              You claimed your Season 2 points.
+              You claimed your Season 3 points.
             </p>
             {/* <p className="text-sm text-gray-500">Start chatting to use them.</p> */}
           </div>
