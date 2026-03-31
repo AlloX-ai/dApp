@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Loader2 } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import OutsideClickHandler from "react-outside-click-handler";
 import { toast } from "sonner";
@@ -31,6 +31,7 @@ type NetworkSelectorProps = {
 export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
   const dispatch = useDispatch();
   const [isOpen, setIsOpen] = useState(false);
+  const [isSwitching, setIsSwitching] = useState(false);
   const chainId = useSelector((state: any) => state.wallet.chainId);
   const walletType = useSelector((state: any) => state.wallet.walletType);
   const { connector } = useAccount();
@@ -144,6 +145,7 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
       return;
     }
     try {
+      setIsSwitching(true);
       await switchChainAsync({ chainId: network.chainId });
       dispatch(setChainId(network.chainId));
       localStorage.removeItem(PREFERRED_CHAIN_STORAGE_KEY);
@@ -177,6 +179,8 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
         console.error("Network switch error:", error);
         toast.error("Failed to switch network.");
       }
+    } finally {
+      setIsSwitching(false);
     }
   };
 
@@ -240,6 +244,12 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
               >
                 Disconnect
               </button>
+              {isSwitching && (
+                <div className="mt-3 flex items-center gap-2 text-xs text-gray-500">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  <span>Waiting for you to confirm network switch in your wallet…</span>
+                </div>
+              )}
             </OutsideClickHandler>
           </div>
         </>
