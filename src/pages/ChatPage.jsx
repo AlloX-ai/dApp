@@ -1602,8 +1602,8 @@ export function ChatPage() {
     const isOnChain = preview.executionMode === "ON_CHAIN";
 
     return (
-      <div className="mt-4 rounded-2xl bg-linear-to-br from-blue-50/80 to-purple-50/80 border border-blue-200/50 shadow-sm p-4 text-sm space-y-2">
-        <div className="flex items-center justify-between">
+      <div className="mt-4 rounded-2xl bg-linear-to-br from-blue-50/80 to-purple-50/80 border border-blue-200/50 shadow-sm p-2 sm:p-4 text-sm space-y-2">
+        <div className="flex flex-col sm:flex-row items-center justify-between">
           <div className="font-semibold text-gray-900">
             {chainLabel} ·{" "}
             {isOnChain ? "On-Chain Execution" : "Paper Trading Preview"}
@@ -1811,7 +1811,7 @@ export function ChatPage() {
           </div>
         )}
         <div className="flex gap-2">
-          <NavLink
+          {/* <NavLink
             to={`/portfolio?portfolio=${portfolio?.id}`}
             className="px-3 py-2 bg-white/80 border border-gray-200 rounded-xl text-xs font-medium hover:bg-white hover:border-gray-300 hover:shadow-md transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
           >
@@ -1828,7 +1828,7 @@ export function ChatPage() {
             className="px-3 py-2 bg-white/80 border border-gray-200 rounded-xl text-xs font-medium hover:bg-white hover:border-gray-300 hover:shadow-md transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
           >
             Create another portfolio
-          </button>
+          </button> */}
           {safeOptions.length > 0 && (
             <div className="border-t border-green-200/60">
               <div className="flex flex-wrap gap-2">
@@ -1959,7 +1959,7 @@ export function ChatPage() {
           </div>
         )}
 
-        <div className="flex gap-2 pt-2">
+        {/* <div className="flex gap-2 pt-2">
           <NavLink
             to={`/portfolio?portfolio=${portfolio?.id}`}
             className="px-3 py-2 bg-white/80 border border-gray-200 rounded-xl text-xs font-medium hover:bg-white hover:border-gray-300 hover:shadow-md transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
@@ -1979,7 +1979,7 @@ export function ChatPage() {
           >
             Create another portfolio
           </button>
-        </div>
+        </div> */}
       </div>
     );
   };
