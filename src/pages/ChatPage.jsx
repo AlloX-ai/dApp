@@ -20,6 +20,7 @@ import { apiCall } from "../utils/api";
 import { useAuth } from "../hooks/useAuth";
 import { NavLink } from "react-router";
 import getFormattedNumber from "../hooks/get-formatted-number";
+import { CongratsModal } from "../components/CongratsModal";
 
 function formatResetAt(resetAt) {
   if (resetAt == null || resetAt === "") return "";
@@ -97,6 +98,16 @@ export function ChatPage() {
   const [refreshOnchainLoading, setRefreshOnchainLoading] = useState(false);
   const [refreshOnchainMessage, setRefreshOnchainMessage] = useState(null);
   const [statusLoading, setStatusLoading] = useState(false);
+  const [showModal, setShowModal] = useState(() => {
+    const count = parseInt(localStorage.getItem("chatModalShownCount") || "0", 10);
+    if (count >= 3) return false;
+    const today = new Date().toDateString();
+    const lastShown = localStorage.getItem("chatModalLastShownDate");
+    if (lastShown === today) return false;
+    localStorage.setItem("chatModalShownCount", String(count + 1));
+    localStorage.setItem("chatModalLastShownDate", today);
+    return true;
+  })
 
   useEffect(() => {
     const aiMessages = currentMessages.filter(
@@ -1697,7 +1708,7 @@ export function ChatPage() {
               Congratulations!
             </h3>
             <p className="text-gray-600 mb-1">
-              You claimed your Season 3 points.
+              You claimed your Season 2 points.
             </p>
             {/* <p className="text-sm text-gray-500">Start chatting to use them.</p> */}
           </div>
@@ -1767,6 +1778,17 @@ export function ChatPage() {
             </button>
           </div>
         </div>
+      )}
+       {showModal && (
+        <CongratsModal
+          isOpen={showModal}
+          onClose={() => {
+            setShowModal(false);
+          }}
+          season={2}
+          rewardGems={20}
+          rewardUSD={100}
+        />
       )}
     </div>
   );

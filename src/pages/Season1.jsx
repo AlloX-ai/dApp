@@ -1,4 +1,4 @@
-import { Flame, Trophy, Lock, Calendar, Info, Gem } from "lucide-react";
+import { Flame, Trophy, Lock, Calendar, Info, Gem, Share2 } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { useSelector } from "react-redux";
 import { season1_winners } from "../constants/addresses";
@@ -14,6 +14,75 @@ export function Season1() {
       return item.address.toLowerCase() === address?.toLowerCase();
     });
   }, [address]);
+
+
+ const messages = [
+"I just won {amount} in the Spring Series!",
+"I secured {amount} from the Spring competition 🌸",
+"I walked away with {amount} this Spring Series 🌼",
+"I just grabbed {amount} in rewards!",
+"I earned {amount} from the Spring grind 🌷",
+"I came out on top with {amount} 🌿",
+"I just added {amount} to my winnings!",
+"I took home {amount} from the Spring Series 🌺",
+"I just hit a win for {amount}",
+"I claimed {amount} this season 🍃",
+
+"I just pulled in {amount} from the Spring Series",
+"I secured a solid {amount} reward 🌸",
+"I just boosted my balance with {amount}",
+"I made {amount} from the Spring competition 🌼",
+"I just cashed in {amount}",
+"I earned a clean {amount} this season 🌷",
+"I came through with {amount} 🌿",
+"I just picked up {amount} in rewards",
+"I locked in {amount} from Spring Series 🌺",
+"I just secured {amount} 🍃",
+
+"I just got rewarded with {amount}",
+"I pulled off a win worth {amount} 🌸",
+"I secured my spot and earned {amount}",
+"I just landed {amount} in rewards 🌼",
+"I added {amount} to my total",
+"I just made {amount} this Spring 🌷",
+"I finished strong with {amount} 🌿",
+"I just grabbed a reward of {amount}",
+"I secured {amount} this run 🌺",
+"I just got {amount} 🍃",
+
+"I just earned {amount} from the Spring Series",
+"I locked in a win worth {amount} 🌸",
+"I just walked away with {amount}",
+"I made a solid {amount} this season 🌼",
+"I just hit {amount} in rewards",
+"I secured {amount} after a strong run 🌷",
+"I just picked up {amount}",
+"I ended the season with {amount} 🌿",
+"I just grabbed {amount} 🌺",
+"I secured {amount} 🍃",
+
+"I just scored {amount} in the Spring Series",
+"I pulled in {amount} this season 🌸",
+"I just secured {amount} in winnings",
+"I came through with a win of {amount} 🌼",
+"I just earned {amount}",
+"I added {amount} to my rewards 🌷",
+"I just locked in {amount}",
+"I secured a reward of {amount} 🌿",
+"I just took {amount}",
+"I earned {amount} 🍃"
+
+]
+
+const replacemsg = winner ? winner.reward : 0;
+
+
+  const handleShareToTwitter = () => {
+   const msg = messages[Math.floor(Math.random() * messages.length)];
+const final = msg.replace("{amount}", "$" + replacemsg);
+    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(final)}`;
+    window.open(twitterUrl, "_blank");
+  };
 
   const seasons = [
     {
@@ -173,23 +242,51 @@ export function Season1() {
                   {season.status}
                 </div>
               </div>
-              {season.number === 1 && (
-                <div
-                  className={` ${
-                    winner
-                      ? "absolute right-0 top-3 bg-linear-to-r from-green-50 to-emerald-100 rounded-xl py-1 px-2 border-2 border-emerald-200"
-                      : ""
-                  } flex flex-col `}
-                >
-                  <div className="text-xs text-gray-600">Rewards</div>
-                  <div
-                    className={`text-sm font-medium ${
-                      winner ? "text-green-600" : "text-gray-500"
-                    }`}
-                  >
-                    ${winner ? getFormattedNumber(winner.reward, 0) : 0}
+              {season.number === 1 ? (
+                // <div
+                //   className={` ${
+                //     winner
+                //       ? "absolute right-0 top-3 bg-linear-to-r from-green-50 to-emerald-100 rounded-xl py-1 px-2 border-2 border-emerald-200"
+                //       : ""
+                //   } flex flex-col `}
+                // >
+                //   <div className="text-xs text-gray-600">Rewards</div>
+                //   <div
+                //     className={`text-sm font-medium ${
+                //       winner ? "text-green-600" : "text-gray-500"
+                //     }`}
+                //   >
+                //     ${winner ? getFormattedNumber(winner.reward, 0) : 0}
+                //   </div>
+                // </div>
+                <div className="flex items-center justify-between gap-2  pt-2">
+                  <div>
+                    <div className="text-sm font-medium text-gray-600 ">
+                      Rewards $
+                      {winner ? getFormattedNumber(winner.reward, 0) : 0}
+                    </div>
                   </div>
                 </div>
+              ) : season.number === 2 ? (
+                <div className="flex items-center justify-between gap-2  pt-2">
+                  <div>
+                    <div className="text-sm font-medium text-gray-600">
+                      Rewards $
+                      {winner ? getFormattedNumber(winner.reward, 0) : 0}
+                    </div>
+                  </div>
+                 {/* {winner && winner.reward > 0 && */}
+                  <button
+                    onClick={() => handleShareToTwitter()}
+                    className="flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded text-xs font-medium transition-all hover:shadow-sm"
+                  >
+                    <Share2 size={12} />
+                    <span>Share</span>
+                  </button>
+                 {/* } */}
+                </div>
+              ) : (
+                <></>
               )}
             </div>
           </div>
