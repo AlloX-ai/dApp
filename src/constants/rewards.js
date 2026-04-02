@@ -1,5 +1,10 @@
 export const season2Rewards = [
   {
+    "address": "0xAA98E65C7231004578BdFfeeECB6A44904d7F714",
+    "twitterUsername": "m_BMN_",
+    "gems": 20
+  },
+  {
     "address": "0x99beddf95a0759f0dac4ceb4c5e388f91646e44a",
     "twitterUsername": "JOHNSON12O",
     "gems": 20
