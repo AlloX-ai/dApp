@@ -1,7 +1,7 @@
 import { X, Trophy, Gem, Share2, Sparkles, PartyPopper } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { season2Rewards } from "../constants/rewards";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 
 interface CongratsModalProps {
   isOpen: boolean;
@@ -15,13 +15,15 @@ export function CongratsModal({
   address,
 }: CongratsModalProps) {
 
-    const handleShareToTwitter = () => {
+  const handleShareToTwitter = () => {
     const twitterUrl = `https://twitter.com/intent/tweet`;
     window.open(twitterUrl, "_blank");
   };
 
 
-  const user = season2Rewards.find((entry) => entry.address === address);
+  const user = useMemo(() => {
+    return season2Rewards.find((entry) => entry.address === address);
+  }, [season2Rewards, address]);
 
   useEffect(() => {
     if (!isOpen || !user) return;
@@ -39,7 +41,7 @@ export function CongratsModal({
     }
   }, [isOpen, user]);
 
-  
+
 
   if (!user) {
     return null; // Don't render the modal if the user is not in the rewards list
