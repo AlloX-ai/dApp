@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Navigate,
   Outlet,
@@ -51,6 +51,7 @@ import {
 import { store } from "./redux/store";
 import { PointsPage } from "./pages/Points";
 import { useSocial } from "./hooks/useSocial";
+import { CongratsModal } from "./components/CongratsModal";
 
 const SOLANA_MAINNET_CHAIN_ID = 101;
 const PREFERRED_CHAIN_STORAGE_KEY = "walletPreferredChainId";
@@ -79,7 +80,6 @@ async function tryRestorePhantomSession(dispatch) {
 }
 
 function LaunchAppLayout() {
-
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const wasConnectedRef = useRef(false);
@@ -87,7 +87,6 @@ function LaunchAppLayout() {
   const prevWalletTypeRef = useRef(undefined);
   const authTriggeredRef = useRef(false);
   const { connector } = getAccount(wagmiClient);
-
 
   const { address, isConnected, walletModal, walletType, checkinModal } =
     useSelector((state) => state.wallet);
@@ -100,15 +99,12 @@ function LaunchAppLayout() {
     loading: checkinLoading,
   } = useCheckin();
 
-
-    const {fetchSocialPoints,fetchAllPoints, loadSeenPosts} = useSocial();
-   useEffect(() => {
-     fetchSocialPoints();
-     fetchAllPoints();
-     loadSeenPosts();
-   }, [fetchSocialPoints, fetchAllPoints, loadSeenPosts]);
-
-
+  const { fetchSocialPoints, fetchAllPoints, loadSeenPosts } = useSocial();
+  useEffect(() => {
+    fetchSocialPoints();
+    fetchAllPoints();
+    loadSeenPosts();
+  }, [fetchSocialPoints, fetchAllPoints, loadSeenPosts]);
 
   const handleDisconnect = async () => {
     // if (walletType === "phantom") {
@@ -621,6 +617,26 @@ function RequireAuth({ children }) {
 }
 
 function App() {
+  const { address } = useSelector((state) => state.wallet);
+
+  const [showModal, setShowModal] = useState(() => {
+    const today = new Date().toDateString();
+    const lastShown = localStorage.getItem("chatModalLastShownDate");
+    const count = parseInt(
+      localStorage.getItem("chatModalShownCount") || "0",
+      10,
+    );
+
+    // Only show if it hasn't been shown today AND we haven't hit the limit
+    if (lastShown !== today && count < 3) {
+      localStorage.setItem("chatModalShownCount", String(count + 1));
+      localStorage.setItem("chatModalLastShownDate", today);
+      return true;
+    }
+
+    return false;
+  });
+
   return (
     <>
       <Toaster position="top-right" richColors closeButton />
@@ -645,6 +661,15 @@ function App() {
           <Route path="/referrals" element={<ReferralsPage />} />
         </Route>
       </Routes>
+      {showModal && (
+        <CongratsModal
+          isOpen={showModal}
+          onClose={() => {
+            setShowModal(false);
+          }}
+          address={address}
+        />
+      )}
     </>
   );
 }

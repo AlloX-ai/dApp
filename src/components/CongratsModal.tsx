@@ -1,5 +1,6 @@
 import { X, Trophy, Gem, Share2, Sparkles, PartyPopper } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { season2Rewards } from "../constants/rewards";
 
 interface CongratsModalProps {
   isOpen: boolean;
@@ -7,21 +8,29 @@ interface CongratsModalProps {
   season: number;
   rewardGems: number;
   rewardUSD: number;
+  address: string;
 }
 
 export function CongratsModal({
   isOpen,
   onClose,
-  season,
-  rewardGems,
-  rewardUSD,
+  
+  address,
 }: CongratsModalProps) {
 
-    
-  const handleShareToTwitter = () => {
+    const handleShareToTwitter = () => {
     const twitterUrl = `https://twitter.com/intent/tweet`;
     window.open(twitterUrl, "_blank");
   };
+
+
+  const user = season2Rewards.find((entry) => entry.address === address);
+
+  
+
+  if (!user) {
+    return null; // Don't render the modal if the user is not in the rewards list
+  }
 
   return (
     <AnimatePresence>
@@ -45,7 +54,7 @@ export function CongratsModal({
             className="relative bg-white/95 backdrop-blur-2xl rounded-3xl shadow-2xl max-w-md w-full border border-white/30 overflow-hidden"
           >
             {/* Confetti Background Effect */}
-            <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/10 via-orange-500/10 to-pink-500/10 pointer-events-none" />
+            <div className="absolute inset-0 bg-white pointer-events-none" />
 
             {/* Close Button */}
             <button
@@ -111,9 +120,9 @@ export function CongratsModal({
                 <div className="flex items-center justify-center gap-2">
                   <Gem className="w-6 h-6 text-purple-600" />
                   <span className="text-3xl font-bold text-gray-900">
-                    {rewardGems}
+                    {user.gems}
                   </span>
-                  <span className="text-xl text-gray-600">(${rewardUSD})</span>
+                  <span className="text-xl text-gray-600">(${user.gems * 5})</span>
                 </div>
               </motion.div>
 
@@ -124,14 +133,14 @@ export function CongratsModal({
                 transition={{ delay: 0.6 }}
                 className="bg-gradient-to-br from-blue-50/80 to-indigo-50/80 rounded-2xl p-5 mb-6 border border-blue-200/50"
               >
-                <div className="flex items-start gap-3 mb-4">
+                <div className="flex items-start gap-3">
                   <Sparkles className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
                   <p className="text-sm text-gray-700 leading-relaxed text-left">
-                    Share your win with the community! Tag{" "}
+                    Take a screenshot and share your win on X. Tag{" "}
                     <span className="font-semibold text-blue-600">
                       @alloxdotai{" "}
                     </span>{" "}
-                    on X and let everyone know about your achievement.
+                    to show your achievement.
                   </p>
                 </div>
               </motion.div>

@@ -98,16 +98,7 @@ export function ChatPage() {
   const [refreshOnchainLoading, setRefreshOnchainLoading] = useState(false);
   const [refreshOnchainMessage, setRefreshOnchainMessage] = useState(null);
   const [statusLoading, setStatusLoading] = useState(false);
-  const [showModal, setShowModal] = useState(() => {
-    const count = parseInt(localStorage.getItem("chatModalShownCount") || "0", 10);
-    if (count >= 3) return false;
-    const today = new Date().toDateString();
-    const lastShown = localStorage.getItem("chatModalLastShownDate");
-    if (lastShown === today) return false;
-    localStorage.setItem("chatModalShownCount", String(count + 1));
-    localStorage.setItem("chatModalLastShownDate", today);
-    return true;
-  })
+ 
 
   useEffect(() => {
     const aiMessages = currentMessages.filter(
@@ -1779,17 +1770,7 @@ export function ChatPage() {
           </div>
         </div>
       )}
-       {showModal && (
-        <CongratsModal
-          isOpen={showModal}
-          onClose={() => {
-            setShowModal(false);
-          }}
-          season={2}
-          rewardGems={20}
-          rewardUSD={100}
-        />
-      )}
+      
     </div>
   );
 }
