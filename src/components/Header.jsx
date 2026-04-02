@@ -20,7 +20,7 @@ import { useCheckin } from "../hooks/useCheckin";
 import { useTotalPoints } from "../hooks/useTotalPoints";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { navigationTabs, isActivePath } from "../constants/navigation";
-import OutsideClickHandler from "react-outside-click-handler/build/OutsideClickHandler";
+import OutsideClickHandler from "react-outside-click-handler";
 import { season2Rewards } from "../constants/rewards";
 
 export function Header({
