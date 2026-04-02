@@ -107,16 +107,16 @@ export function Season1() {
           </p>
         </div>
         {/* Seasons Overview */}
-        <div className="grid md:grid-cols-3 gap-4">
+        <div className="flex flex-col lg:flex-row items-center gap-4">
           {seasons.map((season) => (
             <div
               key={season.number}
-              className={`p-5 ${season.active ? "glass-card" : "glass-card-disabled"} ${
+              className={`p-5 w-[100%] lg:w-[100%]  ${season.active ? "glass-card" : "glass-card-disabled"} ${
                 season.active ? "ring-2 ring-black" : ""
               }`}
             >
               {season.number === 2 && user && user.gems > 0 && (
-                <span className="px-2 py-0.5 bg-green-500 text-white text-lg font-bold rounded-full absolute top-[-30px] bottom-0 my-auto h-fit right-2 sm:right-8 lg:right-12 xl:right-24">
+                <span className="px-2 py-0.5 bg-green-500 text-white text-xs sm:text-sm  2xl:text-lg font-bold rounded-full absolute top-0 bottom-0 my-auto h-fit right-2">
                   YOU WIN
                 </span>
               )}
