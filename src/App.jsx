@@ -621,20 +621,14 @@ function App() {
 
   const [showModal, setShowModal] = useState(() => {
     const today = new Date().toDateString();
-    const lastShown = localStorage.getItem("chatModalLastShownDate");
+    const lastShown = localStorage.getItem("chatDate");
     const count = parseInt(
-      localStorage.getItem("chatModalShownCount") || "0",
+      localStorage.getItem("chatCount") || "0",
       10,
     );
 
-    // Only show if it hasn't been shown today AND we haven't hit the limit
-    if (lastShown !== today && count < 3) {
-      localStorage.setItem("chatModalShownCount", String(count + 1));
-      localStorage.setItem("chatModalLastShownDate", today);
-      return true;
-    }
-
-    return false;
+    // App only decides visibility; storage updates happen in CongratsModal after open.
+    return lastShown !== today && count < 3;
   });
 
   return (
