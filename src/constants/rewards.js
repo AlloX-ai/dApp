@@ -3903,5 +3903,20 @@ export const season2Rewards = [
     "address": "0xbbab7be8c36d2d818a298fc34a398616329b1d06",
     "twitterUsername": "Eva_Ramos20",
     "gems": 1
-  }
+  },
+  {
+    "address": "0x7FB568db21Af9B9adab8b9bDb5a4dD05a3283c6C",
+    "twitterUsername": "Cheddar",
+    "gems": 1
+  },
+  {
+    "address": "0x4c1D7B0863df9B3A21aA626adDA86D787135526A",
+    "twitterUsername": "Lilith",
+    "gems": 1
+  },
+  {
+    "address": "0x65C3d0F9438644945dF5BF321c9F0fCf333302b8",
+    "twitterUsername": "Primo",
+    "gems": 1
+  },
 ]

@@ -155,7 +155,9 @@ export function CongratsModal({
                     <span className="font-semibold text-blue-600">
                       @alloxdotai{" "}
                     </span>{" "}
-                    to show your achievement.
+                    to show your achievement. <span className="font-semibold text-red-600">
+                      ❤
+                    </span> 
                   </p>
                 </div>
               </motion.div>
