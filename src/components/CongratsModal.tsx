@@ -1,6 +1,6 @@
 import { X, Trophy, Gem, Share2, Sparkles, PartyPopper } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { season2Rewards } from "../constants/rewards";
+import { findSeason2RewardForWallet } from "../constants/rewards";
 import { useEffect, useMemo } from "react";
 
 interface CongratsModalProps {
@@ -21,9 +21,10 @@ export function CongratsModal({
   };
 
 
-  const user = useMemo(() => {
-    return season2Rewards.find((entry) => entry.address === address);
-  }, [season2Rewards, address]);
+  const user = useMemo(
+    () => findSeason2RewardForWallet(address),
+    [address],
+  );
 
   useEffect(() => {
     if (!isOpen || !user) return;
@@ -157,7 +158,7 @@ export function CongratsModal({
                     </span>{" "}
                     to show your achievement. <span className="font-semibold text-red-600">
                       ❤
-                    </span> 
+                    </span>
                   </p>
                 </div>
               </motion.div>

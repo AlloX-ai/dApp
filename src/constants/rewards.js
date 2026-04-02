@@ -3911,7 +3911,7 @@ export const season2Rewards = [
   },
   {
     "address": "0x4c1D7B0863df9B3A21aA626adDA86D787135526A",
-    "twitterUsername": "Lilith",
+    "twitterUsername": "gbani_g",
     "gems": 1
   },
   {
@@ -3919,4 +3919,19 @@ export const season2Rewards = [
     "twitterUsername": "Primo",
     "gems": 1
   },
-]
+];
+
+/** EVM: case-insensitive. Solana / other non-hex: exact match (Base58 is case-sensitive). */
+export function findSeason2RewardForWallet(walletAddress) {
+  if (!walletAddress || typeof walletAddress !== "string") return undefined;
+  const w = walletAddress.trim();
+  const isEvm = /^0x[a-fA-F0-9]{40}$/.test(w);
+  return season2Rewards.find((entry) => {
+    const a = entry.address;
+    if (!a || typeof a !== "string") return false;
+    if (isEvm && /^0x[a-fA-F0-9]{40}$/.test(a)) {
+      return a.toLowerCase() === w.toLowerCase();
+    }
+    return a === w;
+  });
+}
