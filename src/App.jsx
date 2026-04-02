@@ -619,18 +619,15 @@ function RequireAuth({ children }) {
 function App() {
   const { address } = useSelector((state) => state.wallet);
 
-  const [showModal, setShowModal] = useState(() => {
+  const [showModal, setShowModal] = useState(false);
+  const lastShown = localStorage.getItem("chatDate");
+  const count = parseInt(localStorage.getItem("chatCount") || "0", 10);
+  useEffect(() => {
     const today = new Date().toDateString();
-    const lastShown = localStorage.getItem("chatDate");
-    const count = parseInt(
-      localStorage.getItem("chatCount") || "0",
-      10,
-    );
-
     // App only decides visibility; storage updates happen in CongratsModal after open.
-    return lastShown !== today && count < 3;
-  });
-
+    setShowModal(lastShown !== today && count < 3);
+  }, [lastShown, count]);
+  
   return (
     <>
       <Toaster position="top-right" richColors closeButton />
