@@ -21,6 +21,7 @@ import { useTotalPoints } from "../hooks/useTotalPoints";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { navigationTabs, isActivePath } from "../constants/navigation";
 import OutsideClickHandler from "react-outside-click-handler/build/OutsideClickHandler";
+import { season2Rewards } from "../constants/rewards";
 
 export function Header({
   isConnected,
@@ -39,6 +40,10 @@ export function Header({
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
+
+
+    const user = season2Rewards.find((entry) => entry.address === coinbase);
+  
 
   const { checkedInToday } = useCheckin();
 
@@ -94,7 +99,7 @@ export function Header({
               {messagesRemaining != null && (
                 <div className="border-l border-gray-200/60 pl-3 flex items-center gap-2">
                   <Gem className="size-4 text-purple-600" />
-                  <span className="text-xs sm:text-sm font-semibold tabular-nums">0 <span className="text-xs sm:text-sm font-semibold tabular-nums text-[#4A5565]">($0)</span></span>
+                  <span className="text-xs sm:text-sm font-semibold tabular-nums">{user ? user.gems : 0}<span className="text-xs sm:text-sm font-semibold tabular-nums text-[#4A5565]">(${user ? user.gems * 5 : 0})</span></span>
                 </div>
               )}
             </div>
