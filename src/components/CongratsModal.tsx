@@ -1,21 +1,17 @@
 import { X, Trophy, Gem, Share2, Sparkles, PartyPopper } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { season2Rewards } from "../constants/rewards";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 
 interface CongratsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  season: number;
-  rewardGems: number;
-  rewardUSD: number;
   address: string;
 }
 
 export function CongratsModal({
   isOpen,
   onClose,
-
   address,
 }: CongratsModalProps) {
 
@@ -28,6 +24,24 @@ export function CongratsModal({
   const user = useMemo(() => {
     return season2Rewards.find((entry) => entry.address === address);
   }, [season2Rewards, address]);
+
+  useEffect(() => {
+    if (!isOpen || !user) return;
+
+    const today = new Date().toDateString();
+    const lastShown = localStorage.getItem("chatDate");
+    const count = parseInt(
+      localStorage.getItem("chatCount") || "0",
+      10,
+    );
+
+    if (lastShown !== today && count < 3) {
+      localStorage.setItem("chatCount", String(count + 1));
+      localStorage.setItem("chatDate", today);
+    }
+  }, [isOpen, user]);
+
+
 
   if (!user) {
     return null; // Don't render the modal if the user is not in the rewards list
