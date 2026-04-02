@@ -4,7 +4,7 @@ import { useSelector } from "react-redux";
 import { season1_winners } from "../constants/addresses";
 import getFormattedNumber from "../hooks/get-formatted-number";
 import { CongratsModal } from "../components/CongratsModal";
-import { season2Rewards } from "../constants/rewards";
+import { findSeason2RewardForWallet } from "../constants/rewards";
 
 export function Season1() {
   const [showTooltip, setShowTooltip] = useState(false);
@@ -18,9 +18,10 @@ export function Season1() {
     });
   }, [address]);
 
-  const user = useMemo(() => {
-    return season2Rewards.find((entry) => entry.address === address);
-  }, [season2Rewards, address]);
+  const user = useMemo(
+    () => findSeason2RewardForWallet(address),
+    [address],
+  );
 
   const seasons = [
     {
@@ -114,24 +115,28 @@ export function Season1() {
                 season.active ? "ring-2 ring-black" : ""
               }`}
             >
-                {season.number === 2 && user && user.gems > 0 && (
-                  <span className="px-2 py-0.5 bg-green-500 text-white text-xs sm:text-sm  2xl:text-lg font-bold rounded-full absolute top-0 bottom-0 my-auto h-fit right-2">
-                    YOU WIN
-                  </span>
-                )}
-                  {season.number === 2 && user && user.gems > 0 && (
-                    <div className="absolute -bottom-0 left-1/2 -translate-x-1/2">
-                <button
-                  onClick={() => setShowModal(true)}
-                  className="px-4 py-1.5 bg-white/95 backdrop-blur-sm text-gray-900 rounded-t-4xl text-sm font-semibold hover:bg-white hover:shadow-[0_-5px_18px_rgba(0,0,0,0.25)] transition-all border-t border-l border-r border-gray-200 flex items-center gap-1.5"
-                >
-                  <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                  </svg>
-                  Share
-                </button>
-              </div>
-                    )}
+              {season.number === 2 && user && user.gems > 0 && (
+                <span className="px-2 py-0.5 bg-green-500 text-white text-xs sm:text-sm  2xl:text-lg font-bold rounded-full absolute top-0 bottom-0 my-auto h-fit right-2">
+                  YOU WIN
+                </span>
+              )}
+              {season.number === 2 && user && user.gems > 0 && (
+                <div className="absolute -bottom-0 left-1/2 -translate-x-1/2">
+                  <button
+                    onClick={() => setShowModal(true)}
+                    className="px-4 py-1.5 bg-white/95 backdrop-blur-sm text-gray-900 rounded-t-4xl text-sm font-semibold hover:bg-white hover:shadow-[0_-5px_18px_rgba(0,0,0,0.25)] transition-all border-t border-l border-r border-gray-200 flex items-center gap-1.5"
+                  >
+                    <svg
+                      className="w-3 h-3"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                    >
+                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                    </svg>
+                    Share
+                  </button>
+                </div>
+              )}
               <div className={season.active ? "opacity-100" : "opacity-60"}>
                 <div className="flex items-center relative justify-between mb-3">
                   <div
@@ -186,7 +191,6 @@ export function Season1() {
                   <Calendar size={14} />
                   {season.timeline}
                 </div>
-              
               </div>
 
               <div className="mt-3 pt-3 border-t relative border-gray-200 flex justify-between gap-2 items-center">
@@ -246,7 +250,7 @@ export function Season1() {
                       </div>
                     </div>
                     {/* {winner && winner.reward > 0 && */}
-                  
+
                     {/* } */}
                   </div>
                 ) : (
