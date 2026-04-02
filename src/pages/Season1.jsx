@@ -114,6 +114,24 @@ export function Season1() {
                 season.active ? "ring-2 ring-black" : ""
               }`}
             >
+                {season.number === 2 && user && user.gems > 0 && (
+                  <span className="px-2 py-0.5 bg-green-500 text-white text-lg font-bold rounded-full absolute top-[-30px] bottom-0 my-auto h-fit right-2 sm:right-8 lg:right-12 xl:right-24">
+                    YOU WIN
+                  </span>
+                )}
+                  {season.number === 2 && user && user.gems > 0 && (
+                    <div className="absolute -bottom-0 left-1/2 -translate-x-1/2">
+                <button
+                  onClick={() => setShowModal(true)}
+                  className="px-4 py-1.5 bg-white/95 backdrop-blur-sm text-gray-900 rounded-t-4xl text-sm font-semibold hover:bg-white hover:shadow-[0_-5px_18px_rgba(0,0,0,0.25)] transition-all border-t border-l border-r border-gray-200 flex items-center gap-1.5"
+                >
+                  <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                  </svg>
+                  Share
+                </button>
+              </div>
+                    )}
               <div className={season.active ? "opacity-100" : "opacity-60"}>
                 <div className="flex items-center relative justify-between mb-3">
                   <div
@@ -168,6 +186,7 @@ export function Season1() {
                   <Calendar size={14} />
                   {season.timeline}
                 </div>
+              
               </div>
 
               <div className="mt-3 pt-3 border-t relative border-gray-200 flex justify-between gap-2 items-center">
@@ -227,15 +246,7 @@ export function Season1() {
                       </div>
                     </div>
                     {/* {winner && winner.reward > 0 && */}
-                    {user && user.gems > 0 && (
-                      <button
-                        onClick={() => setShowModal(true)}
-                        className="flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded text-xs font-medium transition-all hover:shadow-sm"
-                      >
-                        <Share2 size={12} />
-                        <span>Share</span>
-                      </button>
-                    )}
+                  
                     {/* } */}
                   </div>
                 ) : (
