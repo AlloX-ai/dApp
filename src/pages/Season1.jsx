@@ -115,7 +115,7 @@ export function Season1() {
               }`}
             >
                 {season.number === 2 && user && user.gems > 0 && (
-                  <span className="px-2 py-0.5 bg-green-500 text-white text-lg font-bold rounded-full absolute top-[-30px] bottom-0 my-auto h-fit right-2 sm:right-8 lg:right-12 xl:right-24">
+                  <span className="px-2 py-0.5 bg-green-500 text-white text-xs sm:text-sm  2xl:text-lg font-bold rounded-full absolute top-0 bottom-0 my-auto h-fit right-2">
                     YOU WIN
                   </span>
                 )}
