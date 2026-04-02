@@ -106,11 +106,11 @@ export function Season1() {
           </p>
         </div>
         {/* Seasons Overview */}
-        <div className="grid md:grid-cols-3 gap-4">
+        <div className="flex flex-col lg:flex-row items-center gap-4">
           {seasons.map((season) => (
             <div
               key={season.number}
-              className={`p-5 ${season.active ? "glass-card" : "glass-card-disabled"} ${
+              className={`p-5 w-[100%] lg:w-[100%]  ${season.active ? "glass-card" : "glass-card-disabled"} ${
                 season.active ? "ring-2 ring-black" : ""
               }`}
             >
