@@ -18,7 +18,9 @@ export function Season1() {
     });
   }, [address]);
 
-  const user = season2Rewards.find((entry) => entry.address === address);
+  const user = useMemo(() => {
+    return season2Rewards.find((entry) => entry.address === address);
+  }, [season2Rewards, address]);
 
   const seasons = [
     {
@@ -199,7 +201,9 @@ export function Season1() {
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex flex-col">
                       <div className="text-xs text-gray-600">Rewards</div>
-                      <div className={`text-sm font-medium text-gray-500 flex items-center gap-1`}>
+                      <div
+                        className={`text-sm font-medium text-gray-500 flex items-center gap-1`}
+                      >
                         <Gem size={12} className="text-purple-600" />
                         {winner
                           ? getFormattedNumber(winner.reward / 5, 0)
@@ -207,23 +211,21 @@ export function Season1() {
                         (${winner ? getFormattedNumber(winner.reward, 0) : 0})
                       </div>
                     </div>
-                  
                   </div>
                 ) : season.number === 2 ? (
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center justify-between gap-2">
-                    <div className="flex flex-col">
-                      <div className="text-xs text-gray-600">Rewards</div>
-                      <div className={`text-sm font-medium text-gray-500 flex items-center gap-1`}>
-                        <Gem size={12} className="text-purple-600" />
-                        {user
-                          ? getFormattedNumber(user.gems , 0)
-                          : 0}{" "}
-                        (${user ? getFormattedNumber(user.gems * 5, 0) : 0})
+                      <div className="flex flex-col">
+                        <div className="text-xs text-gray-600">Rewards</div>
+                        <div
+                          className={`text-sm font-medium text-gray-500 flex items-center gap-1`}
+                        >
+                          <Gem size={12} className="text-purple-600" />
+                          {user ? getFormattedNumber(user.gems, 0) : 0} ($
+                          {user ? getFormattedNumber(user.gems * 5, 0) : 0})
+                        </div>
                       </div>
                     </div>
-                  
-                  </div>
                     {/* {winner && winner.reward > 0 && */}
                     {user && user.gems > 0 && (
                       <button
