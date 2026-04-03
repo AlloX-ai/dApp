@@ -49,34 +49,23 @@ import {
 } from "./redux/slices/chatSlice";
 import { store } from "./redux/store";
 import { PointsPage } from "./pages/Points";
+import { useWallet } from "@solana/wallet-adapter-react";
 import { useSocial } from "./hooks/useSocial";
 import { CongratsModal } from "./components/CongratsModal";
 import { CampaignsPage } from "./pages/Campaigns";
 
 const SOLANA_MAINNET_CHAIN_ID = 101;
 const PREFERRED_CHAIN_STORAGE_KEY = "walletPreferredChainId";
+const AUTH_USER_KEY = "authUser";
 
-async function tryRestorePhantomSession(dispatch) {
-  const connections = getConnections(wagmiClient);
-  const hasEVMConnection = connections.some(
-    (c) => c.connector?.name !== "Phantom" && c.accounts?.length > 0,
-  );
-  if (hasEVMConnection) return false;
-
-  const provider = window.phantom?.solana;
-  if (!provider) return false;
+function getStoredAuthUser() {
   try {
-    const resp = await provider.connect({ onlyIfTrusted: true });
-    const walletAddress = resp.publicKey?.toString?.() ?? resp.publicKey;
-    if (!walletAddress) return false;
-    dispatch(setWalletType("solana"));
-    dispatch(setAddress(walletAddress));
-    dispatch(setIsConnected(true));
-    dispatch(setWalletModal(false));
-    return true;
-  } catch {
-    return false;
+    const raw = localStorage.getItem(AUTH_USER_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {
+    console.error(e);
   }
+  return null;
 }
 
 function LaunchAppLayout() {
@@ -87,6 +76,14 @@ function LaunchAppLayout() {
   const prevWalletTypeRef = useRef(undefined);
   const authTriggeredRef = useRef(false);
   const { connector } = getAccount(wagmiClient);
+  const {
+    wallets: solanaWallets,
+    select: selectSolanaWallet,
+    connect: connectSolana,
+    disconnect: disconnectSolana,
+    connected: solanaConnected,
+    publicKey: solanaPublicKey,
+  } = useWallet();
 
   const { address, isConnected, walletModal, walletType, checkinModal } =
     useSelector((state) => state.wallet);
@@ -107,15 +104,14 @@ function LaunchAppLayout() {
   }, [fetchSocialPoints, fetchAllPoints, loadSeenPosts]);
 
   const handleDisconnect = async () => {
-    // if (walletType === "phantom") {
-    try {
-      if (window.phantom?.solana) {
-        await window.phantom.solana.disconnect();
-      }
-    } catch (e) {
-      console.warn("Phantom disconnect:", e);
-    }
-    // } else
+    // if (walletType === "solana") {
+    //   try {
+    await disconnectSolana();
+    // } catch (e) {
+    //   console.warn("Solana wallet disconnect:", e);
+    // }
+    // }
+    // else
     if (connector) {
       await disconnect(wagmiClient, { connector });
     }
@@ -126,9 +122,12 @@ function LaunchAppLayout() {
     dispatch(setViewingHistorySessionId(null));
     dispatch(setCurrentMessages([]));
     dispatch(clearCheckin());
-    // Fully clear auth state (token + user) across the app
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("authUser");
     logout();
-    navigate("/login");
+    navigate("/login", { replace: true });
+    // Fully clear auth state (token + user) across the app
+   
   };
 
   useEffect(() => {
@@ -182,6 +181,7 @@ function LaunchAppLayout() {
 
         dispatch(setViewingHistorySessionId(null));
         dispatch(setCurrentMessages([]));
+
         navigate("/login", { replace: true });
       }
     }
@@ -189,8 +189,7 @@ function LaunchAppLayout() {
   }, [isConnected, navigate]);
 
   // If the user changes account within the same wallet type (e.g. MetaMask account 1 → 2),
-  // force a fresh session. But don't treat switching wallet types (e.g. Phantom → MetaMask)
-  // as a mid-session switch that should wipe auth.
+  // force a fresh session. Compare addresses case-insensitively to avoid false positives (EVM checksum).
   useEffect(() => {
     const prevAddress = prevAddressRef.current;
     const prevWalletType = prevWalletTypeRef.current;
@@ -198,8 +197,9 @@ function LaunchAppLayout() {
     if (
       prevAddress != null &&
       address != null &&
-      prevAddress !== address &&
-      prevWalletType === walletType
+      prevWalletType === "evm" &&
+      walletType === "evm" &&
+      prevAddress.toLowerCase() !== address.toLowerCase()
     ) {
       localStorage.removeItem("authToken");
       localStorage.removeItem("authUser");
@@ -220,24 +220,24 @@ function LaunchAppLayout() {
   const allConnectors = wagmiClient.connectors;
 
   const handleWalletConnect = async (option) => {
-    // Phantom (Solana) – connect via window.phantom.solana
-    if (option.isPhantom || option.walletType === "phantom") {
-      const provider = window.phantom?.solana;
-      if (!provider) {
-        toast.error("Phantom not found. Install the Phantom extension.");
+    // Solana (MetaMask via Wallet Standard) – Redux is synced by WalletSync when adapter connects
+    if (option.isSolana || option.walletType === "solana") {
+      const metaMaskWallet = solanaWallets.find((w) =>
+        w.adapter?.name?.toLowerCase?.().includes("metamask"),
+      );
+      if (!metaMaskWallet) {
+        toast.error(
+          "MetaMask with Solana support not found. Install or enable MetaMask.",
+        );
         return;
       }
       try {
-        const resp = await provider.connect();
-        const walletAddress = resp.publicKey.toString();
-        dispatch(setWalletType("solana"));
-        dispatch(setAddress(walletAddress));
-        dispatch(setChainId(SOLANA_MAINNET_CHAIN_ID));
-        dispatch(setIsConnected(true));
+        selectSolanaWallet(metaMaskWallet.adapter.name);
+        await metaMaskWallet.adapter.connect();
         dispatch(setWalletModal(false));
       } catch (err) {
-        console.error("Phantom connection error:", err);
-        toast.error("Failed to connect Phantom. Please try again.");
+        console.error("Solana (MetaMask) connection error:", err);
+        toast.error("Failed to connect MetaMask for Solana. Please try again.");
       }
       return;
     }
@@ -327,30 +327,34 @@ function BetaAccessLayout() {
   const dispatch = useDispatch();
   const { walletModal } = useSelector((state) => state.wallet);
   const allConnectors = wagmiClient.connectors;
+  const {
+    wallets: solanaWallets,
+    select: selectSolanaWallet,
+    connect: connectSolana,
+  } = useWallet();
 
   const setWalletModalOpen = (nextValue) => {
     dispatch(setWalletModal(nextValue));
   };
 
   const handleWalletConnect = async (option) => {
-    if (option.isPhantom || option.walletType === "phantom") {
-      const provider = window.phantom?.solana;
-      if (!provider) {
-        toast.error("Phantom not found. Install the Phantom extension.");
+    if (option.isSolana || option.walletType === "solana") {
+      const metaMaskWallet = solanaWallets.find((w) =>
+        w.adapter?.name?.toLowerCase?.().includes("metamask"),
+      );
+      if (!metaMaskWallet) {
+        toast.error(
+          "MetaMask with Solana support not found. Install or enable MetaMask.",
+        );
         return;
       }
       try {
-        const resp = await provider.connect();
-        const walletAddress = resp.publicKey.toString();
-        window.WALLET_TYPE = "phantom";
-        dispatch(setWalletType("phantom"));
-        dispatch(setAddress(walletAddress));
-        dispatch(setChainId(SOLANA_MAINNET_CHAIN_ID));
-        dispatch(setIsConnected(true));
+        selectSolanaWallet(metaMaskWallet.adapter.name);
+        await metaMaskWallet.adapter.connect();
         dispatch(setWalletModal(false));
       } catch (err) {
-        console.error("Phantom connection error:", err);
-        toast.error("Failed to connect Phantom. Please try again.");
+        console.error("Solana (MetaMask) connection error:", err);
+        toast.error("Failed to connect MetaMask for Solana. Please try again.");
       }
       return;
     }
@@ -410,14 +414,44 @@ function BetaAccessLayout() {
 
 function WalletSync() {
   const dispatch = useDispatch();
-  const { pathname } = useLocation();
 
   // Eagerly restore Phantom only when NOT on login (per Phantom docs: use onlyIfTrusted for page load).
   // Skip on /login so logout doesn’t trigger reconnection and popup.
+  const { connected: solanaConnected, publicKey: solanaPublicKey } =
+    useWallet();
+
+  // Restore walletType (and address) from authUser on load so EVM watchers don't overwrite Solana session
   useEffect(() => {
-    if (pathname === "/login") return;
-    tryRestorePhantomSession(dispatch);
-  }, [dispatch, pathname]);
+    const authUser = getStoredAuthUser();
+    if (!authUser?.walletType) return;
+    dispatch(setWalletType(authUser.walletType));
+    if (authUser.address) {
+      dispatch(setAddress(authUser.address));
+      dispatch(setIsConnected(true));
+      if (authUser.walletType === "solana") {
+        dispatch(setChainId(SOLANA_MAINNET_CHAIN_ID));
+      }
+    }
+  }, [dispatch]);
+
+  useEffect(() => {
+    const currentWalletType = store.getState().wallet.walletType;
+    if (solanaConnected && solanaPublicKey) {
+      // If we are currently using EVM as the active ecosystem, don't override it
+      if (currentWalletType === "evm") return;
+      dispatch(setWalletType("solana"));
+      dispatch(setAddress(solanaPublicKey.toBase58()));
+      dispatch(setChainId(SOLANA_MAINNET_CHAIN_ID));
+      dispatch(setIsConnected(true));
+      dispatch(setWalletModal(false));
+    } else if (currentWalletType === "solana" && !solanaConnected) {
+      if (localStorage.getItem("authToken")) return;
+      dispatch(setAddress(null));
+      dispatch(setChainId(null));
+      dispatch(setIsConnected(false));
+      dispatch(setWalletType(""));
+    }
+  }, [solanaConnected, solanaPublicKey, dispatch]);
 
   // Restore Solana as default when user previously selected Solana (saved in localStorage)
   useEffect(() => {
@@ -428,13 +462,15 @@ function WalletSync() {
     dispatch(setChainId(SOLANA_MAINNET_CHAIN_ID));
   }, [dispatch]);
 
-  // Watch account changes with cleanup (EVM only; skip when Phantom is active)
+  // Watch account changes (EVM only; skip when stored user or Redux is Solana)
   useEffect(() => {
     let disconnectTimeoutId = null;
 
     const unwatch = watchAccount(wagmiClient, (account) => {
+      const storedUser = getStoredAuthUser();
       const walletType = store.getState().wallet.walletType;
-      if (walletType === "phantom") return;
+      if (walletType === "solana" || storedUser?.walletType === "solana")
+        return;
 
       switch (account.status) {
         case "connected":
@@ -450,16 +486,17 @@ function WalletSync() {
           }
           break;
         case "reconnecting":
-          dispatch(setIsConnected(false));
-          break;
         case "connecting":
-          dispatch(setIsConnected(false));
+          if (!localStorage.getItem("authToken")) {
+            dispatch(setIsConnected(false));
+          }
           break;
         case "disconnected":
         default:
           if (disconnectTimeoutId) clearTimeout(disconnectTimeoutId);
           disconnectTimeoutId = setTimeout(() => {
             disconnectTimeoutId = null;
+            if (localStorage.getItem("authToken")) return;
             dispatch(setAddress(null));
             dispatch(setIsConnected(false));
             dispatch(setWalletType(""));
@@ -472,34 +509,36 @@ function WalletSync() {
       unwatch();
     };
   }, [dispatch]);
-  // Watch connections (EVM only; don't run Phantom restore here – only on mount, so disconnect doesn't re-trigger)
+  // Watch connections (EVM only; Solana is synced via adapter above)
   useEffect(() => {
     let clearTimeoutId = null;
 
     const unwatch = watchConnections(wagmiClient, {
-      async onChange(connections) {
+      onChange(connections) {
         if (connections.length === 0) {
-          // Debounce: wagmi can briefly report 0 when navigating (e.g. login → app) before rehydrating
           if (clearTimeoutId) clearTimeout(clearTimeoutId);
           clearTimeoutId = setTimeout(() => {
             clearTimeoutId = null;
-            dispatch(setAddress(null));
-            dispatch(setIsConnected(false));
-            dispatch(setWalletType(""));
-            window.WALLET_TYPE = null;
+            if (localStorage.getItem("authToken")) return;
+            const storedUser = getStoredAuthUser();
+            if (
+              store.getState().wallet.walletType !== "solana" &&
+              storedUser?.walletType !== "solana"
+            ) {
+              dispatch(setAddress(null));
+              dispatch(setIsConnected(false));
+              dispatch(setWalletType(""));
+            }
           }, 400);
         } else {
+          const storedUser = getStoredAuthUser();
+          if (storedUser?.walletType === "solana") return;
           if (clearTimeoutId) {
             clearTimeout(clearTimeoutId);
             clearTimeoutId = null;
           }
           const activeConnection = connections[0];
-
-          if (
-            activeConnection.accounts[0] &&
-            activeConnection.chainId &&
-            activeConnection.connector.name !== "Phantom"
-          ) {
+          if (activeConnection.accounts[0] && activeConnection.chainId) {
             dispatch(setWalletType("evm"));
             dispatch(setAddress(activeConnection.accounts[0]));
             dispatch(setChainId(activeConnection.chainId));
@@ -558,10 +597,9 @@ function WalletSync() {
     };
   }, [dispatch]);
 
-  // Handle EVM account/chain changes (Phantom EVM or other EVM wallets)
+  // Handle EVM account/chain changes
   useEffect(() => {
-    const provider =
-      (window.phantom && window.phantom.ethereum) || window.ethereum;
+    const provider = window.ethereum;
     if (!provider) return;
 
     const handleAccountsChanged = (accounts) => {
@@ -573,7 +611,7 @@ function WalletSync() {
     };
 
     const handleChainChanged = (chainHex) => {
-      if (store.getState().wallet.walletType === "phantom") return;
+      if (store.getState().wallet.walletType === "solana") return;
       dispatch(setChainId(parseInt(chainHex, 16)));
     };
 
@@ -583,23 +621,6 @@ function WalletSync() {
       provider.removeListener("accountsChanged", handleAccountsChanged);
       provider.removeListener("chainChanged", handleChainChanged);
     };
-  }, [dispatch]);
-
-  // Phantom: listen for account disconnect
-  useEffect(() => {
-    const provider = window.phantom?.solana;
-    if (!provider) return;
-
-    const handlePhantomAccountChanged = (pubkey) => {
-      if (pubkey) return;
-      if (store.getState().wallet.walletType !== "solana") return;
-      dispatch(setAddress(null));
-      dispatch(setChainId(null));
-      dispatch(setIsConnected(false));
-      dispatch(setWalletType(""));
-    };
-    provider.on("accountChanged", handlePhantomAccountChanged);
-    return () => provider.off?.("accountChanged", handlePhantomAccountChanged);
   }, [dispatch]);
 
   return null;

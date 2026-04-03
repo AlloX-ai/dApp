@@ -1,6 +1,7 @@
 import { useCallback, useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import { useWriteContract, useSwitchChain, useAccount } from "wagmi";
+import { useWallet } from "@solana/wallet-adapter-react";
 import { waitForTransactionReceipt as wagmiWaitForTransactionReceipt } from "@wagmi/core";
 import bs58 from "bs58";
 import { apiCall } from "../utils/api";
@@ -40,6 +41,7 @@ export function useCheckin() {
   const { chainId: wagmiChainId } = useAccount();
   const { writeContractAsync } = useWriteContract();
   const { switchChainAsync } = useSwitchChain();
+  const { signMessage: signMessageSolana } = useWallet();
 
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -75,15 +77,14 @@ const dispatch = useDispatch();
       dispatch]);
 
   const claimSolana = useCallback(async () => {
-    const provider = window.phantom?.solana;
-    if (!provider || !walletAddress) {
+    if (!signMessageSolana || !walletAddress) {
       throw new Error("Solana wallet not connected");
     }
     const today = new Date().toISOString().split("T")[0];
     const message = `AlloX Daily Check-In\n${today}\n${walletAddress}`;
     const encoded = new TextEncoder().encode(message);
-    const { signature } = await provider.signMessage(encoded, "utf8");
-    const signatureB58 = bs58.encode(signature);
+    const signature = await signMessageSolana(encoded);
+    const signatureB58 = bs58.encode(new Uint8Array(signature));
     return apiCall("/checkin", {
       method: "POST",
       body: JSON.stringify({
@@ -92,7 +93,7 @@ const dispatch = useDispatch();
         message,
       }),
     });
-  }, [walletAddress]);
+  }, [walletAddress, signMessageSolana]);
 
   const claimEVM = useCallback(
     async (targetChainId = currentEVMChainId) => {
@@ -163,7 +164,7 @@ const dispatch = useDispatch();
         if (targetChainId === SOLANA_CHAIN_ID) {
           if (!isSolana) {
             const err = new Error(
-              "Solana requires a Solana-capable wallet (e.g. Phantom). Please connect with a Solana wallet.",
+              "Solana requires a Solana-capable wallet (e.g. MetaMask with Solana). Please connect with a Solana wallet.",
             );
             err.code = "WALLET_SOLANA_REQUIRED";
             throw err;
