@@ -58,6 +58,18 @@ const SOLANA_MAINNET_CHAIN_ID = 101;
 const PREFERRED_CHAIN_STORAGE_KEY = "walletPreferredChainId";
 const AUTH_USER_KEY = "authUser";
 
+/** Avoid EVM (wagmi) and Solana (adapter) fighting for the same MetaMask session. */
+async function disconnectAllEvmWagmi() {
+  try {
+    const connections = getConnections(wagmiClient);
+    for (const c of connections) {
+      await disconnect(wagmiClient, { connector: c.connector });
+    }
+  } catch (e) {
+    console.warn("disconnectAllEvmWagmi:", e);
+  }
+}
+
 function getStoredAuthUser() {
   try {
     const raw = localStorage.getItem(AUTH_USER_KEY);
@@ -130,6 +142,13 @@ function LaunchAppLayout() {
    
   };
 
+  const ensureAuthRef = useRef(ensureAuthenticated);
+  ensureAuthRef.current = ensureAuthenticated;
+
+  useEffect(() => {
+    authTriggeredRef.current = false;
+  }, [address, walletType]);
+
   useEffect(() => {
     if (!isConnected) {
       authTriggeredRef.current = false;
@@ -138,10 +157,12 @@ function LaunchAppLayout() {
     if (token) return;
     if (authTriggeredRef.current) return;
     authTriggeredRef.current = true;
-    ensureAuthenticated().catch(() => {
-      authTriggeredRef.current = false;
-    });
-  }, [isConnected, token, ensureAuthenticated]);
+    ensureAuthRef
+      .current()
+      .catch(() => {
+        authTriggeredRef.current = false;
+      });
+  }, [isConnected, token, address, walletType]);
 
   useEffect(() => {
     const points = user?.season1?.points;
@@ -232,6 +253,7 @@ function LaunchAppLayout() {
         return;
       }
       try {
+        await disconnectAllEvmWagmi();
         selectSolanaWallet(metaMaskWallet.adapter.name);
         await metaMaskWallet.adapter.connect();
         dispatch(setWalletModal(false));
@@ -243,6 +265,12 @@ function LaunchAppLayout() {
     }
 
     // EVM wallets – match by name
+    try {
+      await disconnectSolana();
+    } catch (e) {
+      console.warn("Solana disconnect before EVM:", e);
+    }
+
     const connector = allConnectors.find((c) =>
       c.name.toLowerCase().includes(option.name.toLowerCase()),
     );
@@ -330,7 +358,7 @@ function BetaAccessLayout() {
   const {
     wallets: solanaWallets,
     select: selectSolanaWallet,
-    connect: connectSolana,
+    disconnect: disconnectSolanaAdapter,
   } = useWallet();
 
   const setWalletModalOpen = (nextValue) => {
@@ -349,6 +377,7 @@ function BetaAccessLayout() {
         return;
       }
       try {
+        await disconnectAllEvmWagmi();
         selectSolanaWallet(metaMaskWallet.adapter.name);
         await metaMaskWallet.adapter.connect();
         dispatch(setWalletModal(false));
@@ -357,6 +386,12 @@ function BetaAccessLayout() {
         toast.error("Failed to connect MetaMask for Solana. Please try again.");
       }
       return;
+    }
+
+    try {
+      await disconnectSolanaAdapter();
+    } catch (e) {
+      console.warn("Solana disconnect before EVM:", e);
     }
 
     const connector = allConnectors.find((c) =>
@@ -414,11 +449,16 @@ function BetaAccessLayout() {
 
 function WalletSync() {
   const dispatch = useDispatch();
+  const solanaActiveRef = useRef(false);
 
   // Eagerly restore Phantom only when NOT on login (per Phantom docs: use onlyIfTrusted for page load).
   // Skip on /login so logout doesn’t trigger reconnection and popup.
   const { connected: solanaConnected, publicKey: solanaPublicKey } =
     useWallet();
+
+  useEffect(() => {
+    solanaActiveRef.current = !!(solanaConnected && solanaPublicKey);
+  }, [solanaConnected, solanaPublicKey]);
 
   // Restore walletType (and address) from authUser on load so EVM watchers don't overwrite Solana session
   useEffect(() => {
@@ -437,8 +477,6 @@ function WalletSync() {
   useEffect(() => {
     const currentWalletType = store.getState().wallet.walletType;
     if (solanaConnected && solanaPublicKey) {
-      // If we are currently using EVM as the active ecosystem, don't override it
-      if (currentWalletType === "evm") return;
       dispatch(setWalletType("solana"));
       dispatch(setAddress(solanaPublicKey.toBase58()));
       dispatch(setChainId(SOLANA_MAINNET_CHAIN_ID));
@@ -514,7 +552,7 @@ function WalletSync() {
     let clearTimeoutId = null;
 
     const unwatch = watchConnections(wagmiClient, {
-      onChange(connections) {
+      async onChange(connections) {
         if (connections.length === 0) {
           if (clearTimeoutId) clearTimeout(clearTimeoutId);
           clearTimeoutId = setTimeout(() => {
@@ -531,6 +569,12 @@ function WalletSync() {
             }
           }, 400);
         } else {
+          if (
+            solanaActiveRef.current ||
+            store.getState().wallet.walletType === "solana"
+          ) {
+            return;
+          }
           const storedUser = getStoredAuthUser();
           if (storedUser?.walletType === "solana") return;
           if (clearTimeoutId) {

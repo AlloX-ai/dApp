@@ -176,6 +176,7 @@ export function BetaAccessModal({
                   </p>
                 </div>
                 <div className="space-y-3">
+
                   <button
                     type="button"
                     onClick={() => handleWalletOptionClick(metaMaskWallet)}
@@ -221,7 +222,9 @@ export function BetaAccessModal({
               </div>
             ) : (
               <div className="space-y-3">
-                {WALLET_OPTIONS.map((wallet) => {
+                <p className="text-sm font-medium text-gray-600 mb-3">Suggested wallets</p>
+
+                {WALLET_OPTIONS.slice(0, 2).map((wallet) => {
                   const isMetaMask = wallet.walletType === "metamask";
                   return (
                     <button
@@ -234,9 +237,43 @@ export function BetaAccessModal({
                           handleWalletOptionClick(wallet);
                         }
                       }}
-                      className="w-full flex items-center justify-between gap-4 p-4 bg-white/60 border border-gray-200/50 rounded-2xl hover:bg-white/80 hover:border-gray-300 transition-all text-left"
+                      className="w-full flex items-center gap-4 p-2 bg-white/60 border border-gray-200/50 rounded-2xl hover:bg-white/80 hover:border-gray-300 transition-all text-left"
                     >
-                      <div className="flex items-center gap-4">
+
+                      <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center border border-gray-200/50 overflow-hidden">
+                        <img
+                          src={wallet.icon}
+                          alt=""
+                          className="h-8 w-8 object-contain"
+                        />
+                      </div>
+                      <div className="flex items-center gap-4 w-100 justify-between"> 
+                        <span className="text-xs">{wallet.name}</span>
+                        {isMetaMask && (
+                          <span className="text-gray-400 text-sm">▸</span>
+                        )}
+                        </div>
+                    </button>
+                  );
+                })}
+                <p className="text-sm font-medium text-gray-600 mb-3">Other wallets</p>
+                <div className="space-y-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {WALLET_OPTIONS.slice(2, 7).map((wallet) => {
+                    const isMetaMask = wallet.walletType === "metamask";
+                    return (
+                      <button
+                        key={wallet.name}
+                        type="button"
+                        onClick={() => {
+                          if (isMetaMask) {
+                            setView("metamask");
+                          } else {
+                            handleWalletOptionClick(wallet);
+                          }
+                        }}
+                        className="w-full flex flex-col items-center mb-0 gap-4 p-2 bg-white/60 border border-gray-200/50 rounded-2xl hover:bg-white/80 hover:border-gray-300 transition-all text-left"
+                      >
+                        {/* <div className="flex items-center gap-4"> */}
                         <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center border border-gray-200/50 overflow-hidden">
                           <img
                             src={wallet.icon}
@@ -244,14 +281,14 @@ export function BetaAccessModal({
                             className="h-8 w-8 object-contain"
                           />
                         </div>
-                        <span className="font-medium">{wallet.name}</span>
-                      </div>
-                      {isMetaMask && (
-                        <span className="text-gray-400 text-sm">▸</span>
-                      )}
-                    </button>
-                  );
-                })}
+                        <span className="text-xs">{wallet.name}</span>
+                        {/* </div> */}
+
+                      </button>
+                    );
+                  })}
+                </div>
+
               </div>
             )
           ) : (

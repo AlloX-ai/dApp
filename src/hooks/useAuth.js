@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useAccount, useSignMessage } from "wagmi";
 import { useWallet } from "@solana/wallet-adapter-react";
@@ -97,6 +97,12 @@ export const useAuth = () => {
 
   const { token, user } = state;
 
+  const authInFlightRef = useRef(null);
+
+  useEffect(() => {
+    authInFlightRef.current = null;
+  }, [address, walletType]);
+
   const setUser = useCallback((nextUser) => {
     setGlobalUser(nextUser);
   }, []);
@@ -141,8 +147,6 @@ export const useAuth = () => {
       throw new Error("Missing auth token");
     }
 
-    localStorage.setItem("authToken", verifyRes.token);
-    setToken(verifyRes.token);
     // Always persist user with walletType and address so session restore and guards work after navigate
     setGlobalToken(verifyRes.token);
     if (verifyRes.user) {
@@ -178,8 +182,14 @@ export const useAuth = () => {
   const ensureAuthenticated = useCallback(async () => {
     if (token) return token;
     if (!address) throw new Error("Wallet not connected");
-    const res = await authenticate();
-    return res?.token ?? token;
+    if (authInFlightRef.current) return authInFlightRef.current;
+    const p = authenticate()
+      .then((res) => res?.token ?? token)
+      .finally(() => {
+        authInFlightRef.current = null;
+      });
+    authInFlightRef.current = p;
+    return p;
   }, [token, address, authenticate]);
 
   const logout = useCallback(() => {

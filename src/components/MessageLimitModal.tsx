@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { X, SendHorizontal, ChevronDown, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { formatUnits } from "viem";
+import { useWallet } from "@solana/wallet-adapter-react";
 import { useAccount, useSwitchChain, useWriteContract } from "wagmi";
 import { useAuth } from "../hooks/useAuth";
 import { fetchChatStatus as fetchChatStatusApi } from "../utils/chatStatusFetch";
@@ -12,9 +12,12 @@ import {
   formatEvmPriceLabel,
   getChainIcon,
   getChainLabel,
+  formatSolanaChainPriceLabel,
   getSolanaPurchaseAmounts,
+  hasInjectedSolanaProvider,
   listChainKeysFromPayload,
   postMessagePurchase,
+  prefetchSolUsdPrice,
   purchaseEvmPackage,
   purchaseSolanaPackage,
   readErc20Decimals,
@@ -32,6 +35,8 @@ const TOKEN_ICONS: Record<string, string> = {
   ETH: "https://cdn.allox.ai/allox/networks/eth.svg",
   BNB: "https://cdn.allox.ai/allox/networks/bnbIcon.svg",
   SOL: "https://cdn.allox.ai/allox/networks/solana.svg",
+  /** Generic SPL option (pricing may resolve to USDC/USDT under the hood). */
+  SPL: "https://cdn.allox.ai/allox/networks/usdc.svg",
 };
 
 function tokenIcon(symbol: string): string {
@@ -60,6 +65,7 @@ export function MessageLimitModal({
   const solanaAddress = useSelector((state: { wallet?: { address?: string } }) => state.wallet?.address);
   const reduxChainId = useSelector((state: { wallet?: { chainId?: number } }) => state.wallet?.chainId);
 
+  const { publicKey, connected, sendTransaction } = useWallet();
   const { address: evmAddress, chainId: wagmiChainId } = useAccount();
   const { writeContractAsync } = useWriteContract();
   const { switchChainAsync } = useSwitchChain();
@@ -78,15 +84,36 @@ export function MessageLimitModal({
   const [priceLabel, setPriceLabel] = useState<string>("—");
   const [loadingPrice, setLoadingPrice] = useState(false);
   const [purchasing, setPurchasing] = useState(false);
+  /** Bumps when SOL/USD is fetched so Solana price line recomputes (API has no packagePricing). */
+  const [solUsdTick, setSolUsdTick] = useState(0);
 
   const isSolanaWallet = walletType === "solana";
+  const hasSolanaAdapter = Boolean(connected && publicKey);
   const evmChainId = wagmiChainId ?? reduxChainId ?? null;
+
+  /** Phantom (redux) or Wallet Standard / MetaMask Solana (adapter). */
+  const effectiveSolanaAddress = useMemo(() => {
+    if (connected && publicKey) return publicKey.toBase58();
+    if (walletType === "solana" && solanaAddress) return solanaAddress;
+    return null;
+  }, [connected, publicKey, walletType, solanaAddress]);
+
+  const canSignSolanaTx = useMemo(
+    () =>
+      Boolean(
+        effectiveSolanaAddress &&
+          (typeof sendTransaction === "function" || hasInjectedSolanaProvider()),
+      ),
+    [effectiveSolanaAddress, sendTransaction],
+  );
 
   const chainKeys = useMemo(() => {
     const raw = listChainKeysFromPayload(chains);
     if (isSolanaWallet) return raw.filter((k) => k === "solana");
+    if (hasSolanaAdapter && evmAddress) return raw;
+    if (hasSolanaAdapter) return raw.filter((k) => k === "solana");
     return raw.filter((k) => k !== "solana");
-  }, [chains, isSolanaWallet]);
+  }, [chains, isSolanaWallet, hasSolanaAdapter, evmAddress]);
 
   const tokenOptions = useMemo(
     () => tokenOptionsForChain(selectedChainKey, chains),
@@ -96,6 +123,9 @@ export function MessageLimitModal({
   useEffect(() => {
     if (!isOpen) return;
     let cancelled = false;
+    prefetchSolUsdPrice().finally(() => {
+      if (!cancelled) setSolUsdTick((n) => n + 1);
+    });
     setLoadingPackages(true);
     setLoadError(null);
     fetchMessagePackages()
@@ -136,6 +166,8 @@ export function MessageLimitModal({
       return;
     }
     const pkg = selectedIndex != null ? packages[selectedIndex] : null;
+
+    
     if (!pkg) {
       setPriceLabel("—");
       setLoadingPrice(false);
@@ -211,21 +243,18 @@ export function MessageLimitModal({
       setPriceLabel("—");
       return;
     }
-    const plan = getSolanaPurchaseAmounts(pkg, chains, selectedToken);
-    if (!plan) {
-      setPriceLabel("—");
-      return;
-    }
-    if (plan.kind === "native") {
-      setPriceLabel(`${formatUnits(plan.lamports, 9)} SOL`);
-    } else {
-      const dec =
-        selectedToken === "USDC" || selectedToken === "USDT" ? 6 : 9;
-      setPriceLabel(
-        `${formatUnits(plan.amount, dec)} ${selectedToken}`,
-      );
-    }
-  }, [isOpen, selectedChainKey, selectedIndex, selectedToken, packages, chains]);
+    const tok = tokenOptions.find((t) => t.symbol === selectedToken);
+    setPriceLabel(formatSolanaChainPriceLabel(pkg, chains, tok));
+  }, [
+    isOpen,
+    selectedChainKey,
+    selectedIndex,
+    selectedToken,
+    packages,
+    chains,
+    tokenOptions,
+    solUsdTick,
+  ]);
 
   const handlePurchase = useCallback(async () => {
     if (selectedIndex == null || !packages[selectedIndex]) {
@@ -242,8 +271,11 @@ export function MessageLimitModal({
     setPurchasing(true);
     try {
       if (selectedChainKey === "solana") {
-        if (!isSolanaWallet || !solanaAddress) {
-          toast.error("Connect a Solana wallet (e.g. Phantom) to pay on Solana.");
+        await prefetchSolUsdPrice();
+        if (!canSignSolanaTx || !effectiveSolanaAddress) {
+          toast.error(
+            "Connect a Solana wallet (Phantom, or MetaMask on Solana) to pay on Solana.",
+          );
           return;
         }
         if (!resolveSolanaPaymentWallet(chains)) {
@@ -258,7 +290,8 @@ export function MessageLimitModal({
           pkg,
           chains,
           tokenSymbol: selectedToken,
-          fromPubkey: solanaAddress,
+          fromPubkey: effectiveSolanaAddress,
+          sendTransaction: sendTransaction ?? undefined,
         });
         await postMessagePurchase({
           txHash,
@@ -326,7 +359,9 @@ export function MessageLimitModal({
     selectedChainKey,
     chains,
     isSolanaWallet,
-    solanaAddress,
+    canSignSolanaTx,
+    effectiveSolanaAddress,
+    sendTransaction,
     evmAddress,
     evmChainId,
     writeContractAsync,
@@ -347,7 +382,8 @@ export function MessageLimitModal({
     !purchasing &&
     (selectedChainKey !== "solana" ||
       (!!resolveSolanaPaymentWallet(chains) &&
-        !!getSolanaPurchaseAmounts(selectedPkg, chains, selectedToken)));
+        !!getSolanaPurchaseAmounts(selectedPkg, chains, selectedToken) &&
+        canSignSolanaTx));
 
   return (
     <>

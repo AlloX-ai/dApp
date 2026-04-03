@@ -8,12 +8,11 @@ import { connect, disconnect, getAccount } from "@wagmi/core";
 import { wagmiClient } from "../wagmiConnectors";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useSwitchChain, useAccount } from "wagmi";
-import { setChainId } from "../redux/slices/walletSlice";
 
 const SOLANA_CHAIN_ID = 101;
 const AUTH_USER_KEY = "authUser";
 
-function getStoredAuthUser(): { walletType?: string; address?: string; [k: string]: unknown } | null {
+function getStoredAuthUser(): { walletType?: string; address?: string;[k: string]: unknown } | null {
   try {
     const raw = localStorage.getItem(AUTH_USER_KEY);
     if (raw) return JSON.parse(raw);
@@ -46,9 +45,13 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
   const dispatch = useDispatch();
   const [isOpen, setIsOpen] = useState(false);
   const [switching, setSwitching] = useState(false);
+  const [isSwitching, setIsSwitching] = useState(false);
+
   const chainId = useSelector((state: any) => state.wallet.chainId);
   const walletType = useSelector((state: any) => state.wallet.walletType);
   const { connected: solanaConnected, publicKey: solanaPublicKey } = useWallet();
+  const { connector } = useAccount();
+  const { switchChainAsync } = useSwitchChain();
   const errorNetwork: NetworkOption[] = [
     {
       name: "",
@@ -129,6 +132,7 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
     }
 
     setSwitching(true);
+    setIsSwitching(true);
     try {
       await provider.request({
         method: "wallet_switchEthereumChain",
@@ -141,7 +145,7 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
       }
 
       const metaMaskConnector = wagmiClient.connectors.find(
-        (c) => c.name?.toLowerCase().includes("metamask"),
+        (c: { name: string; }) => c.name?.toLowerCase().includes("metamask"),
       );
       if (metaMaskConnector) {
         const existingAccount = getAccount(wagmiClient);
@@ -170,7 +174,7 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
       setIsOpen(false);
     } catch (error) {
       const walletError = error as { code?: number };
-      if (walletError?.code === 4902) {
+      if (walletError?.code === 4902 && connector) {
         try {
           const provider: any = await connector.getProvider();
           await provider.request({
@@ -224,6 +228,57 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
       toast.error("Failed to switch network.");
     } finally {
       setSwitching(false);
+      setIsSwitching(false);
+    }
+  };
+
+  const switchEVMChain = async (network: NetworkOption) => {
+    if (network.name === "Solana") return;
+    if (!switchChainAsync) {
+      toast.error("Unable to switch chain. Please try reconnecting your wallet.");
+      return;
+    }
+    if (!connector) {
+      toast.error("No wallet connected. Please connect an EVM wallet first.");
+      return;
+    }
+    try {
+      setIsSwitching(true);
+      await switchChainAsync({ chainId: network.chainId });
+      dispatch(setChainId(network.chainId));
+      // localStorage.removeItem(PREFERRED_CHAIN_STORAGE_KEY);
+      setIsOpen(false);
+    } catch (error) {
+      const err = error as { code?: number };
+      if (err?.code === 4902) {
+        try {
+          const provider: any = await connector.getProvider();
+          await provider.request({
+            method: "wallet_addEthereumChain",
+            params: [
+              {
+                chainId: network.chainHex,
+                chainName: network.chainName,
+                rpcUrls: network.rpcUrls,
+                blockExplorerUrls: network.blockExplorerUrls,
+                nativeCurrency: network.nativeCurrency,
+              },
+            ],
+          });
+          await switchChainAsync({ chainId: network.chainId });
+          dispatch(setChainId(network.chainId));
+          // localStorage.removeItem(PREFERRED_CHAIN_STORAGE_KEY);
+          setIsOpen(false);
+        } catch (addErr) {
+          console.error("Add network error:", addErr);
+          toast.error("Failed to add or switch network.");
+        }
+      } else {
+        console.error("Network switch error:", error);
+        toast.error("Failed to switch network.");
+      }
+    } finally {
+      setIsSwitching(false);
     }
   };
 
