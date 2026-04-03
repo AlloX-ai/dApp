@@ -19,7 +19,6 @@ import { WODCampaignDetailsModal } from "../components/WODCampaignDetailsModal";
 import { WODCampaignFAQModal } from "../components/WODCampaignFAQModal";
 import { WODSwapModal } from "../components/WODSwapModal";
 
-
 export function WODCampaignPage() {
   const [showDetails, setShowDetails] = useState(false);
   const [showFAQ, setShowFAQ] = useState(false);
@@ -113,11 +112,7 @@ export function WODCampaignPage() {
     for (let i = 1; i <= 100; i++) {
       const amount = Math.floor(Math.random() * 900) + 50; // $50-$950
       const tier =
-        amount < 100
-          ? "Starter"
-          : amount < 500
-            ? "Explorer"
-            : "Elite";
+        amount < 100 ? "Starter" : amount < 500 ? "Explorer" : "Elite";
       const holdingDays = Math.floor(Math.random() * 30);
       const earlyBonus = i <= 20 ? 1.2 : 1.0;
 
@@ -160,9 +155,7 @@ export function WODCampaignPage() {
       const share = (weight / tierWeight) * 100;
 
       // Calculate estimated gems based on share of tier pool
-      const estimatedGems = Math.floor(
-        (weight / tierWeight) * tierPool,
-      );
+      const estimatedGems = Math.floor((weight / tierWeight) * tierPool);
 
       leaderboard.push({
         rank: i,
@@ -173,13 +166,8 @@ export function WODCampaignPage() {
         weight: Math.round(weight),
         share: share.toFixed(3) + "%",
         estimatedGems:
-          multiplier === "Pending"
-            ? "Pending"
-            : `${estimatedGems}`,
-        estimatedUSD:
-          multiplier === "Pending"
-            ? "—"
-            : `$${estimatedGems * 5}`,
+          multiplier === "Pending" ? "Pending" : `${estimatedGems}`,
+        estimatedUSD: multiplier === "Pending" ? "—" : `$${estimatedGems * 5}`,
         tier,
       });
     }
@@ -231,14 +219,11 @@ export function WODCampaignPage() {
         {/* Header */}
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">
-              WOD HODL
-            </h2>
+            <h2 className="text-3xl font-bold text-gray-900 mb-2">WOD HODL</h2>
             <p className="text-gray-600 mb-4 max-w-3xl">
-              Buy and hold WOD tokens to earn rewards. Your
-              rewards are based on your participation, holding
-              duration, and overall campaign activity. The
-              longer you hold, the higher your share!
+              Buy and hold WOD tokens to earn rewards. Your rewards are based on
+              your participation, holding duration, and overall campaign
+              activity. The longer you hold, the higher your share!
             </p>
           </div>
 
@@ -273,9 +258,7 @@ export function WODCampaignPage() {
 
             {/* Wallet Address */}
             <div className="mb-4 p-3 bg-white/60 rounded-xl">
-              <div className="text-xs text-gray-600 mb-1">
-                Wallet Address
-              </div>
+              <div className="text-xs text-gray-600 mb-1">Wallet Address</div>
               <div className="font-mono text-sm font-semibold text-gray-900">
                 {userData.wallet}
               </div>
@@ -284,9 +267,7 @@ export function WODCampaignPage() {
             {/* Stats Grid - Simplified */}
             <div className="grid grid-cols-2 gap-3 mb-4">
               <div className="p-3 bg-white/60 rounded-xl">
-                <div className="text-xs text-gray-600 mb-1">
-                  Total Amount
-                </div>
+                <div className="text-xs text-gray-600 mb-1">Total Amount</div>
                 <div className="font-bold text-xl text-gray-900">
                   ${userData.amount}
                 </div>
@@ -300,9 +281,7 @@ export function WODCampaignPage() {
                 </div>
               </div>
               <div className="p-3 bg-white/60 rounded-xl">
-                <div className="text-xs text-gray-600 mb-1">
-                  Early Bonus
-                </div>
+                <div className="text-xs text-gray-600 mb-1">Early Bonus</div>
                 <div
                   className={`font-bold text-xl ${userData.earlyBonus > 1 ? "text-yellow-600" : "text-gray-600"}`}
                 >
@@ -388,9 +367,7 @@ export function WODCampaignPage() {
                   <div className="font-semibold text-xs text-gray-900 mb-0.5">
                     Buy $WOD
                   </div>
-                  <div className="text-[10px] text-gray-600">
-                    $50+ required
-                  </div>
+                  <div className="text-[10px] text-gray-600">$50+ required</div>
                 </div>
                 <div className="flex-1 text-center">
                   <div className="w-8 h-8 rounded-full bg-green-600 text-white flex items-center justify-center mx-auto mb-1.5 text-sm font-bold">
@@ -410,9 +387,7 @@ export function WODCampaignPage() {
                   <div className="font-semibold text-xs text-gray-900 mb-0.5">
                     Earn Multipliers
                   </div>
-                  <div className="text-[10px] text-gray-600">
-                    Up to 2.0x
-                  </div>
+                  <div className="text-[10px] text-gray-600">Up to 2.0x</div>
                 </div>
                 <div className="flex-1 text-center">
                   <div className="w-8 h-8 rounded-full bg-yellow-600 text-white flex items-center justify-center mx-auto mb-1.5 text-sm font-bold">
@@ -421,9 +396,7 @@ export function WODCampaignPage() {
                   <div className="font-semibold text-xs text-gray-900 mb-0.5">
                     Get Gems
                   </div>
-                  <div className="text-[10px] text-gray-600">
-                    Rewards
-                  </div>
+                  <div className="text-[10px] text-gray-600">Rewards</div>
                 </div>
               </div>
             </div>
@@ -441,17 +414,16 @@ export function WODCampaignPage() {
                         <div className="font-bold text-sm text-gray-700">
                           Starter
                         </div>
-                        <div className="text-xs text-gray-600">
-                          $50 - $99
-                        </div>
+                        <div className="text-xs text-gray-600">$50 - $99</div>
                       </div>
                     </div>
                     <div className="text-right">
                       <div className="text-xs font-bold text-gray-900">
                         10% Pool
                       </div>
-                      <div className="text-xs text-gray-600">
-                        (1,000 💎)
+                      <div className="flex items-center gap-1">
+                        <div className="text-xs text-gray-600">1,000</div>
+                        <Gem className="w-4 h-4 text-purple-600" />
                       </div>
                     </div>
                   </div>
@@ -463,17 +435,16 @@ export function WODCampaignPage() {
                         <div className="font-bold text-sm text-green-700">
                           Explorer
                         </div>
-                        <div className="text-xs text-gray-600">
-                          $100 - $499
-                        </div>
+                        <div className="text-xs text-gray-600">$100 - $499</div>
                       </div>
                     </div>
                     <div className="text-right">
                       <div className="text-xs font-bold text-gray-900">
                         30% Pool
                       </div>
-                      <div className="text-xs text-gray-600">
-                        (3,000 💎)
+                      <div className="flex items-center gap-1">
+                        <div className="text-xs text-gray-600">3,000</div>
+                        <Gem className="w-4 h-4 text-purple-600" />
                       </div>
                     </div>
                   </div>
@@ -485,17 +456,16 @@ export function WODCampaignPage() {
                         <div className="font-bold text-sm text-purple-700">
                           Elite
                         </div>
-                        <div className="text-xs text-gray-600">
-                          $500+
-                        </div>
+                        <div className="text-xs text-gray-600">$500+</div>
                       </div>
                     </div>
                     <div className="text-right">
                       <div className="text-xs font-bold text-gray-900">
                         60% Pool
                       </div>
-                      <div className="text-xs text-gray-600">
-                        (6,000 💎)
+                      <div className="flex items-center gap-1">
+                        <div className="text-xs text-gray-600">6,000</div>
+                        <Gem className="w-4 h-4 text-purple-600" />
                       </div>
                     </div>
                   </div>
@@ -510,44 +480,31 @@ export function WODCampaignPage() {
           <div className="glass-card p-4 bg-gradient-to-br from-yellow-50 to-orange-50 border border-yellow-200">
             <div className="flex items-center gap-2 mb-2">
               <Zap className="w-5 h-5 text-yellow-600" />
-              <span className="font-bold text-gray-900">
-                Early Boost
-              </span>
+              <span className="font-bold text-gray-900">Early Boost</span>
             </div>
             <div className="text-sm text-gray-700">
-              <span className="font-bold text-yellow-600">
-                +20% Gems
-              </span>{" "}
-              for first 48 hours
+              <span className="font-bold text-yellow-600">+20% Gems</span> for
+              first 48 hours
             </div>
           </div>
           <div className="glass-card p-4 bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200">
             <div className="flex items-center gap-2 mb-2">
               <Clock className="w-5 h-5 text-blue-600" />
-              <span className="font-bold text-gray-900">
-                Hold Multiplier
-              </span>
+              <span className="font-bold text-gray-900">Hold Multiplier</span>
             </div>
             <div className="text-sm text-gray-700">
-              Up to{" "}
-              <span className="font-bold text-blue-600">
-                2.0x
-              </span>{" "}
-              for 30+ days
+              Up to <span className="font-bold text-blue-600">2.0x</span> for
+              30+ days
             </div>
           </div>
           <div className="glass-card p-4 bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200">
             <div className="flex items-center gap-2 mb-2">
               <Trophy className="w-5 h-5 text-purple-600" />
-              <span className="font-bold text-gray-900">
-                Jackpots
-              </span>
+              <span className="font-bold text-gray-900">Jackpots</span>
             </div>
             <div className="text-sm text-gray-700">
               Random winners get{" "}
-              <span className="font-bold text-purple-600">
-                50-100 Gems
-              </span>
+              <span className="font-bold text-purple-600">50-100 Gems</span>
             </div>
           </div>
         </div>
@@ -593,10 +550,7 @@ export function WODCampaignPage() {
               </thead>
               <tbody>
                 {paginatedLeaderboard.map((holding) => (
-                  <tr
-                    key={holding.wallet}
-                    className="border-b border-gray-100"
-                  >
+                  <tr key={holding.wallet} className="border-b border-gray-100">
                     <td className="py-3 px-4 text-center">
                       <div
                         className={`w-8 h-8 rounded-lg ${getRankStyle(holding.rank)} flex items-center justify-center font-bold text-sm mx-auto`}
@@ -645,10 +599,7 @@ export function WODCampaignPage() {
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-1">
-                        <Gem
-                          size={14}
-                          className="text-purple-600"
-                        />
+                        <Gem size={14} className="text-purple-600" />
                         <span className="font-bold text-sm text-gray-900">
                           {holding.estimatedGems}
                         </span>
@@ -664,8 +615,8 @@ export function WODCampaignPage() {
           </div>
           <div className="mt-4 p-3 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
             <div className="text-xs text-gray-700 text-center">
-              Rewards are estimates based on current holdings.
-              Final rewards calculated at snapshot.
+              Rewards are estimates based on current holdings. Final rewards
+              calculated at snapshot.
               <span
                 onClick={() => setShowDetails(true)}
                 className="text-blue-600 font-semibold ml-1 hover:underline cursor-pointer"
@@ -685,30 +636,22 @@ export function WODCampaignPage() {
               <ChevronLeft size={18} />
             </button>
 
-            {Array.from(
-              { length: totalPages },
-              (_, i) => i + 1,
-            ).map((page) => {
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
               // Show first page, last page, current page, and pages around current
               const showPage =
                 page === 1 ||
                 page === totalPages ||
-                (page >= currentPage - 1 &&
-                  page <= currentPage + 1);
+                (page >= currentPage - 1 && page <= currentPage + 1);
 
               // Show ellipsis
               const showEllipsisBefore =
                 page === currentPage - 2 && currentPage > 3;
               const showEllipsisAfter =
-                page === currentPage + 2 &&
-                currentPage < totalPages - 2;
+                page === currentPage + 2 && currentPage < totalPages - 2;
 
               if (showEllipsisBefore || showEllipsisAfter) {
                 return (
-                  <span
-                    key={page}
-                    className="px-2 text-gray-400"
-                  >
+                  <span key={page} className="px-2 text-gray-400">
                     ...
                   </span>
                 );
@@ -744,20 +687,12 @@ export function WODCampaignPage() {
 
       {/* Details Modal */}
       {showDetails && (
-        <WODCampaignDetailsModal
-          onClose={() => setShowDetails(false)}
-        />
+        <WODCampaignDetailsModal onClose={() => setShowDetails(false)} />
       )}
       {/* FAQ Modal */}
-      {showFAQ && (
-        <WODCampaignFAQModal
-          onClose={() => setShowFAQ(false)}
-        />
-      )}
+      {showFAQ && <WODCampaignFAQModal onClose={() => setShowFAQ(false)} />}
       {/* Swap Modal */}
-      {showSwap && (
-        <WODSwapModal onClose={() => setShowSwap(false)} />
-      )}
+      {showSwap && <WODSwapModal onClose={() => setShowSwap(false)} />}
     </>
   );
 }
