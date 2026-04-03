@@ -476,7 +476,7 @@ export function useSocial() {
   // Post promo tweet
   const postPromoTweet = useCallback((tweetText) => {
     const encodedText = encodeURIComponent(tweetText);
-    window.open(`https://twitter.com/intent/tweet`, "_blank");
+    window.open(`https://x.com/intent/tweet`, "_blank");
   }, []);
 
   // Verify promo tweet
