@@ -100,7 +100,7 @@ export function HistoryPage() {
       }
       try {
         await apiCall(`/chat/history/${sessionId}/title`, {
-          method: "PATCH",
+          method: "DELETE",
           body: JSON.stringify({ title: editTitle.trim() }),
         });
         dispatch(

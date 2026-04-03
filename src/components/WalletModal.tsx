@@ -1,10 +1,22 @@
 import { useState } from "react";
-import { X, ChevronLeft } from "lucide-react";
+import { useSelector } from "react-redux";
+import { X, Check, Loader2, ChevronLeft } from "lucide-react";
+import { shortAddress } from "../hooks/shortAddress";
 
 interface WalletModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onConnect: (wallet: Object) => void;
+  onConnect: (wallet: { name: string; icon: string; walletType: string }) => void;
+  /**
+   * Optional: when provided, the modal will show a
+   * “Sign to continue” button after the wallet is connected.
+   */
+  onSign?: () => void;
+  /**
+   * Optional: controls the “Please sign in your wallet” loading state.
+   * Mirror of BetaAccessModal `isSigning`.
+   */
+  isSigning?: boolean;
 }
 
 const META_MASK_WALLET = {

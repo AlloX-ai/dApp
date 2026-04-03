@@ -51,6 +51,26 @@ body {
     inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
+.glass-card-disabled {
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid #fffc;
+  border-radius: 24px;
+  box-shadow:
+    0 4px 24px #0000000a,
+    0 1px 2px #00000005,
+    inset 0 1px #ffffffe6;
+}
+
+
+.glass-card:hover {
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.08),
+    0 2px 4px rgba(0, 0, 0, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
 /* Hover Lift Effect */
 .hover-lift {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);

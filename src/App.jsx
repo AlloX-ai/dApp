@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Navigate,
   Outlet,
@@ -13,11 +13,11 @@ import { LaunchSidebar } from "./components/LaunchSidebar";
 import { Header } from "./components/Header";
 import { ChatPage } from "./pages/ChatPage";
 import { PortfolioPage } from "./pages/PortfolioPage";
-import { Season1 } from "./pages/Season1";
 import { TradingPage } from "./pages/TradingPage";
 import { StakingPage } from "./pages/StakingPage";
 import { HistoryPage } from "./pages/HistoryPage";
 import { BetaAccessPage } from "./pages/BetaAccessPage";
+import { ReferralsPage } from "./pages/ReferralPage";
 import { wagmiClient } from "./wagmiConnectors";
 import {
   connect,
@@ -50,6 +50,9 @@ import {
 import { store } from "./redux/store";
 import { PointsPage } from "./pages/Points";
 import { useWallet } from "@solana/wallet-adapter-react";
+import { useSocial } from "./hooks/useSocial";
+import { CongratsModal } from "./components/CongratsModal";
+import { CampaignsPage } from "./pages/Campaigns";
 
 const SOLANA_MAINNET_CHAIN_ID = 101;
 const PREFERRED_CHAIN_STORAGE_KEY = "walletPreferredChainId";
@@ -84,7 +87,7 @@ function LaunchAppLayout() {
 
   const { address, isConnected, walletModal, walletType, checkinModal } =
     useSelector((state) => state.wallet);
-  const { token, user, ensureAuthenticated } = useAuth();
+  const { token, user, ensureAuthenticated, logout } = useAuth();
   const {
     status: checkinStatus,
     claim: claimCheckin,
@@ -92,6 +95,13 @@ function LaunchAppLayout() {
     addOptimisticCheckinPoints,
     loading: checkinLoading,
   } = useCheckin();
+
+  const { fetchSocialPoints, fetchAllPoints, loadSeenPosts } = useSocial();
+  useEffect(() => {
+    fetchSocialPoints();
+    fetchAllPoints();
+    loadSeenPosts();
+  }, [fetchSocialPoints, fetchAllPoints, loadSeenPosts]);
 
   const handleDisconnect = async () => {
     // if (walletType === "solana") {
@@ -114,7 +124,10 @@ function LaunchAppLayout() {
     dispatch(clearCheckin());
     localStorage.removeItem("authToken");
     localStorage.removeItem("authUser");
+    logout();
     navigate("/login", { replace: true });
+    // Fully clear auth state (token + user) across the app
+   
   };
 
   useEffect(() => {
@@ -235,12 +248,14 @@ function LaunchAppLayout() {
     );
 
     if (connector && connector.name !== "WalletConnect") {
+      const isBinance =
+        option.walletType === "binance" || option.name === "Binance Wallet";
       connect(wagmiClient, { connector })
         .then(() => {
-          dispatch(setWalletType("evm"));
+          dispatch(setWalletType(isBinance ? "binance" : "evm"));
           dispatch(setIsConnected(true));
           dispatch(setWalletModal(false));
-          if (option.connectorName === "Binance Wallet") {
+          if (isBinance) {
             setTimeout(() => getAccount(wagmiClient), 2000);
           }
         })
@@ -348,9 +363,11 @@ function BetaAccessLayout() {
       c.name.toLowerCase().includes(option.name.toLowerCase()),
     );
     if (connector && connector.name !== "WalletConnect") {
+      const isBinance =
+        option.walletType === "binance" || option.name === "Binance Wallet";
       connect(wagmiClient, { connector })
         .then(() => {
-          dispatch(setWalletType("evm"));
+          dispatch(setWalletType(isBinance ? "binance" : "evm"));
           dispatch(setIsConnected(true));
           dispatch(setWalletModal(false));
         })
@@ -527,8 +544,46 @@ function WalletSync() {
             dispatch(setChainId(activeConnection.chainId));
             dispatch(setIsConnected(true));
             dispatch(setWalletModal(false));
+            window.WALLET_TYPE = "metamask";
           }
           if (activeConnection.connector.type === "binanceWallet") {
+            dispatch(setWalletType("evm"));
+            dispatch(setIsConnected(true));
+            dispatch(setWalletModal(false));
+            window.WALLET_TYPE = "binance";
+          } else if (activeConnection.connector.name === "Phantom") {
+            const provider = window.phantom?.solana;
+
+            if (!provider) return;
+
+            if (provider) {
+              try {
+                const resp = await provider.connect({ onlyIfTrusted: true });
+
+                const walletAddress =
+                  resp.publicKey?.toString?.() ?? resp.publicKey;
+                if (walletAddress) {
+                  dispatch(setWalletType("solana"));
+                  dispatch(setAddress(walletAddress));
+                  dispatch(setIsConnected(true));
+                  dispatch(setWalletModal(false));
+                  window.WALLET_TYPE = "solana";
+
+                  const stored = localStorage.getItem(
+                    PREFERRED_CHAIN_STORAGE_KEY,
+                  );
+                  if (stored) {
+                    dispatch(setChainId(SOLANA_MAINNET_CHAIN_ID));
+                  } else {
+                    dispatch(setChainId(activeConnection.chainId));
+                  }
+                }
+              } catch (err) {
+                console.error("Failed to connect Phantom:", err);
+              }
+              // not trusted or rejected – don't show popup
+            }
+          } else {
             dispatch(setWalletType("evm"));
             dispatch(setIsConnected(true));
             dispatch(setWalletModal(false));
@@ -583,6 +638,17 @@ function RequireAuth({ children }) {
 }
 
 function App() {
+  const { address } = useSelector((state) => state.wallet);
+
+  const [showModal, setShowModal] = useState(false);
+  const lastShown = localStorage.getItem("chatDate");
+  const count = parseInt(localStorage.getItem("chatCount") || "0", 10);
+  useEffect(() => {
+    const today = new Date().toDateString();
+    // App only decides visibility; storage updates happen in CongratsModal after open.
+    setShowModal(lastShown !== today && count < 3);
+  }, [lastShown, count]);
+  
   return (
     <>
       <Toaster position="top-right" richColors closeButton />
@@ -598,14 +664,24 @@ function App() {
         >
           <Route index element={<ChatPage />} />
           <Route path="/portfolio" element={<PortfolioPage />} />
-          <Route path="/season1" element={<Season1 />} />
-          <Route path="/points" element={<PointsPage />} />
+          <Route path="/campaigns" element={<CampaignsPage />} />
+          <Route path="/rewards" element={<PointsPage />} />
 
           <Route path="/trending" element={<TradingPage />} />
           <Route path="/staking" element={<StakingPage />} />
           <Route path="/history" element={<HistoryPage />} />
+          <Route path="/referrals" element={<ReferralsPage />} />
         </Route>
       </Routes>
+      {showModal && (
+        <CongratsModal
+          isOpen={showModal}
+          onClose={() => {
+            setShowModal(false);
+          }}
+          address={address}
+        />
+      )}
     </>
   );
 }

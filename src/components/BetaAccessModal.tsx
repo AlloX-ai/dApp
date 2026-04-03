@@ -14,6 +14,7 @@ interface BetaAccessModalProps {
 }
 
 const WALLET_OPTIONS = [
+
   {
     name: "MetaMask",
     icon: "https://cdn.allox.ai/allox/wallets/metamaskConnect.svg",
@@ -21,16 +22,35 @@ const WALLET_OPTIONS = [
     walletType: "metamask",
   },
   {
-    name: "OKX Wallet",
+    name: "Binance Wallet",
+    icon: "https://cdn.allox.ai/allox/wallets/binanceWallet.svg",
+    type: "top",
+    walletType: "binance",
+  },
+  {
+    name: "OKX",
     icon: "https://cdn.allox.ai/allox/wallets/okxConnect.svg",
     type: "top",
     walletType: "okx",
   },
   {
-    name: "Trust Wallet",
+    name: "Trust",
     icon: "https://cdn.allox.ai/allox/wallets/trustWalletLogo.svg",
     type: "top",
     walletType: "trust",
+  },
+  {
+    name: "Gate",
+    icon: "https://cdn.allox.ai/allox/wallets/gateWallet.svg",
+    type: "top",
+    walletType: "gate",
+  },
+  {
+    name: "Phantom",
+    icon: "https://cdn.allox.ai/allox/wallets/phantom.svg",
+    type: "top",
+    walletType: "phantom",
+    isPhantom: true,
   },
   {
     name: "WalletConnect",
@@ -39,6 +59,18 @@ const WALLET_OPTIONS = [
     walletType: "walletconnect",
   },
 ];
+
+const SUGGESTED_WALLET_TYPES = ["binance", "metamask"];
+
+function getSuggestedWallets() {
+  return SUGGESTED_WALLET_TYPES
+    .map((type) => WALLET_OPTIONS.find((w) => w.walletType === type))
+    .filter(Boolean) as typeof WALLET_OPTIONS;
+}
+
+function getOtherWallets() {
+  return WALLET_OPTIONS.filter((w) => !SUGGESTED_WALLET_TYPES.includes(w.walletType));
+}
 
 export function BetaAccessModal({
   isOpen = true,
@@ -80,13 +112,13 @@ export function BetaAccessModal({
         alt=""
         className="h-10 my-4"
       />
-      <div className="mb-4 w-full max-w-md rounded-2xl bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 p-4 ">
+      <div className="mb-4 w-full max-w-md rounded-2xl bg-gradient-to-br from-yellow-400 via-orange-500 to-amber-600 to-amber-600 p-4 ">
         <div className="flex items-center gap-2">
           <div className="w-10 h-10 bg-white/20 backdrop-blur-xl rounded-2xl flex items-center justify-center flex-shrink-0">
             <Gift size={20} className="text-white" />
           </div>
           <div className="flex-1">
-            <p className="text-sm font-medium text-white mb-1">
+            <p className="text-md font-bold text-white mb-1">
               Welcome Bonus
             </p>
             <p className="text-xs text-white">
@@ -97,14 +129,14 @@ export function BetaAccessModal({
         </div>
       </div>
       <div
-        className="glass-card max-w-md w-full p-4 sm:p-8 relative animate-fade-in"
+        className="glass-card max-w-md w-full p-4 sm:p-6 relative animate-fade-in"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="text-center mb-6">
-          <h2 className="text-2xl font-bold mb-3">Log in to AlloX</h2>
+          <h2 className="text-2xl font-bold mb-3">Log in</h2>
         </div>
 
-        <div className="mb-0 sm:mb-8">
+        <div className="mb-0">
           {isSigning ? (
             <div className="flex flex-col items-center justify-center py-12 gap-4">
               <Loader2 className="w-14 h-14 animate-spin text-gray-400" />

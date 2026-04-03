@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Loader2 } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import OutsideClickHandler from "react-outside-click-handler";
 import { toast } from "sonner";
@@ -7,6 +7,8 @@ import { setAddress, setChainId, setIsConnected, setWalletType } from "../redux/
 import { connect, disconnect, getAccount } from "@wagmi/core";
 import { wagmiClient } from "../wagmiConnectors";
 import { useWallet } from "@solana/wallet-adapter-react";
+import { useSwitchChain, useAccount } from "wagmi";
+import { setChainId } from "../redux/slices/walletSlice";
 
 const SOLANA_CHAIN_ID = 101;
 const AUTH_USER_KEY = "authUser";
@@ -170,6 +172,7 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
       const walletError = error as { code?: number };
       if (walletError?.code === 4902) {
         try {
+          const provider: any = await connector.getProvider();
           await provider.request({
             method: "wallet_addEthereumChain",
             params: [
@@ -210,12 +213,13 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
             );
           }
           setIsOpen(false);
-          return;
-        } catch (addError) {
-          console.error("Network add error:", addError);
+        } catch (addErr) {
+          console.error("Add network error:", addErr);
+          toast.error("Failed to add or switch network.");
         }
       } else {
         console.error("Network switch error:", error);
+        toast.error("Failed to switch network.");
       }
       toast.error("Failed to switch network.");
     } finally {
@@ -269,45 +273,7 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
       setIsOpen(false);
       return;
     }
-
-    const ethereum = (window as any).ethereum;
-    if (!ethereum) {
-      toast.error("MetaMask not detected.");
-      return;
-    }
-
-    try {
-      await ethereum.request({
-        method: "wallet_switchEthereumChain",
-        params: [{ chainId: network.chainHex }],
-      });
-      setIsOpen(false);
-    } catch (error) {
-      const walletError = error as { code?: number };
-      if (walletError?.code === 4902) {
-        try {
-          await ethereum.request({
-            method: "wallet_addEthereumChain",
-            params: [
-              {
-                chainId: network.chainHex,
-                chainName: network.chainName,
-                rpcUrls: network.rpcUrls,
-                blockExplorerUrls: network.blockExplorerUrls,
-                nativeCurrency: network.nativeCurrency,
-              },
-            ],
-          });
-          setIsOpen(false);
-          return;
-        } catch (addError) {
-          console.error("Network add error:", addError);
-        }
-      } else {
-        console.error("Network switch error:", error);
-      }
-      toast.error("Failed to switch network.");
-    }
+    await switchEVMChain(network);
   };
 
   const manageSwitchNetwork = (network: NetworkOption) => {
@@ -363,6 +329,12 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
               >
                 Disconnect
               </button>
+              {isSwitching && (
+                <div className="mt-3 flex items-center gap-2 text-xs text-gray-500">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  <span>Waiting for you to confirm network switch in your wallet…</span>
+                </div>
+              )}
             </OutsideClickHandler>
           </div>
         </>

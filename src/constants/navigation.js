@@ -5,14 +5,17 @@ import {
   TrendingUp,
   Coins,
   History as HistoryIcon,
-  TrendingDown
+  TrendingDown,
+  Users,
 } from "lucide-react";
 
 export const navigationTabs = [
   { id: "chat", label: "Chat", path: "/", Icon: MessageSquare },
   { id: "portfolio", label: "Portfolio", path: "/portfolio", Icon: PieChart },
-  { id: "season1", label: "Season 1", path: "/season1", Icon: Flame },
-  { id: "points", label: "Points", path: "/points", Icon: Coins },
+  { id: "campaigns", label: "Campaigns", path: "/campaigns", Icon: Flame },
+  { id: "rewards", label: "Rewards", path: "/rewards", Icon: Coins },
+  { id: "referrals", label: "Referrals", path: "/referrals", Icon: Users },
+
   { id: "trading", label: "Trending", path: "/trending", Icon: TrendingUp },
   { id: "staking", label: "Staking", path: "/staking", Icon: TrendingDown },
   { id: "history", label: "History", path: "/history", Icon: HistoryIcon },
