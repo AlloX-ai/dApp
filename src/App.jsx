@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Navigate,
   Outlet,
@@ -50,6 +50,7 @@ import {
 import { store } from "./redux/store";
 import { PointsPage } from "./pages/Points";
 import { useSocial } from "./hooks/useSocial";
+import { CongratsModal } from "./components/CongratsModal";
 import { CampaignsPage } from "./pages/Campaigns";
 
 const SOLANA_MAINNET_CHAIN_ID = 101;
@@ -616,6 +617,17 @@ function RequireAuth({ children }) {
 }
 
 function App() {
+  const { address } = useSelector((state) => state.wallet);
+
+  const [showModal, setShowModal] = useState(false);
+  const lastShown = localStorage.getItem("chatDate");
+  const count = parseInt(localStorage.getItem("chatCount") || "0", 10);
+  useEffect(() => {
+    const today = new Date().toDateString();
+    // App only decides visibility; storage updates happen in CongratsModal after open.
+    setShowModal(lastShown !== today && count < 3);
+  }, [lastShown, count]);
+  
   return (
     <>
       <Toaster position="top-right" richColors closeButton />
@@ -640,6 +652,15 @@ function App() {
           <Route path="/referrals" element={<ReferralsPage />} />
         </Route>
       </Routes>
+      {showModal && (
+        <CongratsModal
+          isOpen={showModal}
+          onClose={() => {
+            setShowModal(false);
+          }}
+          address={address}
+        />
+      )}
     </>
   );
 }

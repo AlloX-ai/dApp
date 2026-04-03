@@ -176,6 +176,12 @@ export const useAuth = () => {
   const logout = useCallback(() => {
     setGlobalToken(null);
     setGlobalUser(null);
+    try {
+      localStorage.removeItem("chatCount");
+      localStorage.removeItem("chatDate");
+    } catch (e) {
+      console.error(e);
+    }
   }, []);
 
   return {

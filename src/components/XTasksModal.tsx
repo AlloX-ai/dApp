@@ -828,6 +828,7 @@ export function XTasksModal({
 
         </div>
 
+            
         
 
         {!(twitterStatus.linked || telegramStatus.linked) || (twitterStatus.linked && loading.tasks) ? (
@@ -1380,7 +1381,7 @@ export function XTasksModal({
                 )}
                 {twitterStatus.linked && currentTab === "available" && !promoTask.completedToday && (
             
-                  <motion.div
+                         <motion.div
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
                     className="relative bg-gradient-to-br from-purple-500 via-indigo-500 to-blue-500 rounded-2xl p-[2px] shadow-xl hover:shadow-2xl transition-all"
@@ -1406,11 +1407,10 @@ export function XTasksModal({
                               </div>
 
                               <h3 className="text-lg font-bold mb-1 bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
-                                {promoTask.title}
+                                                            Post about Allox AI
+
                               </h3>
-                              <p className="text-sm text-gray-600 mb-2">
-                                {promoTask.description}
-                              </p>
+                            
 
                               <div className="flex items-center gap-4 text-xs text-gray-500 mb-3">
                                 <span className="flex items-center gap-1">
@@ -1422,11 +1422,16 @@ export function XTasksModal({
                                   {promoTask.points} points
                                 </div>
                               </div>
-
-                              <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 mb-4 text-sm text-gray-700 italic">
-                                "Help me earn points by tweeting about
-                                @alloxdotai!" (must mention @alloxdotai)
+                              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
+                                <p className="text-sm font-semibold text-blue-900 mb-2">Requirements:</p>
+                                <ol className="text-sm text-blue-700 space-y-1.5 list-decimal list-inside">
+                                  <li>Write your own post about AlloX (mention @alloxdotai)</li>
+                                  <li>Include relevant product information about AlloX.</li>
+                           
+                                </ol>
                               </div>
+
+                            
                             </div>
                           </div>
 

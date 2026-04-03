@@ -37,6 +37,7 @@ import { executePortfolioOnChain } from "../utils/execution";
 import { useAuth } from "../hooks/useAuth";
 import { NavLink, useLocation, useNavigate } from "react-router";
 import getFormattedNumber from "../hooks/get-formatted-number";
+import { CongratsModal } from "../components/CongratsModal";
 import { toast } from "sonner";
 import { getPublicClient } from "@wagmi/core";
 import { wagmiClient } from "../wagmiConnectors";
@@ -163,6 +164,7 @@ export function ChatPage() {
   const [refreshOnchainLoading, setRefreshOnchainLoading] = useState(false);
   const [refreshOnchainMessage, setRefreshOnchainMessage] = useState(null);
   const [statusLoading, setStatusLoading] = useState(false);
+ 
   const [executionState, setExecutionState] = useState({
     isExecuting: false,
     currentSymbol: null,

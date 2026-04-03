@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router";
 import { useDispatch, useSelector } from "react-redux";
 import { openCheckinModal } from "../redux/slices/walletSlice";
@@ -20,7 +20,8 @@ import { useCheckin } from "../hooks/useCheckin";
 import { useTotalPoints } from "../hooks/useTotalPoints";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { navigationTabs, isActivePath } from "../constants/navigation";
-import OutsideClickHandler from "react-outside-click-handler/build/OutsideClickHandler";
+import OutsideClickHandler from "react-outside-click-handler";
+import { findSeason2RewardForWallet } from "../constants/rewards";
 import { MessageLimitModal } from "./MessageLimitModal";
 
 export function Header({
@@ -42,6 +43,10 @@ export function Header({
   const [showTooltip, setShowTooltip] = useState(false);
   const [messageLimitModalOpen, setMessageLimitModalOpen] = useState(false);
 
+  const user = useMemo(
+    () => findSeason2RewardForWallet(coinbase),
+    [coinbase],
+  );
   const { checkedInToday } = useCheckin();
 
   const handleOpenCheckinModal = () => {
@@ -94,13 +99,13 @@ export function Header({
                   {totalPoints.toLocaleString()}
                 </span>
               </div>
-              {messagesRemaining != null && (
+              {(messagesRemaining != null || user) && (
                 <div className="border-l border-gray-200/60 pl-3 flex items-center gap-2">
                   <Gem className="size-4 text-purple-600" />
                   <span className="text-xs sm:text-sm font-semibold tabular-nums">
-                    0{" "}
+                    {user ? user.gems : 0}
                     <span className="text-xs sm:text-sm font-semibold tabular-nums text-[#4A5565]">
-                      ($0)
+                      (${user ? user.gems * 5 : 0})
                     </span>
                   </span>
                 </div>
