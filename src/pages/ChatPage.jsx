@@ -33,6 +33,7 @@ import {
   INITIAL_CLAIM_POINTS,
 } from "../redux/slices/pointsSlice";
 import { apiCall } from "../utils/api";
+import { fetchChatStatus as fetchChatStatusApi } from "../utils/chatStatusFetch";
 import { executePortfolioOnChain } from "../utils/execution";
 import { useAuth } from "../hooks/useAuth";
 import { NavLink, useLocation, useNavigate } from "react-router";
@@ -492,38 +493,7 @@ export function ChatPage() {
   }, []);
 
   const fetchChatStatus = useCallback(async () => {
-    const token = localStorage.getItem("authToken");
-    if (!token) return;
-    try {
-      const status = await apiCall("/chat/status");
-      if (status?.rateLimit) {
-        dispatch(setRateLimit(status.rateLimit));
-      }
-      dispatch(
-        setChatStatus({
-          rateLimit: status?.rateLimit,
-          activity: status?.activity ?? null,
-          points: status?.points,
-          claimed: status?.claimed,
-        }),
-      );
-      if (typeof status?.points === "number") {
-        dispatch(setPointsBalance(status.points));
-      }
-      if (status?.claimed != null) {
-        try {
-          const stored = JSON.parse(localStorage.getItem("authUser") || "{}");
-          setUser({
-            ...stored,
-            season1: { ...(stored?.season1 ?? {}), claimed: status.claimed },
-          });
-        } catch (e) {
-          console.error(e);
-        }
-      }
-    } catch (e) {
-      if (e?.status !== 401) console.warn("Chat status fetch failed:", e);
-    }
+    await fetchChatStatusApi(dispatch, { setUser });
   }, [dispatch, setUser]);
 
   useEffect(() => {
