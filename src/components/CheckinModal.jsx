@@ -16,6 +16,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 
+import { useAccount, useSwitchChain } from "wagmi";
 import { SOLANA_CHAIN_ID } from "../hooks/useCheckin";
 import { setChainId } from "../redux/slices/walletSlice";
 
@@ -107,11 +108,14 @@ export function CheckinModal({
   const chainId = useSelector((state) => state.wallet.chainId);
   const isSolana = walletType === "solana";
   const isOpenState = open ?? isOpen ?? false;
+  const { connector } = useAccount();
+  const { switchChainAsync } = useSwitchChain();
 
   const [justClaimed, setJustClaimed] = useState(false);
   const [selectedDay, setSelectedDay] = useState(null);
   const [chainDropdownOpen, setChainDropdownOpen] = useState(false);
   const [selectedChainId, setSelectedChainId] = useState(SOLANA_CHAIN_ID);
+  const [isSwitchingChain, setIsSwitchingChain] = useState(false);
 
   // Sync selected chain when modal opens or wallet changes
   useEffect(() => {
@@ -150,6 +154,7 @@ export function CheckinModal({
     CHECKIN_CHAINS[0];
 
   const handleChainSelect = async (chain) => {
+    // Solana / EVM wallet-type guards
     const wantsSolana = chain.chainId === SOLANA_CHAIN_ID;
     if (wantsSolana && !isSolana) {
       toast.error(
@@ -189,31 +194,28 @@ export function CheckinModal({
       return;
     }
 
-    const provider =
-      (typeof window !== "undefined" && window.phantom?.ethereum) ||
-      (typeof window !== "undefined" && window.ethereum);
-    if (!provider) {
-      toast.error("No EVM wallet detected (e.g. MetaMask).");
+    // EVM path – align with NetworkSelector / wagmi-based switching
+    if (!switchChainAsync) {
+      toast.error("Unable to switch chain. Please try reconnecting your wallet.");
+      return;
+    }
+    if (!connector) {
+      toast.error("No wallet connected. Please connect an EVM wallet first.");
       return;
     }
 
     try {
-      await provider.request({
-        method: "wallet_switchEthereumChain",
-        params: [{ chainId: chain.chainHex }],
-      });
-      try {
-        await provider.request({ method: "eth_requestAccounts" });
-      } catch (accountsError) {
-        console.error("Failed to request EVM accounts:", accountsError);
-      }
+      setIsSwitchingChain(true);
+      await switchChainAsync({ chainId: chain.chainId });
       dispatch(setChainId(chain.chainId));
+      localStorage.removeItem(PREFERRED_CHAIN_STORAGE_KEY);
       setSelectedChainId(chain.chainId);
       setChainDropdownOpen(false);
     } catch (error) {
-      const code = error?.code;
-      if (code === 4902) {
+      const errCode = error?.code;
+      if (errCode === 4902) {
         try {
+          const provider = await connector.getProvider();
           await provider.request({
             method: "wallet_addEthereumChain",
             params: [
@@ -226,17 +228,22 @@ export function CheckinModal({
               },
             ],
           });
+          await switchChainAsync({ chainId: chain.chainId });
           dispatch(setChainId(chain.chainId));
+          localStorage.removeItem(PREFERRED_CHAIN_STORAGE_KEY);
           setSelectedChainId(chain.chainId);
           setChainDropdownOpen(false);
           return;
-        } catch (addError) {
-          console.error("Network add error:", addError);
+        } catch (addErr) {
+          console.error("Network add error:", addErr);
+          toast.error("Failed to add or switch network.");
+          return;
         }
-      } else {
-        console.error("Network switch error:", error);
       }
+      console.error("Network switch error:", error);
       toast.error("Failed to switch network.");
+    } finally {
+      setIsSwitchingChain(false);
     }
   };
 

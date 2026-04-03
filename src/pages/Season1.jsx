@@ -84,18 +84,16 @@ export function Season1() {
   }, []);
 
   return (
-    <>
-      <div className="flex-1 px-6 py-8 portfolio-wrapper ms-auto w-full overflow-y-auto space-y-6">
-        <div className="flex flex-col sm:flex-row items-center justify-between">
-          <h2 className="text-xl md:text-3xl font-bold">
-            Spring Series Campaign
-          </h2>
-          <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl shadow-lg">
-            <Gem size={18} className="text-white" />
-            <span className="text-white text-sm font-bold">
-              9,000 ($45,000 Total)
-            </span>
-          </div>
+    <div className="flex-1    ms-auto w-full overflow-y-auto space-y-6">
+      <div className="flex flex-col sm:flex-row items-center justify-between">
+        <h2 className="text-xl md:text-3xl font-bold">
+          Spring Series Campaign
+        </h2>
+        <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl shadow-lg">
+          <Gem size={18} className="text-white" />
+          <span className="text-white text-sm font-bold">
+            9,000 ($45,000 Total)
+          </span>
         </div>
         <div className="bg-gray-100 border border-gray-300 rounded-xl p-4">
           <p className="text-sm text-gray-600 leading-relaxed">

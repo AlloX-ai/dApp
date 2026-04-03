@@ -22,7 +22,7 @@ export const wagmiClient = createConfig({
     bsc,
     base,
   ],
-  autoConnect: true,
+  // autoConnect: true,
   connectors: [
     walletConnect({
       projectId: "a465b6d7661ba54df9ca6c4757bce009"
