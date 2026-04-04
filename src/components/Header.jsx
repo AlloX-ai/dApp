@@ -9,7 +9,6 @@ import {
   ChevronRight,
   Copy,
   Check,
-  Sparkles,
   SendHorizontal,
   Coins,
   Gem,
@@ -21,18 +20,19 @@ import { useTotalPoints } from "../hooks/useTotalPoints";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { navigationTabs, isActivePath } from "../constants/navigation";
 import OutsideClickHandler from "react-outside-click-handler/build/OutsideClickHandler";
+import { useAuth } from "../hooks/useAuth";
 
 export function Header({
   isConnected,
   coinbase,
   onConnectClick,
   onDisconnectClick,
+  onOpenFundModal,
 }) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const rateLimit = useSelector((state) => state.chat?.rateLimit);
   const { totalPoints } = useTotalPoints();
-  const walletAddress = useSelector((state) => state.wallet.address);
   const messagesRemaining =
     rateLimit?.remaining ?? rateLimit?.messagesRemaining;
   const dispatch = useDispatch();
@@ -41,6 +41,7 @@ export function Header({
   const [showTooltip, setShowTooltip] = useState(false);
 
   const { checkedInToday } = useCheckin();
+  const { user: authUser } = useAuth();
 
   const handleOpenCheckinModal = () => {
     dispatch(openCheckinModal());
@@ -94,7 +95,12 @@ export function Header({
               {messagesRemaining != null && (
                 <div className="border-l border-gray-200/60 pl-3 flex items-center gap-2">
                   <Gem className="size-4 text-purple-600" />
-                  <span className="text-xs sm:text-sm font-semibold tabular-nums">0 <span className="text-xs sm:text-sm font-semibold tabular-nums text-[#4A5565]">($0)</span></span>
+                  <span className="text-xs sm:text-sm flex font-semibold tabular-nums">
+                    0{" "}
+                    <span className="text-xs sm:text-sm font-semibold tabular-nums text-[#4A5565]">
+                      ($0)
+                    </span>
+                  </span>
                 </div>
               )}
             </div>
@@ -137,6 +143,15 @@ export function Header({
             )}
             {isConnected ? (
               <div className="glass-card px-0 md:pr-4 flex items-center gap-3 transition-all duration-200 hover:shadow-md">
+                {authUser?.authProvider === "privy" && (
+                  <button
+                    type="button"
+                    onClick={onOpenFundModal}
+                    className="hidden md:inline-flex ml-2 text-xs font-semibold px-3 py-2 rounded-full bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+                  >
+                    Add funds
+                  </button>
+                )}
                 {/* <div className="hidden md:flex"> */}
                 <NetworkSelector onDisconnectClick={onDisconnectClick} />
                 {/* </div> */}
@@ -185,7 +200,9 @@ export function Header({
                     ></div>
                     <div className="fixed left-0 right-0 top-20 z-50 animate-fade-in">
                       <div className="mobile-menu-open bg-white p-3 space-y-2 shadow-xl shadow-black/10">
-                        {navigationTabs.map(({ id, label, path, Icon }) => {
+                        {navigationTabs.map((tab) => {
+                          const { id, label, path } = tab;
+                          const NavIcon = tab.Icon;
                           const isActive = isActivePath(pathname, path);
                           return (
                             <button
@@ -202,13 +219,25 @@ export function Header({
                               aria-current={isActive ? "page" : undefined}
                             >
                               <span className="flex items-center gap-3">
-                                <Icon size={20} />
+                                <NavIcon size={20} />
                                 {label}
                               </span>
                               <ChevronRight size={18} />
                             </button>
                           );
                         })}
+                        {isConnected && authUser?.authProvider === "privy" && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onOpenFundModal();
+                              setIsMenuOpen(false);
+                            }}
+                            className="w-full text-left px-4 py-3 rounded-xl text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+                          >
+                            Add funds
+                          </button>
+                        )}
                         {isConnected && (
                           <div className="flex items-center gap-2 justify-between">
                             <span

@@ -2,6 +2,9 @@ import { useCallback, useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import { useWriteContract, useSwitchChain, useAccount } from "wagmi";
 import { waitForTransactionReceipt as wagmiWaitForTransactionReceipt } from "@wagmi/core";
+import { encodeFunctionData } from "viem";
+import { ethers } from "ethers";
+import { useWallets } from "@privy-io/react-auth";
 import bs58 from "bs58";
 import { apiCall } from "../utils/api";
 import {
@@ -16,6 +19,11 @@ import {
   addOptimisticCheckinPoints as addOptimisticCheckinPointsAction,
 } from "../redux/slices/checkinSlice";
 import { useDispatch } from "react-redux";
+import { useAuth } from "./useAuth";
+import {
+  getPrivyEmbedded,
+  switchPrivyEmbeddedToChain,
+} from "../utils/privyWalletUtils";
 const CHAIN_ID_TO_API = {
   1: "ethereum",
   56: "bnb",
@@ -36,6 +44,8 @@ export function useCheckin() {
   const walletAddress = useSelector((state) => state.wallet.address);
   const chainId = useSelector((state) => state.wallet.chainId);
   const isConnected = useSelector((state) => state.wallet.isConnected);
+  const { user: authUser } = useAuth();
+  const { wallets } = useWallets();
 
   const { chainId: wagmiChainId } = useAccount();
   const { writeContractAsync } = useWriteContract();
@@ -102,6 +112,46 @@ const dispatch = useDispatch();
       const apiChain = CHAIN_ID_TO_API[effectiveChainId];
       const contractAddress = CHAIN_ID_TO_ADDRESS[effectiveChainId];
 
+      if (authUser?.authProvider === "privy") {
+        const embedded = getPrivyEmbedded(wallets);
+        if (!embedded) {
+          throw new Error(
+            "Embedded wallet not found. Refresh the page or sign in again.",
+          );
+        }
+        try {
+          await switchPrivyEmbeddedToChain(embedded, effectiveChainId);
+        } catch (switchErr) {
+          throw new Error(
+            switchErr?.message ||
+              `Please switch to ${apiChain} (chain ID ${effectiveChainId}) to claim.`,
+          );
+        }
+        const ethProvider = await embedded.getEthereumProvider();
+        const web3Provider = new ethers.providers.Web3Provider(ethProvider);
+        const signer = web3Provider.getSigner();
+        const data = encodeFunctionData({
+          abi: CHECKIN_ABI,
+          functionName: "checkIn",
+          args: [],
+        });
+        const txResponse = await signer.sendTransaction({
+          to: contractAddress,
+          data,
+        });
+        const txHash = txResponse.hash;
+        await txResponse.wait(1);
+
+        return apiCall("/checkin", {
+          method: "POST",
+          body: JSON.stringify({
+            chain: apiChain,
+            txHash:
+              typeof txHash === "string" ? txHash : (txHash?.hash ?? txHash),
+          }),
+        });
+      }
+
       if (currentEVMChainId !== effectiveChainId && switchChainAsync) {
         try {
           await switchChainAsync({ chainId: effectiveChainId });
@@ -147,7 +197,13 @@ const dispatch = useDispatch();
         });
       }
     },
-    [currentEVMChainId, switchChainAsync, writeContractAsync],
+    [
+      authUser?.authProvider,
+      currentEVMChainId,
+      switchChainAsync,
+      wallets,
+      writeContractAsync,
+    ],
   );
 
   const claim = useCallback(

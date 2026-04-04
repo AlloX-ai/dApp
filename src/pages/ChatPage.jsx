@@ -33,7 +33,15 @@ import {
   INITIAL_CLAIM_POINTS,
 } from "../redux/slices/pointsSlice";
 import { apiCall } from "../utils/api";
-import { executePortfolioOnChain } from "../utils/execution";
+import {
+  executePortfolioOnChain,
+  createPrivyExecutionTxEnv,
+} from "../utils/execution";
+import {
+  useWallets,
+  getEmbeddedConnectedWallet,
+  useSendTransaction,
+} from "@privy-io/react-auth";
 import { useAuth } from "../hooks/useAuth";
 import { NavLink, useLocation, useNavigate } from "react-router";
 import getFormattedNumber from "../hooks/get-formatted-number";
@@ -140,6 +148,8 @@ export function ChatPage() {
     claimSeason1,
     logout,
   } = useAuth();
+  const { wallets } = useWallets();
+  const { sendTransaction: privySendTransaction } = useSendTransaction();
 
   const speechBoxRef = useRef(null);
   const typingTimerRef = useRef(null);
@@ -908,11 +918,37 @@ export function ChatPage() {
                 ? slippageFromChat
                 : 0.5,
         };
+
+        let privyTxEnv;
+        if (authUser?.authProvider === "privy") {
+          const embedded = getEmbeddedConnectedWallet(wallets);
+          if (!embedded) {
+            throw new Error(
+              "Embedded wallet not found. Refresh the page or sign in again.",
+            );
+          }
+          const cid = embedded.chainId;
+          const onBsc =
+            cid === "eip155:56" ||
+            (typeof cid === "string" &&
+              cid.startsWith("0x") &&
+              parseInt(cid, 16) === 56) ||
+            Number(cid) === 56;
+          if (!onBsc) {
+            await embedded.switchChain(56);
+          }
+          privyTxEnv = createPrivyExecutionTxEnv(
+            embedded.address,
+            privySendTransaction,
+          );
+        }
+
         const completeData = await executePortfolioOnChain(
           executionWithSlippage,
           {
             onUpdate: handleExecutionUpdate,
             onPrompt: promptExecutionDecision,
+            ...(privyTxEnv ? { txEnv: privyTxEnv } : {}),
           },
         );
         const portfolioId = completeData?.portfolioId;
@@ -955,10 +991,14 @@ export function ChatPage() {
       }
     },
     [
+      authUser?.authProvider,
       chatSlippageSetting,
       dispatch,
       handleExecutionUpdate,
+      privySendTransaction,
       promptExecutionDecision,
+      queryClient,
+      wallets,
     ],
   );
 

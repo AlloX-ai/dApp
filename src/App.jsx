@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Navigate,
   Outlet,
@@ -37,7 +37,11 @@ import {
   setSessionSource,
   closeCheckinModal,
 } from "./redux/slices/walletSlice";
-import { usePrivy } from "@privy-io/react-auth";
+import { usePrivy, useWallets } from "@privy-io/react-auth";
+import {
+  getPrivyEmbedded,
+  switchPrivyEmbeddedToChain,
+} from "./utils/privyWalletUtils";
 import { setPrivyLogoutBridge } from "./auth/privyLogoutBridge";
 import { isPrivySessionActive } from "./utils/privySession";
 import { resetPoints, setPointsBalance } from "./redux/slices/pointsSlice";
@@ -55,6 +59,7 @@ import {
 import { store } from "./redux/store";
 import { PointsPage } from "./pages/Points";
 import { useSocial } from "./hooks/useSocial";
+import { PrivyFundModal } from "./components/PrivyFundModal";
 
 const SOLANA_MAINNET_CHAIN_ID = 101;
 const PREFERRED_CHAIN_STORAGE_KEY = "walletPreferredChainId";
@@ -83,8 +88,32 @@ async function tryRestorePhantomSession(dispatch) {
   }
 }
 
-function LaunchAppLayout() {
+/** After Privy login, move embedded wallet to BNB Chain (56) so check-in and on-chain flows match Redux. */
+function PrivyEnsureBnbChain() {
+  const { user } = useAuth();
+  const { wallets, ready } = useWallets();
 
+  useEffect(() => {
+    if (!ready || user?.authProvider !== "privy") return;
+    const embedded = getPrivyEmbedded(wallets);
+    if (!embedded) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        await switchPrivyEmbeddedToChain(embedded, 56);
+      } catch (e) {
+        if (!cancelled) console.warn("Privy default BNB chain:", e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, user?.authProvider, wallets]);
+
+  return null;
+}
+
+function LaunchAppLayout() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const wasConnectedRef = useRef(false);
@@ -93,9 +122,15 @@ function LaunchAppLayout() {
   const authTriggeredRef = useRef(false);
   const { connector } = getAccount(wagmiClient);
 
-
-  const { address, isConnected, walletModal, walletType, checkinModal } =
-    useSelector((state) => state.wallet);
+  const {
+    address,
+    isConnected,
+    walletModal,
+    walletType,
+    checkinModal,
+    chainId,
+  } = useSelector((state) => state.wallet);
+  const [fundModalOpen, setFundModalOpen] = useState(false);
   const { token, user, ensureAuthenticated, logout } = useAuth();
 
   useEffect(() => {
@@ -104,6 +139,8 @@ function LaunchAppLayout() {
     dispatch(setAddress(user.address));
     dispatch(setIsConnected(true));
     dispatch(setWalletType(user.walletType || "privy"));
+    // On-chain execution uses BNB Chain (56); keeps quick wizard / chat BSC gates in sync for Privy users
+    dispatch(setChainId(56));
   }, [user?.authProvider, user?.address, user?.walletType, dispatch]);
   const {
     status: checkinStatus,
@@ -113,15 +150,12 @@ function LaunchAppLayout() {
     loading: checkinLoading,
   } = useCheckin();
 
-
-    const {fetchSocialPoints,fetchAllPoints, loadSeenPosts} = useSocial();
-   useEffect(() => {
-     fetchSocialPoints();
-     fetchAllPoints();
-     loadSeenPosts();
-   }, [fetchSocialPoints, fetchAllPoints, loadSeenPosts]);
-
-
+  const { fetchSocialPoints, fetchAllPoints, loadSeenPosts } = useSocial();
+  useEffect(() => {
+    fetchSocialPoints();
+    fetchAllPoints();
+    loadSeenPosts();
+  }, [fetchSocialPoints, fetchAllPoints, loadSeenPosts]);
 
   const handleDisconnect = async () => {
     // if (walletType === "phantom") {
@@ -311,11 +345,20 @@ function LaunchAppLayout() {
   return (
     <div className="min-h-screen bg-pattern flex flex-col main-wrapper">
       <WalletSync />
+      <PrivyEnsureBnbChain />
       <Header
         isConnected={isConnected}
         onConnectClick={() => setWalletModalOpen(true)}
         coinbase={address}
         onDisconnectClick={handleDisconnect}
+        onOpenFundModal={() => setFundModalOpen(true)}
+      />
+
+      <PrivyFundModal
+        open={fundModalOpen}
+        onClose={() => setFundModalOpen(false)}
+        walletChainId={chainId}
+        coinbase={address}
       />
 
       <div className="w-full flex-1 pt-20 flex min-h-0">

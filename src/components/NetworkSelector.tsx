@@ -4,7 +4,12 @@ import { useDispatch, useSelector } from "react-redux";
 import OutsideClickHandler from "react-outside-click-handler";
 import { toast } from "sonner";
 import { useSwitchChain, useAccount } from "wagmi";
+import { useWallets } from "@privy-io/react-auth";
 import { setChainId } from "../redux/slices/walletSlice";
+import {
+  getPrivyEmbedded,
+  switchPrivyEmbeddedToChain,
+} from "../utils/privyWalletUtils";
 
 const PREFERRED_CHAIN_STORAGE_KEY = "walletPreferredChainId";
 const SOLANA_CHAIN_ID = 101;
@@ -34,8 +39,14 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
   const [isSwitching, setIsSwitching] = useState(false);
   const chainId = useSelector((state: any) => state.wallet.chainId);
   const walletType = useSelector((state: any) => state.wallet.walletType);
+  const sessionSource = useSelector((state: any) => state.wallet.sessionSource);
+  const { wallets } = useWallets();
   const { connector } = useAccount();
   const { switchChainAsync } = useSwitchChain();
+
+  const isPrivySession =
+    sessionSource === "privy" ||
+    walletType === "privy";
   const errorNetwork: NetworkOption[] = [
     {
       name: "",
@@ -97,6 +108,13 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
 
   const handleSwitchNetwork = async (network: NetworkOption) => {
     if (network.name === "Solana") {
+      if (isPrivySession) {
+        toast.error(
+          "Your session uses Privy’s embedded EVM wallet. Use Ethereum, BNB Chain, or Base.",
+        );
+        setIsOpen(false);
+        return;
+      }
       try {
         localStorage.setItem(PREFERRED_CHAIN_STORAGE_KEY, String(SOLANA_CHAIN_ID));
         dispatch(setChainId(SOLANA_CHAIN_ID));
@@ -123,7 +141,7 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
       return;
     }
 
-    if (network.name !== "Solana" && walletType === "solana") {
+    if (network.name !== "Solana" && walletType === "solana" && !isPrivySession) {
       toast.error(
         "EVM networks require an EVM wallet (e.g. MetaMask, Binance Wallet). Please connect with an EVM wallet.",
       );
@@ -134,8 +152,32 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
     await switchEVMChain(network);
   };
 
+  const switchPrivyEVMChain = async (network: NetworkOption) => {
+    const embedded = getPrivyEmbedded(wallets);
+    if (!embedded) {
+      toast.error("Embedded wallet not ready. Refresh the page or sign in again.");
+      return;
+    }
+    try {
+      setIsSwitching(true);
+      await switchPrivyEmbeddedToChain(embedded, network.chainId);
+      dispatch(setChainId(network.chainId));
+      localStorage.removeItem(PREFERRED_CHAIN_STORAGE_KEY);
+      setIsOpen(false);
+    } catch (error) {
+      console.error("Privy network switch error:", error);
+      toast.error("Failed to switch network.");
+    } finally {
+      setIsSwitching(false);
+    }
+  };
+
   const switchEVMChain = async (network: NetworkOption) => {
     if (network.name === "Solana") return;
+    if (isPrivySession) {
+      await switchPrivyEVMChain(network);
+      return;
+    }
     if (!switchChainAsync) {
       toast.error("Unable to switch chain. Please try reconnecting your wallet.");
       return;
@@ -186,6 +228,13 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
 
   const handleSwitchNetworkEVM = async (network: NetworkOption) => {
     if (network.name === "Solana") {
+      if (isPrivySession) {
+        toast.error(
+          "Your session uses Privy’s embedded EVM wallet. Use Ethereum, BNB Chain, or Base.",
+        );
+        setIsOpen(false);
+        return;
+      }
       toast.error(
         "Solana requires a Solana-capable wallet (e.g. Phantom). Please connect with a Solana wallet.",
       );

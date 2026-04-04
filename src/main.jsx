@@ -17,6 +17,7 @@ import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persist
 
 //Privy
 import { PrivyProvider } from "@privy-io/react-auth";
+import { bsc, mainnet, base } from "wagmi/chains";
 
 import "./index.css";
 import App from "./App.jsx";
@@ -49,9 +50,13 @@ createRoot(document.getElementById("root")).render(
               config={{
                 loginMethods: ["email", "google", "apple", "wallet"],
                 appearance: { theme: "dark" },
+                // Align embedded wallet + fundWallet with BNB first; must match chains you use in the app
+                supportedChains: [bsc, mainnet, base],
+                defaultChain: bsc,
                 embeddedWallets: {
                   createOnLogin: "users-without-wallets", // auto-create for email/Google/Apple
                 },
+                // MoonPay / card: still must be turned on for this app in Privy Dashboard → Monetization / Funding
               }}
             >
               <App />
