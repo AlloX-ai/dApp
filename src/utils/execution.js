@@ -102,6 +102,18 @@ const parseBigInt = (value, fallback = 0n) => {
   }
 };
 
+const parsePositiveNumber = (value, fallback) => {
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n) || n <= 0) return fallback;
+  return n;
+};
+
+const resolveInitialPrepareSlippage = (execution) => {
+  const fromPayload = parsePositiveNumber(execution?.slippage, null);
+  if (fromPayload != null) return fromPayload;
+  return 0.5;
+};
+
 const buildApprovalStepCalldata = (approvalStep) => {
   const method = approvalStep?.tx?.method;
   const args = approvalStep?.tx?.args || [];
@@ -300,6 +312,7 @@ export async function executePortfolioOnChain(
   { onUpdate, onPrompt } = {},
 ) {
   const { chain, sourceToken, positions, portfolioData } = execution;
+  const initialPrepareSlippage = resolveInitialPrepareSlippage(execution);
 
   const jwt = localStorage.getItem("authToken");
   if (!jwt) {
@@ -391,56 +404,108 @@ export async function executePortfolioOnChain(
     });
 
     let done = false;
+    let slippageForPosition = initialPrepareSlippage;
     while (!done) {
       try {
-        // 1) /prepare → fresh txData
+        // 1) /prepare → fresh txData (slippage increases only after user confirms 422)
         let prepData;
-        let prepareAttempts = 0;
-        while (!prepData && prepareAttempts < 5) {
-          prepareAttempts += 1;
+        let prepareRound = 0;
+        const maxPrepareRounds = 30;
+
+        while (!prepData && prepareRound < maxPrepareRounds) {
+          prepareRound += 1;
           try {
             prepData = await apiCall(
               `${EXECUTION_API_BASE}/${pos.executionOrderId}/prepare`,
               {
                 method: "POST",
-                body: JSON.stringify({ slippage: 3 }),
+                body: JSON.stringify({ slippage: slippageForPosition }),
               },
             );
           } catch (prepareError) {
-            const approvalSteps = prepareError?.data?.approvalSteps;
+            const errBody = prepareError?.data;
+            const approvalSteps = errBody?.approvalSteps;
             const needsApproval =
               prepareError?.status === 428 &&
               Array.isArray(approvalSteps) &&
               approvalSteps.length > 0;
 
-            if (!needsApproval) {
-              throw prepareError;
+            if (needsApproval) {
+              update("APPROVAL_START", {
+                symbol: pos.symbol,
+                executionOrderId: pos.executionOrderId,
+                fromTokenAddress: errBody?.fromTokenAddress,
+                permit2Address: errBody?.permit2Address,
+                routerAddress: errBody?.universalRouterAddress,
+              });
+
+              await executeApprovalSteps({
+                approvalSteps,
+                account: userAddress,
+                update,
+              });
+
+              update("APPROVAL_COMPLETE", {
+                symbol: pos.symbol,
+                executionOrderId: pos.executionOrderId,
+              });
+              continue;
             }
 
-            update("APPROVAL_START", {
-              symbol: pos.symbol,
-              executionOrderId: pos.executionOrderId,
-              fromTokenAddress: prepareError?.data?.fromTokenAddress,
-              permit2Address: prepareError?.data?.permit2Address,
-              routerAddress: prepareError?.data?.universalRouterAddress,
-            });
+            if (
+              prepareError?.status === 422 &&
+              errBody?.error === "SLIPPAGE_INCREASE_REQUIRED"
+            ) {
+              if (typeof onPrompt !== "function") {
+                throw new Error(
+                  errBody?.message ||
+                    `Higher slippage (${errBody?.requiredSlippage}%) is required for ${errBody?.symbol || pos.symbol}.`,
+                );
+              }
 
-            await executeApprovalSteps({
-              approvalSteps,
-              account: userAddress,
-              update,
-            });
+              const decision = await onPrompt({
+                type: "SLIPPAGE_INCREASE_REQUIRED",
+                symbol: errBody?.symbol ?? pos.symbol,
+                message: errBody?.message,
+                requestedSlippage: errBody?.requestedSlippage,
+                requiredSlippage: errBody?.requiredSlippage,
+                executionOrderId: pos.executionOrderId,
+              });
 
-            update("APPROVAL_COMPLETE", {
-              symbol: pos.symbol,
-              executionOrderId: pos.executionOrderId,
-            });
+              if (decision === "accept") {
+                const nextSlippage = parsePositiveNumber(
+                  errBody?.requiredSlippage,
+                  null,
+                );
+                if (nextSlippage == null) {
+                  throw new Error(
+                    "Server returned an invalid requiredSlippage value.",
+                  );
+                }
+                slippageForPosition = nextSlippage;
+                update("SLIPPAGE_ACCEPTED", {
+                  symbol: pos.symbol,
+                  executionOrderId: pos.executionOrderId,
+                  slippage: slippageForPosition,
+                });
+                continue;
+              }
+
+              const declineErr = new Error(
+                errBody?.message ||
+                  `Higher slippage was not accepted for ${errBody?.symbol || pos.symbol}. Execution stopped.`,
+              );
+              declineErr.abortPortfolioExecution = true;
+              throw declineErr;
+            }
+
+            throw prepareError;
           }
         }
 
         if (!prepData) {
           throw new Error(
-            "Unable to prepare swap after completing required approvals.",
+            "Unable to prepare swap after approvals and slippage handling.",
           );
         }
 
@@ -736,6 +801,22 @@ export async function executePortfolioOnChain(
           done = true;
         }
       } catch (error) {
+        if (error?.abortPortfolioExecution) {
+          try {
+            await apiCall(
+              `${EXECUTION_API_BASE}/${pos.executionOrderId}/cancel`,
+              { method: "POST" },
+            );
+            cancelledOrderIds.push(pos.executionOrderId);
+            update("POSITION_CANCELLED", {
+              symbol: pos.symbol,
+              executionOrderId: pos.executionOrderId,
+            });
+          } catch (cancelErr) {
+            console.error(cancelErr);
+          }
+          throw error;
+        }
         console.error(`Swap failed for ${pos.symbol}:`, error);
         const friendlyMessage = isUserRejectedTx(error)
           ? "The transaction was rejected in your wallet."
