@@ -8,13 +8,10 @@ import { toast } from "sonner";
 import { useAuth } from "../hooks/useAuth";
 import { getPrivyEmbedded } from "../utils/privyWalletUtils";
 
-const SOLANA_MAINNET_CHAIN_ID = 101;
-
 /** Networks for Privy funding (EVM chains must match Dashboard / supportedChains). */
 const FUND_NETWORK_OPTIONS = [
   {
     key: "56",
-    kind: "evm",
     label: "BNB Chain",
     chain: bsc,
     nativeSymbol: "BNB",
@@ -22,7 +19,6 @@ const FUND_NETWORK_OPTIONS = [
   },
   {
     key: "1",
-    kind: "evm",
     label: "Ethereum",
     chain: mainnet,
     nativeSymbol: "ETH",
@@ -30,18 +26,10 @@ const FUND_NETWORK_OPTIONS = [
   },
   {
     key: "8453",
-    kind: "evm",
     label: "Base",
     chain: base,
     nativeSymbol: "ETH",
     icon: "https://cdn.allox.ai/allox/networks/base.svg",
-  },
-  {
-    key: "solana",
-    kind: "solana",
-    label: "Solana",
-    nativeSymbol: "SOL",
-    icon: "https://cdn.allox.ai/allox/networks/solana.svg",
   },
 ];
 
@@ -52,7 +40,6 @@ const USDT_ERC20_BY_NETWORK_KEY = {
 };
 
 function resolveDefaultFundNetworkKey(walletChainId) {
-  if (walletChainId === SOLANA_MAINNET_CHAIN_ID) return "solana";
   if (walletChainId === 1 || walletChainId === 56 || walletChainId === 8453) {
     return String(walletChainId);
   }
@@ -66,17 +53,6 @@ function fundAssetsForNetwork(networkKey) {
 
   if (networkKey === "56") {
     return [{ id: "native", displayLabel: net.nativeSymbol, icon: net.icon }];
-  }
-
-  if (networkKey === "solana") {
-    return [
-      { id: "native", displayLabel: "SOL", icon: net.icon },
-      {
-        id: "usdc",
-        displayLabel: "USDC",
-        icon: "https://cdn.allox.ai/allox/tokens/usdc.svg",
-      },
-    ];
   }
 
   const nativeTokenIcon =
@@ -99,15 +75,6 @@ function fundAssetsForNetwork(networkKey) {
   ];
 }
 
-function resolveSolanaFundingAddress(wallets, walletType, walletAddress) {
-  const w = wallets.find((x) => x.type === "solana");
-  if (w?.address) return w.address.trim();
-  if (walletType === "solana" && walletAddress) {
-    return String(walletAddress).trim();
-  }
-  return "";
-}
-
 export function PrivyFundModal({ open, onClose, walletChainId, coinbase }) {
   const [fundNetworkKey, setFundNetworkKey] = useState("56");
   const [fundAsset, setFundAsset] = useState("native");
@@ -117,7 +84,6 @@ export function PrivyFundModal({ open, onClose, walletChainId, coinbase }) {
   const [assetMenuOpen, setAssetMenuOpen] = useState(false);
   const { user: authUser } = useAuth();
   const walletAddress = useSelector((state) => state.wallet.address);
-  const walletType = useSelector((state) => state.wallet.walletType);
   const { fundWallet } = useFundWallet();
   const { wallets } = useWallets();
 
@@ -151,32 +117,6 @@ export function PrivyFundModal({ open, onClose, walletChainId, coinbase }) {
 
     setFundSubmitting(true);
     try {
-      if (selectedNet.kind === "solana") {
-        const solAddr = resolveSolanaFundingAddress(
-          wallets,
-          walletType,
-          walletAddress,
-        );
-        if (!solAddr) {
-          toast.error(
-            "No Solana wallet found. Connect Phantom (or link a Solana wallet in Privy), or pick an EVM network.",
-          );
-          return;
-        }
-        await fundWallet({
-          address: solAddr,
-          options: {
-            chain: "solana:mainnet",
-            amount: raw,
-            asset: fundAsset === "usdc" ? "USDC" : "native-currency",
-            defaultFundingMethod: "card",
-            card: { preferredProvider: "moonpay" },
-          },
-        });
-        onClose();
-        return;
-      }
-
       const evmAddr = (
         authUser?.address ||
         coinbase ||
@@ -191,7 +131,7 @@ export function PrivyFundModal({ open, onClose, walletChainId, coinbase }) {
       const baseOpts = {
         chain: selectedNet.chain,
         amount: raw,
-        defaultFundingMethod: "card",
+        // defaultFundingMethod: "card",
         card: { preferredProvider: "moonpay" },
       };
       let evmOptions;
@@ -283,8 +223,7 @@ export function PrivyFundModal({ open, onClose, walletChainId, coinbase }) {
                 The amount is in the <strong>asset you receive</strong>—not the
                 fiat total (checkout shows that). <strong>BNB Chain</strong> is
                 BNB only. <strong>Ethereum</strong> and <strong>Base</strong>{" "}
-                support native ETH plus USDC and USDT. <strong>Solana</strong>{" "}
-                supports SOL and USDC (Solana wallet required).
+                support native ETH plus USDC and USDT.
               </p>
             </div>
           </div>

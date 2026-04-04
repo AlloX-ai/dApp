@@ -1814,7 +1814,7 @@ export function ChatPage() {
                 return (
                   <div
                     key={`${p.symbol || p.name || idx}-${idx}`}
-                    className="flex items-center justify-between rounded-xl bg-white/70 border border-green-200/50 px-3 py-2"
+                    className="flex items-center justify-between rounded-xl bg-white/70 border border-green-200/50 px-3 py-2 gap-5"
                   >
                     <div className="min-w-0">
                       <div className="text-xs font-medium text-gray-900 truncate">
