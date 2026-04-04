@@ -356,3 +356,8 @@ export const season1_winners = [
     reward: 5,
   },
 ];
+
+/** Fallback Solana treasury for message purchases when API omits `chains.solana.paymentWallet`. */
+export const SOLANA_PAYMENT_WALLET =
+  (typeof import.meta !== "undefined" && import.meta.env?.VITE_SOLANA_PAYMENT_WALLET) ||
+  "";
