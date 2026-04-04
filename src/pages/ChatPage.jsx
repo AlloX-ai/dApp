@@ -4237,6 +4237,22 @@ export function ChatPage() {
                         warning appears. <b>Note:</b> MetaMask Smart
                         Transactions may affect execution.
                       </p>
+                      <p className="text-xs text-gray-600 mt-2">
+                        <b>Token approvals:</b> Some swap routes use Permit2,
+                        which may ask for a large allowance that stays in effect
+                        until you revoke it. Other routes approve only the
+                        amount needed for that swap. Review or revoke allowances
+                        anytime for your wallet on{" "}
+                        <a
+                          href="https://revoke.cash/chain/56"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-700 underline font-medium"
+                        >
+                          Revoke.cash (BNB Chain)
+                        </a>
+                        .
+                      </p>
                     </div>
                   </div>
                 </div>
