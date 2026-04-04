@@ -152,7 +152,7 @@ async function executeApprovalSteps({ approvalSteps, account, update, chainId = 
   }
 }
 
-async function ensureApprovals({
+async function ensurePermit2Approvals({
   permit2Approval,
   fromTokenAddress,
   userAddress,
@@ -162,7 +162,11 @@ async function ensureApprovals({
   const permit2Address = permit2Approval?.permit2Address || PERMIT2_ADDRESS;
   const routerAddress = permit2Approval?.spender;
 
-  if (!fromTokenAddress || !routerAddress) return;
+  if (!fromTokenAddress || !routerAddress) {
+    throw new Error(
+      "Permit2 approval requires permit2Approval.spender and fromTokenAddress from the server.",
+    );
+  }
 
   const chainId = 56;
   const now = BigInt(Math.floor(Date.now() / 1000));
@@ -239,6 +243,54 @@ async function ensureApprovals({
       target: routerAddress,
       txHash,
       type: "PERMIT2_TO_ROUTER",
+    });
+  }
+}
+
+async function ensureStandardApproval({
+  approvalContract,
+  tokenAddress,
+  userAddress,
+  requiredAmount,
+  update,
+}) {
+  if (!approvalContract || !tokenAddress) {
+    throw new Error(
+      "Standard approval requires approvalContract and fromTokenAddress from the server.",
+    );
+  }
+  if (requiredAmount <= 0n) return;
+
+  const chainId = 56;
+
+  const erc20Allowance = await wagmiReadContract(wagmiClient, {
+    address: tokenAddress,
+    abi: ERC20_ABI,
+    functionName: "allowance",
+    args: [userAddress, approvalContract],
+    chainId,
+  });
+
+  if (parseBigInt(erc20Allowance) < requiredAmount) {
+    const approveData = encodeFunctionData({
+      abi: ERC20_ABI,
+      functionName: "approve",
+      args: [approvalContract, requiredAmount],
+    });
+
+    const txHash = await wagmiSendTransaction(wagmiClient, {
+      account: userAddress,
+      chainId,
+      to: tokenAddress,
+      data: approveData,
+      value: 0n,
+    });
+
+    await wagmiWaitForTransactionReceipt(wagmiClient, { hash: txHash });
+    update("APPROVAL_PROGRESS", {
+      target: approvalContract,
+      txHash,
+      type: "ERC20_STANDARD",
     });
   }
 }
@@ -399,50 +451,100 @@ export async function executePortfolioOnChain(
 
         const txData = prepData.txData;
 
-        // Ensure approvals using /prepare payload (authoritative source).
-        if (sourceToken !== "BNB" && prepData?.approvalNeeded) {
-          const fromTokenAddress =
-            prepData.fromTokenAddress || quoteData.fromTokenAddress;
-          const permit2Approval = prepData.permit2Approval || {
-            permit2Address:
-              prepData.approvalContract || quoteData.approvalContract,
-            spender: txData?.to,
-          };
-          const permit2Address =
-            permit2Approval?.permit2Address || PERMIT2_ADDRESS;
-          const routerAddress = permit2Approval?.spender || txData?.to;
-          const approvalKey = [
-            String(userAddress).toLowerCase(),
-            String(fromTokenAddress || "").toLowerCase(),
-            String(permit2Address || "").toLowerCase(),
-            String(routerAddress || "").toLowerCase(),
-          ].join(":");
+        const fromTokenAddress =
+          prepData.fromTokenAddress || quoteData.fromTokenAddress;
+        const requiredAmount = parseBigInt(prepData.fromAmount, 0n);
 
-          if (
-            fromTokenAddress &&
-            routerAddress &&
-            !ensuredApprovalKeys.has(approvalKey)
-          ) {
-            update("APPROVAL_START", {
-              fromTokenAddress,
-              sourceToken,
-              permit2Address,
-              routerAddress,
-              executionOrderId: pos.executionOrderId,
-            });
+        // Ensure approvals using /prepare payload (authoritative approvalType).
+        if (prepData?.approvalNeeded) {
+          if (prepData.approvalType === "permit2") {
+            const p2 = prepData.permit2Approval;
+            if (!p2?.spender) {
+              throw new Error(
+                "Prepare response is missing permit2Approval for approvalType permit2.",
+              );
+            }
+            const permit2Address = p2.permit2Address || PERMIT2_ADDRESS;
+            const routerAddress = p2.spender;
+            const approvalKey = [
+              String(userAddress).toLowerCase(),
+              String(fromTokenAddress || "").toLowerCase(),
+              String(permit2Address || "").toLowerCase(),
+              String(routerAddress || "").toLowerCase(),
+            ].join(":");
 
-            await ensureApprovals({
-              permit2Approval: { permit2Address, spender: routerAddress },
-              fromTokenAddress,
-              userAddress,
-              requiredAmount: parseBigInt(prepData.fromAmount, 0n),
-              update,
-            });
+            if (
+              fromTokenAddress &&
+              !ensuredApprovalKeys.has(approvalKey)
+            ) {
+              update("APPROVAL_START", {
+                fromTokenAddress,
+                sourceToken,
+                approvalType: "permit2",
+                permit2Address,
+                routerAddress,
+                executionOrderId: pos.executionOrderId,
+              });
 
-            ensuredApprovalKeys.add(approvalKey);
-            update("APPROVAL_COMPLETE", {
-              executionOrderId: pos.executionOrderId,
-            });
+              await ensurePermit2Approvals({
+                permit2Approval: p2,
+                fromTokenAddress,
+                userAddress,
+                requiredAmount,
+                update,
+              });
+
+              ensuredApprovalKeys.add(approvalKey);
+              update("APPROVAL_COMPLETE", {
+                executionOrderId: pos.executionOrderId,
+                approvalType: "permit2",
+              });
+            }
+          } else if (prepData.approvalType === "standard") {
+            const approvalContract = prepData.approvalContract;
+            if (!approvalContract) {
+              throw new Error(
+                "Prepare response is missing approvalContract for approvalType standard.",
+              );
+            }
+            const approvalKey = [
+              String(userAddress).toLowerCase(),
+              String(fromTokenAddress || "").toLowerCase(),
+              String(approvalContract).toLowerCase(),
+              "standard",
+            ].join(":");
+
+            if (fromTokenAddress && !ensuredApprovalKeys.has(approvalKey)) {
+              update("APPROVAL_START", {
+                fromTokenAddress,
+                sourceToken,
+                approvalType: "standard",
+                spenderAddress: approvalContract,
+                executionOrderId: pos.executionOrderId,
+              });
+
+              await ensureStandardApproval({
+                approvalContract,
+                tokenAddress: fromTokenAddress,
+                userAddress,
+                requiredAmount,
+                update,
+              });
+
+              ensuredApprovalKeys.add(approvalKey);
+              update("APPROVAL_COMPLETE", {
+                executionOrderId: pos.executionOrderId,
+                approvalType: "standard",
+              });
+            }
+          } else if (prepData.approvalType == null) {
+            throw new Error(
+              "On-chain prepare returned approvalNeeded without approvalType. Refresh and try again, or contact support if this persists.",
+            );
+          } else {
+            throw new Error(
+              `Unsupported approvalType: ${String(prepData.approvalType)}`,
+            );
           }
         }
 
