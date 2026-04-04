@@ -123,6 +123,7 @@ export function ChatPage() {
     rateLimit,
     chatStatus,
     backendResetRequestId,
+    slippage: chatSlippageSetting,
   } = useSelector((state) => state.chat);
   const isReadOnly = !!viewingHistorySessionId;
   const isConnected = useSelector((state) => state.wallet.isConnected);
@@ -897,10 +898,23 @@ export function ChatPage() {
           portfolioId: null,
           tokenStatuses: {},
         }));
-        const completeData = await executePortfolioOnChain(execution, {
-          onUpdate: handleExecutionUpdate,
-          onPrompt: promptExecutionDecision,
-        });
+        const slippageFromChat = parseFloat(chatSlippageSetting);
+        const executionWithSlippage = {
+          ...execution,
+          slippage:
+            execution?.slippage != null && execution.slippage !== ""
+              ? Number(execution.slippage)
+              : Number.isFinite(slippageFromChat) && slippageFromChat > 0
+                ? slippageFromChat
+                : 0.5,
+        };
+        const completeData = await executePortfolioOnChain(
+          executionWithSlippage,
+          {
+            onUpdate: handleExecutionUpdate,
+            onPrompt: promptExecutionDecision,
+          },
+        );
         const portfolioId = completeData?.portfolioId;
         setExecutionState((prev) => ({
           ...prev,
@@ -940,7 +954,12 @@ export function ChatPage() {
         );
       }
     },
-    [dispatch, handleExecutionUpdate, promptExecutionDecision],
+    [
+      chatSlippageSetting,
+      dispatch,
+      handleExecutionUpdate,
+      promptExecutionDecision,
+    ],
   );
 
   const QUICK_CHAIN_LABELS = useMemo(
@@ -4183,6 +4202,50 @@ export function ChatPage() {
                           className="px-3 py-2 rounded-xl bg-white border border-gray-300 text-gray-700 text-xs font-medium hover:bg-gray-50"
                         >
                           Edit portfolio
+                        </button>
+                      </div>
+                    </>
+                  ) : executionPrompt.type === "SLIPPAGE_INCREASE_REQUIRED" ? (
+                    <>
+                      <p className="font-medium text-gray-900 mb-1">
+                        Higher slippage needed for{" "}
+                        {executionPrompt.symbol || "this token"}
+                      </p>
+                      <p className="text-xs text-gray-700 mb-2">
+                        {executionPrompt.message ||
+                          "Simulation needs a higher slippage tolerance to proceed."}
+                      </p>
+                      <p className="text-xs text-gray-600 mb-3">
+                        Requested:{" "}
+                        {executionPrompt.requestedSlippage != null
+                          ? `${executionPrompt.requestedSlippage}%`
+                          : "—"}{" "}
+                        → Required:{" "}
+                        {executionPrompt.requiredSlippage != null
+                          ? `${executionPrompt.requiredSlippage}%`
+                          : "—"}
+                      </p>
+                      <p className="text-xs text-gray-600 mb-3">
+                        Your order stays at the original setting until you
+                        confirm. If you continue, only this prepare step will
+                        use the higher value.
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => resolveExecutionPrompt("accept")}
+                          className="px-3 py-2 rounded-xl bg-gray-900 text-white text-xs font-medium hover:bg-gray-800"
+                        >
+                          {executionPrompt.requiredSlippage != null
+                            ? `Use ${executionPrompt.requiredSlippage}% and continue`
+                            : "Accept higher slippage and continue"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => resolveExecutionPrompt("decline")}
+                          className="px-3 py-2 rounded-xl bg-white border border-gray-300 text-gray-700 text-xs font-medium hover:bg-gray-50"
+                        >
+                          Stop execution
                         </button>
                       </div>
                     </>
