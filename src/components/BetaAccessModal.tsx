@@ -11,6 +11,10 @@ interface BetaAccessModalProps {
   variant?: "modal" | "page";
   onWalletConnect?: (wallet: { name: string; icon: string; walletType: string }) => void;
   isSigning?: boolean;
+  /** Shown in the loading state while wallet signing or Privy backend verification runs */
+  signingMessage?: string;
+  onPrivySignIn?: () => void;
+  privyReady?: boolean;
 }
 
 const WALLET_OPTIONS = [
@@ -79,6 +83,9 @@ export function BetaAccessModal({
   variant = "modal",
   onWalletConnect,
   isSigning = false,
+  signingMessage = "Please sign the message in your wallet",
+  onPrivySignIn,
+  privyReady = true,
 }: BetaAccessModalProps) {
   const dispatch = useDispatch();
   const { address, isConnected } = useSelector((state: any) => state.wallet);
@@ -134,12 +141,35 @@ export function BetaAccessModal({
             <div className="flex flex-col items-center justify-center py-12 gap-4">
               <Loader2 className="w-14 h-14 animate-spin text-gray-400" />
               <p className="text-sm font-medium text-gray-600">
-                Please sign the message in your wallet
+                {signingMessage}
               </p>
 
             </div>
           ) : !isConnected ? (
             <div className="space-y-5">
+              {onPrivySignIn && (
+                <div>
+                  <button
+                    type="button"
+                    onClick={onPrivySignIn}
+                    disabled={!privyReady}
+                    className="w-full py-3.5 rounded-2xl font-medium text-base transition-all duration-200 bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:from-violet-500 hover:to-indigo-500 disabled:opacity-50 disabled:pointer-events-none shadow-md"
+                  >
+                    Continue with email or Google
+                  </button>
+                  <p className="text-xs text-center text-gray-500 mt-2">
+                    A wallet will be created for you automatically
+                  </p>
+                  <div className="relative my-5">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t border-gray-200/80" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase tracking-wide">
+                      <span className="bg-white/80 px-3 text-gray-500">Or use a wallet</span>
+                    </div>
+                  </div>
+                </div>
+              )}
               <div>
                 <p className="text-sm font-medium text-gray-600 mb-3">Suggested wallets</p>
                 <div className="space-y-3">

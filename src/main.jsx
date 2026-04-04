@@ -15,6 +15,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
 
+//Privy
+import { PrivyProvider } from "@privy-io/react-auth";
+
 import "./index.css";
 import App from "./App.jsx";
 
@@ -41,7 +44,18 @@ createRoot(document.getElementById("root")).render(
           persistOptions={{ persister }}
         >
           <WagmiProvider config={wagmiClient}>
-            <App />
+            <PrivyProvider
+              appId="cmniv3xps000i0cjvdfj9ys06"
+              config={{
+                loginMethods: ["email", "google", "apple", "wallet"],
+                appearance: { theme: "dark" },
+                embeddedWallets: {
+                  createOnLogin: "users-without-wallets", // auto-create for email/Google/Apple
+                },
+              }}
+            >
+              <App />
+            </PrivyProvider>
           </WagmiProvider>
         </PersistQueryClientProvider>
       </BrowserRouter>

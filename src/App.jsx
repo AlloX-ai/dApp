@@ -34,8 +34,12 @@ import {
   setIsConnected,
   setWalletModal,
   setWalletType,
+  setSessionSource,
   closeCheckinModal,
 } from "./redux/slices/walletSlice";
+import { usePrivy } from "@privy-io/react-auth";
+import { setPrivyLogoutBridge } from "./auth/privyLogoutBridge";
+import { isPrivySessionActive } from "./utils/privySession";
 import { resetPoints, setPointsBalance } from "./redux/slices/pointsSlice";
 import { clearCheckin } from "./redux/slices/checkinSlice";
 import { useAuth } from "./hooks/useAuth";
@@ -72,6 +76,7 @@ async function tryRestorePhantomSession(dispatch) {
     dispatch(setAddress(walletAddress));
     dispatch(setIsConnected(true));
     dispatch(setWalletModal(false));
+    dispatch(setSessionSource("wallet"));
     return true;
   } catch {
     return false;
@@ -92,6 +97,14 @@ function LaunchAppLayout() {
   const { address, isConnected, walletModal, walletType, checkinModal } =
     useSelector((state) => state.wallet);
   const { token, user, ensureAuthenticated, logout } = useAuth();
+
+  useEffect(() => {
+    if (user?.authProvider !== "privy" || !user?.address) return;
+    dispatch(setSessionSource("privy"));
+    dispatch(setAddress(user.address));
+    dispatch(setIsConnected(true));
+    dispatch(setWalletType(user.walletType || "privy"));
+  }, [user?.authProvider, user?.address, user?.walletType, dispatch]);
   const {
     status: checkinStatus,
     claim: claimCheckin,
@@ -127,11 +140,12 @@ function LaunchAppLayout() {
     dispatch(setChainId(null));
     dispatch(setIsConnected(false));
     dispatch(setWalletType(""));
+    dispatch(setSessionSource(null));
     dispatch(setViewingHistorySessionId(null));
     dispatch(setCurrentMessages([]));
     dispatch(clearCheckin());
-    // Fully clear auth state (token + user) across the app
-    logout();
+    // Fully clear auth state (token + user) across the app (includes Privy logout via bridge)
+    await logout();
     navigate("/login");
   };
 
@@ -239,6 +253,7 @@ function LaunchAppLayout() {
         dispatch(setChainId(SOLANA_MAINNET_CHAIN_ID));
         dispatch(setIsConnected(true));
         dispatch(setWalletModal(false));
+        dispatch(setSessionSource("wallet"));
       } catch (err) {
         console.error("Phantom connection error:", err);
         toast.error("Failed to connect Phantom. Please try again.");
@@ -259,6 +274,7 @@ function LaunchAppLayout() {
           dispatch(setWalletType(isBinance ? "binance" : "evm"));
           dispatch(setIsConnected(true));
           dispatch(setWalletModal(false));
+          dispatch(setSessionSource("wallet"));
           if (isBinance) {
             setTimeout(() => getAccount(wagmiClient), 2000);
           }
@@ -275,6 +291,7 @@ function LaunchAppLayout() {
             dispatch(setWalletType("evm"));
             dispatch(setIsConnected(true));
             dispatch(setWalletModal(false));
+            dispatch(setSessionSource("wallet"));
           })
           .catch((err) => {
             console.error("WalletConnect connection error:", err);
@@ -352,6 +369,7 @@ function BetaAccessLayout() {
         dispatch(setChainId(SOLANA_MAINNET_CHAIN_ID));
         dispatch(setIsConnected(true));
         dispatch(setWalletModal(false));
+        dispatch(setSessionSource("wallet"));
       } catch (err) {
         console.error("Phantom connection error:", err);
         toast.error("Failed to connect Phantom. Please try again.");
@@ -370,6 +388,7 @@ function BetaAccessLayout() {
           dispatch(setWalletType(isBinance ? "binance" : "evm"));
           dispatch(setIsConnected(true));
           dispatch(setWalletModal(false));
+          dispatch(setSessionSource("wallet"));
         })
         .catch((err) => {
           console.error("Wallet connection error:", err);
@@ -383,6 +402,7 @@ function BetaAccessLayout() {
             dispatch(setWalletType("evm"));
             dispatch(setIsConnected(true));
             dispatch(setWalletModal(false));
+            dispatch(setSessionSource("wallet"));
           })
           .catch((err) => {
             console.error("WalletConnect connection error:", err);
@@ -451,19 +471,21 @@ function WalletSync() {
             dispatch(setChainId(account.chainId));
             dispatch(setIsConnected(true));
             dispatch(setWalletModal(false));
+            dispatch(setSessionSource("wallet"));
           }
           break;
         case "reconnecting":
-          dispatch(setIsConnected(false));
+          if (!isPrivySessionActive()) dispatch(setIsConnected(false));
           break;
         case "connecting":
-          dispatch(setIsConnected(false));
+          if (!isPrivySessionActive()) dispatch(setIsConnected(false));
           break;
         case "disconnected":
         default:
           if (disconnectTimeoutId) clearTimeout(disconnectTimeoutId);
           disconnectTimeoutId = setTimeout(() => {
             disconnectTimeoutId = null;
+            if (isPrivySessionActive()) return;
             dispatch(setAddress(null));
             dispatch(setIsConnected(false));
             dispatch(setWalletType(""));
@@ -487,6 +509,7 @@ function WalletSync() {
           if (clearTimeoutId) clearTimeout(clearTimeoutId);
           clearTimeoutId = setTimeout(() => {
             clearTimeoutId = null;
+            if (isPrivySessionActive()) return;
             dispatch(setAddress(null));
             dispatch(setIsConnected(false));
             dispatch(setWalletType(""));
@@ -509,12 +532,14 @@ function WalletSync() {
             dispatch(setChainId(activeConnection.chainId));
             dispatch(setIsConnected(true));
             dispatch(setWalletModal(false));
+            dispatch(setSessionSource("wallet"));
             window.WALLET_TYPE = "metamask";
           }
           if (activeConnection.connector.type === "binanceWallet") {
             dispatch(setWalletType("evm"));
             dispatch(setIsConnected(true));
             dispatch(setWalletModal(false));
+            dispatch(setSessionSource("wallet"));
             window.WALLET_TYPE = "binance";
           } else if (activeConnection.connector.name === "Phantom") {
             const provider = window.phantom?.solana;
@@ -532,6 +557,7 @@ function WalletSync() {
                   dispatch(setAddress(walletAddress));
                   dispatch(setIsConnected(true));
                   dispatch(setWalletModal(false));
+                  dispatch(setSessionSource("wallet"));
                   window.WALLET_TYPE = "solana";
 
                   const stored = localStorage.getItem(
@@ -552,6 +578,7 @@ function WalletSync() {
             dispatch(setWalletType("evm"));
             dispatch(setIsConnected(true));
             dispatch(setWalletModal(false));
+            dispatch(setSessionSource("wallet"));
           }
         }
       },
@@ -571,6 +598,7 @@ function WalletSync() {
     const handleAccountsChanged = (accounts) => {
       if (store.getState().wallet.walletType === "solana") return;
       if (!accounts[0]) {
+        if (isPrivySessionActive()) return;
         dispatch(setAddress(null));
         dispatch(setIsConnected(false));
       }
@@ -620,9 +648,19 @@ function RequireAuth({ children }) {
   return children;
 }
 
+function PrivyLogoutBridge() {
+  const { logout: privyLogout } = usePrivy();
+  useEffect(() => {
+    setPrivyLogoutBridge(privyLogout);
+    return () => setPrivyLogoutBridge(null);
+  }, [privyLogout]);
+  return null;
+}
+
 function App() {
   return (
     <>
+      <PrivyLogoutBridge />
       <Toaster position="top-right" richColors closeButton />
       <Routes>
         <Route path="/login" element={<BetaAccessLayout />} />

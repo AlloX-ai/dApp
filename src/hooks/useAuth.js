@@ -2,8 +2,9 @@ import { useCallback, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useAccount, useSignMessage } from "wagmi";
 import bs58 from "bs58";
-import { apiCall } from "../utils/api";
+import { apiCall, getApiUrl } from "../utils/api";
 import { setWalletType } from "../redux/slices/walletSlice";
+import { runPrivyLogoutBridge } from "../auth/privyLogoutBridge";
 
 const AUTH_USER_KEY = "authUser";
 
@@ -74,6 +75,48 @@ const setGlobalUser = (nextUser) => {
   }
   notifySubscribers();
 };
+
+/**
+ * Exchange Privy access token for app JWT + user (same contract as wallet /auth/verify).
+ * Does not send Bearer — this endpoint uses privyToken only.
+ */
+export async function completePrivyAuth(privyToken) {
+  if (!privyToken) {
+    throw new Error("Missing Privy token");
+  }
+  const res = await fetch(`${getApiUrl()}/auth/privy-verify`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ privyToken }),
+  });
+  let data = {};
+  try {
+    data = await res.json();
+  } catch {
+    data = {};
+  }
+  if (!res.ok) {
+    throw {
+      status: res.status,
+      message: data.error || data.message || "Privy verification failed",
+      data,
+    };
+  }
+  if (!data.token) {
+    throw new Error("Missing auth token");
+  }
+  setGlobalToken(data.token);
+  const nextUser = data.user
+    ? {
+        ...data.user,
+        ...(data.authProvider != null ? { authProvider: data.authProvider } : {}),
+      }
+    : null;
+  if (nextUser) {
+    setGlobalUser(nextUser);
+  }
+  return data;
+}
 
 export const useAuth = () => {
   const dispatch = useDispatch();
@@ -173,7 +216,8 @@ export const useAuth = () => {
     return res?.token ?? token;
   }, [token, address, authenticate]);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    await runPrivyLogoutBridge();
     setGlobalToken(null);
     setGlobalUser(null);
   }, []);
