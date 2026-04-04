@@ -9,12 +9,12 @@ import { wagmiClient } from "../wagmiConnectors";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useSwitchChain, useAccount } from "wagmi";
 import { useWallets } from "@privy-io/react-auth";
-import { setChainId } from "../redux/slices/walletSlice";
 import {
   getPrivyEmbedded,
   switchPrivyEmbeddedToChain,
 } from "../utils/privyWalletUtils";
 
+const PREFERRED_CHAIN_STORAGE_KEY = "walletPreferredChainId";
 const SOLANA_CHAIN_ID = 101;
 const AUTH_USER_KEY = "authUser";
 
@@ -50,12 +50,11 @@ type NetworkSelectorProps = {
 export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
   const dispatch = useDispatch();
   const [isOpen, setIsOpen] = useState(false);
-  const [switching, setSwitching] = useState(false);
   const [isSwitching, setIsSwitching] = useState(false);
-
+    const [switching, setSwitching] = useState(false);
   const chainId = useSelector((state: any) => state.wallet.chainId);
   const walletType = useSelector((state: any) => state.wallet.walletType);
-  const { connected: solanaConnected, publicKey: solanaPublicKey } = useWallet();
+    const { connected: solanaConnected, publicKey: solanaPublicKey } = useWallet();
   const sessionSource = useSelector((state: any) => state.wallet.sessionSource);
   const { wallets } = useWallets();
   const { connector } = useAccount();
@@ -139,13 +138,21 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
         console.warn("Failed to persist preferred chain", e);
       }
       if (walletType !== "solana") {
-        toast.error(
+     toast.error(
           "Solana requires a Solana-capable wallet (e.g. MetaMask with Solana). Please connect with a Solana wallet.",
         );
-        setIsOpen(false);
-        return;
+      } else {
+        const provider = (window as any).phantom?.solana;
+        if (provider) {
+          try {
+            await provider.connect({ onlyIfTrusted: true });
+
+          } catch (err) {
+            console.error("Failed to connect Phantom:", err);
+            // User may have disconnected
+          }
+        }
       }
-      dispatch(setChainId(SOLANA_CHAIN_ID));
       setIsOpen(false);
       return;
     }
@@ -153,6 +160,7 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
     const provider = (window as any).ethereum;
     if (!provider) {
       toast.error("No EVM wallet detected (e.g. MetaMask).");
+    
     if (network.name !== "Solana" && walletType === "solana" && !isPrivySession) {
       toast.error(
         "EVM networks require an EVM wallet (e.g. MetaMask, Binance Wallet). Please connect with an EVM wallet.",
@@ -160,7 +168,6 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
       setIsOpen(false);
       return;
     }
-
     setSwitching(true);
     setIsSwitching(true);
     try {
@@ -260,7 +267,8 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
       setSwitching(false);
       setIsSwitching(false);
     }
-  };
+  }
+}
 
   const switchPrivyEVMChain = async (network: NetworkOption) => {
     const embedded = getPrivyEmbedded(wallets);
@@ -300,7 +308,7 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
       setIsSwitching(true);
       await switchChainAsync({ chainId: network.chainId });
       dispatch(setChainId(network.chainId));
-      // localStorage.removeItem(PREFERRED_CHAIN_STORAGE_KEY);
+      localStorage.removeItem(PREFERRED_CHAIN_STORAGE_KEY);
       setIsOpen(false);
     } catch (error) {
       const err = error as { code?: number };
@@ -321,7 +329,7 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
           });
           await switchChainAsync({ chainId: network.chainId });
           dispatch(setChainId(network.chainId));
-          // localStorage.removeItem(PREFERRED_CHAIN_STORAGE_KEY);
+          localStorage.removeItem(PREFERRED_CHAIN_STORAGE_KEY);
           setIsOpen(false);
         } catch (addErr) {
           console.error("Add network error:", addErr);
@@ -384,7 +392,7 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
         return;
       }
       toast.error(
-        "Solana requires a Solana-capable wallet (e.g. MetaMask with Solana). Please connect with a Solana wallet.",
+        "Solana requires a Solana-capable wallet (e.g. Phantom). Please connect with a Solana wallet.",
       );
       setIsOpen(false);
       return;
@@ -401,7 +409,7 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
       handleSwitchNetworkEVM(network);
     }
   };
-
+  
   return (
     <div className="relative">
       <button

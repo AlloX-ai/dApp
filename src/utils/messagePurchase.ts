@@ -15,7 +15,13 @@ import {
   getPublicClient,
   waitForTransactionReceipt,
 } from "@wagmi/core";
-import { formatEther, formatUnits, parseAbi, type Address } from "viem";
+import {
+  encodeFunctionData,
+  formatEther,
+  formatUnits,
+  parseAbi,
+  type Address,
+} from "viem";
 import { apiCall } from "./api";
 import { wagmiClient } from "../wagmiConnectors";
 import { SOLANA_PAYMENT_WALLET } from "../constants/addresses";
@@ -655,10 +661,10 @@ export function formatSolanaChainPriceLabel(
 ): string {
   if (!tok) return "—";
   const nativeSym = solanaNativeSymbolFromChains(chains);
-console.log('pkg, chains, tok:', pkg, chains, tok);
+  
   if (tok.type === "sol") {
     const plan = getSolanaPurchaseAmounts(pkg, chains, tok.symbol);
-    console.log('plan:', plan);
+   
     if (plan?.kind === "native") {
       return formatSolanaPriceLabel({
         tokenType: "sol",
@@ -681,25 +687,51 @@ console.log('pkg, chains, tok:', pkg, chains, tok);
   return "—";
 }
 
+/** Privy embedded (or linked) EVM wallet: raw tx + optional chain switch. */
+export type PurchasePrivyEvmSigner = {
+  walletAddress: Address;
+  sendTransaction: (input: {
+    to: Address;
+    data: `0x${string}`;
+    value?: bigint;
+    chainId: number;
+  }) => Promise<{ hash: `0x${string}` }>;
+  switchChain?: (chainId: number) => Promise<void>;
+};
+
 export async function purchaseEvmPackage(args: {
   chainKey: Exclude<MessageChainKey, "solana">;
   packageId: number;
   chains: MessagesChains | undefined;
   tokenSymbol: string;
   tokenType: "native" | "erc20";
-  writeContractAsync: (params: Record<string, unknown>) => Promise<`0x${string}`>;
+  /** Wagmi / injected wallet (omit when `privy` is set). */
+  writeContractAsync?: (
+    params: Record<string, unknown>,
+  ) => Promise<`0x${string}`>;
   switchChainAsync?: (args: { chainId: number }) => Promise<unknown>;
   currentChainId?: number | null;
+  /** Privy embedded EVM flows use encoded calldata + useSendTransaction. */
+  privy?: PurchasePrivyEvmSigner;
 }): Promise<{ txHash: `0x${string}` }> {
   const chainId = CHAIN_KEY_TO_WAGMI_ID[args.chainKey];
   const contractAddress = resolveEvmContract(args.chainKey, args.chains);
+  const usePrivy = Boolean(args.privy);
 
-  if (
-    args.currentChainId != null &&
-    args.currentChainId !== chainId &&
-    args.switchChainAsync
-  ) {
-    await args.switchChainAsync({ chainId });
+  if (!usePrivy && !args.writeContractAsync) {
+    throw new Error("Missing wallet signer (connect wallet or use Privy).");
+  }
+
+  if (args.currentChainId != null && args.currentChainId !== chainId) {
+    if (args.privy?.switchChain) {
+      await args.privy.switchChain(chainId);
+    } else if (args.switchChainAsync) {
+      await args.switchChainAsync({ chainId });
+    } else {
+      throw new Error(
+        "Wrong network for this purchase. Switch chain in your wallet and try again.",
+      );
+    }
   }
 
   const { nativePrice, tokens, prices } = await readEvmPackagePricing(
@@ -709,7 +741,22 @@ export async function purchaseEvmPackage(args: {
   );
 
   if (args.tokenType === "native") {
-    const txHash = await args.writeContractAsync({
+    if (usePrivy && args.privy) {
+      const data = encodeFunctionData({
+        abi: BUY_MESSAGES_ABI,
+        functionName: "buyWithNative",
+        args: [BigInt(args.packageId)],
+      });
+      const { hash } = await args.privy.sendTransaction({
+        to: contractAddress,
+        data,
+        value: nativePrice,
+        chainId,
+      });
+      await waitForTransactionReceipt(wagmiClient, { hash });
+      return { txHash: hash };
+    }
+    const txHash = await args.writeContractAsync!({
       address: contractAddress,
       abi: BUY_MESSAGES_ABI,
       functionName: "buyWithNative",
@@ -735,7 +782,9 @@ export async function purchaseEvmPackage(args: {
   const client = getPublicClient(wagmiClient, { chainId });
   if (!client) throw new Error("Network unavailable");
 
-  const { address: walletAddress } = getAccount(wagmiClient);
+  const walletAddress = usePrivy
+    ? args.privy!.walletAddress
+    : getAccount(wagmiClient).address;
   if (!walletAddress) throw new Error("Wallet not connected");
 
   const decimals = await client.readContract({
@@ -752,17 +801,46 @@ export async function purchaseEvmPackage(args: {
   });
 
   if (allowance < match.amount) {
-    const approveHash = await args.writeContractAsync({
-      address: match.address,
-      abi: erc20Abi,
-      functionName: "approve",
-      args: [contractAddress, match.amount],
-      chainId,
-    });
-    await waitForTransactionReceipt(wagmiClient, { hash: approveHash });
+    if (usePrivy && args.privy) {
+      const approveData = encodeFunctionData({
+        abi: erc20Abi,
+        functionName: "approve",
+        args: [contractAddress, match.amount],
+      });
+      const { hash: approveHash } = await args.privy.sendTransaction({
+        to: match.address,
+        data: approveData,
+        chainId,
+      });
+      await waitForTransactionReceipt(wagmiClient, { hash: approveHash });
+    } else {
+      const approveHash = await args.writeContractAsync!({
+        address: match.address,
+        abi: erc20Abi,
+        functionName: "approve",
+        args: [contractAddress, match.amount],
+        chainId,
+      });
+      await waitForTransactionReceipt(wagmiClient, { hash: approveHash });
+    }
   }
 
-  const txHash = await args.writeContractAsync({
+  if (usePrivy && args.privy) {
+    const buyData = encodeFunctionData({
+      abi: BUY_MESSAGES_ABI,
+      functionName: "buyWithToken",
+      args: [match.address, BigInt(args.packageId)],
+    });
+    const { hash } = await args.privy.sendTransaction({
+      to: contractAddress,
+      data: buyData,
+      chainId,
+    });
+    await waitForTransactionReceipt(wagmiClient, { hash });
+    return { txHash: hash };
+  }
+
+  const txHash = await args.writeContractAsync!({
     address: contractAddress,
     abi: BUY_MESSAGES_ABI,
     functionName: "buyWithToken",

@@ -26,3 +26,22 @@ export async function switchPrivyEmbeddedToChain(embedded, numericChainId) {
   if (embeddedOnChainId(embedded, numericChainId)) return;
   await embedded.switchChain(numericChainId);
 }
+
+/** Numeric chain id from embedded `chainId` (e.g. `eip155:56`, `0x38`, or number). */
+export function getEmbeddedNumericChainId(embedded) {
+  if (!embedded?.chainId) return null;
+  const c = embedded.chainId;
+  if (typeof c === "string" && c.startsWith("eip155:")) {
+    const n = Number(c.slice(7));
+    return Number.isFinite(n) ? n : null;
+  }
+  if (typeof c === "string" && c.startsWith("0x")) {
+    try {
+      return parseInt(c, 16);
+    } catch {
+      return null;
+    }
+  }
+  const n = Number(c);
+  return Number.isFinite(n) ? n : null;
+}

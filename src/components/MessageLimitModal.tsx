@@ -3,8 +3,15 @@ import { useDispatch, useSelector } from "react-redux";
 import { X, SendHorizontal, ChevronDown, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useWallet } from "@solana/wallet-adapter-react";
+import { useSendTransaction, useWallets } from "@privy-io/react-auth";
 import { useAccount, useSwitchChain, useWriteContract } from "wagmi";
+import type { Address } from "viem";
 import { useAuth } from "../hooks/useAuth";
+import {
+  getEmbeddedNumericChainId,
+  getPrivyEmbedded,
+  switchPrivyEmbeddedToChain,
+} from "../utils/privyWalletUtils";
 import { fetchChatStatus as fetchChatStatusApi } from "../utils/chatStatusFetch";
 import {
   fetchMessagePackages,
@@ -60,7 +67,9 @@ export function MessageLimitModal({
   onPurchaseSuccess,
 }: MessageLimitModalProps) {
   const dispatch = useDispatch();
-  const { setUser } = useAuth();
+  const { setUser, user: authUser } = useAuth();
+  const { sendTransaction: privySendTransaction } = useSendTransaction();
+  const { wallets } = useWallets();
   const walletType = useSelector((state: { wallet?: { walletType?: string } }) => state.wallet?.walletType);
   const solanaAddress = useSelector((state: { wallet?: { address?: string } }) => state.wallet?.address);
   const reduxChainId = useSelector((state: { wallet?: { chainId?: number } }) => state.wallet?.chainId);
@@ -88,7 +97,9 @@ export function MessageLimitModal({
   const [solUsdTick, setSolUsdTick] = useState(0);
 
   const isSolanaWallet = walletType === "solana";
+  /* With Solana hidden from dropdowns, adapter-only state is unused here; restore with chainKeys block below.
   const hasSolanaAdapter = Boolean(connected && publicKey);
+  */
   const evmChainId = wagmiChainId ?? reduxChainId ?? null;
 
   /** Phantom (redux) or Wallet Standard / MetaMask Solana (adapter). */
@@ -109,11 +120,14 @@ export function MessageLimitModal({
 
   const chainKeys = useMemo(() => {
     const raw = listChainKeysFromPayload(chains);
+    /* Solana: temporarily omit from chain + token dropdowns. Restore when ready:
     if (isSolanaWallet) return raw.filter((k) => k === "solana");
     if (hasSolanaAdapter && evmAddress) return raw;
     if (hasSolanaAdapter) return raw.filter((k) => k === "solana");
     return raw.filter((k) => k !== "solana");
-  }, [chains, isSolanaWallet, hasSolanaAdapter, evmAddress]);
+    */
+    return raw.filter((k) => k !== "solana");
+  }, [chains]);
 
   const tokenOptions = useMemo(
     () => tokenOptionsForChain(selectedChainKey, chains),
@@ -135,10 +149,14 @@ export function MessageLimitModal({
         setPackages(list);
         setChains(data?.chains);
         const keys = listChainKeysFromPayload(data?.chains);
+        /* Solana: when re-enabled, restore default chain for Solana wallets:
         const keysEffective = isSolanaWallet
           ? keys.filter((k) => k === "solana")
           : keys.filter((k) => k !== "solana");
         const first = keysEffective[0] ?? (isSolanaWallet ? "solana" : "bnb");
+        */
+        const keysEffective = keys.filter((k) => k !== "solana");
+        const first = keysEffective[0] ?? "bnb";
         setSelectedChainKey(first);
       })
       .catch((err: { message?: string }) => {
@@ -150,7 +168,7 @@ export function MessageLimitModal({
     return () => {
       cancelled = true;
     };
-  }, [isOpen, isSolanaWallet]);
+  }, [isOpen]);
 
   useEffect(() => {
     const opts = tokenOptionsForChain(selectedChainKey, chains);
@@ -310,12 +328,58 @@ export function MessageLimitModal({
         toast.error("Use an EVM wallet for this network.");
         return;
       }
+
+      const chainKey = selectedChainKey as Exclude<MessageChainKey, "solana">;
+      const isPrivyEvm = authUser?.authProvider === "privy";
+
+      if (isPrivyEvm) {
+        const addr = (authUser?.address || solanaAddress || "").trim();
+        if (!/^0x[a-fA-F0-9]{40}$/i.test(addr)) {
+          toast.error("Wallet address not available.");
+          return;
+        }
+        const embedded = getPrivyEmbedded(wallets);
+        if (!embedded) {
+          toast.error("Embedded wallet not ready. Refresh or sign in again.");
+          return;
+        }
+        const currentPrivyChain =
+          getEmbeddedNumericChainId(embedded) ?? reduxChainId ?? null;
+        const { txHash } = await purchaseEvmPackage({
+          chainKey,
+          packageId: pkg.id,
+          chains,
+          tokenSymbol: selectedToken,
+          tokenType: tok.type === "native" ? "native" : "erc20",
+          currentChainId: currentPrivyChain,
+          privy: {
+            walletAddress: addr as Address,
+            sendTransaction: privySendTransaction,
+            switchChain: (id) => switchPrivyEmbeddedToChain(embedded, id),
+          },
+        });
+
+        const tokenForApi =
+          tok.type === "native" ? tok.type : selectedToken;
+
+        await postMessagePurchase({
+          txHash,
+          chain: chainKey,
+          packageId: pkg.id,
+          token: tokenForApi,
+        });
+        await fetchChatStatusApi(dispatch, { setUser });
+        toast.success("Purchase confirmed");
+        onPurchaseSuccess?.();
+        onClose();
+        return;
+      }
+
       if (!evmAddress) {
         toast.error("Connect your wallet first.");
         return;
       }
 
-      const chainKey = selectedChainKey as Exclude<MessageChainKey, "solana">;
       const { txHash } = await purchaseEvmPackage({
         chainKey,
         packageId: pkg.id,
@@ -362,8 +426,14 @@ export function MessageLimitModal({
     canSignSolanaTx,
     effectiveSolanaAddress,
     sendTransaction,
+    authUser?.address,
+    authUser?.authProvider,
     evmAddress,
     evmChainId,
+    reduxChainId,
+    solanaAddress,
+    wallets,
+    privySendTransaction,
     writeContractAsync,
     switchChainAsync,
     dispatch,
