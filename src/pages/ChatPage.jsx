@@ -34,7 +34,16 @@ import {
 } from "../redux/slices/pointsSlice";
 import { apiCall } from "../utils/api";
 import { fetchChatStatus as fetchChatStatusApi } from "../utils/chatStatusFetch";
-import { executePortfolioOnChain } from "../utils/execution";
+
+import {
+  executePortfolioOnChain,
+  createPrivyExecutionTxEnv,
+} from "../utils/execution";
+import {
+  useWallets,
+  getEmbeddedConnectedWallet,
+  useSendTransaction,
+} from "@privy-io/react-auth";
 import { useAuth } from "../hooks/useAuth";
 import { NavLink, useLocation, useNavigate } from "react-router";
 import getFormattedNumber from "../hooks/get-formatted-number";
@@ -125,6 +134,7 @@ export function ChatPage() {
     rateLimit,
     chatStatus,
     backendResetRequestId,
+    slippage: chatSlippageSetting,
   } = useSelector((state) => state.chat);
   const isReadOnly = !!viewingHistorySessionId;
   const isConnected = useSelector((state) => state.wallet.isConnected);
@@ -141,6 +151,8 @@ export function ChatPage() {
     claimSeason1,
     logout,
   } = useAuth();
+  const { wallets } = useWallets();
+  const { sendTransaction: privySendTransaction } = useSendTransaction();
 
   const speechBoxRef = useRef(null);
   const typingTimerRef = useRef(null);
@@ -866,10 +878,49 @@ export function ChatPage() {
           portfolioId: null,
           tokenStatuses: {},
         }));
-        const completeData = await executePortfolioOnChain(execution, {
-          onUpdate: handleExecutionUpdate,
-          onPrompt: promptExecutionDecision,
-        });
+        const slippageFromChat = parseFloat(chatSlippageSetting);
+        const executionWithSlippage = {
+          ...execution,
+          slippage:
+            execution?.slippage != null && execution.slippage !== ""
+              ? Number(execution.slippage)
+              : Number.isFinite(slippageFromChat) && slippageFromChat > 0
+                ? slippageFromChat
+                : 0.5,
+        };
+
+        let privyTxEnv;
+        if (authUser?.authProvider === "privy") {
+          const embedded = getEmbeddedConnectedWallet(wallets);
+          if (!embedded) {
+            throw new Error(
+              "Embedded wallet not found. Refresh the page or sign in again.",
+            );
+          }
+          const cid = embedded.chainId;
+          const onBsc =
+            cid === "eip155:56" ||
+            (typeof cid === "string" &&
+              cid.startsWith("0x") &&
+              parseInt(cid, 16) === 56) ||
+            Number(cid) === 56;
+          if (!onBsc) {
+            await embedded.switchChain(56);
+          }
+          privyTxEnv = createPrivyExecutionTxEnv(
+            embedded.address,
+            privySendTransaction,
+          );
+        }
+
+        const completeData = await executePortfolioOnChain(
+          executionWithSlippage,
+          {
+            onUpdate: handleExecutionUpdate,
+            onPrompt: promptExecutionDecision,
+            ...(privyTxEnv ? { txEnv: privyTxEnv } : {}),
+          },
+        );
         const portfolioId = completeData?.portfolioId;
         setExecutionState((prev) => ({
           ...prev,
@@ -909,7 +960,16 @@ export function ChatPage() {
         );
       }
     },
-    [dispatch, handleExecutionUpdate, promptExecutionDecision],
+    [
+      authUser?.authProvider,
+      chatSlippageSetting,
+      dispatch,
+      handleExecutionUpdate,
+      privySendTransaction,
+      promptExecutionDecision,
+      queryClient,
+      wallets,
+    ],
   );
 
   const QUICK_CHAIN_LABELS = useMemo(
@@ -1571,8 +1631,8 @@ export function ChatPage() {
     const isOnChain = preview.executionMode === "ON_CHAIN";
 
     return (
-      <div className="mt-4 rounded-2xl bg-linear-to-br from-blue-50/80 to-purple-50/80 border border-blue-200/50 shadow-sm p-4 text-sm space-y-2">
-        <div className="flex items-center justify-between">
+      <div className="mt-4 rounded-2xl bg-linear-to-br from-blue-50/80 to-purple-50/80 border border-blue-200/50 shadow-sm p-2 sm:p-4 text-sm space-y-2">
+        <div className="flex flex-col sm:flex-row items-center justify-between">
           <div className="font-semibold text-gray-900">
             {chainLabel} ·{" "}
             {isOnChain ? "On-Chain Execution" : "Paper Trading Preview"}
@@ -1724,7 +1784,7 @@ export function ChatPage() {
                 return (
                   <div
                     key={`${p.symbol || p.name || idx}-${idx}`}
-                    className="flex items-center justify-between rounded-xl bg-white/70 border border-green-200/50 px-3 py-2"
+                    className="flex items-center justify-between rounded-xl bg-white/70 border border-green-200/50 px-3 py-2 gap-5"
                   >
                     <div className="min-w-0">
                       <div className="text-xs font-medium text-gray-900 truncate">
@@ -1780,7 +1840,7 @@ export function ChatPage() {
           </div>
         )}
         <div className="flex gap-2">
-          <NavLink
+          {/* <NavLink
             to={`/portfolio?portfolio=${portfolio?.id}`}
             className="px-3 py-2 bg-white/80 border border-gray-200 rounded-xl text-xs font-medium hover:bg-white hover:border-gray-300 hover:shadow-md transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
           >
@@ -1797,7 +1857,7 @@ export function ChatPage() {
             className="px-3 py-2 bg-white/80 border border-gray-200 rounded-xl text-xs font-medium hover:bg-white hover:border-gray-300 hover:shadow-md transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
           >
             Create another portfolio
-          </button>
+          </button> */}
           {safeOptions.length > 0 && (
             <div className="border-t border-green-200/60">
               <div className="flex flex-wrap gap-2">
@@ -1928,7 +1988,7 @@ export function ChatPage() {
           </div>
         )}
 
-        <div className="flex gap-2 pt-2">
+        {/* <div className="flex gap-2 pt-2">
           <NavLink
             to={`/portfolio?portfolio=${portfolio?.id}`}
             className="px-3 py-2 bg-white/80 border border-gray-200 rounded-xl text-xs font-medium hover:bg-white hover:border-gray-300 hover:shadow-md transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
@@ -1948,7 +2008,7 @@ export function ChatPage() {
           >
             Create another portfolio
           </button>
-        </div>
+        </div> */}
       </div>
     );
   };
@@ -4157,6 +4217,50 @@ export function ChatPage() {
                         </button>
                       </div>
                     </>
+                  ) : executionPrompt.type === "SLIPPAGE_INCREASE_REQUIRED" ? (
+                    <>
+                      <p className="font-medium text-gray-900 mb-1">
+                        Higher slippage needed for{" "}
+                        {executionPrompt.symbol || "this token"}
+                      </p>
+                      <p className="text-xs text-gray-700 mb-2">
+                        {executionPrompt.message ||
+                          "Simulation needs a higher slippage tolerance to proceed."}
+                      </p>
+                      <p className="text-xs text-gray-600 mb-3">
+                        Requested:{" "}
+                        {executionPrompt.requestedSlippage != null
+                          ? `${executionPrompt.requestedSlippage}%`
+                          : "—"}{" "}
+                        → Required:{" "}
+                        {executionPrompt.requiredSlippage != null
+                          ? `${executionPrompt.requiredSlippage}%`
+                          : "—"}
+                      </p>
+                      <p className="text-xs text-gray-600 mb-3">
+                        Your order stays at the original setting until you
+                        confirm. If you continue, only this prepare step will
+                        use the higher value.
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => resolveExecutionPrompt("accept")}
+                          className="px-3 py-2 rounded-xl bg-gray-900 text-white text-xs font-medium hover:bg-gray-800"
+                        >
+                          {executionPrompt.requiredSlippage != null
+                            ? `Use ${executionPrompt.requiredSlippage}% and continue`
+                            : "Accept higher slippage and continue"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => resolveExecutionPrompt("decline")}
+                          className="px-3 py-2 rounded-xl bg-white border border-gray-300 text-gray-700 text-xs font-medium hover:bg-gray-50"
+                        >
+                          Stop execution
+                        </button>
+                      </div>
+                    </>
                   ) : (
                     <>
                       <p className="font-medium text-gray-900 mb-1">
@@ -4207,6 +4311,22 @@ export function ChatPage() {
                         You can safely confirm transactions even if a failure
                         warning appears. <b>Note:</b> MetaMask Smart
                         Transactions may affect execution.
+                      </p>
+                      <p className="text-xs text-gray-600 mt-2">
+                        <b>Token approvals:</b> Some swap routes use Permit2,
+                        which may ask for a large allowance that stays in effect
+                        until you revoke it. Other routes approve only the
+                        amount needed for that swap. Review or revoke allowances
+                        anytime for your wallet on{" "}
+                        <a
+                          href="https://revoke.cash/chain/56"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-700 underline font-medium"
+                        >
+                          Revoke.cash (BNB Chain)
+                        </a>
+                        .
                       </p>
                     </div>
                   </div>

@@ -33,8 +33,16 @@ import {
   setIsConnected,
   setWalletModal,
   setWalletType,
+  setSessionSource,
   closeCheckinModal,
 } from "./redux/slices/walletSlice";
+import { usePrivy, useWallets } from "@privy-io/react-auth";
+import {
+  getPrivyEmbedded,
+  switchPrivyEmbeddedToChain,
+} from "./utils/privyWalletUtils";
+import { setPrivyLogoutBridge } from "./auth/privyLogoutBridge";
+import { isPrivySessionActive } from "./utils/privySession";
 import { resetPoints, setPointsBalance } from "./redux/slices/pointsSlice";
 import { clearCheckin } from "./redux/slices/checkinSlice";
 import { useAuth } from "./hooks/useAuth";
@@ -53,6 +61,7 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { useSocial } from "./hooks/useSocial";
 import { CongratsModal } from "./components/CongratsModal";
 import { CampaignsPage } from "./pages/Campaigns";
+import { PrivyFundModal } from "./components/PrivyFundModal";
 
 const SOLANA_MAINNET_CHAIN_ID = 101;
 const PREFERRED_CHAIN_STORAGE_KEY = "walletPreferredChainId";
@@ -70,13 +79,45 @@ async function disconnectAllEvmWagmi() {
   }
 }
 
-function getStoredAuthUser() {
+async function getStoredAuthUser() {
   try {
-    const raw = localStorage.getItem(AUTH_USER_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch (e) {
-    console.error(e);
+    const resp = await provider.connect({ onlyIfTrusted: true });
+    const walletAddress = resp.publicKey?.toString?.() ?? resp.publicKey;
+    if (!walletAddress) return false;
+    dispatch(setWalletType("solana"));
+    dispatch(setAddress(walletAddress));
+    dispatch(setIsConnected(true));
+    dispatch(setWalletModal(false));
+    dispatch(setSessionSource("wallet"));
+    return true;
+  } catch {
+    return false;
   }
+  return null;
+}
+
+/** After Privy login, move embedded wallet to BNB Chain (56) so check-in and on-chain flows match Redux. */
+function PrivyEnsureBnbChain() {
+  const { user } = useAuth();
+  const { wallets, ready } = useWallets();
+
+  useEffect(() => {
+    if (!ready || user?.authProvider !== "privy") return;
+    const embedded = getPrivyEmbedded(wallets);
+    if (!embedded) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        await switchPrivyEmbeddedToChain(embedded, 56);
+      } catch (e) {
+        if (!cancelled) console.warn("Privy default BNB chain:", e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, user?.authProvider, wallets]);
+
   return null;
 }
 
@@ -97,9 +138,26 @@ function LaunchAppLayout() {
     publicKey: solanaPublicKey,
   } = useWallet();
 
-  const { address, isConnected, walletModal, walletType, checkinModal } =
-    useSelector((state) => state.wallet);
+  const {
+    address,
+    isConnected,
+    walletModal,
+    walletType,
+    checkinModal,
+    chainId,
+  } = useSelector((state) => state.wallet);
+  const [fundModalOpen, setFundModalOpen] = useState(false);
   const { token, user, ensureAuthenticated, logout } = useAuth();
+
+  useEffect(() => {
+    if (user?.authProvider !== "privy" || !user?.address) return;
+    dispatch(setSessionSource("privy"));
+    dispatch(setAddress(user.address));
+    dispatch(setIsConnected(true));
+    dispatch(setWalletType(user.walletType || "privy"));
+    // On-chain execution uses BNB Chain (56); keeps quick wizard / chat BSC gates in sync for Privy users
+    dispatch(setChainId(56));
+  }, [user?.authProvider, user?.address, user?.walletType, dispatch]);
   const {
     status: checkinStatus,
     claim: claimCheckin,
@@ -131,15 +189,13 @@ function LaunchAppLayout() {
     dispatch(setChainId(null));
     dispatch(setIsConnected(false));
     dispatch(setWalletType(""));
+    dispatch(setSessionSource(null));
     dispatch(setViewingHistorySessionId(null));
     dispatch(setCurrentMessages([]));
     dispatch(clearCheckin());
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("authUser");
-    logout();
-    navigate("/login", { replace: true });
-    // Fully clear auth state (token + user) across the app
-   
+    // Fully clear auth state (token + user) across the app (includes Privy logout via bridge)
+    await logout();
+    navigate("/login");
   };
 
   const ensureAuthRef = useRef(ensureAuthenticated);
@@ -257,6 +313,7 @@ function LaunchAppLayout() {
         selectSolanaWallet(metaMaskWallet.adapter.name);
         await metaMaskWallet.adapter.connect();
         dispatch(setWalletModal(false));
+        dispatch(setSessionSource("wallet"));
       } catch (err) {
         console.error("Solana (MetaMask) connection error:", err);
         toast.error("Failed to connect MetaMask for Solana. Please try again.");
@@ -283,6 +340,7 @@ function LaunchAppLayout() {
           dispatch(setWalletType(isBinance ? "binance" : "evm"));
           dispatch(setIsConnected(true));
           dispatch(setWalletModal(false));
+          dispatch(setSessionSource("wallet"));
           if (isBinance) {
             setTimeout(() => getAccount(wagmiClient), 2000);
           }
@@ -299,6 +357,7 @@ function LaunchAppLayout() {
             dispatch(setWalletType("evm"));
             dispatch(setIsConnected(true));
             dispatch(setWalletModal(false));
+            dispatch(setSessionSource("wallet"));
           })
           .catch((err) => {
             console.error("WalletConnect connection error:", err);
@@ -318,11 +377,20 @@ function LaunchAppLayout() {
   return (
     <div className="min-h-screen bg-pattern flex flex-col main-wrapper">
       <WalletSync />
+      <PrivyEnsureBnbChain />
       <Header
         isConnected={isConnected}
         onConnectClick={() => setWalletModalOpen(true)}
         coinbase={address}
         onDisconnectClick={handleDisconnect}
+        onOpenFundModal={() => setFundModalOpen(true)}
+      />
+
+      <PrivyFundModal
+        open={fundModalOpen}
+        onClose={() => setFundModalOpen(false)}
+        walletChainId={chainId}
+        coinbase={address}
       />
 
       <div className="w-full flex-1 pt-20 flex min-h-0">
@@ -381,6 +449,7 @@ function BetaAccessLayout() {
         selectSolanaWallet(metaMaskWallet.adapter.name);
         await metaMaskWallet.adapter.connect();
         dispatch(setWalletModal(false));
+        dispatch(setSessionSource("wallet"));
       } catch (err) {
         console.error("Solana (MetaMask) connection error:", err);
         toast.error("Failed to connect MetaMask for Solana. Please try again.");
@@ -405,6 +474,7 @@ function BetaAccessLayout() {
           dispatch(setWalletType(isBinance ? "binance" : "evm"));
           dispatch(setIsConnected(true));
           dispatch(setWalletModal(false));
+          dispatch(setSessionSource("wallet"));
         })
         .catch((err) => {
           console.error("Wallet connection error:", err);
@@ -418,6 +488,7 @@ function BetaAccessLayout() {
             dispatch(setWalletType("evm"));
             dispatch(setIsConnected(true));
             dispatch(setWalletModal(false));
+            dispatch(setSessionSource("wallet"));
           })
           .catch((err) => {
             console.error("WalletConnect connection error:", err);
@@ -521,20 +592,21 @@ function WalletSync() {
             dispatch(setChainId(account.chainId));
             dispatch(setIsConnected(true));
             dispatch(setWalletModal(false));
+            dispatch(setSessionSource("wallet"));
           }
           break;
         case "reconnecting":
+          if (!isPrivySessionActive()) dispatch(setIsConnected(false));
+          break;
         case "connecting":
-          if (!localStorage.getItem("authToken")) {
-            dispatch(setIsConnected(false));
-          }
+          if (!isPrivySessionActive() || !localStorage.getItem("authToken")) dispatch(setIsConnected(false));
           break;
         case "disconnected":
         default:
           if (disconnectTimeoutId) clearTimeout(disconnectTimeoutId);
           disconnectTimeoutId = setTimeout(() => {
             disconnectTimeoutId = null;
-            if (localStorage.getItem("authToken")) return;
+            if (isPrivySessionActive()|| localStorage.getItem("authToken")) return;
             dispatch(setAddress(null));
             dispatch(setIsConnected(false));
             dispatch(setWalletType(""));
@@ -567,6 +639,11 @@ function WalletSync() {
               dispatch(setIsConnected(false));
               dispatch(setWalletType(""));
             }
+            if (isPrivySessionActive()) return;
+            dispatch(setAddress(null));
+            dispatch(setIsConnected(false));
+            dispatch(setWalletType(""));
+            window.WALLET_TYPE = null;
           }, 400);
         } else {
           if (
@@ -588,12 +665,14 @@ function WalletSync() {
             dispatch(setChainId(activeConnection.chainId));
             dispatch(setIsConnected(true));
             dispatch(setWalletModal(false));
+            dispatch(setSessionSource("wallet"));
             window.WALLET_TYPE = "metamask";
           }
           if (activeConnection.connector.type === "binanceWallet") {
             dispatch(setWalletType("evm"));
             dispatch(setIsConnected(true));
             dispatch(setWalletModal(false));
+            dispatch(setSessionSource("wallet"));
             window.WALLET_TYPE = "binance";
           } else if (activeConnection.connector.name === "Phantom") {
             const provider = window.phantom?.solana;
@@ -611,6 +690,7 @@ function WalletSync() {
                   dispatch(setAddress(walletAddress));
                   dispatch(setIsConnected(true));
                   dispatch(setWalletModal(false));
+                  dispatch(setSessionSource("wallet"));
                   window.WALLET_TYPE = "solana";
 
                   const stored = localStorage.getItem(
@@ -631,6 +711,7 @@ function WalletSync() {
             dispatch(setWalletType("evm"));
             dispatch(setIsConnected(true));
             dispatch(setWalletModal(false));
+            dispatch(setSessionSource("wallet"));
           }
         }
       },
@@ -649,6 +730,7 @@ function WalletSync() {
     const handleAccountsChanged = (accounts) => {
       if (store.getState().wallet.walletType === "solana") return;
       if (!accounts[0]) {
+        if (isPrivySessionActive()) return;
         dispatch(setAddress(null));
         dispatch(setIsConnected(false));
       }
@@ -681,6 +763,15 @@ function RequireAuth({ children }) {
   return children;
 }
 
+function PrivyLogoutBridge() {
+  const { logout: privyLogout } = usePrivy();
+  useEffect(() => {
+    setPrivyLogoutBridge(privyLogout);
+    return () => setPrivyLogoutBridge(null);
+  }, [privyLogout]);
+  return null;
+}
+
 function App() {
   const { address } = useSelector((state) => state.wallet);
 
@@ -695,6 +786,7 @@ function App() {
   
   return (
     <>
+      <PrivyLogoutBridge />
       <Toaster position="top-right" richColors closeButton />
       <Routes>
         <Route path="/login" element={<BetaAccessLayout />} />

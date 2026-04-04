@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@binance/w3w-wagmi-connector-v2": "^1.2.9",
+    "@privy-io/react-auth": "^3.19.0",
     "@radix-ui/react-accordion": "^1.2.3",
     "@radix-ui/react-alert-dialog": "^1.1.6",
     "@radix-ui/react-aspect-ratio": "^1.1.2",
