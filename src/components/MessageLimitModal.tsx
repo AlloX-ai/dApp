@@ -70,9 +70,15 @@ export function MessageLimitModal({
   const { setUser, user: authUser } = useAuth();
   const { sendTransaction: privySendTransaction } = useSendTransaction();
   const { wallets } = useWallets();
-  const walletType = useSelector((state: { wallet?: { walletType?: string } }) => state.wallet?.walletType);
-  const solanaAddress = useSelector((state: { wallet?: { address?: string } }) => state.wallet?.address);
-  const reduxChainId = useSelector((state: { wallet?: { chainId?: number } }) => state.wallet?.chainId);
+  const walletType = useSelector(
+    (state: { wallet?: { walletType?: string } }) => state.wallet?.walletType,
+  );
+  const solanaAddress = useSelector(
+    (state: { wallet?: { address?: string } }) => state.wallet?.address,
+  );
+  const reduxChainId = useSelector(
+    (state: { wallet?: { chainId?: number } }) => state.wallet?.chainId,
+  );
 
   const { publicKey, connected, sendTransaction } = useWallet();
   const { address: evmAddress, chainId: wagmiChainId } = useAccount();
@@ -85,7 +91,8 @@ export function MessageLimitModal({
   const [loadingPackages, setLoadingPackages] = useState(false);
 
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-  const [selectedChainKey, setSelectedChainKey] = useState<MessageChainKey>("bnb");
+  const [selectedChainKey, setSelectedChainKey] =
+    useState<MessageChainKey>("bnb");
   const [selectedToken, setSelectedToken] = useState("USDT");
   const [isChainDropdownOpen, setIsChainDropdownOpen] = useState(false);
   const [isTokenDropdownOpen, setIsTokenDropdownOpen] = useState(false);
@@ -113,7 +120,7 @@ export function MessageLimitModal({
     () =>
       Boolean(
         effectiveSolanaAddress &&
-          (typeof sendTransaction === "function" || hasInjectedSolanaProvider()),
+        (typeof sendTransaction === "function" || hasInjectedSolanaProvider()),
       ),
     [effectiveSolanaAddress, sendTransaction],
   );
@@ -185,7 +192,6 @@ export function MessageLimitModal({
     }
     const pkg = selectedIndex != null ? packages[selectedIndex] : null;
 
-    
     if (!pkg) {
       setPriceLabel("—");
       setLoadingPrice(false);
@@ -237,10 +243,7 @@ export function MessageLimitModal({
             tokenSymbol: tok.symbol,
             tokenType: "erc20",
             nativePrice,
-            erc20:
-              match != null
-                ? { amount: match.amount, decimals }
-                : null,
+            erc20: match != null ? { amount: match.amount, decimals } : null,
           }),
         );
       } catch {
@@ -252,7 +255,15 @@ export function MessageLimitModal({
     return () => {
       cancelled = true;
     };
-  }, [isOpen, selectedChainKey, selectedIndex, selectedToken, packages, chains, tokenOptions]);
+  }, [
+    isOpen,
+    selectedChainKey,
+    selectedIndex,
+    selectedToken,
+    packages,
+    chains,
+    tokenOptions,
+  ]);
 
   useEffect(() => {
     if (!isOpen || selectedChainKey !== "solana") return;
@@ -301,7 +312,9 @@ export function MessageLimitModal({
           return;
         }
         if (!getSolanaPurchaseAmounts(pkg, chains, selectedToken)) {
-          toast.error("Missing Solana pricing for this package. Check back later.");
+          toast.error(
+            "Missing Solana pricing for this package. Check back later.",
+          );
           return;
         }
         const { txHash } = await purchaseSolanaPackage({
@@ -359,8 +372,7 @@ export function MessageLimitModal({
           },
         });
 
-        const tokenForApi =
-          tok.type === "native" ? tok.type : selectedToken;
+        const tokenForApi = tok.type === "native" ? tok.type : selectedToken;
 
         await postMessagePurchase({
           txHash,
@@ -386,13 +398,14 @@ export function MessageLimitModal({
         chains,
         tokenSymbol: selectedToken,
         tokenType: tok.type === "native" ? "native" : "erc20",
-        writeContractAsync: writeContractAsync as (p: Record<string, unknown>) => Promise<`0x${string}`>,
+        writeContractAsync: writeContractAsync as (
+          p: Record<string, unknown>,
+        ) => Promise<`0x${string}`>,
         switchChainAsync,
         currentChainId: evmChainId,
       });
 
-      const tokenForApi =
-        tok.type === "native" ? tok.type : selectedToken;
+      const tokenForApi = tok.type === "native" ? tok.type : selectedToken;
 
       await postMessagePurchase({
         txHash,
@@ -472,7 +485,9 @@ export function MessageLimitModal({
           <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-3 mx-6 mt-2 border-2 border-indigo-200 text-sm hover:shadow-md transition-shadow">
             <span className="w-full">
               <b>Daily limit:</b> You have {messagesRemaining ?? "—"} messages
-              remaining today. The limit resets every 24 hours.
+              remaining today. Free messages: 20 messages per 24 hours (resets
+              24h after your first message) Purchased messages: Never expire.
+              Used before your free daily messages.
             </span>
           </div>
 
@@ -502,10 +517,11 @@ export function MessageLimitModal({
                         key={`${bundle.id}-${index}`}
                         type="button"
                         onClick={() => setSelectedIndex(index)}
-                        className={`flex items-center justify-between p-3 rounded-xl transition-all ${span} ${selectedIndex === index
-                          ? "bg-blue-600 text-white"
-                          : "bg-gray-100 text-gray-900 hover:bg-gray-200"
-                          }`}
+                        className={`flex items-center justify-between p-3 rounded-xl transition-all ${span} ${
+                          selectedIndex === index
+                            ? "bg-blue-600 text-white"
+                            : "bg-gray-100 text-gray-900 hover:bg-gray-200"
+                        }`}
                       >
                         <div className="flex items-center gap-2">
                           <SendHorizontal className="w-4 h-4" />
@@ -514,10 +530,11 @@ export function MessageLimitModal({
                           </span>
                         </div>
                         <div
-                          className={`px-3 py-1 rounded-lg font-bold text-sm ${selectedIndex === index
-                            ? "bg-white/20 text-white"
-                            : "bg-gray-200 text-gray-900"
-                            }`}
+                          className={`px-3 py-1 rounded-lg font-bold text-sm ${
+                            selectedIndex === index
+                              ? "bg-white/20 text-white"
+                              : "bg-gray-200 text-gray-900"
+                          }`}
                         >
                           {bundle.priceUSD != null
                             ? `$${Number(bundle.priceUSD).toFixed(2)}`
@@ -577,10 +594,11 @@ export function MessageLimitModal({
                                 setSelectedChainKey(key);
                                 setIsChainDropdownOpen(false);
                               }}
-                              className={`w-full flex items-center gap-3 text-left px-4 py-3 text-xs sm:text-base hover:bg-gray-50 transition-colors ${selectedChainKey === key
-                                ? "bg-blue-50 font-semibold text-blue-600"
-                                : "text-gray-700"
-                                }`}
+                              className={`w-full flex items-center gap-3 text-left px-4 py-3 text-xs sm:text-base hover:bg-gray-50 transition-colors ${
+                                selectedChainKey === key
+                                  ? "bg-blue-50 font-semibold text-blue-600"
+                                  : "text-gray-700"
+                              }`}
                             >
                               <img
                                 src={getChainIcon(key)}
@@ -640,10 +658,11 @@ export function MessageLimitModal({
                                 setSelectedToken(t.symbol);
                                 setIsTokenDropdownOpen(false);
                               }}
-                              className={`w-full flex items-center gap-3 text-xs sm:text-base text-left px-4 py-3 hover:bg-gray-50 transition-colors ${selectedToken === t.symbol
-                                ? "bg-blue-50 font-semibold text-blue-600"
-                                : "text-gray-700"
-                                }`}
+                              className={`w-full flex items-center gap-3 text-xs sm:text-base text-left px-4 py-3 hover:bg-gray-50 transition-colors ${
+                                selectedToken === t.symbol
+                                  ? "bg-blue-50 font-semibold text-blue-600"
+                                  : "text-gray-700"
+                              }`}
                             >
                               <img
                                 src={tokenIcon(t.symbol)}
@@ -678,10 +697,11 @@ export function MessageLimitModal({
               type="button"
               onClick={handlePurchase}
               disabled={!canBuy}
-              className={`w-full py-4 px-6 rounded-xl font-bold text-white transition-all flex items-center justify-center gap-2 ${!canBuy
-                ? "bg-gray-300 cursor-not-allowed"
-                : "bg-black hover:bg-black/80"
-                }`}
+              className={`w-full py-4 px-6 rounded-xl font-bold text-white transition-all flex items-center justify-center gap-2 ${
+                !canBuy
+                  ? "bg-gray-300 cursor-not-allowed"
+                  : "bg-black hover:bg-black/80"
+              }`}
             >
               {purchasing ? (
                 <>
