@@ -485,8 +485,8 @@ export function MessageLimitModal({
           <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-3 mx-6 mt-2 border-2 border-indigo-200 text-sm hover:shadow-md transition-shadow">
             <span className="w-full">
               <b>Daily limit:</b> You have {messagesRemaining ?? "—"} messages
-              remaining today. Free messages: 20 messages per 24 hours (resets
-              24h after your first message) Purchased messages: Never expire.
+              remaining today.<br/> <b>Free messages:</b> 20 messages per 24 hours (resets
+              24h after your first message)<br/> <b>Purchased messages:</b> Never expire.
               Used before your free daily messages.
             </span>
           </div>
