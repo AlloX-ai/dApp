@@ -9,7 +9,13 @@ const initialState = {
   isThinking: false,
   chatSessions: [],
   viewingHistorySessionId: null,
-  rateLimit: { remaining: null, resetAt: null, allowed: null, limit: null },
+  rateLimit: {
+    remaining: null,
+    resetAt: null,
+    allowed: null,
+    limit: null,
+    bonusMessages: null,
+  },
   chatStatus: { activity: null, points: null, claimed: null },
   backendResetRequestId: 0,
 };
@@ -59,7 +65,13 @@ const chatSlice = createSlice({
     setRateLimit: (state, action) => {
       state.rateLimit = action.payload
         ? { ...state.rateLimit, ...action.payload }
-        : { remaining: null, resetAt: null, allowed: null, limit: null };
+        : {
+            remaining: null,
+            resetAt: null,
+            allowed: null,
+            limit: null,
+            bonusMessages: null,
+          };
     },
     setChatStatus: (state, action) => {
       const payload = action.payload;
