@@ -15,69 +15,82 @@ import {
   Plus,
   BookOpen,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSelector } from "react-redux";
 import { PortfolioTutorialModal } from "../components/PortfolioTutorialModal";
 import { Link } from "react-router";
+import { useTrading } from "../hooks/useTrading";
+import getFormattedNumber from "../hooks/get-formatted-number";
+import { shortAddress } from "../hooks/shortAddress";
+
+const getLeaderboardEntries = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.leaderboard)) return payload.leaderboard;
+  if (Array.isArray(payload?.entries)) return payload.entries;
+  if (Array.isArray(payload?.data)) return payload.data;
+  return [];
+};
+
+const normalizeLeaderboardEntry = (entry, index) => ({
+  position: entry?.position ?? entry?.rank ?? index + 1,
+  address: entry?.address ?? entry?.walletAddress ?? entry?.userAddress ?? "-",
+  portfoliosCreated:
+    entry?.portfoliosCreated ?? entry?.portfolioCount ?? entry?.portfolios ?? 0,
+  totalValue:
+    entry?.totalValue ??
+    entry?.totalUsdValue ??
+    entry?.totalVolume ??
+    entry?.volume ??
+    0,
+  gemReward: entry?.gemReward ?? entry?.reward ?? entry?.rewardAmount ?? 0,
+});
 
 export function TradingCompetitionPage() {
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [showTutorialModal, setShowTutorialModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
-
-  // Static leaderboard data (positions 1-100)
-  const leaderboardData = Array.from({ length: 100 }, (_, i) => {
-    const position = i + 1;
-
-    // Calculate rewards based on position - Top 10 all different
-    let gemReward = 0;
-    if (position === 1) gemReward = 10000;
-    else if (position === 2) gemReward = 7500;
-    else if (position === 3) gemReward = 5000;
-    else if (position === 4) gemReward = 4000;
-    else if (position === 5) gemReward = 3500;
-    else if (position === 6) gemReward = 3000;
-    else if (position === 7) gemReward = 2500;
-    else if (position === 8) gemReward = 2000;
-    else if (position === 9) gemReward = 1500;
-    else if (position === 10) gemReward = 1250;
-    else if (position <= 25) gemReward = 1000;
-    else if (position <= 50) gemReward = 500;
-    else if (position <= 100) gemReward = 250;
-
-    // Static data with decreasing values
-    const portfoliosCreated = Math.max(
-      1,
-      100 - position + Math.floor(position / 10),
-    );
-    const totalValue = 150000 - position * 1200 + (position % 7) * 100;
-
-    return {
-      position,
-      address: `0x${(position * 123456).toString(16).substring(0, 4)}...${(position * 789).toString(16).substring(0, 4)}`,
-      portfoliosCreated,
-      totalValue,
-      gemReward,
-    };
-  });
+  const walletAddress = useSelector((state) => state.wallet.address);
+  const {
+    competition,
+    leaderboard,
+    userData,
+    fetchActiveCompetition,
+    fetchCompetition,
+    fetchLeaderboard,
+    fetchUserCompetitionData,
+  } = useTrading();
 
   // Mock current user (outside top 100 for demo purposes)
-  const currentUserPosition = 150;
-  const currentUserData = {
-    position: currentUserPosition,
-    address: "0x7a8c...4f2e", // Your wallet
+  const fallbackCurrentUserPosition = 150;
+  const fallbackCurrentUserData = {
+    position: fallbackCurrentUserPosition,
+    address: walletAddress || "0x7a8c...4f2e",
     portfoliosCreated: 3,
     totalValue: 5420,
-    gemReward: 0, // No reward outside top 100
+    gemReward: 0,
   };
+
+  const rawLeaderboardEntries = getLeaderboardEntries(leaderboard);
+  const normalizedLeaderboard = rawLeaderboardEntries.map(
+    normalizeLeaderboardEntry,
+  );
+  const hasLeaderboardRecords = normalizedLeaderboard.length > 0;
+  const currentUserData = userData ? userData : fallbackCurrentUserData;
+  const currentUserPosition = currentUserData.position;
 
   const isUserInTopHundred = currentUserPosition <= 100;
 
   // Pagination calculations
-  const totalPages = Math.ceil(leaderboardData.length / itemsPerPage);
+  const totalEntries =
+    leaderboard?.pagination?.total ?? normalizedLeaderboard.length;
+  const totalPages = Math.max(
+    1,
+    leaderboard?.pagination?.pages ?? Math.ceil(totalEntries / itemsPerPage),
+  );
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const currentPageData = leaderboardData.slice(startIndex, endIndex);
+  const currentPageData = normalizedLeaderboard;
 
   const handlePreviousPage = () => {
     if (currentPage > 1) setCurrentPage(currentPage - 1);
@@ -86,6 +99,61 @@ export function TradingCompetitionPage() {
   const handleNextPage = () => {
     if (currentPage < totalPages) setCurrentPage(currentPage + 1);
   };
+
+  useEffect(() => {
+    const loadCompetitionData = async () => {
+      try {
+        const activeResult = await fetchActiveCompetition();
+        const activeCompetitionId = activeResult.competitionId;
+
+        const competitionResult = await fetchCompetition(activeCompetitionId);
+        console.log(
+          "[TradingCompetition] /competition/:id raw response",
+          competitionResult,
+        );
+
+        const leaderboardResult = await fetchLeaderboard({
+          competitionId: activeCompetitionId,
+          page: currentPage,
+          limit: itemsPerPage,
+        });
+        console.log(
+          "[TradingCompetition] /competition/:id/leaderboard raw response",
+          leaderboardResult,
+        );
+
+        if (walletAddress) {
+          const userResult = await fetchUserCompetitionData({
+            competitionId: activeCompetitionId,
+            address: walletAddress,
+          });
+          console.log(
+            "[TradingCompetition] /competition/:id/user/:address raw response",
+            userResult,
+          );
+        } else {
+          console.log(
+            "[TradingCompetition] skipped /competition/:id/user/:address because no wallet address is available yet",
+          );
+        }
+      } catch (fetchError) {
+        console.error(
+          "[TradingCompetition] failed to load competition data",
+          fetchError,
+        );
+      }
+    };
+
+    loadCompetitionData();
+  }, [
+    currentPage,
+    fetchActiveCompetition,
+    fetchCompetition,
+    fetchLeaderboard,
+    fetchUserCompetitionData,
+    itemsPerPage,
+    walletAddress,
+  ]);
 
   return (
     <div className="space-y-4">
@@ -111,7 +179,6 @@ export function TradingCompetitionPage() {
               </div>
             </div>
           </div>
-         
         </div>
       </div>
 
@@ -134,7 +201,7 @@ export function TradingCompetitionPage() {
                       Your Rank
                     </span>
                     <div className="text-xl font-bold text-gray-900">
-                      #{currentUserData.position}
+                      #{currentUserData.rank}
                     </div>
                   </div>
                 </div>
@@ -146,7 +213,7 @@ export function TradingCompetitionPage() {
                   Portfolios Created
                 </span>
                 <span className="text-lg font-bold text-gray-900">
-                  {currentUserData.portfoliosCreated}
+                  {currentUserData.portfolioCount}
                 </span>
               </div>
 
@@ -158,7 +225,7 @@ export function TradingCompetitionPage() {
                   Total Volume
                 </span>
                 <span className="text-base font-bold text-gray-900">
-                  ${currentUserData.totalValue.toLocaleString()}
+                  ${getFormattedNumber(currentUserData.totalValue, 0)}
                 </span>
               </div>
 
@@ -167,11 +234,11 @@ export function TradingCompetitionPage() {
                 <span className="text-xs text-gray-600 font-semibold">
                   Your Reward
                 </span>
-                {currentUserData.gemReward > 0 ? (
+                {currentUserData?.reward?.gems > 0 ? (
                   <div className="flex items-center gap-1">
                     <Gem className="w-4 h-4 text-purple-600" />
                     <span className="text-base font-bold text-gray-900">
-                      {currentUserData.gemReward.toLocaleString()}
+                      {getFormattedNumber(currentUserData.reward.gems, 0)}
                     </span>
                   </div>
                 ) : (
@@ -186,7 +253,10 @@ export function TradingCompetitionPage() {
           {!isUserInTopHundred && null}
 
           {/* Create Portfolio Button - Below */}
-          <Link to={"/"} className="btn-primary w-full flex items-center justify-center gap-2 text-sm mt-3">
+          <Link
+            to={"/"}
+            className="btn-primary w-full flex items-center justify-center gap-2 text-sm mt-3"
+          >
             <Plus size={16} />
             Create Portfolio
           </Link>
@@ -251,13 +321,11 @@ export function TradingCompetitionPage() {
                   <Crown className="w-3 h-3 text-amber-600" />
                   <span className="font-bold text-xs text-gray-900">Top 3</span>
                 </div>
-               <div className="flex items-center gap-1">
-                   <Gem className="w-4 h-4 text-amber-600" />
+                <div className="flex items-center gap-1">
+                  <Gem className="w-4 h-4 text-amber-600" />
 
-                <p className="text-sm font-bold text-amber-600">
-                  10K-5K
-                </p>
-               </div>
+                  <p className="text-sm font-bold text-amber-600">10K-5K</p>
+                </div>
               </div>
 
               <div className="bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-200 rounded-lg p-2">
@@ -289,10 +357,10 @@ export function TradingCompetitionPage() {
                     51-100
                   </span>
                 </div>
-               <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1">
                   <Gem className="w-4 h-4 text-gray-600" />
                   <p className="text-sm font-bold text-gray-600">250</p>
-               </div>
+                </div>
               </div>
             </div>
           </div>
@@ -330,97 +398,113 @@ export function TradingCompetitionPage() {
 
             {/* Table Rows */}
             <div className="space-y-1">
-              {currentPageData.map((entry) => {
-                const isTopThree = entry.position <= 3;
-                const isCurrentUser =
-                  entry.address === currentUserData.address &&
-                  isUserInTopHundred;
-                const bgColor = isCurrentUser
-                  ? "bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-500"
-                  : entry.position === 1
-                    ? "bg-gradient-to-r from-amber-50 to-yellow-50"
-                    : entry.position === 2
-                      ? "bg-gradient-to-r from-gray-50 to-slate-50"
-                      : entry.position === 3
-                        ? "bg-gradient-to-r from-orange-50 to-amber-50"
-                        : "bg-white/40";
+              {hasLeaderboardRecords ? (
+                currentPageData.map((entry) => {
+                  const isCurrentUser =
+                    entry.address === currentUserData.address &&
+                    isUserInTopHundred;
+                  const bgColor = isCurrentUser
+                    ? "bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-500"
+                    : entry.position === 1
+                      ? "bg-gradient-to-r from-amber-50 to-yellow-50"
+                      : entry.position === 2
+                        ? "bg-gradient-to-r from-gray-50 to-slate-50"
+                        : entry.position === 3
+                          ? "bg-gradient-to-r from-orange-50 to-amber-50"
+                          : "bg-white/40";
 
-                return (
-                  <div
-                    key={entry.position}
-                    className={`grid grid-cols-[80px_1fr_140px_140px_200px] gap-4 px-4 py-3 ${bgColor} backdrop-blur-sm border border-white/60 rounded-lg hover:shadow-md transition-all ${isCurrentUser ? "ring-2 ring-blue-400" : ""}`}
-                  >
-                    {/* Rank */}
-                    <div className="flex items-center gap-2">
-                      {entry.position === 1 ? (
-                        <div className="w-8 h-8 rounded-full flex items-center justify-center bg-gradient-to-br from-amber-400 to-yellow-500 shadow-lg">
-                          <Crown className="w-5 h-5 text-white" />
-                        </div>
-                      ) : entry.position === 2 ? (
-                        <div className="w-8 h-8 rounded-full flex items-center justify-center bg-gradient-to-br from-gray-300 to-slate-400 shadow-lg">
-                          <Medal className="w-5 h-5 text-white" />
-                        </div>
-                      ) : entry.position === 3 ? (
-                        <div className="w-8 h-8 rounded-full flex items-center justify-center bg-gradient-to-br from-orange-400 to-amber-500 shadow-lg">
-                          <Award className="w-5 h-5 text-white" />
-                        </div>
-                      ) : (
-                        <div
-                          className={`w-8 h-8 rounded-full flex items-center justify-center ${isCurrentUser ? "bg-blue-500" : "bg-gray-100"}`}
-                        >
-                          <span
-                            className={`text-sm font-bold ${isCurrentUser ? "text-white" : "text-gray-700"}`}
-                          >
-                            {entry.position}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Wallet Address */}
-                    <div className="flex items-center">
+                  return (
+                    <div
+                      key={entry.position}
+                      className={`grid grid-cols-[80px_1fr_140px_140px_200px] gap-4 px-4 py-3 ${bgColor} backdrop-blur-sm border border-white/60 rounded-lg hover:shadow-md transition-all ${isCurrentUser ? "ring-2 ring-blue-400" : ""}`}
+                    >
+                      {/* Rank */}
                       <div className="flex items-center gap-2">
-                        <Wallet className="w-4 h-4 text-gray-400" />
-                        <span className="font-mono text-sm text-gray-700">
-                          {entry.address}
-                        </span>
-                        {isCurrentUser && (
-                          <span className="text-xs font-bold text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">
-                            YOU
-                          </span>
+                        {entry.position === 1 ? (
+                          <div className="w-8 h-8 rounded-full flex items-center justify-center bg-gradient-to-br from-amber-400 to-yellow-500 shadow-lg">
+                            <Crown className="w-5 h-5 text-white" />
+                          </div>
+                        ) : entry.position === 2 ? (
+                          <div className="w-8 h-8 rounded-full flex items-center justify-center bg-gradient-to-br from-gray-300 to-slate-400 shadow-lg">
+                            <Medal className="w-5 h-5 text-white" />
+                          </div>
+                        ) : entry.position === 3 ? (
+                          <div className="w-8 h-8 rounded-full flex items-center justify-center bg-gradient-to-br from-orange-400 to-amber-500 shadow-lg">
+                            <Award className="w-5 h-5 text-white" />
+                          </div>
+                        ) : (
+                          <div
+                            className={`w-8 h-8 rounded-full flex items-center justify-center ${isCurrentUser ? "bg-blue-500" : "bg-gray-100"}`}
+                          >
+                            <span
+                              className={`text-sm font-bold ${isCurrentUser ? "text-white" : "text-gray-700"}`}
+                            >
+                              {entry.position}
+                            </span>
+                          </div>
                         )}
                       </div>
-                    </div>
 
-                    {/* Portfolios Created */}
-                    <div className="flex items-center justify-end">
-                      <span className="text-sm font-semibold text-gray-900">
-                        {entry.portfoliosCreated}
-                      </span>
-                    </div>
+                      {/* Wallet Address */}
+                      <div className="flex items-center">
+                        <div className="flex items-center gap-2">
+                          <Wallet className="w-4 h-4 text-gray-400" />
+                          <span className="font-mono text-sm text-gray-700">
+                            {shortAddress(entry.address)}
+                          </span>
+                          {isCurrentUser && (
+                            <span className="text-xs font-bold text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">
+                              YOU
+                            </span>
+                          )}
+                        </div>
+                      </div>
 
-                    {/* Total Value */}
-                    <div className="flex items-center justify-end">
-                      <span className="text-sm font-bold text-gray-900">
-                        ${entry.totalValue.toLocaleString()}
-                      </span>
-                    </div>
-
-                    {/* Reward */}
-                    <div className="flex items-center justify-end">
-                      <div className="flex items-center gap-1.5">
-                        <Gem className="w-4 h-4 text-purple-600" />
-                        <span className="text-sm font-bold text-gray-900">
-                          {entry.gemReward.toLocaleString()}
-                        </span>
-                        <span className="text-sm font-bold text-gray-600">
-                           (${(entry.gemReward * 5).toLocaleString()})
+                      {/* Portfolios Created */}
+                      <div className="flex items-center justify-end">
+                        <span className="text-sm font-semibold text-gray-900">
+                          {entry.portfoliosCreated}
                         </span>
                       </div>
+
+                      {/* Total Value */}
+                      <div className="flex items-center justify-end">
+                        <span className="text-sm font-bold text-gray-900">
+                          ${entry.totalValue.toLocaleString()}
+                        </span>
+                      </div>
+
+                      {/* Reward */}
+                      <div className="flex items-center justify-end">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-sm font-bold text-gray-900">
+                            ${(entry.gemReward?.gems * 5).toLocaleString()}
+                          </span>
+
+                          <span className="text-sm font-bold text-gray-600">
+                            <div className="flex items-center">
+                              {" "}
+                              (
+                              <Gem className="w-4 h-4 text-purple-600 mr-1" />
+                              {entry.gemReward?.gems.toLocaleString()})
+                            </div>
+                          </span>
+                        </div>
+                      </div>
                     </div>
+                  );
+                })
+              ) : (
+                <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50/70 px-6 py-10 text-center">
+                  <div className="text-sm font-semibold text-gray-900">
+                    No leaderboard records yet
                   </div>
-                );
-              })}
+                  <div className="mt-2 text-sm text-gray-500">
+                    Rankings will appear here once participants start creating
+                    portfolios.
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -428,16 +512,16 @@ export function TradingCompetitionPage() {
         {/* Pagination Controls */}
         <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200">
           <div className="text-sm text-gray-600">
-            Showing {startIndex + 1}-
-            {Math.min(endIndex, leaderboardData.length)} of{" "}
-            {leaderboardData.length}
+            {hasLeaderboardRecords
+              ? `Showing ${startIndex + 1}-${Math.min(startIndex + currentPageData.length, totalEntries)} of ${totalEntries}`
+              : "No leaderboard entries to display"}
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={handlePreviousPage}
-              disabled={currentPage === 1}
+              disabled={currentPage === 1 || !hasLeaderboardRecords}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
-                currentPage === 1
+                currentPage === 1 || !hasLeaderboardRecords
                   ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                   : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50"
               }`}
@@ -477,9 +561,9 @@ export function TradingCompetitionPage() {
 
             <button
               onClick={handleNextPage}
-              disabled={currentPage === totalPages}
+              disabled={currentPage === totalPages || !hasLeaderboardRecords}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
-                currentPage === totalPages
+                currentPage === totalPages || !hasLeaderboardRecords
                   ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                   : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50"
               }`}

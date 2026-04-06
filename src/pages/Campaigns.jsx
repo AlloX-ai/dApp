@@ -21,7 +21,7 @@ export function CampaignsPage() {
       </div>
 
       {/* Campaign Cards Grid */}
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="grid xl:grid-cols-2 gap-6">
         {/* Trading Competition Card */}
         <button
           onClick={() => setActiveTab("trading")}
