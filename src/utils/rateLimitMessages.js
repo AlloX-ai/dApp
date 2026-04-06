@@ -1,14 +1,18 @@
 /** Daily free pool (resets on window). */
 export function getDailyMessagesRemaining(rateLimit) {
   if (!rateLimit) return null;
-  const v = rateLimit.remaining ?? rateLimit.messagesRemaining;
+  const v =
+    rateLimit.remaining ??
+    rateLimit.messagesRemaining ??
+    rateLimit.messages_remaining;
   return typeof v === "number" ? v : null;
 }
 
 /** Purchased / bonus messages (lifetime; consumed before daily). */
 export function getBonusMessages(rateLimit) {
-  if (!rateLimit || typeof rateLimit.bonusMessages !== "number") return null;
-  return rateLimit.bonusMessages;
+  if (!rateLimit) return null;
+  const v = rateLimit.bonusMessages ?? rateLimit.bonus_messages;
+  return typeof v === "number" ? v : null;
 }
 
 /** Total sendable messages when API exposes daily and/or bonus counts. */

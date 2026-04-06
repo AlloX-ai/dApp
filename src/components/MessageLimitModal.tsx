@@ -22,7 +22,11 @@ import {
   getPrivyEmbedded,
   switchPrivyEmbeddedToChain,
 } from "../utils/privyWalletUtils";
-import { fetchChatStatus as fetchChatStatusApi } from "../utils/chatStatusFetch";
+import {
+  applyOptimisticPurchasedMessages,
+  applyRateLimitFromServerPayload,
+  refreshRateLimitAfterMessagePurchase,
+} from "../utils/chatStatusFetch";
 import {
   fetchMessagePackages,
   findErc20PriceForToken,
@@ -465,13 +469,15 @@ export function MessageLimitModal({
           fromPubkey: effectiveSolanaAddress,
           sendTransaction: sendTransaction ?? undefined,
         });
-        await postMessagePurchase({
+        const purchaseRes = await postMessagePurchase({
           txHash,
           chain: "solana",
           packageId: pkg.id,
           token: selectedToken,
         });
-        await fetchChatStatusApi(dispatch, { setUser });
+        applyOptimisticPurchasedMessages(dispatch, setUser, pkg.messages);
+        applyRateLimitFromServerPayload(dispatch, setUser, purchaseRes);
+        await refreshRateLimitAfterMessagePurchase(dispatch, setUser);
         toast.success("Purchase submitted");
         onPurchaseSuccess?.();
         onClose();
@@ -515,13 +521,15 @@ export function MessageLimitModal({
 
         const tokenForApi = tok.type === "native" ? tok.type : selectedToken;
 
-        await postMessagePurchase({
+        const purchaseResPrivy = await postMessagePurchase({
           txHash,
           chain: chainKey,
           packageId: pkg.id,
           token: tokenForApi,
         });
-        await fetchChatStatusApi(dispatch, { setUser });
+        applyOptimisticPurchasedMessages(dispatch, setUser, pkg.messages);
+        applyRateLimitFromServerPayload(dispatch, setUser, purchaseResPrivy);
+        await refreshRateLimitAfterMessagePurchase(dispatch, setUser);
         toast.success("Purchase confirmed");
         onPurchaseSuccess?.();
         onClose();
@@ -548,13 +556,15 @@ export function MessageLimitModal({
 
       const tokenForApi = tok.type === "native" ? tok.type : selectedToken;
 
-      await postMessagePurchase({
+      const purchaseRes = await postMessagePurchase({
         txHash,
         chain: chainKey,
         packageId: pkg.id,
         token: tokenForApi,
       });
-      await fetchChatStatusApi(dispatch, { setUser });
+      applyOptimisticPurchasedMessages(dispatch, setUser, pkg.messages);
+      applyRateLimitFromServerPayload(dispatch, setUser, purchaseRes);
+      await refreshRateLimitAfterMessagePurchase(dispatch, setUser);
       toast.success("Purchase confirmed");
       onPurchaseSuccess?.();
       onClose();
