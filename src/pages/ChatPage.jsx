@@ -34,6 +34,7 @@ import {
 } from "../redux/slices/pointsSlice";
 import { apiCall } from "../utils/api";
 import { fetchChatStatus as fetchChatStatusApi } from "../utils/chatStatusFetch";
+import { getTotalMessagesRemaining } from "../utils/rateLimitMessages";
 
 import {
   executePortfolioOnChain,
@@ -141,7 +142,7 @@ export function ChatPage() {
   const walletChainId = useSelector((state) => state.wallet.chainId);
   const walletAddress = useSelector((state) => state.wallet.address);
   const pointsBalance = useSelector((state) => state.points?.balance);
-  const messagesRemaining = rateLimit?.remaining;
+  const messagesRemaining = getTotalMessagesRemaining(rateLimit);
   const resetAt = rateLimit?.resetAt;
   const canRefresh = chatStatus?.activity?.canRefresh === true;
   const {

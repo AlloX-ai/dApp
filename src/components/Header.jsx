@@ -23,6 +23,11 @@ import OutsideClickHandler from "react-outside-click-handler";
 import { findSeason2RewardForWallet } from "../constants/rewards";
 import { MessageLimitModal } from "./MessageLimitModal";
 import { useAuth } from "../hooks/useAuth";
+import {
+  getBonusMessages,
+  getDailyMessagesRemaining,
+  getTotalMessagesRemaining,
+} from "../utils/rateLimitMessages";
 
 export function Header({
   isConnected,
@@ -35,8 +40,9 @@ export function Header({
   const { pathname } = useLocation();
   const rateLimit = useSelector((state) => state.chat?.rateLimit);
   const { totalPoints } = useTotalPoints();
-  const messagesRemaining =
-    rateLimit?.remaining ?? rateLimit?.messagesRemaining;
+  const messagesRemaining = getTotalMessagesRemaining(rateLimit);
+  const dailyMessagesRemaining = getDailyMessagesRemaining(rateLimit);
+  const bonusMessages = getBonusMessages(rateLimit);
   const dispatch = useDispatch();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -325,7 +331,8 @@ export function Header({
        <MessageLimitModal
           isOpen={messageLimitModalOpen}
           onClose={() => setMessageLimitModalOpen(false)}
-          messagesRemaining={messagesRemaining}
+          dailyMessagesRemaining={dailyMessagesRemaining}
+          bonusMessages={bonusMessages}
         />
 </>
   );

@@ -62,6 +62,9 @@ import { useSocial } from "./hooks/useSocial";
 import { CongratsModal } from "./components/CongratsModal";
 import { CampaignsPage } from "./pages/Campaigns";
 import { PrivyFundModal } from "./components/PrivyFundModal";
+import { MaintenancePage } from "./pages/MaintenancePage";
+
+const MAINTENANCE_MODE = false;
 
 const SOLANA_MAINNET_CHAIN_ID = 101;
 const PREFERRED_CHAIN_STORAGE_KEY = "walletPreferredChainId";
@@ -79,21 +82,16 @@ async function disconnectAllEvmWagmi() {
   }
 }
 
-async function getStoredAuthUser() {
+/** Parsed `authUser` from localStorage — same shape as `useAuth` / `AUTH_USER_KEY`. */
+function getStoredAuthUser() {
   try {
-    const resp = await provider.connect({ onlyIfTrusted: true });
-    const walletAddress = resp.publicKey?.toString?.() ?? resp.publicKey;
-    if (!walletAddress) return false;
-    dispatch(setWalletType("solana"));
-    dispatch(setAddress(walletAddress));
-    dispatch(setIsConnected(true));
-    dispatch(setWalletModal(false));
-    dispatch(setSessionSource("wallet"));
-    return true;
-  } catch {
-    return false;
+    const raw = localStorage.getItem(AUTH_USER_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (e) {
+    console.error(e);
+    return null;
   }
-  return null;
 }
 
 /** After Privy login, move embedded wallet to BNB Chain (56) so check-in and on-chain flows match Redux. */
@@ -213,11 +211,9 @@ function LaunchAppLayout() {
     if (token) return;
     if (authTriggeredRef.current) return;
     authTriggeredRef.current = true;
-    ensureAuthRef
-      .current()
-      .catch(() => {
-        authTriggeredRef.current = false;
-      });
+    ensureAuthRef.current().catch(() => {
+      authTriggeredRef.current = false;
+    });
   }, [isConnected, token, address, walletType]);
 
   useEffect(() => {
@@ -238,7 +234,8 @@ function LaunchAppLayout() {
     if (
       limit != null &&
       (typeof limit.remaining === "number" ||
-        typeof limit.messagesRemaining === "number")
+        typeof limit.messagesRemaining === "number" ||
+        typeof limit.bonusMessages === "number")
     ) {
       dispatch(setRateLimit(user?.season1?.rateLimit));
     }
@@ -246,6 +243,7 @@ function LaunchAppLayout() {
     user?.season1?.rateLimit,
     user?.season1?.rateLimit?.remaining,
     user?.season1?.rateLimit?.messagesRemaining,
+    user?.season1?.rateLimit?.bonusMessages,
     dispatch,
   ]);
 
@@ -599,14 +597,16 @@ function WalletSync() {
           if (!isPrivySessionActive()) dispatch(setIsConnected(false));
           break;
         case "connecting":
-          if (!isPrivySessionActive() || !localStorage.getItem("authToken")) dispatch(setIsConnected(false));
+          if (!isPrivySessionActive() || !localStorage.getItem("authToken"))
+            dispatch(setIsConnected(false));
           break;
         case "disconnected":
         default:
           if (disconnectTimeoutId) clearTimeout(disconnectTimeoutId);
           disconnectTimeoutId = setTimeout(() => {
             disconnectTimeoutId = null;
-            if (isPrivySessionActive()|| localStorage.getItem("authToken")) return;
+            if (isPrivySessionActive() || localStorage.getItem("authToken"))
+              return;
             dispatch(setAddress(null));
             dispatch(setIsConnected(false));
             dispatch(setWalletType(""));
@@ -783,7 +783,16 @@ function App() {
     // App only decides visibility; storage updates happen in CongratsModal after open.
     setShowModal(lastShown !== today && count < 3);
   }, [lastShown, count]);
-  
+
+  if (MAINTENANCE_MODE) {
+    return (
+      <>
+        <Toaster position="top-right" richColors closeButton />
+        <MaintenancePage />
+      </>
+    );
+  }
+
   return (
     <>
       <PrivyLogoutBridge />

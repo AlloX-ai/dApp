@@ -97,6 +97,26 @@ const CHAIN_KEY_TO_WAGMI_ID: Record<Exclude<MessageChainKey, "solana">, number> 
     base: 8453,
   };
 
+/** Aligns with NetworkSelector numeric IDs (EVM + Solana mainnet). */
+export function getEvmChainNumericIdForMessageChainKey(
+  key: Exclude<MessageChainKey, "solana">,
+): number {
+  return CHAIN_KEY_TO_WAGMI_ID[key];
+}
+
+export function messageChainKeyFromWalletChainId(
+  chainId: number | null | undefined,
+): MessageChainKey | null {
+  if (chainId == null) return null;
+  const map: Record<number, MessageChainKey> = {
+    1: "ethereum",
+    56: "bnb",
+    8453: "base",
+    101: "solana",
+  };
+  return map[chainId] ?? null;
+}
+
 const FALLBACK_EVM_CONTRACT: Record<Exclude<MessageChainKey, "solana">, string> =
   {
     ethereum: buy_messages_eth_address,
