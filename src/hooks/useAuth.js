@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useAccount, useSignMessage } from "wagmi";
+import { useWallet } from "@solana/wallet-adapter-react";
 import bs58 from "bs58";
-import { apiCall } from "../utils/api";
+import { apiCall, getApiUrl } from "../utils/api";
 import { setWalletType } from "../redux/slices/walletSlice";
+import { runPrivyLogoutBridge } from "../auth/privyLogoutBridge";
 
 const AUTH_USER_KEY = "authUser";
 
@@ -75,10 +77,53 @@ const setGlobalUser = (nextUser) => {
   notifySubscribers();
 };
 
+/**
+ * Exchange Privy access token for app JWT + user (same contract as wallet /auth/verify).
+ * Does not send Bearer — this endpoint uses privyToken only.
+ */
+export async function completePrivyAuth(privyToken) {
+  if (!privyToken) {
+    throw new Error("Missing Privy token");
+  }
+  const res = await fetch(`${getApiUrl()}/auth/privy-verify`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ privyToken }),
+  });
+  let data = {};
+  try {
+    data = await res.json();
+  } catch {
+    data = {};
+  }
+  if (!res.ok) {
+    throw {
+      status: res.status,
+      message: data.error || data.message || "Privy verification failed",
+      data,
+    };
+  }
+  if (!data.token) {
+    throw new Error("Missing auth token");
+  }
+  setGlobalToken(data.token);
+  const nextUser = data.user
+    ? {
+        ...data.user,
+        ...(data.authProvider != null ? { authProvider: data.authProvider } : {}),
+      }
+    : null;
+  if (nextUser) {
+    setGlobalUser(nextUser);
+  }
+  return data;
+}
+
 export const useAuth = () => {
   const dispatch = useDispatch();
   const { address: evmAddress } = useAccount();
   const { signMessageAsync } = useSignMessage();
+  const { signMessage: signMessageSolana } = useWallet();
   const walletAddress = useSelector((state) => state.wallet.address);
   const walletType = useSelector((state) => state.wallet.walletType);
 
@@ -94,6 +139,12 @@ export const useAuth = () => {
   }, []);
 
   const { token, user } = state;
+
+  const authInFlightRef = useRef(null);
+
+  useEffect(() => {
+    authInFlightRef.current = null;
+  }, [address, walletType]);
 
   const setUser = useCallback((nextUser) => {
     setGlobalUser(nextUser);
@@ -119,11 +170,9 @@ export const useAuth = () => {
     let signature;
 
     if (walletTypeFromApi === "solana") {
-      const provider = window.phantom?.solana;
-      if (!provider) throw new Error("Phantom not connected");
+      if (!signMessageSolana) throw new Error("Solana wallet not connected");
       const encodedMessage = new TextEncoder().encode(message);
-      const signed = await provider.signMessage(encodedMessage, "utf8");
-      const rawSig = signed?.signature ?? signed;
+      const rawSig = await signMessageSolana(encodedMessage);
       signature =
         typeof rawSig === "string"
           ? rawSig
@@ -141,14 +190,21 @@ export const useAuth = () => {
       throw new Error("Missing auth token");
     }
 
+    // Always persist user with walletType and address so session restore and guards work after navigate
     setGlobalToken(verifyRes.token);
     if (verifyRes.user) {
-      setUser({ ...verifyRes.user, walletType: walletTypeFromApi });
+      setUser({
+        ...verifyRes.user,
+        walletType: walletTypeFromApi,
+        address: verifyRes.user.address ?? address,
+      });
     } else {
       const stored = loadStoredUser();
-      if (stored) {
-        setUser({ ...stored, walletType: walletTypeFromApi });
-      }
+      setUser(
+        stored
+          ? { ...stored, walletType: walletTypeFromApi, address: stored.address ?? address }
+          : { walletType: walletTypeFromApi, address },
+      );
     }
 
     if (walletTypeFromApi) {
@@ -156,7 +212,7 @@ export const useAuth = () => {
     }
 
     return { token: verifyRes.token, user: verifyRes.user };
-  }, [address, walletType, signMessageAsync, setUser, dispatch]);
+  }, [address, walletType, signMessageAsync, signMessageSolana, setUser, dispatch]);
 
   const claimSeason1 = useCallback(async () => {
     const t = token || localStorage.getItem("authToken");
@@ -169,14 +225,31 @@ export const useAuth = () => {
   const ensureAuthenticated = useCallback(async () => {
     if (token) return token;
     if (!address) throw new Error("Wallet not connected");
-    const res = await authenticate();
-    return res?.token ?? token;
+    if (authInFlightRef.current) return authInFlightRef.current;
+    const p = authenticate()
+      .then((res) => res?.token ?? token)
+      .finally(() => {
+        authInFlightRef.current = null;
+      });
+    authInFlightRef.current = p;
+    return p;
   }, [token, address, authenticate]);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    await runPrivyLogoutBridge();
     setGlobalToken(null);
     setGlobalUser(null);
+    try {
+      localStorage.removeItem("chatCount");
+      localStorage.removeItem("chatDate");
+    } catch (e) {
+      console.error(e);
+    }
   }, []);
+
+  // Resilient to state/localStorage race after navigate: treat as authenticated if token is in state or localStorage
+  const isAuthenticated =
+    !!token || (typeof localStorage !== "undefined" && !!localStorage.getItem("authToken"));
 
   return {
     token,
@@ -186,6 +259,6 @@ export const useAuth = () => {
     ensureAuthenticated,
     claimSeason1,
     logout,
-    isAuthenticated: !!token,
+    isAuthenticated,
   };
 };

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router";
 import { useDispatch, useSelector } from "react-redux";
 import { openCheckinModal } from "../redux/slices/walletSlice";
@@ -9,7 +9,6 @@ import {
   ChevronRight,
   Copy,
   Check,
-  Sparkles,
   SendHorizontal,
   Coins,
   Gem,
@@ -20,27 +19,36 @@ import { useCheckin } from "../hooks/useCheckin";
 import { useTotalPoints } from "../hooks/useTotalPoints";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { navigationTabs, isActivePath } from "../constants/navigation";
-import OutsideClickHandler from "react-outside-click-handler/build/OutsideClickHandler";
+import OutsideClickHandler from "react-outside-click-handler";
+import { findSeason2RewardForWallet } from "../constants/rewards";
+import { MessageLimitModal } from "./MessageLimitModal";
+import { useAuth } from "../hooks/useAuth";
 
 export function Header({
   isConnected,
   coinbase,
   onConnectClick,
   onDisconnectClick,
+  onOpenFundModal,
 }) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const rateLimit = useSelector((state) => state.chat?.rateLimit);
   const { totalPoints } = useTotalPoints();
-  const walletAddress = useSelector((state) => state.wallet.address);
   const messagesRemaining =
     rateLimit?.remaining ?? rateLimit?.messagesRemaining;
   const dispatch = useDispatch();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
+  const [messageLimitModalOpen, setMessageLimitModalOpen] = useState(false);
 
+  const user = useMemo(
+    () => findSeason2RewardForWallet(coinbase),
+    [coinbase],
+  );
   const { checkedInToday } = useCheckin();
+  const { user: authUser } = useAuth();
 
   const handleOpenCheckinModal = () => {
     dispatch(openCheckinModal());
@@ -57,6 +65,7 @@ export function Header({
   };
 
   return (
+<>
     <header className="fixed top-0 left-0 right-0 z-50 px-6 py-4 bg-pattern/95 backdrop-blur-lg border-b border-gray-200/50">
       <div className="flex items-center justify-between">
         <NavLink className="flex items-center gap-2 cursor-pointer" to="/">
@@ -91,24 +100,22 @@ export function Header({
                   {totalPoints.toLocaleString()}
                 </span>
               </div>
-              {messagesRemaining != null && (
+              {(messagesRemaining != null || user) && (
                 <div className="border-l border-gray-200/60 pl-3 flex items-center gap-2">
                   <Gem className="size-4 text-purple-600" />
-                  <span className="text-xs sm:text-sm font-semibold tabular-nums">0 <span className="text-xs sm:text-sm font-semibold tabular-nums text-[#4A5565]">($0)</span></span>
+                  <span className="text-xs sm:text-sm font-semibold tabular-nums flex">
+                    {user ? user.gems : 0}
+                    <span className="text-xs sm:text-sm font-semibold tabular-nums text-[#4A5565]">
+                      (${user ? user.gems * 5 : 0})
+                    </span>
+                  </span>
                 </div>
               )}
             </div>
-            {totalPoints >= 0 && isConnected && (
-              <Tooltip
-                open={showTooltip}
-                // onOpenChange={(open) => {
-                //     if (!open) setShowTooltip(false);
-                // }}
-              >
-                <TooltipTrigger asChild>
-                  <div
+            {totalPoints >= 0 && isConnected && 
+              <div
                     className="bg-white rounded-full px-3 py-2 flex items-center gap-3 cursor-pointer hover:bg-gray-200 transition-color"
-                    onClick={handleLaunchClick}
+                    onClick={() => setMessageLimitModalOpen(true)}
                     role="button"
                   >
                     {messagesRemaining != null && (
@@ -120,23 +127,57 @@ export function Header({
                       </div>
                     )}
                   </div>
+            }
+            {/* {totalPoints >= 0 && isConnected && (
+              <Tooltip
+                open={showTooltip}
+              
+              >
+                <TooltipTrigger asChild>
+                
                 </TooltipTrigger>
                 <TooltipContent
                   side="bottom"
                   sideOffset={10}
                   hideArrow={true}
-                  className="border border-neutral-200/80 bg-white/95 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.08),0_2px_8px_rgba(0,0,0,0.04)] rounded-2xl px-4 py-3 text-sm font-medium text-neutral-800 flex items-center gap-2.5 [&>svg]:text-amber-500"
+                  className="border border-neutral-200/80 max-w-[370px] bg-white/95 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.08),0_2px_8px_rgba(0,0,0,0.04)] rounded-2xl px-2 py-2 text-sm font-medium text-neutral-800 flex items-center gap-2.5 [&>svg]:text-amber-500"
                 >
-                  <div className="flex flex-col gap-2 p-3 w-fit">
-                    <span className="flex gap-2 items-center">
-                      Limit 20 messages per 24 hours
-                    </span>
+                  <div className="flex flex-col gap-2 p-1 w-fit items-center justify-center">
+                    <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-3 border-2 border-indigo-200 hover:shadow-md transition-shadow">
+                      <span className="w-full">
+                        <b>Daily limit:</b> You have {messagesRemaining}{" "}
+                        messages remaining today. The limit resets every 24
+                        hours.
+                      </span>
+                    </div>
+                    <button
+                      onMouseDown={(event) => {
+                        // Tooltip content renders in a portal, so outside-click can
+                        // close it before click fires. Open modal on mousedown first.
+                        event.preventDefault();
+                        event.stopPropagation();
+                        setMessageLimitModalOpen(true);
+                        setShowTooltip(false);
+                      }}
+                      className="bg-black w-fit text-white px-8 py-3 rounded-xl font-semibold hover:bg-black/80 transition-colors"
+                    >
+                      Buy Messages
+                    </button>
                   </div>
                 </TooltipContent>
               </Tooltip>
-            )}
+            )} */}
             {isConnected ? (
               <div className="glass-card px-0 md:pr-4 flex items-center gap-3 transition-all duration-200 hover:shadow-md">
+                {authUser?.authProvider === "privy" && (
+                  <button
+                    type="button"
+                    onClick={onOpenFundModal}
+                    className="hidden md:inline-flex ml-2 text-xs font-semibold px-3 py-2 rounded-full bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+                  >
+                    Add funds
+                  </button>
+                )}
                 {/* <div className="hidden md:flex"> */}
                 <NetworkSelector onDisconnectClick={onDisconnectClick} />
                 {/* </div> */}
@@ -185,7 +226,9 @@ export function Header({
                     ></div>
                     <div className="fixed left-0 right-0 top-20 z-50 animate-fade-in">
                       <div className="mobile-menu-open bg-white p-3 space-y-2 shadow-xl shadow-black/10">
-                        {navigationTabs.map(({ id, label, path, Icon }) => {
+                        {navigationTabs.map((tab) => {
+                          const { id, label, path } = tab;
+                          const NavIcon = tab.Icon;
                           const isActive = isActivePath(pathname, path);
                           return (
                             <button
@@ -202,13 +245,25 @@ export function Header({
                               aria-current={isActive ? "page" : undefined}
                             >
                               <span className="flex items-center gap-3">
-                                <Icon size={20} />
+                                <NavIcon size={20} />
                                 {label}
                               </span>
                               <ChevronRight size={18} />
                             </button>
                           );
                         })}
+                        {isConnected && authUser?.authProvider === "privy" && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onOpenFundModal();
+                              setIsMenuOpen(false);
+                            }}
+                            className="w-full text-left px-4 py-3 rounded-xl text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+                          >
+                            Add funds
+                          </button>
+                        )}
                         {isConnected && (
                           <div className="flex items-center gap-2 justify-between">
                             <span
@@ -264,7 +319,14 @@ export function Header({
             </div>
           </div>
         </OutsideClickHandler>
+     
       </div>
     </header>
+       <MessageLimitModal
+          isOpen={messageLimitModalOpen}
+          onClose={() => setMessageLimitModalOpen(false)}
+          messagesRemaining={messagesRemaining}
+        />
+</>
   );
 }
