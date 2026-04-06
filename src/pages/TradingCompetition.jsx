@@ -171,10 +171,13 @@ export function TradingCompetitionPage() {
                   Total Prize Pool
                 </div>
                 <div className="flex items-center gap-2">
-                  <Gem className="w-5 h-5 text-amber-600" />
-                  <div className="font-bold  text-xs sm:text-base text-gray-900">
-                    100,000 <span className="text-amber-600">($500,000)</span>
-                  </div>
+                    <span className="text-gray-900 font-bold">$500,000</span>
+                    <div className="flex items-center text-amber-600">
+                      (  <Gem className="w-5 h-5 text-amber-600 pr-1" />
+                  <div className="font-bold  text-xs sm:text-base text-amber-600">
+                    100,000 
+                  </div>)
+                    </div>
                 </div>
               </div>
             </div>
@@ -236,10 +239,17 @@ export function TradingCompetitionPage() {
                 </span>
                 {currentUserData?.reward?.gems > 0 ? (
                   <div className="flex items-center gap-1">
-                    <Gem className="w-4 h-4 text-purple-600" />
                     <span className="text-base font-bold text-gray-900">
-                      {getFormattedNumber(currentUserData.reward.gems, 0)}
+                      ${getFormattedNumber(currentUserData.reward.gems * 5, 0)}
                     </span>
+                    <div className="flex items-center">
+                      (
+                      <Gem className="w-4 h-4 text-purple-600 pr-1" />
+                      <span className="text-base font-bold text-gray-600">
+                        {getFormattedNumber(currentUserData.reward.gems, 0)}
+                      </span>
+                      )
+                    </div>
                   </div>
                 ) : (
                   <div className="text-xs font-bold text-gray-400">
@@ -397,14 +407,14 @@ export function TradingCompetitionPage() {
             </div>
 
             {/* Table Rows */}
-            <div className="space-y-1">
+            <div className="space-y-1 p-1">
               {hasLeaderboardRecords ? (
                 currentPageData.map((entry) => {
                   const isCurrentUser =
                     entry.address === currentUserData.address &&
                     isUserInTopHundred;
                   const bgColor = isCurrentUser
-                    ? "bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-500"
+                    ? "bg-gradient-to-r from-green-50 to-indigo-50 border-2 border-green-500"
                     : entry.position === 1
                       ? "bg-gradient-to-r from-amber-50 to-yellow-50"
                       : entry.position === 2
@@ -416,7 +426,7 @@ export function TradingCompetitionPage() {
                   return (
                     <div
                       key={entry.position}
-                      className={`grid grid-cols-[80px_1fr_140px_140px_200px] gap-4 px-4 py-3 ${bgColor} backdrop-blur-sm border border-white/60 rounded-lg hover:shadow-md transition-all ${isCurrentUser ? "ring-2 ring-blue-400" : ""}`}
+                      className={`grid grid-cols-[80px_1fr_140px_140px_200px] gap-4 px-4 py-3 ${bgColor} backdrop-blur-sm border border-white/60 rounded-lg hover:shadow-md transition-all ${isCurrentUser ? "ring-2 ring-green-400" : entry.position >= 4 && entry.position <= 10 ? "ring-1 ring-purple-300" : entry.position >= 11 && entry.position <= 50 ? "ring-1 ring-blue-300" : entry.position >= 51 && entry.position <= 100 ? "ring-1 ring-gray-300" : ""}`}
                     >
                       {/* Rank */}
                       <div className="flex items-center gap-2">
@@ -434,10 +444,10 @@ export function TradingCompetitionPage() {
                           </div>
                         ) : (
                           <div
-                            className={`w-8 h-8 rounded-full flex items-center justify-center ${isCurrentUser ? "bg-blue-500" : "bg-gray-100"}`}
+                            className={`w-8 h-8 rounded-full flex items-center justify-center  bg-gray-100`}
                           >
                             <span
-                              className={`text-sm font-bold ${isCurrentUser ? "text-white" : "text-gray-700"}`}
+                              className={`text-xs font-bold ${isCurrentUser ? "text-green-700" : entry.position >= 4 && entry.position <= 10 ? "text-purple-700" : entry.position >= 11 && entry.position <= 50 ? "text-blue-700" : entry.position >= 51 && entry.position <= 100 ? "text-gray-700" : ""}`}
                             >
                               {entry.position}
                             </span>
@@ -453,7 +463,7 @@ export function TradingCompetitionPage() {
                             {shortAddress(entry.address)}
                           </span>
                           {isCurrentUser && (
-                            <span className="text-xs font-bold text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">
+                            <span className="text-xs font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded-full">
                               YOU
                             </span>
                           )}
