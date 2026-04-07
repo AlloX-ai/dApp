@@ -63,6 +63,7 @@ import { CongratsModal } from "./components/CongratsModal";
 import { CampaignsPage } from "./pages/Campaigns";
 import { PrivyFundModal } from "./components/PrivyFundModal";
 import { MaintenancePage } from "./pages/MaintenancePage";
+import { TopPortfoliosPage } from "./pages/TopPortfoliosPage";
 
 const MAINTENANCE_MODE = false;
 
@@ -809,6 +810,7 @@ function App() {
         >
           <Route index element={<ChatPage />} />
           <Route path="/portfolio" element={<PortfolioPage />} />
+          <Route path="/top-portfolios" element={<TopPortfoliosPage />} />
           <Route path="/campaigns" element={<CampaignsPage />} />
           <Route path="/rewards" element={<PointsPage />} />
 
