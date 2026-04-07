@@ -1,5 +1,6 @@
 import {
   getAccount,
+  getPublicClient,
   readContract as wagmiReadContract,
   sendTransaction as wagmiSendTransaction,
   waitForTransactionReceipt as wagmiWaitForTransactionReceipt,
@@ -72,6 +73,62 @@ const PERMIT2_ABI = [
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const BSC_CHAIN_ID = 56;
+const RECEIPT_WAIT_TIMEOUT_MS = 120000;
+const RECEIPT_POLL_INTERVAL_MS = 2500;
+const RECEIPT_POLL_MAX_ATTEMPTS = 120;
+const POSITION_STATUS_POLL_INTERVAL_MS = 1500;
+const POSITION_STATUS_MAX_ATTEMPTS = 120;
+
+const normalizeTxHash = (txResult) => {
+  if (typeof txResult === "string") return txResult;
+  if (txResult?.hash) return txResult.hash;
+  if (txResult?.transactionHash) return txResult.transactionHash;
+  return null;
+};
+
+const waitForReceiptWithFallback = async ({
+  hash,
+  timeoutMs = RECEIPT_WAIT_TIMEOUT_MS,
+}) => {
+  if (!hash) throw new Error("Missing transaction hash");
+
+  // Prefer wagmi's receipt waiter first (handles replacements/reorgs),
+  // but don't block forever on mobile wallet provider quirks.
+  try {
+    return await Promise.race([
+      wagmiWaitForTransactionReceipt(wagmiClient, { hash }),
+      new Promise((_, reject) =>
+        setTimeout(
+          () =>
+            reject(
+              new Error(
+                `Timed out waiting for receipt for ${hash} after ${timeoutMs}ms`,
+              ),
+            ),
+          timeoutMs,
+        ),
+      ),
+    ]);
+  } catch (waitErr) {
+    const client = getPublicClient(wagmiClient, { chainId: BSC_CHAIN_ID });
+    if (!client) throw waitErr;
+
+    for (let i = 0; i < RECEIPT_POLL_MAX_ATTEMPTS; i += 1) {
+      try {
+        const receipt = await client.getTransactionReceipt({ hash });
+        if (receipt) return receipt;
+      } catch (pollErr) {
+        const msg = String(pollErr?.message || pollErr).toLowerCase();
+        // Keep polling while receipt is not indexed yet.
+        if (!msg.includes("not found") && !msg.includes("unknown transaction")) {
+          throw pollErr;
+        }
+      }
+      await sleep(RECEIPT_POLL_INTERVAL_MS);
+    }
+    throw waitErr;
+  }
+};
 
 /**
  * Default path: MetaMask / WalletConnect / etc. via wagmi.
@@ -105,7 +162,7 @@ export function createWagmiExecutionTxEnv() {
       });
     },
     waitForTransactionReceipt: async ({ hash }) =>
-      wagmiWaitForTransactionReceipt(wagmiClient, { hash }),
+      waitForReceiptWithFallback({ hash }),
   };
 }
 
@@ -132,11 +189,15 @@ export function createPrivyExecutionTxEnv(userAddress, privySendTransaction) {
         chainId: BSC_CHAIN_ID,
       };
       if (nonce !== undefined) input.nonce = nonce;
-      const { hash } = await privySendTransaction(input);
+      const txResult = await privySendTransaction(input);
+      const hash = normalizeTxHash(txResult);
+      if (!hash) {
+        throw new Error("Privy transaction did not return a valid tx hash.");
+      }
       return hash;
     },
     waitForTransactionReceipt: async ({ hash }) =>
-      wagmiWaitForTransactionReceipt(wagmiClient, { hash }),
+      waitForReceiptWithFallback({ hash }),
   };
 }
 
@@ -746,26 +807,24 @@ export async function executePortfolioOnChain(
         });
 
         try {
-          // 3) If wallet succeeds → /submit with txHash
-          const receipt = await txEnv.waitForTransactionReceipt({
-            hash: txHash,
+          // 3) Submit tx hash immediately, then poll backend status.
+          // This avoids extra client-side waiting before the next token.
+          await apiCall(`${EXECUTION_API_BASE}/${pos.executionOrderId}/submit`, {
+            method: "POST",
+            body: JSON.stringify({
+              txHash,
+            }),
           });
-          await apiCall(
-            `${EXECUTION_API_BASE}/${pos.executionOrderId}/submit`,
-            {
-              method: "POST",
-              body: JSON.stringify({
-                txHash: receipt.transactionHash || receipt.hash || txHash,
-              }),
-            },
-          );
 
           // Poll for CONFIRMED/FAILED
           let status = "TX_SUBMITTED";
           let attempts = 0;
 
-          while (!["CONFIRMED", "FAILED"].includes(status) && attempts < 60) {
-            await sleep(4000);
+          while (
+            !["CONFIRMED", "FAILED"].includes(status) &&
+            attempts < POSITION_STATUS_MAX_ATTEMPTS
+          ) {
+            await sleep(POSITION_STATUS_POLL_INTERVAL_MS);
             const statusData = await apiCall(
               `${EXECUTION_API_BASE}/${pos.executionOrderId}/status`,
             );
