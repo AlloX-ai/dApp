@@ -95,10 +95,38 @@ function formatResetAt(resetAt) {
 
 const NARRATIVE_MODAL_OPTIONS = [
   {
-    id: "rwa",
-    label: "Real-World Assets (RWA)",
+    id: "layer2",
+    label: "Layer 2",
     description:
-      "Protocols bringing real-world assets like treasuries, real estate, and credit on-chain.",
+      "Scaling ecosystems and rollups expanding Ethereum throughput with lower fees.",
+    riskProfile: "LOW_TO_MEDIUM",
+  },
+  {
+    id: "privacy",
+    label: "Privacy",
+    description:
+      "Privacy-focused protocols and tooling enabling confidential transfers and on-chain privacy.",
+    riskProfile: "MEDIUM",
+  },
+  {
+    id: "infra",
+    label: "Infrastructure",
+    description:
+      "Core blockchain infrastructure across data, middleware, indexing, and developer platforms.",
+    riskProfile: "MEDIUM",
+  },
+  {
+    id: "social",
+    label: "SocialFi",
+    description:
+      "Social finance applications combining creator economies, communities, and on-chain incentives.",
+    riskProfile: "MEDIUM_TO_HIGH",
+  },
+  {
+    id: "payments",
+    label: "Payments",
+    description:
+      "Projects focused on crypto payments, settlement rails, remittances, and merchant adoption.",
     riskProfile: "LOW_TO_MEDIUM",
   },
   {
