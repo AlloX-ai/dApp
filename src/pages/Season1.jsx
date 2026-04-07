@@ -18,10 +18,7 @@ export function Season1() {
     });
   }, [address]);
 
-  const user = useMemo(
-    () => findSeason2RewardForWallet(address),
-    [address],
-  );
+  const user = useMemo(() => findSeason2RewardForWallet(address), [address]);
 
   const seasons = [
     {
