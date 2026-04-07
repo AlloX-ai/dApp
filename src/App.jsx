@@ -619,14 +619,14 @@ function RequireAuth({ children }) {
 function App() {
   const { address } = useSelector((state) => state.wallet);
 
-  const [showModal, setShowModal] = useState(false);
-  const lastShown = localStorage.getItem("chatDate");
-  const count = parseInt(localStorage.getItem("chatCount") || "0", 10);
-  useEffect(() => {
-    const today = new Date().toDateString();
-    // App only decides visibility; storage updates happen in CongratsModal after open.
-    setShowModal(lastShown !== today && count < 3);
-  }, [lastShown, count]);
+  // const [showModal, setShowModal] = useState(false);
+  // const lastShown = localStorage.getItem("chatDate");
+  // const count = parseInt(localStorage.getItem("chatCount") || "0", 10);
+  // useEffect(() => {
+  //   const today = new Date().toDateString();
+  //   // App only decides visibility; storage updates happen in CongratsModal after open.
+  //   setShowModal(lastShown !== today && count < 3);
+  // }, [lastShown, count]);
   
   return (
     <>
@@ -652,7 +652,7 @@ function App() {
           <Route path="/referrals" element={<ReferralsPage />} />
         </Route>
       </Routes>
-      {showModal && (
+      {/* {showModal && (
         <CongratsModal
           isOpen={showModal}
           onClose={() => {
@@ -660,7 +660,7 @@ function App() {
           }}
           address={address}
         />
-      )}
+      )} */}
     </>
   );
 }
