@@ -106,7 +106,7 @@ export function BetaAccessPage({ onWalletConnect }) {
   }, [isConnected, isAuthenticated, authenticate, navigate]);
 
   const handleRetrySign = async () => {
-    if (!isConnected) return;
+    if (isConnected || !isAuthenticated) return;
     setIsSigning(true);
     try {
       await authenticate();

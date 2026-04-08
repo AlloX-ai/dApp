@@ -45,6 +45,7 @@ export function useCheckin() {
   const walletAddress = useSelector((state) => state.wallet.address);
   const chainId = useSelector((state) => state.wallet.chainId);
   const isConnected = useSelector((state) => state.wallet.isConnected);
+  const sessionSource = useSelector((state) => state.wallet.sessionSource);
   const { user: authUser } = useAuth();
   const { wallets } = useWallets();
 
@@ -113,7 +114,12 @@ const dispatch = useDispatch();
       const apiChain = CHAIN_ID_TO_API[effectiveChainId];
       const contractAddress = CHAIN_ID_TO_ADDRESS[effectiveChainId];
 
-      if (authUser?.authProvider === "privy") {
+      const isPrivySession =
+        authUser?.authProvider === "privy" ||
+        sessionSource === "privy" ||
+        walletType === "privy";
+
+      if (isPrivySession) {
         const embedded = getPrivyEmbedded(wallets);
         if (!embedded) {
           throw new Error(
@@ -200,6 +206,8 @@ const dispatch = useDispatch();
     },
     [
       authUser?.authProvider,
+      sessionSource,
+      walletType,
       currentEVMChainId,
       switchChainAsync,
       wallets,

@@ -169,6 +169,8 @@ export function ChatPage() {
   const isConnected = useSelector((state) => state.wallet.isConnected);
   const walletChainId = useSelector((state) => state.wallet.chainId);
   const walletAddress = useSelector((state) => state.wallet.address);
+  const walletType = useSelector((state) => state.wallet.walletType);
+  const sessionSource = useSelector((state) => state.wallet.sessionSource);
   const pointsBalance = useSelector((state) => state.points?.balance);
   const messagesRemaining = getTotalMessagesRemaining(rateLimit);
   const resetAt = rateLimit?.resetAt;
@@ -569,10 +571,12 @@ export function ChatPage() {
     dispatch(setWalletModal(nextValue));
   };
 
+  const claimStatusKnown = typeof authUser?.season1?.claimed === "boolean";
   const hasAlreadyClaimed = authUser?.season1?.claimed === true;
   const needsToClaimPoints =
     isConnected &&
-    !hasAlreadyClaimed &&
+    claimStatusKnown &&
+    authUser?.season1?.claimed === false &&
     (pointsBalance == null || pointsBalance === 0);
   const handleClaimPoints = async () => {
     setClaimError(null);
@@ -932,8 +936,13 @@ export function ChatPage() {
                 : 0.5,
         };
 
+        const isPrivyExecutionSession =
+          authUser?.authProvider === "privy" ||
+          sessionSource === "privy" ||
+          walletType === "privy";
+
         let privyTxEnv;
-        if (authUser?.authProvider === "privy") {
+        if (isPrivyExecutionSession) {
           const embedded = getEmbeddedConnectedWallet(wallets);
           if (!embedded) {
             throw new Error(
@@ -1011,6 +1020,8 @@ export function ChatPage() {
       privySendTransaction,
       promptExecutionDecision,
       queryClient,
+      sessionSource,
+      walletType,
       wallets,
     ],
   );
@@ -1399,6 +1410,10 @@ export function ChatPage() {
           setUser(nextUser);
         }
 
+        // Always refresh server-side status after each message so header points/messages
+        // stay consistent across the app even when response payload shapes vary.
+        void fetchChatStatusApi(dispatch, { setUser });
+
         // Handle on-chain execution handoff
         if (response.action === "START_EXECUTION" && response.execution) {
           handleStartExecution(response.execution);
@@ -1494,6 +1509,10 @@ export function ChatPage() {
       //     timestamp: new Date(),
       //   }),
       // );
+      if (!isConnected) {
+        setShowWalletPrompt(true);
+        return;
+      }
       openQuickWizard();
       return;
     }
@@ -1542,9 +1561,13 @@ export function ChatPage() {
         );
         return;
       }
+      if (String(message).trim().toLowerCase() === "start over") {
+        handleStartNewChat();
+        return;
+      }
       sendChatMessage(String(message));
     },
-    [sendChatMessage, walletChainId],
+    [sendChatMessage, walletChainId, handleStartNewChat],
   );
 
   // Open claim popup only when user has not already claimed and needs to claim
@@ -2983,7 +3006,6 @@ export function ChatPage() {
                 {[
                   "Build Quick Portfolio",
                   "Build a Portfolio - Guided",
-
                   "Explain narratives",
                   "Trending Tokens",
                   "How should I invest $100?",

@@ -7,18 +7,6 @@ import { apiCall, getApiUrl } from "../utils/api";
 import { setWalletType } from "../redux/slices/walletSlice";
 import { runPrivyLogoutBridge } from "../auth/privyLogoutBridge";
 
-const AUTH_USER_KEY = "authUser";
-
-const loadStoredUser = () => {
-  try {
-    const raw = localStorage.getItem(AUTH_USER_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch (e) {
-    console.error(e);
-  }
-  return null;
-};
-
 // Simple in-module singleton so all `useAuth` hook instances
 // share the same `user` and `token` state instead of each
 // component keeping its own copy.
@@ -26,10 +14,13 @@ let globalAuthState = {
   token: typeof window !== "undefined"
     ? localStorage.getItem("authToken")
     : null,
-  user: typeof window !== "undefined" ? loadStoredUser() : null,
+  user: null,
 };
 
 const subscribers = new Set();
+let meFetchInFlight = null;
+let lastMeFetchAt = 0;
+const ME_FETCH_COOLDOWN_MS = 5000;
 
 const notifySubscribers = () => {
   for (const cb of subscribers) {
@@ -60,20 +51,9 @@ const setGlobalToken = (nextToken) => {
 };
 
 const setGlobalUser = (nextUser) => {
-  globalAuthState = { ...globalAuthState, user: nextUser };
-  if (nextUser != null) {
-    try {
-      localStorage.setItem(AUTH_USER_KEY, JSON.stringify(nextUser));
-    } catch (e) {
-      console.error(e);
-    }
-  } else {
-    try {
-      localStorage.removeItem(AUTH_USER_KEY);
-    } catch (e) {
-      console.error(e);
-    }
-  }
+  const resolvedUser =
+    typeof nextUser === "function" ? nextUser(globalAuthState.user) : nextUser;
+  globalAuthState = { ...globalAuthState, user: resolvedUser };
   notifySubscribers();
 };
 
@@ -140,6 +120,36 @@ export const useAuth = () => {
 
   const { token, user } = state;
 
+  const refreshUser = useCallback(async () => {
+    const t = token || localStorage.getItem("authToken");
+    if (!t) return null;
+    const now = Date.now();
+    if (
+      globalAuthState.user &&
+      now - lastMeFetchAt < ME_FETCH_COOLDOWN_MS
+    ) {
+      return globalAuthState.user;
+    }
+    if (meFetchInFlight) return meFetchInFlight;
+    meFetchInFlight = apiCall("/auth/me")
+      .then((me) => {
+        lastMeFetchAt = Date.now();
+        if (me && typeof me === "object") {
+          setGlobalUser(me);
+        }
+        return me;
+      })
+      .finally(() => {
+        meFetchInFlight = null;
+      });
+    return meFetchInFlight;
+  }, [token]);
+
+  useEffect(() => {
+    if (!token || user) return;
+    refreshUser().catch(() => {});
+  }, [token, user, refreshUser]);
+
   const authInFlightRef = useRef(null);
 
   useEffect(() => {
@@ -199,12 +209,7 @@ export const useAuth = () => {
         address: verifyRes.user.address ?? address,
       });
     } else {
-      const stored = loadStoredUser();
-      setUser(
-        stored
-          ? { ...stored, walletType: walletTypeFromApi, address: stored.address ?? address }
-          : { walletType: walletTypeFromApi, address },
-      );
+      setUser({ walletType: walletTypeFromApi, address });
     }
 
     if (walletTypeFromApi) {
@@ -258,6 +263,7 @@ export const useAuth = () => {
     authenticate,
     ensureAuthenticated,
     claimSeason1,
+    refreshUser,
     logout,
     isAuthenticated,
   };

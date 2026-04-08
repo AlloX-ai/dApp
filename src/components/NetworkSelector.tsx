@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { ChevronDown, Loader2 } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import OutsideClickHandler from "react-outside-click-handler";
@@ -16,17 +16,6 @@ import {
 
 const PREFERRED_CHAIN_STORAGE_KEY = "walletPreferredChainId";
 const SOLANA_CHAIN_ID = 101;
-const AUTH_USER_KEY = "authUser";
-
-function getStoredAuthUser(): { walletType?: string; address?: string;[k: string]: unknown } | null {
-  try {
-    const raw = localStorage.getItem(AUTH_USER_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch (e) {
-    console.error(e);
-  }
-  return null;
-}
 
 type NetworkOption = {
   name: string;
@@ -160,7 +149,9 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
     const provider = (window as any).ethereum;
     if (!provider) {
       toast.error("No EVM wallet detected (e.g. MetaMask).");
-    
+      return;
+    }
+
     if (network.name !== "Solana" && walletType === "solana" && !isPrivySession) {
       toast.error(
         "EVM networks require an EVM wallet (e.g. MetaMask, Binance Wallet). Please connect with an EVM wallet.",
@@ -200,14 +191,6 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
         }
       }
       dispatch(setChainId(network.chainId));
-      const stored = getStoredAuthUser();
-      if (stored) {
-        const account = getAccount(wagmiClient);
-        localStorage.setItem(
-          AUTH_USER_KEY,
-          JSON.stringify({ ...stored, walletType: "evm", address: account?.address ?? stored.address }),
-        );
-      }
       setIsOpen(false);
     } catch (error) {
       const walletError = error as { code?: number };
@@ -245,14 +228,6 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
             }
           }
           dispatch(setChainId(network.chainId));
-          const stored = getStoredAuthUser();
-          if (stored) {
-            const account = getAccount(wagmiClient);
-            localStorage.setItem(
-              AUTH_USER_KEY,
-              JSON.stringify({ ...stored, walletType: "evm", address: account?.address ?? stored.address }),
-            );
-          }
           setIsOpen(false);
         } catch (addErr) {
           console.error("Add network error:", addErr);
@@ -268,7 +243,6 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
       setIsSwitching(false);
     }
   }
-}
 
   const switchPrivyEVMChain = async (network: NetworkOption) => {
     const embedded = getPrivyEmbedded(wallets);
@@ -362,17 +336,6 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
       dispatch(setAddress(address));
       dispatch(setChainId(SOLANA_CHAIN_ID));
       dispatch(setIsConnected(true));
-      const stored = getStoredAuthUser();
-      if (stored) {
-        localStorage.setItem(
-          AUTH_USER_KEY,
-          JSON.stringify({
-            ...stored,
-            walletType: "solana",
-            address: address ?? stored.address,
-          }),
-        );
-      }
       setIsOpen(false);
     } catch (err) {
       console.error("Switch to Solana:", err);

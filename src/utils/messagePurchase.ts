@@ -38,6 +38,53 @@ const erc20Abi = parseAbi([
   "function decimals() view returns (uint8)",
 ]);
 
+const RECEIPT_WAIT_TIMEOUT_MS = 120000;
+const RECEIPT_POLL_INTERVAL_MS = 2500;
+const RECEIPT_POLL_MAX_ATTEMPTS = 120;
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function waitForReceiptWithFallback(args: {
+  hash: `0x${string}`;
+  chainId: number;
+  timeoutMs?: number;
+}) {
+  const { hash, chainId, timeoutMs = RECEIPT_WAIT_TIMEOUT_MS } = args;
+  try {
+    return await Promise.race([
+      waitForTransactionReceipt(wagmiClient, { hash, chainId }),
+      new Promise((_, reject) =>
+        setTimeout(
+          () =>
+            reject(
+              new Error(
+                `Timed out waiting for receipt for ${hash} after ${timeoutMs}ms`,
+              ),
+            ),
+          timeoutMs,
+        ),
+      ),
+    ]);
+  } catch (waitErr) {
+    const client = getPublicClient(wagmiClient, { chainId });
+    if (!client) throw waitErr;
+
+    for (let i = 0; i < RECEIPT_POLL_MAX_ATTEMPTS; i += 1) {
+      try {
+        const receipt = await client.getTransactionReceipt({ hash });
+        if (receipt) return receipt;
+      } catch (pollErr) {
+        const msg = String((pollErr as { message?: string })?.message || pollErr).toLowerCase();
+        if (!msg.includes("not found") && !msg.includes("unknown transaction")) {
+          throw pollErr;
+        }
+      }
+      await sleep(RECEIPT_POLL_INTERVAL_MS);
+    }
+    throw waitErr;
+  }
+}
+
 export type MessageChainKey = "ethereum" | "bnb" | "base" | "solana";
 
 export type MessagePackage = {
@@ -773,7 +820,7 @@ export async function purchaseEvmPackage(args: {
         value: nativePrice,
         chainId,
       });
-      await waitForTransactionReceipt(wagmiClient, { hash });
+      await waitForReceiptWithFallback({ hash, chainId });
       return { txHash: hash };
     }
     const txHash = await args.writeContractAsync!({
@@ -784,7 +831,7 @@ export async function purchaseEvmPackage(args: {
       chainId,
       value: nativePrice,
     });
-    await waitForTransactionReceipt(wagmiClient, { hash: txHash });
+    await waitForReceiptWithFallback({ hash: txHash, chainId });
     return { txHash };
   }
 
@@ -832,7 +879,7 @@ export async function purchaseEvmPackage(args: {
         data: approveData,
         chainId,
       });
-      await waitForTransactionReceipt(wagmiClient, { hash: approveHash });
+      await waitForReceiptWithFallback({ hash: approveHash, chainId });
     } else {
       const approveHash = await args.writeContractAsync!({
         address: match.address,
@@ -841,7 +888,7 @@ export async function purchaseEvmPackage(args: {
         args: [contractAddress, match.amount],
         chainId,
       });
-      await waitForTransactionReceipt(wagmiClient, { hash: approveHash });
+      await waitForReceiptWithFallback({ hash: approveHash, chainId });
     }
   }
 
@@ -856,7 +903,7 @@ export async function purchaseEvmPackage(args: {
       data: buyData,
       chainId,
     });
-    await waitForTransactionReceipt(wagmiClient, { hash });
+    await waitForReceiptWithFallback({ hash, chainId });
     return { txHash: hash };
   }
 
@@ -867,7 +914,7 @@ export async function purchaseEvmPackage(args: {
     args: [match.address, BigInt(args.packageId)],
     chainId,
   });
-  await waitForTransactionReceipt(wagmiClient, { hash: txHash });
+  await waitForReceiptWithFallback({ hash: txHash, chainId });
   return { txHash };
 }
 
