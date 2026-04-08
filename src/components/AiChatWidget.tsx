@@ -1,68 +1,37 @@
-import { useState } from "react";
-import { MessageCircle, X, Minus, Send } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { X, Minus, Send } from "lucide-react";
+import { useChatbot, formatText } from "../hooks/useChatbot";
 
 interface Message {
-  id: number;
+  id: string;
   type: "user" | "ai";
   content: string;
-  timestamp: Date;
+  timestamp: string;
 }
 
 export function AIChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: 1,
-      type: "ai",
-      content: "Hi! I'm your AlloX AI assistant. How can I help you today?",
-      timestamp: new Date(),
-    },
-  ]);
-  const [inputValue, setInputValue] = useState("");
-  const [isThinking, setIsThinking] = useState(false);
+  const {
+    messages,
+    inputValue,
+    isThinking,
+    error,
+    setInputValue,
+    sendMessage,
+  } = useChatbot();
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!isOpen || isMinimized) return;
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, isThinking, isOpen, isMinimized]);
 
   const handleSendMessage = async () => {
-    if (!inputValue.trim()) return;
-
-    // Add user message
-    const userMessage: Message = {
-      id: messages.length + 1,
-      type: "user",
-      content: inputValue,
-      timestamp: new Date(),
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
-    setInputValue("");
-    setIsThinking(true);
-
-    // Simulate AI response
-    setTimeout(() => {
-      const aiResponses = [
-        "I can help you with portfolio creation, investment strategies, and market insights. What would you like to know?",
-        "AlloX offers narrative-first investing where you can invest in themes like Gaming, Metaverse, and RWA. Would you like to explore any of these?",
-        "You can create diversified portfolios with tiered risk management. Let me know if you'd like to start building one!",
-        "Our AI constructs optimized token baskets based on your preferences. What's your investment goal?",
-        "I can answer questions about campaigns, rewards, staking, and more. How can I assist you?",
-      ];
-
-      const randomResponse =
-        aiResponses[Math.floor(Math.random() * aiResponses.length)];
-
-      const aiMessage: Message = {
-        id: messages.length + 2,
-        type: "ai",
-        content: randomResponse,
-        timestamp: new Date(),
-      };
-
-      setMessages((prev) => [...prev, aiMessage]);
-      setIsThinking(false);
-    }, 1500);
+    await sendMessage();
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
@@ -128,7 +97,7 @@ export function AIChatWidget() {
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gradient-to-br from-gray-50/50 to-white/50">
-        {messages.map((message) => (
+        {messages.map((message: Message) => (
           <div
             key={message.id}
             className={`flex ${message.type === "user" ? "justify-end" : "justify-start"}`}
@@ -140,11 +109,18 @@ export function AIChatWidget() {
                   : "bg-white border border-gray-200 text-gray-900"
               }`}
             >
-              <p className="text-sm">{message.content}</p>
+              {message.type === "ai" ? (
+                <p
+                  className="text-sm"
+                  dangerouslySetInnerHTML={{ __html: formatText(message.content) }}
+                />
+              ) : (
+                <p className="text-sm">{message.content}</p>
+              )}
               <p
                 className={`text-xs mt-1 ${message.type === "user" ? "text-blue-100" : "text-gray-500"}`}
               >
-                {message.timestamp.toLocaleTimeString([], {
+                {new Date(message.timestamp).toLocaleTimeString([], {
                   hour: "2-digit",
                   minute: "2-digit",
                 })}
@@ -173,6 +149,14 @@ export function AIChatWidget() {
             </div>
           </div>
         )}
+
+        {error && (
+          <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+            {error}
+          </div>
+        )}
+
+        <div ref={messagesEndRef} />
       </div>
 
       {/* Input */}
