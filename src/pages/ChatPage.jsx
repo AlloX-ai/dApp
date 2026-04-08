@@ -238,6 +238,20 @@ export function ChatPage() {
     risk: null, // "CONSERVATIVE" | "BALANCED" | "AGGRESSIVE"
     paymentToken: null, // "BNB" | "USDT" | "USDC"
   });
+  const quickMissingSelections = useMemo(() => {
+    const missing = [];
+    if (!quickForm.chain) missing.push("blockchain");
+    if (!quickForm.portfolioType) missing.push("portfolio type");
+    if (!quickForm.amountUsd) missing.push("investment amount");
+    if (!quickForm.risk) missing.push("risk tolerance");
+    return missing;
+  }, [
+    quickForm.amountUsd,
+    quickForm.chain,
+    quickForm.portfolioType,
+    quickForm.risk,
+  ]);
+  const quickCanGenerate = quickMissingSelections.length === 0;
   const [quickBasket, setQuickBasket] = useState([]);
   const [quickPreviewMeta, setQuickPreviewMeta] = useState(null); // { chain, executionMode, positions... }
 
@@ -1054,7 +1068,9 @@ export function ChatPage() {
         !quickForm.risk
         //  || !quickForm.paymentToken
       ) {
-        setQuickError("Please complete all form selections first.");
+        setQuickError(
+          `Please select: ${quickMissingSelections.join(", ")} before generating.`,
+        );
         return;
       }
       if (quickForm.chain === "BSC" && walletChainId !== 56) {
@@ -1130,6 +1146,7 @@ export function ChatPage() {
       isReadOnly,
       logout,
       messagesRemaining,
+      quickMissingSelections,
       parseQuickBasketFromResponse,
       quickForm.amountUsd,
       quickForm.chain,
@@ -3907,17 +3924,20 @@ export function ChatPage() {
                         </div>
                       </div> */}
 
-                      <div className="flex justify-end pt-2">
+                      <div className="flex flex-col sm:flex-row gap-2 justify-end pt-2 items-center">
+                        {!quickCanGenerate && (
+                          <div className="mr-auto text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 flex items-center h-fit">
+                            Select {quickMissingSelections.join(", ")} to enable
+                            Generate.
+                          </div>
+                        )}
                         <button
                           type="button"
                           onClick={() => void handleQuickGenerate("generate")}
                           disabled={
                             quickIsGenerating ||
                             quickIsExecuting ||
-                            !quickForm.chain ||
-                            !quickForm.portfolioType ||
-                            !quickForm.amountUsd ||
-                            !quickForm.risk
+                            !quickCanGenerate
                             // ||!quickForm.paymentToken
                           }
                           className="px-6 py-3 bg-gray-900 text-white border border-gray-900 rounded-2xl text-sm font-semibold hover:bg-gray-800 disabled:opacity-60 disabled:cursor-not-allowed"
