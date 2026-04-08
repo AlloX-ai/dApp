@@ -73,7 +73,7 @@ export function Header({
   return (
 <>
     <header className="fixed top-0 left-0 right-0 z-50 px-6 py-4 bg-pattern/95 backdrop-blur-lg border-b border-gray-200/50">
-      <div className="flex items-center justify-between">
+      <div className="flex gap-1 items-center justify-between">
         <NavLink className="flex items-center gap-2 cursor-pointer" to="/">
           <img
             src={"https://cdn.allox.ai/allox/AlloX-desktop.svg"}
