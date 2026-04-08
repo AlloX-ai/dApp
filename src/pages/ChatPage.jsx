@@ -232,7 +232,7 @@ export function ChatPage() {
   const [quickIsRemoving, setQuickIsRemoving] = useState(false);
   const [quickForm, setQuickForm] = useState({
     chain: null, // "BSC" | "ETH" | "BASE"
-    portfolioType: null, // "Diversified" | "Defi" | "RWA" | "AI" | ...
+    portfolioType: null, // "Diversified" | "Defi" | "layer2" | "privacy" | "infra" | "social" | "payments" | "AI" | ...
     amountUsd: null,
     customAmountUsdText: "",
     risk: null, // "CONSERVATIVE" | "BALANCED" | "AGGRESSIVE"
@@ -1014,7 +1014,11 @@ export function ChatPage() {
     () => ({
       Diversified: "Diversified",
       Defi: "DeFi",
-      RWA: "Real world assets (RWA)",
+      layer2: "Layer 2",
+      privacy: "Privacy",
+      infra: "Infrastructure",
+      social: "SocialFi",
+      payments: "Payments",
       AI: "AI",
       Gaming: "Gaming",
       DePin: "DePin",
@@ -1084,7 +1088,7 @@ export function ChatPage() {
         const riskLabel =
           QUICK_RISK_TO_PROMPT[quickForm.risk] || quickForm.risk;
 
-        const prompt = `Build a $${quickForm.amountUsd} ${quickForm.risk} ${quickForm.portfolioType} portfolio on ${quickForm.chain}`;
+        const prompt = `Build a $${quickForm.amountUsd} ${riskLabel} ${interestLabel} portfolio on ${chainLabel}`;
 
         const response = await apiCall("/chat/message", {
           method: "POST",
@@ -3418,7 +3422,7 @@ export function ChatPage() {
           onClick={() => setIsNarrativesModalOpen(false)}
         >
           <div
-            className="glass-card max-w-xl w-full p-6 animate-fade-in"
+            className="glass-card max-h-[80vh] overflow-y-auto max-w-xl w-full p-6 animate-fade-in"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-4 mb-4">
@@ -3680,9 +3684,29 @@ export function ChatPage() {
                             },
                             { value: "Defi", label: "DeFi", badge: "DeFi" },
                             {
-                              value: "RWA",
-                              label: "Real world assets (RWA)",
-                              badge: "RWA",
+                              value: "layer2",
+                              label: "Layer 2",
+                              badge: "L2",
+                            },
+                            {
+                              value: "privacy",
+                              label: "Privacy",
+                              badge: "PRV",
+                            },
+                            {
+                              value: "infra",
+                              label: "Infrastructure",
+                              badge: "INF",
+                            },
+                            {
+                              value: "social",
+                              label: "SocialFi",
+                              badge: "SF",
+                            },
+                            {
+                              value: "payments",
+                              label: "Payments",
+                              badge: "PAY",
                             },
                             { value: "AI", label: "AI", badge: "AI" },
                             { value: "Gaming", label: "Gaming", badge: "G" },
