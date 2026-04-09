@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Navigate,
   Outlet,
@@ -59,11 +59,11 @@ import { store } from "./redux/store";
 import { PointsPage } from "./pages/Points";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useSocial } from "./hooks/useSocial";
-import { CongratsModal } from "./components/CongratsModal";
 import { CampaignsPage } from "./pages/Campaigns";
 import { PrivyFundModal } from "./components/PrivyFundModal";
 import { MaintenancePage } from "./pages/MaintenancePage";
 import { TopPortfoliosPage } from "./pages/TopPortfoliosPage";
+import { WatchlistPage } from "./pages/WatchlistPage";
 
 const MAINTENANCE_MODE = false;
 
@@ -131,10 +131,7 @@ function LaunchAppLayout() {
   const {
     wallets: solanaWallets,
     select: selectSolanaWallet,
-    connect: connectSolana,
     disconnect: disconnectSolana,
-    connected: solanaConnected,
-    publicKey: solanaPublicKey,
   } = useWallet();
 
   const {
@@ -172,7 +169,7 @@ function LaunchAppLayout() {
     loadSeenPosts();
   }, [fetchSocialPoints, fetchAllPoints, loadSeenPosts]);
 
-  const handleDisconnect = async () => {
+  const handleDisconnect = useCallback(async () => {
     // if (walletType === "solana") {
     //   try {
     await disconnectSolana();
@@ -195,10 +192,7 @@ function LaunchAppLayout() {
     // Fully clear auth state (token + user) across the app (includes Privy logout via bridge)
     await logout();
     navigate("/login");
-  };
-
-  const ensureAuthRef = useRef(ensureAuthenticated);
-  ensureAuthRef.current = ensureAuthenticated;
+  }, [connector, dispatch, disconnectSolana, logout, navigate]);
 
   useEffect(() => {
     authTriggeredRef.current = false;
@@ -212,10 +206,10 @@ function LaunchAppLayout() {
     if (token) return;
     if (authTriggeredRef.current) return;
     authTriggeredRef.current = true;
-    ensureAuthRef.current().catch(() => {
+    ensureAuthenticated().catch(() => {
       authTriggeredRef.current = false;
     });
-  }, [isConnected, token, address, walletType]);
+  }, [isConnected, token, address, walletType, ensureAuthenticated]);
 
   useEffect(() => {
     const points = user?.season1?.points;
@@ -262,7 +256,7 @@ function LaunchAppLayout() {
       }
     }
     wasConnectedRef.current = isConnected;
-  }, [isConnected, navigate]);
+  }, [dispatch, isConnected, navigate]);
 
   // If the user changes account within the same wallet type (e.g. MetaMask account 1 → 2),
   // force a fresh session. Compare addresses case-insensitively to avoid false positives (EVM checksum).
@@ -287,7 +281,7 @@ function LaunchAppLayout() {
 
     prevAddressRef.current = address;
     prevWalletTypeRef.current = walletType;
-  }, [address, walletType, dispatch, navigate]);
+  }, [address, walletType, dispatch, handleDisconnect]);
 
   const setWalletModalOpen = (nextValue) => {
     dispatch(setWalletModal(nextValue));
@@ -774,8 +768,6 @@ function PrivyLogoutBridge() {
 }
 
 function App() {
-  const { address } = useSelector((state) => state.wallet);
-
   // const [showModal, setShowModal] = useState(false);
   // const lastShown = localStorage.getItem("chatDate");
   // const count = parseInt(localStorage.getItem("chatCount") || "0", 10);
@@ -812,6 +804,7 @@ function App() {
           <Route path="/portfolio" element={<PortfolioPage />} />
           <Route path="/top-portfolios" element={<TopPortfoliosPage />} />
           <Route path="/campaigns" element={<CampaignsPage />} />
+          <Route path="/watchlist" element={<WatchlistPage />} />
           <Route path="/rewards" element={<PointsPage />} />
 
           <Route path="/trending" element={<TradingPage />} />

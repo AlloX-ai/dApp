@@ -17,7 +17,6 @@ import { NetworkSelector } from "./NetworkSelector";
 import { shortAddress } from "../hooks/shortAddress";
 import { useCheckin } from "../hooks/useCheckin";
 import { useTotalPoints } from "../hooks/useTotalPoints";
-import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { navigationTabs, isActivePath } from "../constants/navigation";
 import OutsideClickHandler from "react-outside-click-handler";
 import { findSeason2RewardForWallet } from "../constants/rewards";
@@ -28,6 +27,7 @@ import {
   getDailyMessagesRemaining,
   getTotalMessagesRemaining,
 } from "../utils/rateLimitMessages";
+import { NotificationBell } from "./NotificationBell";
 
 export function Header({
   isConnected,
@@ -45,8 +45,8 @@ export function Header({
   const bonusMessages = getBonusMessages(rateLimit);
   const dispatch = useDispatch();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [mobileMenuView, setMobileMenuView] = useState("main");
   const [copied, setCopied] = useState(false);
-  const [showTooltip, setShowTooltip] = useState(false);
   const [messageLimitModalOpen, setMessageLimitModalOpen] = useState(false);
 
   const user = useMemo(
@@ -59,10 +59,7 @@ export function Header({
   const handleOpenCheckinModal = () => {
     dispatch(openCheckinModal());
     setIsMenuOpen(false);
-  };
-
-  const handleLaunchClick = () => {
-    setShowTooltip(true);
+    setMobileMenuView("main");
   };
 
   const handleCopy = (code) => {
@@ -88,12 +85,12 @@ export function Header({
         </NavLink>
         <OutsideClickHandler
           onOutsideClick={() => {
-            setShowTooltip(false);
+            setIsMenuOpen(false);
           }}
         >
           <div className="flex gap-2 sm:gap-4">
             <div
-              className="bg-white rounded-full px-3 py-2 flex items-center gap-3 cursor-pointer hover:bg-gray-200 transition-colors"
+              className="hidden md:flex bg-white rounded-full px-3 py-2 items-center gap-3 cursor-pointer hover:bg-gray-200 transition-colors"
               onClick={() => {
                 navigate("/rewards");
               }}
@@ -118,6 +115,7 @@ export function Header({
                 </div>
               )}
             </div>
+            {isConnected && <NotificationBell isConnected={isConnected} />}
             {totalPoints >= 0 && isConnected && 
               <div
                     className="bg-white rounded-full px-3 py-2 flex items-center gap-3 cursor-pointer hover:bg-gray-200 transition-color"
@@ -214,7 +212,13 @@ export function Header({
             <div className="md:hidden">
               <button
                 type="button"
-                onClick={() => setIsMenuOpen((prev) => !prev)}
+                onClick={() =>
+                  setIsMenuOpen((prev) => {
+                    const next = !prev;
+                    if (next) setMobileMenuView("main");
+                    return next;
+                  })
+                }
                 className="glass-card p-2 rounded-full shadow-lg"
                 aria-expanded={isMenuOpen}
                 aria-label="Toggle navigation menu"
@@ -224,15 +228,33 @@ export function Header({
               {isMenuOpen && (
                 <>
                   <OutsideClickHandler
-                    onOutsideClick={() => setIsMenuOpen(false)}
+                    onOutsideClick={() => {
+                      setIsMenuOpen(false);
+                      setMobileMenuView("main");
+                    }}
                   >
                     <div
                       className="fixed inset-0 z-40"
-                      onClick={() => setIsMenuOpen(false)}
+                      onClick={() => {
+                        setIsMenuOpen(false);
+                        setMobileMenuView("main");
+                      }}
                     ></div>
                     <div className="fixed left-0 right-0 top-20 z-50 animate-fade-in">
                       <div className="mobile-menu-open bg-white p-3 space-y-2 shadow-xl shadow-black/10">
-                        {navigationTabs.map((tab) => {
+                        {(mobileMenuView === "main"
+                          ? navigationTabs.filter(
+                              (tab) =>
+                                !["history", "trading", "topportfolio", "staking"].includes(
+                                  tab.id,
+                                ),
+                            )
+                          : navigationTabs.filter((tab) =>
+                              ["history", "trading", "topportfolio", "staking"].includes(
+                                tab.id,
+                              ),
+                            )
+                        ).map((tab) => {
                           const { id, label, path } = tab;
                           const NavIcon = tab.Icon;
                           const isActive = isActivePath(pathname, path);
@@ -242,6 +264,7 @@ export function Header({
                               onClick={() => {
                                 navigate(path);
                                 setIsMenuOpen(false);
+                                setMobileMenuView("main");
                               }}
                               className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
                                 isActive
@@ -258,6 +281,25 @@ export function Header({
                             </button>
                           );
                         })}
+                        {mobileMenuView === "main" ? (
+                          <button
+                            type="button"
+                            onClick={() => setMobileMenuView("more")}
+                            className="w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium text-gray-700 hover:bg-black/5 hover:shadow-sm transition-all duration-200"
+                          >
+                            <span className="flex items-center gap-3">More</span>
+                            <ChevronRight size={18} />
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setMobileMenuView("main")}
+                            className="w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium text-gray-700 hover:bg-black/5 hover:shadow-sm transition-all duration-200"
+                          >
+                            <span className="flex items-center gap-3">Back</span>
+                            <ChevronRight size={18} className="rotate-180" />
+                          </button>
+                        )}
                         {isConnected && authUser?.authProvider === "privy" && (
                           <button
                             type="button"
@@ -271,26 +313,39 @@ export function Header({
                           </button>
                         )}
                         {isConnected && (
-                          <div className="flex items-center gap-2 justify-between">
-                            <span
-                              className=" pl-4 py-3 text-sm font-medium flex gap-3 items-center"
-                              onClick={() => handleCopy(coinbase)}
-                            >
-                              {copied ? (
-                                <Check size={20} className="text-black" />
-                              ) : (
-                                <Copy size={20} className="text-black" />
-                              )}
-                              {shortAddress(coinbase)}
-                            </span>
-                            {/* <NetworkSelector
-                              onDisconnectClick={onDisconnectClick}
-                            /> */}
+                          <div className="rounded-xl border border-gray-100 bg-gray-50/80 p-3">
+                            <div className="flex items-center gap-2 justify-between">
+                              <span
+                                className="pl-1 py-1 text-sm font-medium flex gap-3 items-center"
+                                onClick={() => handleCopy(coinbase)}
+                              >
+                                {copied ? (
+                                  <Check size={20} className="text-black" />
+                                ) : (
+                                  <Copy size={20} className="text-black" />
+                                )}
+                                {shortAddress(coinbase)}
+                              </span>
+                            </div>
+                            <div className="mt-2 px-1 flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-2">
+                                <Coins className="size-4 text-amber-500" />
+                                <span className="text-sm font-semibold tabular-nums">
+                                  {totalPoints.toLocaleString()}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Gem className="size-4 text-purple-600" />
+                                <span className="text-sm font-semibold tabular-nums">
+                                  {user ? user.gems : 0}
+                                </span>
+                              </div>
+                            </div>
                           </div>
                         )}
                         {isConnected && (
                           <div className="px-4 pb-4 mt-auto">
-                            <div className="relative overflow-hidden bg-gradient-to-br from-purple-500 via-blue-500 to-purple-600 rounded-2xl p-4 shadow-lg">
+                            <div className="relative overflow-hidden bg-linear-to-br from-purple-500 via-blue-500 to-purple-600 rounded-2xl p-4 shadow-lg">
                               {/* Decorative elements */}
                               <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-12 -mt-12"></div>
                               <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/10 rounded-full -ml-8 -mb-8"></div>

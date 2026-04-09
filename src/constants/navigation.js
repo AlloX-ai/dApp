@@ -7,13 +7,15 @@ import {
   History as HistoryIcon,
   TrendingDown,
   Users,
-  Trophy
+  Trophy,
+  Eye,
 } from "lucide-react";
 
 export const navigationTabs = [
   { id: "chat", label: "Chat", path: "/", Icon: MessageSquare },
   { id: "portfolio", label: "Portfolio", path: "/portfolio", Icon: PieChart },
   { id: "campaigns", label: "Campaigns", path: "/campaigns", Icon: Flame },
+  { id: "watchlist", label: "Watchlist", path: "/watchlist", Icon: Eye },
   { id: "rewards", label: "Rewards", path: "/rewards", Icon: Coins },
   { id: "referrals", label: "Referrals", path: "/referrals", Icon: Users },
 

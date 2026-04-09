@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
+  BellPlus,
   BarChart3,
   Check,
   ChevronDown,
@@ -20,6 +21,7 @@ import { setWalletModal } from "../redux/slices/walletSlice";
 import getFormattedNumber from "../hooks/get-formatted-number";
 import { apiCall } from "../utils/api";
 import { useAuth } from "../hooks/useAuth";
+import { PortfolioAlertSettings } from "../components/PortfolioAlertSettings";
 
 const archivePortfolio = async (portfolioId) => {
   await apiCall(`/portfolio/${portfolioId}`, {
@@ -107,6 +109,7 @@ export function PortfolioPage() {
   const [isDeletingCardPortfolio, setIsDeletingCardPortfolio] = useState(false);
   const [isRiskMenuOpen, setIsRiskMenuOpen] = useState(false);
   const [isSortMenuOpen, setIsSortMenuOpen] = useState(false);
+  const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
 
   const getAnalytics = useCallback(async (portfolioId) => {
     const response = await apiCall(`/portfolio/${portfolioId}/analytics`);
@@ -445,17 +448,27 @@ export function PortfolioPage() {
     <div className="flex-1 px-6 py-8 portfolio-wrapper ms-auto w-full overflow-y-auto relative">
       <div className="">
         <div className="mb-8">
-          <div className="flex items-center justify-between mb-6 gap-3">
+          <div className="flex flex-col sm:flex-row items-center justify-between mb-6 gap-3">
             <h2 className="text-3xl font-bold">Portfolio</h2>
             {activePortfolio ? (
-              <button
-                type="button"
-                onClick={handleArchiveActivePortfolio}
-                disabled={!activePortfolioId || isArchiving}
-                className="px-4 py-2.5 glass-card text-sm text-red-600 hover:font-semibold disabled:opacity-60"
-              >
-                {isArchiving ? "Deleting..." : "Delete Portfolio"}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAlertModalOpen(true)}
+                  className="px-4 py-2.5 rounded-xl bg-black text-white text-sm font-semibold hover:bg-gray-800 inline-flex items-center gap-2"
+                >
+                  <BellPlus size={16} />
+                  Add portfolio alert
+                </button>
+                <button
+                  type="button"
+                  onClick={handleArchiveActivePortfolio}
+                  disabled={!activePortfolioId || isArchiving}
+                  className="px-4 py-2.5 glass-card text-sm text-red-600 hover:font-semibold disabled:opacity-60"
+                >
+                  {isArchiving ? "Deleting..." : "Delete Portfolio"}
+                </button>
+              </div>
             ) : null}
           </div>
         </div>
@@ -896,7 +909,6 @@ export function PortfolioPage() {
                         </div>
                       </div>
                     </div>
-
                     {isAnalyticsLoading && (
                       <div className="glass-card p-6 mb-6 text-gray-600">
                         Loading analytics...
@@ -1400,7 +1412,7 @@ export function PortfolioPage() {
           </>
         ) : (
           <div className="glass-card p-12 text-center">
-            <div className="w-20 h-20 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+            <div className="w-20 h-20 bg-linear-to-br from-blue-500/20 to-purple-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
               <Wallet size={40} className="text-gray-400" />
             </div>
             <h3 className="text-xl font-bold mb-3">Connect Your Wallet</h3>
@@ -1479,6 +1491,20 @@ export function PortfolioPage() {
                 {isDeletingCardPortfolio ? "Deleting..." : "Delete"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {isAlertModalOpen && activePortfolioId && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+          onClick={() => setIsAlertModalOpen(false)}
+        >
+          <div className="w-full max-w-[580px]" onClick={(e) => e.stopPropagation()}>
+            <PortfolioAlertSettings
+              portfolioId={activePortfolioId}
+              onClose={() => setIsAlertModalOpen(false)}
+            />
           </div>
         </div>
       )}
