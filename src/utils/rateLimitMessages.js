@@ -2,7 +2,7 @@
 export function getDailyMessagesRemaining(rateLimit) {
   if (!rateLimit) return null;
   const v =
-    rateLimit.remaining ??
+    // rateLimit.remaining ??
     rateLimit.messagesRemaining ??
     rateLimit.messages_remaining;
   return typeof v === "number" ? v : null;
