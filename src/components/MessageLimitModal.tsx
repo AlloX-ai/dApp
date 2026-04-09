@@ -469,18 +469,29 @@ export function MessageLimitModal({
           fromPubkey: effectiveSolanaAddress,
           sendTransaction: sendTransaction ?? undefined,
         });
-        const purchaseRes = await postMessagePurchase({
-          txHash,
-          chain: "solana",
-          packageId: pkg.id,
-          token: selectedToken,
-        });
         applyOptimisticPurchasedMessages(dispatch, setUser, pkg.messages);
-        applyRateLimitFromServerPayload(dispatch, setUser, purchaseRes);
-        await refreshRateLimitAfterMessagePurchase(dispatch, setUser);
-        toast.success("Purchase submitted");
-        onPurchaseSuccess?.();
         onClose();
+        toast.success("Transaction sent. Finalizing purchase...");
+        void (async () => {
+          try {
+            const purchaseRes = await postMessagePurchase({
+              txHash,
+              chain: "solana",
+              packageId: pkg.id,
+              token: selectedToken,
+            });
+            applyRateLimitFromServerPayload(dispatch, setUser, purchaseRes);
+            void refreshRateLimitAfterMessagePurchase(dispatch, setUser);
+            toast.success("Purchase submitted");
+            onPurchaseSuccess?.();
+          } catch (err: unknown) {
+            const msg =
+              err && typeof err === "object" && "message" in err
+                ? String((err as { message?: string }).message)
+                : "Purchase submitted, but confirmation is delayed.";
+            toast.error(msg);
+          }
+        })();
         return;
       }
 
@@ -521,18 +532,29 @@ export function MessageLimitModal({
 
         const tokenForApi = tok.type === "native" ? tok.type : selectedToken;
 
-        const purchaseResPrivy = await postMessagePurchase({
-          txHash,
-          chain: chainKey,
-          packageId: pkg.id,
-          token: tokenForApi,
-        });
         applyOptimisticPurchasedMessages(dispatch, setUser, pkg.messages);
-        applyRateLimitFromServerPayload(dispatch, setUser, purchaseResPrivy);
-        await refreshRateLimitAfterMessagePurchase(dispatch, setUser);
-        toast.success("Purchase confirmed");
-        onPurchaseSuccess?.();
         onClose();
+        toast.success("Transaction sent. Finalizing purchase...");
+        void (async () => {
+          try {
+            const purchaseResPrivy = await postMessagePurchase({
+              txHash,
+              chain: chainKey,
+              packageId: pkg.id,
+              token: tokenForApi,
+            });
+            applyRateLimitFromServerPayload(dispatch, setUser, purchaseResPrivy);
+            void refreshRateLimitAfterMessagePurchase(dispatch, setUser);
+            toast.success("Purchase confirmed");
+            onPurchaseSuccess?.();
+          } catch (err: unknown) {
+            const msg =
+              err && typeof err === "object" && "message" in err
+                ? String((err as { message?: string }).message)
+                : "Purchase submitted, but confirmation is delayed.";
+            toast.error(msg);
+          }
+        })();
         return;
       }
 
@@ -556,18 +578,29 @@ export function MessageLimitModal({
 
       const tokenForApi = tok.type === "native" ? tok.type : selectedToken;
 
-      const purchaseRes = await postMessagePurchase({
-        txHash,
-        chain: chainKey,
-        packageId: pkg.id,
-        token: tokenForApi,
-      });
       applyOptimisticPurchasedMessages(dispatch, setUser, pkg.messages);
-      applyRateLimitFromServerPayload(dispatch, setUser, purchaseRes);
-      await refreshRateLimitAfterMessagePurchase(dispatch, setUser);
-      toast.success("Purchase confirmed");
-      onPurchaseSuccess?.();
       onClose();
+      toast.success("Transaction sent. Finalizing purchase...");
+      void (async () => {
+        try {
+          const purchaseRes = await postMessagePurchase({
+            txHash,
+            chain: chainKey,
+            packageId: pkg.id,
+            token: tokenForApi,
+          });
+          applyRateLimitFromServerPayload(dispatch, setUser, purchaseRes);
+          void refreshRateLimitAfterMessagePurchase(dispatch, setUser);
+          toast.success("Purchase confirmed");
+          onPurchaseSuccess?.();
+        } catch (err: unknown) {
+          const msg =
+            err && typeof err === "object" && "message" in err
+              ? String((err as { message?: string }).message)
+              : "Purchase submitted, but confirmation is delayed.";
+          toast.error(msg);
+        }
+      })();
     } catch (e: unknown) {
       const msg =
         e && typeof e === "object" && "message" in e
