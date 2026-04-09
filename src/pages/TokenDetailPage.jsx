@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, Plus } from "lucide-react";
 import {
   AreaChart,
   Area,
@@ -12,6 +12,8 @@ import {
 } from "recharts";
 import { apiCall } from "../utils/api";
 import { useAuth } from "../hooks/useAuth";
+import { watchlistApi } from "../utils/alertsApi";
+import { toast } from "sonner";
 
 const CHART_TIMEFRAMES = [
   { label: "24h", value: "24h", interval: "1h" },
@@ -31,6 +33,8 @@ export function TokenDetailPage() {
   const [loading, setLoading] = useState(true);
   const [chartLoading, setChartLoading] = useState(true);
   const [error, setError] = useState("");
+  const [isAdding, setIsAdding] = useState(false);
+  const [watchlistThreshold, setWatchlistThreshold] = useState(5);
 
   const loadTokenDetails = useCallback(async () => {
     if (!symbol) {
@@ -92,6 +96,24 @@ export function TokenDetailPage() {
 
   const handleBack = () => {
     navigate("/trending");
+  };
+
+  const handleAddToWatchlist = async () => {
+    if (!symbol) return;
+    try {
+      setIsAdding(true);
+      await ensureAuthenticated();
+      await watchlistApi.addToken({
+        symbol,
+        alertThreshold: Number(watchlistThreshold) || 5,
+      });
+      toast.success(`${symbol} added to watchlist`);
+    } catch (err) {
+      if (err?.status === 401) logout();
+      toast.error(err?.message || "Unable to add token to watchlist.");
+    } finally {
+      setIsAdding(false);
+    }
   };
 
   const formatPrice = (val) =>
@@ -170,33 +192,55 @@ export function TokenDetailPage() {
         <>
           {/* Header: token name, symbol, logo */}
           <div className="glass-card p-6 mb-6">
-            <div className="flex items-center gap-4 flex-wrap">
-              {token?.logo && (
-                <img
-                  src={token.logo}
-                  alt=""
-                  className="w-14 h-14 rounded-full object-cover"
-                />
-              )}
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">{symbol}</h1>
-                <p className="text-gray-600 font-mono">
-                  {token?.name ?? symbol}
-                </p>
-                {(token?.tags?.length > 0 || token?.narratives?.length > 0) && (
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {[...(token?.tags || []), ...(token?.narratives || [])]
-                      .slice(0, 6)
-                      .map((t, index) => (
-                        <span
-                          key={t + index}
-                          className="px-2 py-0.5 rounded-full text-xs bg-gray-200 text-gray-700"
-                        >
-                          {t}
-                        </span>
-                      ))}
-                  </div>
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div className="flex items-center gap-4 flex-wrap">
+                {token?.logo && (
+                  <img
+                    src={token.logo}
+                    alt=""
+                    className="w-14 h-14 rounded-full object-cover"
+                  />
                 )}
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900">{symbol}</h1>
+                  <p className="text-gray-600 font-mono">
+                    {token?.name ?? symbol}
+                  </p>
+                  {(token?.tags?.length > 0 || token?.narratives?.length > 0) && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {[...(token?.tags || []), ...(token?.narratives || [])]
+                        .slice(0, 6)
+                        .map((t, index) => (
+                          <span
+                            key={t + index}
+                            className="px-2 py-0.5 rounded-full text-xs bg-gray-200 text-gray-700"
+                          >
+                            {t}
+                          </span>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min={1}
+                  max={50}
+                  value={watchlistThreshold}
+                  onChange={(e) => setWatchlistThreshold(e.target.value)}
+                  className="w-20 px-3 py-2 rounded-xl border border-gray-200 text-sm"
+                />
+                <button
+                  type="button"
+                  onClick={handleAddToWatchlist}
+                  disabled={isAdding}
+                  className="px-4 py-2.5 rounded-xl bg-black text-white text-sm font-semibold inline-flex items-center gap-2 hover:bg-gray-800 disabled:opacity-60"
+                >
+                  <Plus size={16} />
+                  {isAdding ? "Adding..." : "Add to watchlist"}
+                </button>
               </div>
             </div>
           </div>

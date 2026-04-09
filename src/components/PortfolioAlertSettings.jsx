@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Check, ChevronDown, Plus, Trash2, X } from "lucide-react";
+import { Check, ChevronDown, CircleHelp, Plus, Trash2, X } from "lucide-react";
 import OutsideClickHandler from "react-outside-click-handler";
 import { toast } from "sonner";
 import { notificationsApi } from "../utils/alertsApi";
 import { useAuth } from "../hooks/useAuth";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 
 const STEP_OPTIONS = [5, 10, 15, 20];
 
@@ -17,6 +18,8 @@ export function PortfolioAlertSettings({ portfolioId, onClose }) {
   const [customMode, setCustomMode] = useState("TOTAL");
   const [isStepMenuOpen, setIsStepMenuOpen] = useState(false);
   const [isModeMenuOpen, setIsModeMenuOpen] = useState(false);
+  const [pendingDefaultEnabled, setPendingDefaultEnabled] = useState(null);
+  const [pendingPaused, setPendingPaused] = useState(null);
 
   const loadConfig = useCallback(async () => {
     if (!portfolioId) return;
@@ -39,6 +42,11 @@ export function PortfolioAlertSettings({ portfolioId, onClose }) {
   useEffect(() => {
     loadConfig();
   }, [loadConfig]);
+
+  useEffect(() => {
+    setPendingDefaultEnabled(null);
+    setPendingPaused(null);
+  }, [config?.defaultEnabled, config?.paused]);
 
   const patchConfig = async (payload) => {
     if (!portfolioId) return;
@@ -100,34 +108,121 @@ export function PortfolioAlertSettings({ portfolioId, onClose }) {
   );
 
   const stepValue = Number(config?.stepPercent || 5);
+  const effectiveDefaultEnabled =
+    pendingDefaultEnabled == null
+      ? Boolean(config?.defaultEnabled)
+      : Boolean(pendingDefaultEnabled);
+  const effectivePaused =
+    pendingPaused == null ? Boolean(config?.paused) : Boolean(pendingPaused);
+  const hasPendingDefault = pendingDefaultEnabled != null;
+  const hasPendingPaused = pendingPaused != null;
 
-  const ToggleRow = ({ label, checked, onToggle, disabled }) => (
-    <button
-      type="button"
-      onClick={onToggle}
-      disabled={disabled}
-      className="w-full flex items-center justify-between gap-3 text-sm disabled:opacity-60"
-      aria-pressed={checked}
-    >
-      <span>{label}</span>
-      <span
-        className={`relative w-11 h-6 rounded-full transition-colors ${
-          checked ? "bg-black" : "bg-gray-300"
-        }`}
-      >
-        <span
-          className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${
-            checked ? "left-[22px]" : "left-0.5"
-          }`}
-        />
-      </span>
-    </button>
+  const ToggleRow = ({
+    label,
+    checked,
+    onToggle,
+    disabled,
+    onConfirm,
+    onCancel,
+    showConfirm,
+    helpText,
+  }) => (
+    <div className="space-y-2">
+      <div className="w-full flex items-center justify-between gap-3 text-sm">
+        <span className="inline-flex items-center gap-1.5">
+          {label}
+          {helpText ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  className="text-gray-500 hover:text-gray-800"
+                  aria-label={`${label} info`}
+                >
+                  <CircleHelp size={14} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent
+                side="top"
+                sideOffset={8}
+                hideArrow
+                className="max-w-[320px] bg-black text-white rounded-xl px-3 py-2 text-xs"
+              >
+                {helpText}
+              </TooltipContent>
+            </Tooltip>
+          ) : null}
+        </span>
+        <button
+          type="button"
+          onClick={onToggle}
+          disabled={disabled}
+          className="disabled:opacity-60"
+          aria-pressed={checked}
+        >
+          <span
+            className={`relative inline-block w-11 h-6 rounded-full transition-colors ${
+              checked ? "bg-black" : "bg-gray-300"
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${
+                checked ? "left-[22px]" : "left-0.5"
+              }`}
+            />
+          </span>
+        </button>
+      </div>
+      {showConfirm && (
+        <div className="flex items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={disabled}
+            className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs hover:bg-gray-50 disabled:opacity-60"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={disabled}
+            className="px-3 py-1.5 rounded-lg bg-black text-white text-xs hover:bg-gray-800 disabled:opacity-60"
+          >
+            Confirm
+          </button>
+        </div>
+      )}
+    </div>
   );
 
   return (
-    <div className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl p-6 max-w-[560px] w-full">
+    <div className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl p-6 max-w-[600px] w-full">
       <div className="flex items-center justify-between mb-4">
-        <h4 className="text-lg font-bold">Portfolio Alert Settings</h4>
+        <div className="inline-flex items-center gap-1.5">
+          <h4 className="text-lg font-bold">Portfolio Alert Settings</h4>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className="text-gray-500 hover:text-gray-800"
+                aria-label="Portfolio alert settings info"
+              >
+                <CircleHelp size={15} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent
+              side="top"
+              sideOffset={8}
+              hideArrow
+              className="max-w-[360px] bg-black text-white rounded-xl px-3 py-2 text-xs"
+            >
+              Notifications are generated when your ON_CHAIN portfolio crosses
+              step thresholds or custom targets. Default step alerts trigger on
+              percentage steps (e.g. 5%, 10%, 15%).
+            </TooltipContent>
+          </Tooltip>
+        </div>
         <button
           type="button"
           onClick={onClose}
@@ -147,11 +242,15 @@ export function PortfolioAlertSettings({ portfolioId, onClose }) {
         <div className="space-y-4">
           <ToggleRow
             label="Default step alerts"
-            checked={Boolean(config?.defaultEnabled)}
-            onToggle={() =>
-              patchConfig({ defaultEnabled: !config?.defaultEnabled })
+            checked={effectiveDefaultEnabled}
+            onToggle={() => setPendingDefaultEnabled(!effectiveDefaultEnabled)}
+            onConfirm={() =>
+              patchConfig({ defaultEnabled: effectiveDefaultEnabled })
             }
+            onCancel={() => setPendingDefaultEnabled(null)}
+            showConfirm={hasPendingDefault}
             disabled={saving}
+            helpText="When enabled, you receive alerts every stepPercent move in either direction. Example: step 5% triggers at ±5%, ±10%, ±15%."
           />
 
           <div className="flex items-center justify-between gap-3 text-sm">
@@ -164,7 +263,7 @@ export function PortfolioAlertSettings({ portfolioId, onClose }) {
                   setIsStepMenuOpen((prev) => !prev);
                 }}
                 disabled={saving}
-                className="min-w-[120px] px-4 py-2 rounded-xl border border-gray-200 text-sm inline-flex items-center justify-between gap-3 hover:bg-black/5 disabled:opacity-60"
+                className="min-w-[120px] px-4 py-2 rounded-xl bg-white border border-gray-200 text-sm inline-flex items-center justify-between gap-3 hover:bg-black/5 disabled:opacity-60"
               >
                 <span>{stepValue}%</span>
                 <ChevronDown size={16} className="text-gray-500" />
@@ -204,9 +303,13 @@ export function PortfolioAlertSettings({ portfolioId, onClose }) {
 
           <ToggleRow
             label="Pause all alerts"
-            checked={Boolean(config?.paused)}
-            onToggle={() => patchConfig({ paused: !config?.paused })}
+            checked={effectivePaused}
+            onToggle={() => setPendingPaused(!effectivePaused)}
+            onConfirm={() => patchConfig({ paused: effectivePaused })}
+            onCancel={() => setPendingPaused(null)}
+            showConfirm={hasPendingPaused}
             disabled={saving}
+            helpText="Temporarily disables notifications for this portfolio without deleting your configuration."
           />
 
           <div className="pt-2 border-t border-gray-100">
@@ -214,10 +317,10 @@ export function PortfolioAlertSettings({ portfolioId, onClose }) {
             <div className="flex flex-col md:flex-row items-center gap-2 mb-3">
               <input
                 type="number"
-                placeholder="Percent (e.g. 20 or -15)"
+                placeholder="2%"
                 value={customPercent}
                 onChange={(e) => setCustomPercent(e.target.value)}
-                className="px-3 py-2 rounded-xl border border-gray-200 w-full"
+                className="px-3 py-2 rounded-xl border border-gray-200 w-full bg-white"
                 disabled={saving}
               />
               <div className="relative w-full">
@@ -228,7 +331,7 @@ export function PortfolioAlertSettings({ portfolioId, onClose }) {
                     setIsModeMenuOpen((prev) => !prev);
                   }}
                   disabled={saving}
-                  className="min-w-[180px] px-3 py-2 rounded-xl border border-gray-200 text-sm inline-flex items-center justify-between gap-3 hover:bg-black/5 disabled:opacity-60"
+                  className="min-w-[180px] bg-white px-3 py-2 rounded-xl border border-gray-200 text-sm inline-flex items-center justify-between gap-3 hover:bg-black/5 disabled:opacity-60"
                 >
                   <span>
                     {customMode === "TOTAL"
@@ -288,7 +391,7 @@ export function PortfolioAlertSettings({ portfolioId, onClose }) {
                 return (
                   <div
                     key={id}
-                    className="flex items-center justify-between gap-3 px-3 py-2 rounded-xl border border-gray-200"
+                    className="flex items-center justify-between gap-3 px-3 py-2 rounded-xl border border-gray-200 bg-white"
                   >
                     <span className="text-sm">
                       {Number(item?.percent) >= 0 ? "+" : ""}
