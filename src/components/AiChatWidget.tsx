@@ -67,7 +67,7 @@ export function AIChatWidget() {
   }
 
   return (
-    <div className="fixed bottom-6 right-6 w-96 h-[500px] glass-card rounded-2xl shadow-2xl overflow-hidden flex flex-col z-50 border border-gray-200">
+    <div className="fixed bottom-6 right-6 w-80 sm:w-96 h-[500px] glass-card rounded-2xl shadow-2xl overflow-hidden flex flex-col z-50 border border-gray-200">
       {/* Header */}
       <div className="bg-black p-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -150,11 +150,7 @@ export function AIChatWidget() {
           </div>
         )}
 
-        {error && (
-          <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-            {error}
-          </div>
-        )}
+       
 
         <div ref={messagesEndRef} />
       </div>
