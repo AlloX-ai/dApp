@@ -7,6 +7,7 @@ import { openCheckinModal } from "../redux/slices/walletSlice";
 import {
   setCurrentMessages,
   setViewingHistorySessionId,
+  requestBackendChatReset,
 } from "../redux/slices/chatSlice";
 import { useMemo } from "react";
 import getFormattedNumber from "../hooks/get-formatted-number";
@@ -40,6 +41,7 @@ export function LaunchSidebar() {
 
   const handleNewChat = (e) => {
     e.stopPropagation();
+    dispatch(requestBackendChatReset());
     dispatch(setViewingHistorySessionId(null));
     dispatch(setCurrentMessages([]));
     navigate("/");
