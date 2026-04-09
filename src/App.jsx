@@ -59,6 +59,8 @@ import { store } from "./redux/store";
 import { PointsPage } from "./pages/Points";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useSocial } from "./hooks/useSocial";
+import { CongratsModal } from "./components/CongratsModal";
+import { AIChatWidget } from "./components/AiChatWidget";
 import { CampaignsPage } from "./pages/Campaigns";
 import { PrivyFundModal } from "./components/PrivyFundModal";
 import { MaintenancePage } from "./pages/MaintenancePage";
@@ -768,6 +770,19 @@ function PrivyLogoutBridge() {
 }
 
 function App() {
+  const { address } = useSelector((state) => state.wallet);
+  const { isAuthenticated } = useAuth();
+
+
+  // const [showModal, setShowModal] = useState(false);
+  // const lastShown = localStorage.getItem("chatDate");
+  // const count = parseInt(localStorage.getItem("chatCount") || "0", 10);
+  // useEffect(() => {
+  //   const today = new Date().toDateString();
+  //   // App only decides visibility; storage updates happen in CongratsModal after open.
+  //   setShowModal(lastShown !== today && count < 3);
+  // }, [lastShown, count]);
+  
   // const [showModal, setShowModal] = useState(false);
   // const lastShown = localStorage.getItem("chatDate");
   // const count = parseInt(localStorage.getItem("chatCount") || "0", 10);
@@ -822,6 +837,7 @@ function App() {
           address={address}
         />
       )} */}
+      {isAuthenticated && <AIChatWidget />}
     </>
   );
 }
