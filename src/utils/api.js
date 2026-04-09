@@ -11,7 +11,7 @@ const getAuthHeaders = () => {
 export const apiCall = async (endpoint, options = {}, apiType) => {
   const { returnRawResponse = false, ...fetchOptions } = options;
 
-  const response = await fetch(`${apiType ? API2_URL : API_URL}${endpoint}`, {
+  const response = await fetch(`${API_URL}${endpoint}`, {
     ...fetchOptions,
     headers: {
       "Content-Type": "application/json",
