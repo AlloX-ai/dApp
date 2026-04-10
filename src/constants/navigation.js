@@ -9,6 +9,7 @@ import {
   Users,
   Trophy,
   Eye,
+  Briefcase,
 } from "lucide-react";
 
 export const navigationTabs = [
@@ -26,9 +27,44 @@ export const navigationTabs = [
   { id: "history", label: "History", path: "/history", Icon: HistoryIcon },
 ];
 
+/** Sidebar: "Portfolios" trigger + sub-routes (see LaunchSidebar). */
+export const portfolioSidebarNav = {
+  label: "Portfolios",
+  Icon: Briefcase,
+  items: [
+    {
+      id: "portfolio",
+      label: "My Portfolio",
+      path: "/portfolio",
+      Icon: PieChart,
+    },
+    {
+      id: "topportfolio",
+      label: "Top Portfolios",
+      path: "/top-portfolios",
+      Icon: Trophy,
+    },
+    {
+      id: "watchlist",
+      label: "Watchlist",
+      path: "/watchlist",
+      Icon: Eye,
+    },
+  ],
+};
+
+export const portfolioSidebarNavIds = new Set([
+  "portfolio",
+  "watchlist",
+  "topportfolio",
+]);
+
 export const isActivePath = (pathname, tabPath) => {
   if (tabPath === "/") {
     return pathname === "/";
   }
   return pathname.startsWith(tabPath);
 };
+
+export const isPortfolioSidebarNavActive = (pathname) =>
+  portfolioSidebarNav.items.some((i) => isActivePath(pathname, i.path));

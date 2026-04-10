@@ -14,7 +14,7 @@ export function PortfolioAlertSettings({ portfolioId, onClose }) {
   const [saving, setSaving] = useState(false);
   const [config, setConfig] = useState(null);
   const [errorMessage, setErrorMessage] = useState("");
-  const [customPercent, setCustomPercent] = useState("");
+  const [customPercent, setCustomPercent] = useState(5);
   const [customMode, setCustomMode] = useState("TOTAL");
   const [isStepMenuOpen, setIsStepMenuOpen] = useState(false);
   const [isModeMenuOpen, setIsModeMenuOpen] = useState(false);

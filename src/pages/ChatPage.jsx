@@ -2978,7 +2978,7 @@ export function ChatPage() {
     <div className="flex-1 flex flex-col">
       <div className="flex-1 flex flex-col overflow-y-auto">
         {currentMessages.length === 0 && !quickWizardOpen && (
-          <div className="h-full flex items-center justify-center px-6">
+          <div className="h-full flex items-center justify-center px-4 sm:px-6">
             <div className="text-center max-w-2xl">
               <h2 className="text-3xl font-bold mb-4">Hello, I'm AlloX</h2>
 
@@ -2986,11 +2986,10 @@ export function ChatPage() {
                 I can help you discover, execute, and manage your portfolio.
               </p>
 
-              <div className="flex flex-wrap gap-2 justify-center mb-8">
+              <div className="mb-8 grid grid-cols-2 md:grid-cols-3 gap-2">
                 {[
                   "Build Quick Portfolio",
                   "Build a Portfolio - Guided",
-
                   "Explain narratives",
                   "Trending Tokens",
                   "How should I invest $100?",
@@ -3000,7 +2999,7 @@ export function ChatPage() {
                     key={suggestion}
                     onClick={() => handleSuggestionClick(suggestion)}
                     disabled={isReadOnly || messagesRemaining === 0}
-                    className="px-4 py-2 bg-white shadow border border-white text-sm font-medium hover:bg-white/90 hover:shadow-lg hover:border hover:border-gray-200/50 transition-all duration-200 rounded-full disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-white"
+                    className="px-3 sm:px-4 py-2 bg-white shadow border border-white text-xs sm:text-sm font-medium hover:bg-white/90 hover:shadow-lg hover:border hover:border-gray-200/50 transition-all duration-200 rounded-full disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-white"
                   >
                     {suggestion}
                   </button>
@@ -3733,7 +3732,11 @@ export function ChatPage() {
                               badge: "PAY",
                             },
                             { value: "AI", label: "AI", badge: "AI" },
-                            { value: "memes", label: "Memecoins", badge: "Memecoins" },
+                            {
+                              value: "memes",
+                              label: "Memecoins",
+                              badge: "Memecoins",
+                            },
 
                             { value: "Gaming", label: "Gaming", badge: "G" },
                             { value: "DePin", label: "DePin", badge: "DP" },

@@ -36,7 +36,7 @@ export function TokenDetailPage() {
   const [chartLoading, setChartLoading] = useState(true);
   const [error, setError] = useState("");
   const [isAdding, setIsAdding] = useState(false);
-  const [watchlistThreshold, setWatchlistThreshold] = useState("");
+  const [watchlistThreshold, setWatchlistThreshold] = useState(5);
   const [isWatchlistModalOpen, setIsWatchlistModalOpen] = useState(false);
   const [watchlistItems, setWatchlistItems] = useState([]);
   const [isWatchlistLoading, setIsWatchlistLoading] = useState(false);
@@ -506,8 +506,8 @@ export function TokenDetailPage() {
             <div className="rounded-xl bg-gray-50 border border-gray-100 p-3 text-sm text-gray-600 mb-4 flex items-start gap-2">
               <Info size={16} className="mt-0.5 shrink-0 text-gray-500" />
               <p>
-                Set your preferred alert threshold in percentage (eg 2% or
-                10%). Token watchlist thresholds are positive only, and you
+                Set your preferred alert threshold in percentage (eg 1% or
+                50%). Token watchlist thresholds are positive only, and you
                 will get alerts when the token's 24h move crosses this level.
               </p>
             </div>
@@ -517,7 +517,7 @@ export function TokenDetailPage() {
               </label>
               <input
                 type="number"
-                placeholder="2% or 10%"
+                placeholder="1% or 50%"
                 min={MIN_THRESHOLD}
                 max={MAX_THRESHOLD}
                 value={watchlistThreshold}

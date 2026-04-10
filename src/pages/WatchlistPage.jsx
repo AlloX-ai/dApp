@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Bell,
   HelpCircle,
@@ -47,13 +47,14 @@ export function WatchlistPage() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
   const [selectedToken, setSelectedToken] = useState(null);
-  const [selectedThreshold, setSelectedThreshold] = useState("");
+  const [selectedThreshold, setSelectedThreshold] = useState(5);
   const [activeNarrative, setActiveNarrative] = useState(null);
   const [highlightedNarrativeId, setHighlightedNarrativeId] = useState(null);
   const [narrativeTokens, setNarrativeTokens] = useState([]);
   const [narrativeLoading, setNarrativeLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [thresholdDrafts, setThresholdDrafts] = useState({});
+  const searchSectionRef = useRef(null);
 
   const normalizeThreshold = (value, fallback = 5) => {
     const parsed = Number(value);
@@ -138,6 +139,19 @@ export function WatchlistPage() {
     };
     runSearch();
   }, [debouncedQuery, ensureAuthenticated, logout]);
+
+  useEffect(() => {
+    const handleOutside = (event) => {
+      if (!searchSectionRef.current) return;
+      if (!searchSectionRef.current.contains(event.target)) {
+        setSearchResults([]);
+        setQuery("");
+        setDebouncedQuery("");
+      }
+    };
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, []);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -252,7 +266,7 @@ export function WatchlistPage() {
       <div className="grid grid-cols-1 gap-6 items-start">
         <div className="glass-card p-5 relative z-20">
           <h3 className="text-lg font-bold mb-3">Token Explorer</h3>
-          <div className="relative mb-4">
+          <div className="relative mb-4" ref={searchSectionRef}>
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
             <input
               value={query}
@@ -275,14 +289,23 @@ export function WatchlistPage() {
                       key={`${symbol}-${idx}`}
                       onClick={() => {
                         setSelectedToken(token);
-                        setSelectedThreshold("");
+                        // setSelectedThreshold("");
                         setHighlightedNarrativeId(null);
                         setSearchResults([]);
-                        setQuery(symbol || "");
+                        setQuery("");
+                        setDebouncedQuery("");
                       }}
                       className="w-full text-left px-4 py-3 hover:bg-black/5 border-b last:border-b-0 border-gray-100"
                     >
-                      <span className="font-semibold">{symbol}</span>
+                      <span className="font-semibold flex items-center gap-2">
+                        {" "}
+                        <img
+                          src={item.logo}
+                          alt=""
+                          className="h-7 w-7 shrink-0 rounded-full object-cover ring-2 ring-white"
+                        />
+                        {symbol}
+                      </span>
                       <span className="text-gray-500 text-sm">
                         {" "}
                         {name ? `- ${name}` : ""}
@@ -296,7 +319,7 @@ export function WatchlistPage() {
 
           <div className="mb-4">
             <h4 className="text-sm font-semibold mb-2">Narratives</h4>
-            <div className="flex flex-wrap gap-2">
+            <div className="grid lg:grid-cols-5 md:grid-cols-4 grid-cols-2 gap-3">
               {NARRATIVE_OPTIONS.map((narrative) => {
                 const isActive = highlightedNarrativeId === narrative.id;
                 return (
@@ -371,7 +394,7 @@ export function WatchlistPage() {
                   </span>
                   <input
                     type="number"
-                    placeholder="2% or 10%"
+                    placeholder="1% to 50%"
                     min={MIN_THRESHOLD}
                     max={MAX_THRESHOLD}
                     value={selectedThreshold}

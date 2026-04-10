@@ -1172,7 +1172,7 @@ export function PortfolioPage() {
                                 <h4 className="text-lg font-bold mb-3">
                                   Narrative Breakdown
                                 </h4>
-                                <div className="grid md:grid-cols-3 gap-3">
+                                <div className="grid md:grid-cols-2 gap-3">
                                   {Object.entries(narrativeBreakdown).map(
                                     ([narrative, data]) => (
                                       <div
@@ -1210,7 +1210,7 @@ export function PortfolioPage() {
                                 <h4 className="text-lg font-bold mb-3">
                                   Risk Breakdown
                                 </h4>
-                                <div className="grid md:grid-cols-3 gap-3">
+                                <div className="grid md:grid-cols-2 gap-3">
                                   {Object.entries(riskBreakdown).map(
                                     ([risk, data]) => (
                                       <div

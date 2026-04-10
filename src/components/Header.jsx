@@ -17,7 +17,12 @@ import { NetworkSelector } from "./NetworkSelector";
 import { shortAddress } from "../hooks/shortAddress";
 import { useCheckin } from "../hooks/useCheckin";
 import { useTotalPoints } from "../hooks/useTotalPoints";
-import { navigationTabs, isActivePath } from "../constants/navigation";
+import {
+  navigationTabs,
+  isActivePath,
+  portfolioSidebarNavIds,
+} from "../constants/navigation";
+import { PortfolioNavGroup } from "./PortfolioNavGroup";
 import OutsideClickHandler from "react-outside-click-handler";
 import { findSeason2RewardForWallet } from "../constants/rewards";
 import { MessageLimitModal } from "./MessageLimitModal";
@@ -52,6 +57,22 @@ export function Header({
   const user = useMemo(() => findSeason2RewardForWallet(coinbase), [coinbase]);
   const { checkedInToday } = useCheckin();
   const { user: authUser } = useAuth();
+
+  const mobileMainTabs = useMemo(() => {
+    const filtered = navigationTabs.filter(
+      (t) =>
+        !["history", "trading", "staking"].includes(t.id) &&
+        !portfolioSidebarNavIds.has(t.id),
+    );
+    const out = [];
+    for (const t of filtered) {
+      out.push({ kind: "tab", tab: t });
+      if (t.id === "chat") {
+        out.push({ kind: "portfolio" });
+      }
+    }
+    return out;
+  }, []);
 
   const handleOpenCheckinModal = () => {
     dispatch(openCheckinModal());
@@ -112,10 +133,10 @@ export function Header({
                   </div>
                 )}
               </div>
-              {isConnected && <NotificationBell isConnected={isConnected} />}
+
               {totalPoints >= 0 && isConnected && (
                 <div
-                  className="bg-white rounded-full px-3 py-2 flex items-center gap-3 cursor-pointer hover:bg-gray-200 transition-color"
+                  className="hidden md:flex bg-white rounded-full px-3 py-2 items-center gap-3 cursor-pointer hover:bg-gray-200 transition-color"
                   onClick={() => setMessageLimitModalOpen(true)}
                   role="button"
                 >
@@ -129,6 +150,16 @@ export function Header({
                   )}
                 </div>
               )}
+              {isConnected && authUser?.authProvider === "privy" && (
+                <button
+                  type="button"
+                  onClick={onOpenFundModal}
+                  className="md:hidden  flex items-center shrink-0 text-xs font-semibold px-3 py-2 rounded-full bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+                >
+                  Add funds
+                </button>
+              )}
+              {isConnected && <NotificationBell isConnected={isConnected} />}
               {/* {totalPoints >= 0 && isConnected && (
               <Tooltip
                 open={showTooltip}
@@ -240,24 +271,29 @@ export function Header({
                       <div className="fixed left-0 right-0 top-20 z-50 animate-fade-in">
                         <div className="mobile-menu-open bg-white p-3 space-y-2 shadow-xl shadow-black/10">
                           {(mobileMenuView === "main"
-                            ? navigationTabs.filter(
-                                (tab) =>
-                                  ![
-                                    "history",
-                                    "trading",
-                                    "topportfolio",
-                                    "staking",
-                                  ].includes(tab.id),
-                              )
+                            ? mobileMainTabs
                             : navigationTabs.filter((tab) =>
-                                [
-                                  "history",
-                                  "trading",
-                                  "topportfolio",
-                                  "staking",
-                                ].includes(tab.id),
+                                ["history", "trading", "staking"].includes(
+                                  tab.id,
+                                ),
                               )
-                          ).map((tab) => {
+                          ).map((row) => {
+                            if (mobileMenuView === "main" && row.kind === "portfolio") {
+                              return (
+                                <PortfolioNavGroup
+                                  key="mobile-portfolio"
+                                  pathname={pathname}
+                                  navigate={navigate}
+                                  idPrefix="mobile-portfolio"
+                                  onItemNavigate={() => {
+                                    setIsMenuOpen(false);
+                                    setMobileMenuView("main");
+                                  }}
+                                />
+                              );
+                            }
+                            const tab =
+                              mobileMenuView === "main" ? row.tab : row;
                             const { id, label, path } = tab;
                             const NavIcon = tab.Icon;
                             const isActive = isActivePath(pathname, path);
@@ -307,24 +343,13 @@ export function Header({
                               <ChevronRight size={18} className="rotate-180" />
                             </button>
                           )}
-                          {isConnected &&
-                            authUser?.authProvider === "privy" && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  onOpenFundModal();
-                                  setIsMenuOpen(false);
-                                }}
-                                className="w-full text-left px-4 py-3 rounded-xl text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
-                              >
-                                Add funds
-                              </button>
-                            )}
+                          
                           {isConnected && (
-                            <div className="rounded-xl border border-gray-100 bg-gray-50/80 p-3">
+                            <div className="rounded-xl border border-gray-100 bg-gray-50/80 p-3 flex items-center gap-2 justify-between">
+                             
                               <div className="flex items-center gap-2 justify-between">
                                 <span
-                                  className="pl-1 py-1 text-sm font-medium flex gap-3 items-center"
+                                  className="pl-1 py-1 text-xs font-medium flex gap-3 items-center"
                                   onClick={() => handleCopy(coinbase)}
                                 >
                                   {copied ? (
@@ -335,20 +360,38 @@ export function Header({
                                   {shortAddress(coinbase)}
                                 </span>
                               </div>
-                              <div className="mt-2 px-1 flex items-center justify-between gap-3">
+                             
+                              <div className="rounded-full border border-gray-200/80 px-2 py-1 flex items-center justify-between gap-2 bg-white shadow-sm hover:bg-gray-50">
                                 <div className="flex items-center gap-2">
                                   <Coins className="size-4 text-amber-500" />
-                                  <span className="text-sm font-semibold tabular-nums">
+                                  <span className="text-xs font-semibold tabular-nums">
                                     {totalPoints.toLocaleString()}
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <Gem className="size-4 text-purple-600" />
-                                  <span className="text-sm font-semibold tabular-nums">
+                                  <span className="text-xs font-semibold tabular-nums">
                                     {user ? user.gems : 0}
                                   </span>
                                 </div>
                               </div>
+                               {isConnected &&
+                            totalPoints >= 0 &&
+                            messagesRemaining != null && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setMessageLimitModalOpen(true);
+                                  setIsMenuOpen(false);
+                                }}
+                                className="w-full flex items-center justify-center gap-2 rounded-full border border-gray-200/80 bg-white px-2 py-1 text-sm font-semibold text-gray-900 shadow-sm hover:bg-gray-50 transition-colors"
+                              >
+                                <SendHorizontal className="size-4 shrink-0 text-green-600" />
+                                <span className="tabular-nums">
+                                  {messagesRemaining}
+                                </span>
+                              </button>
+                            )}
                             </div>
                           )}
                           {isConnected && (
@@ -373,9 +416,7 @@ export function Header({
                                     disabled={!isConnected}
                                     className="w-full bg-white text-purple-600 font-semibold text-sm py-2 px-4 rounded-xl hover:bg-white/90 transition-all shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
                                   >
-                                    {checkedInToday
-                                      ? "Already Claimed"
-                                      : "Claim"}
+                                    {checkedInToday ? "Claimed" : "Claim"}
                                     {/* Coming Soon */}
                                   </button>
                                 </div>
