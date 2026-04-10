@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { ArrowLeft, Loader2, Plus } from "lucide-react";
+import { ArrowLeft, Eye, Info, Loader2, Plus, X } from "lucide-react";
 import {
   AreaChart,
   Area,
@@ -34,7 +34,20 @@ export function TokenDetailPage() {
   const [chartLoading, setChartLoading] = useState(true);
   const [error, setError] = useState("");
   const [isAdding, setIsAdding] = useState(false);
-  const [watchlistThreshold, setWatchlistThreshold] = useState(5);
+  const [watchlistThreshold, setWatchlistThreshold] = useState("");
+  const [isWatchlistModalOpen, setIsWatchlistModalOpen] = useState(false);
+  const [watchlistItems, setWatchlistItems] = useState([]);
+  const [isWatchlistLoading, setIsWatchlistLoading] = useState(false);
+  const [isWatchlistPreviewOpen, setIsWatchlistPreviewOpen] = useState(false);
+  const [isDeletingWatchlistItem, setIsDeletingWatchlistItem] = useState(false);
+
+  const isTokenInWatchlist = watchlistItems.some(
+    (item) => String(item?.symbol || "").toUpperCase() === symbol,
+  );
+  const watchlistTokenItem =
+    watchlistItems.find(
+      (item) => String(item?.symbol || "").toUpperCase() === symbol,
+    ) || null;
 
   const loadTokenDetails = useCallback(async () => {
     if (!symbol) {
@@ -94,6 +107,24 @@ export function TokenDetailPage() {
     loadChartData();
   }, [loadChartData]);
 
+  useEffect(() => {
+    const loadWatchlist = async () => {
+      if (!symbol) return;
+      try {
+        setIsWatchlistLoading(true);
+        await ensureAuthenticated();
+        const data = await watchlistApi.getWatchlist();
+        setWatchlistItems(Array.isArray(data?.items) ? data.items : []);
+      } catch (err) {
+        if (err?.status === 401) logout();
+        setWatchlistItems([]);
+      } finally {
+        setIsWatchlistLoading(false);
+      }
+    };
+    loadWatchlist();
+  }, [symbol, ensureAuthenticated, logout]);
+
   const handleBack = () => {
     navigate("/trending");
   };
@@ -105,14 +136,40 @@ export function TokenDetailPage() {
       await ensureAuthenticated();
       await watchlistApi.addToken({
         symbol,
-        alertThreshold: Number(watchlistThreshold) || 5,
+        alertThreshold: Number(watchlistThreshold),
       });
       toast.success(`${symbol} added to watchlist`);
+      const data = await watchlistApi.getWatchlist();
+      setWatchlistItems(Array.isArray(data?.items) ? data.items : []);
+      return true;
     } catch (err) {
       if (err?.status === 401) logout();
+      if (err?.status === 409) {
+        const data = await watchlistApi.getWatchlist();
+        setWatchlistItems(Array.isArray(data?.items) ? data.items : []);
+      }
       toast.error(err?.message || "Unable to add token to watchlist.");
+      return false;
     } finally {
       setIsAdding(false);
+    }
+  };
+
+  const handleDeleteFromWatchlist = async () => {
+    if (!symbol) return;
+    try {
+      setIsDeletingWatchlistItem(true);
+      await ensureAuthenticated();
+      await watchlistApi.removeToken(symbol);
+      const data = await watchlistApi.getWatchlist();
+      setWatchlistItems(Array.isArray(data?.items) ? data.items : []);
+      setIsWatchlistPreviewOpen(false);
+      toast.success(`${symbol} removed from watchlist`);
+    } catch (err) {
+      if (err?.status === 401) logout();
+      toast.error(err?.message || "Unable to delete watchlist item.");
+    } finally {
+      setIsDeletingWatchlistItem(false);
     }
   };
 
@@ -206,7 +263,8 @@ export function TokenDetailPage() {
                   <p className="text-gray-600 font-mono">
                     {token?.name ?? symbol}
                   </p>
-                  {(token?.tags?.length > 0 || token?.narratives?.length > 0) && (
+                  {(token?.tags?.length > 0 ||
+                    token?.narratives?.length > 0) && (
                     <div className="flex flex-wrap gap-2 mt-2">
                       {[...(token?.tags || []), ...(token?.narratives || [])]
                         .slice(0, 6)
@@ -224,23 +282,25 @@ export function TokenDetailPage() {
               </div>
 
               <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  min={1}
-                  max={50}
-                  value={watchlistThreshold}
-                  onChange={(e) => setWatchlistThreshold(e.target.value)}
-                  className="w-20 px-3 py-2 rounded-xl border border-gray-200 text-sm"
-                />
-                <button
-                  type="button"
-                  onClick={handleAddToWatchlist}
-                  disabled={isAdding}
-                  className="px-4 py-2.5 rounded-xl bg-black text-white text-sm font-semibold inline-flex items-center gap-2 hover:bg-gray-800 disabled:opacity-60"
-                >
-                  <Plus size={16} />
-                  {isAdding ? "Adding..." : "Add to watchlist"}
-                </button>
+                {isTokenInWatchlist ? (
+                  <button
+                    type="button"
+                    onClick={() => setIsWatchlistPreviewOpen(true)}
+                    className="px-4 py-2.5 rounded-xl border border-black text-black text-sm font-semibold inline-flex items-center gap-2 hover:bg-black hover:text-white transition-colors"
+                  >
+                    <Eye size={16} />
+                    View watchlist
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setIsWatchlistModalOpen(true)}
+                    className="px-4 py-2.5 rounded-xl bg-black text-white text-sm font-semibold inline-flex items-center gap-2 hover:bg-gray-800"
+                  >
+                    <Plus size={16} />
+                    Add to watchlist
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -416,6 +476,166 @@ export function TokenDetailPage() {
               </div>
             )} */}
         </>
+      )}
+      {isWatchlistModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+          onClick={() => setIsWatchlistModalOpen(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-bold">Add to watchlist</h3>
+              <button
+                type="button"
+                onClick={() => setIsWatchlistModalOpen(false)}
+                className="rounded-full p-1 hover:bg-black/5"
+                aria-label="Close modal"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="rounded-xl bg-gray-50 border border-gray-100 p-3 text-sm text-gray-600 mb-4 flex items-start gap-2">
+              <Info size={16} className="mt-0.5 shrink-0 text-gray-500" />
+              <p>
+                Set your preferred alert threshold in percentage (eg 2%). You
+                will get alerts when the token's 24h move crosses this level.
+              </p>
+            </div>
+            <div className="space-y-2 mb-5">
+              <label className="text-xs font-medium text-gray-600">
+                Alert threshold (%)
+              </label>
+              <input
+                type="number"
+                placeholder="2%"
+                min={1}
+                max={50}
+                value={watchlistThreshold}
+                onChange={(e) => setWatchlistThreshold(e.target.value)}
+                className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={async () => {
+                const ok = await handleAddToWatchlist();
+                if (ok) setIsWatchlistModalOpen(false);
+              }}
+              disabled={isAdding}
+              className="w-full px-4 py-2.5 rounded-xl bg-black text-white text-sm font-semibold inline-flex items-center justify-center gap-2 hover:bg-gray-800 disabled:opacity-60"
+            >
+              <Plus size={16} />
+              {isAdding ? "Adding..." : `Add ${symbol} to watchlist`}
+            </button>
+          </div>
+        </div>
+      )}
+      {isWatchlistPreviewOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+          onClick={() => setIsWatchlistPreviewOpen(false)}
+        >
+          <div
+            className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold">My Watchlist</h3>
+              <button
+                type="button"
+                onClick={() => setIsWatchlistPreviewOpen(false)}
+                className="rounded-full p-1 hover:bg-black/5"
+                aria-label="Close watchlist preview"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="max-h-72 overflow-y-auto border border-gray-100 rounded-2xl mb-4">
+              {isWatchlistLoading ? (
+                <div className="py-8 flex items-center justify-center">
+                  <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+                </div>
+              ) : !watchlistTokenItem ? (
+                <p className="text-sm text-gray-500 py-8 text-center">
+                  This token is not in your watchlist.
+                </p>
+              ) : (
+                <div className="px-4 py-4 flex items-start gap-3">
+                  {watchlistTokenItem?.logo ? (
+                    <img
+                      src={watchlistTokenItem.logo}
+                      alt=""
+                      className="h-10 w-10 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="h-10 w-10 rounded-full bg-gray-200" />
+                  )}
+                  <div className="min-w-0 w-full">
+                    <p className="font-semibold text-base truncate">
+                      {watchlistTokenItem?.symbol}
+                    </p>
+                    <div className="grid grid-cols-2 gap-2 mt-2 text-sm text-gray-600">
+                      <span>
+                        Threshold:{" "}
+                        {Number(watchlistTokenItem?.alertThreshold || 5)}%
+                      </span>
+                      <span>
+                        Current Price: $
+                        {Number(
+                          watchlistTokenItem?.currentPriceUsd || 0,
+                        ).toFixed(4)}
+                      </span>
+                      <span
+                        className={`${Number(watchlistTokenItem?.priceChange24h || 0) >= 0 ? "text-green-600" : "text-red-600"}`}
+                      >
+                        24h:{" "}
+                        {Number(watchlistTokenItem?.priceChange24h || 0) >= 0
+                          ? "+"
+                          : ""}
+                        {Number(
+                          watchlistTokenItem?.priceChange24h || 0,
+                        ).toFixed(2)}
+                        %
+                      </span>
+                      <span
+                        className={`${watchlistTokenItem?.pnlSinceAdd >= 0 ? "text-green-600" : "text-red-600"}`}
+                      >
+                        PnL:{" "}
+                        {Number(watchlistTokenItem?.pnlSinceAdd || 0) >= 0
+                          ? "+"
+                          : ""}{" "}
+                        {Number(watchlistTokenItem?.pnlSinceAdd || 0).toFixed(
+                          2,
+                        )}
+                        %
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setIsWatchlistPreviewOpen(false)}
+                className="px-4 py-2 rounded-xl border border-gray-200 text-sm hover:bg-gray-50"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteFromWatchlist}
+                disabled={!isTokenInWatchlist || isDeletingWatchlistItem}
+                className="px-4 py-2 rounded-xl bg-red-600 text-white text-sm hover:bg-red-700 disabled:opacity-60"
+              >
+                {isDeletingWatchlistItem ? "Deleting..." : "Delete watchlist"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
