@@ -60,7 +60,7 @@ export function AIChatWidget() {
           <div className="w-8 h-8 bg-black rounded-full flex items-center justify-center">
             <img src="https://cdn.allox.ai/allox/alloxWhite.svg" alt="chat icon" className="h-4 w-4" />
           </div>
-          <span className="font-semibold text-gray-900">Allox Web3</span>
+          <span className="font-semibold text-gray-900">AlloX Web3</span>
         </button>
       </div>
     );
@@ -75,7 +75,7 @@ export function AIChatWidget() {
            <img src="https://cdn.allox.ai/allox/alloxWhite.svg" alt="chat icon" className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="font-bold text-white">Allox Web3</h3>
+            <h3 className="font-bold text-white">AlloX Web3</h3>
             <p className="text-xs text-blue-100">Powered by ChainGPT</p>
           </div>
         </div>
@@ -97,10 +97,10 @@ export function AIChatWidget() {
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gradient-to-br from-gray-50/50 to-white/50">
-        {messages.map((message: Message) => (
+        {messages.map((message: Message, index: number) => (
           <div
             key={message.id}
-            className={`flex ${message.type === "user" ? "justify-end" : "justify-start"}`}
+            className={`flex ${message.type === "user" ? "justify-end" : "justify-start"}  ${isThinking && index === messages.length - 1 ? "hidden" : ""}`}
           >
             <div
               className={`max-w-[80%] rounded-2xl px-4 py-2.5 ${
@@ -144,7 +144,7 @@ export function AIChatWidget() {
                     style={{ animationDelay: "0.4s" }}
                   ></div>
                 </div>
-                <span className="text-xs text-gray-500">ChainGPT is thinking...</span>
+                <span className="text-xs text-gray-500">AlloX is thinking...</span>
               </div>
             </div>
           </div>
