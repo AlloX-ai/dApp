@@ -257,24 +257,24 @@ export function PortfolioAlertSettings({ portfolioId, onClose }) {
 
           <div className="flex items-center justify-between gap-3 text-sm">
             <span>Step size</span>
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsModeMenuOpen(false);
-                  setIsStepMenuOpen((prev) => !prev);
-                }}
-                disabled={saving}
-                className="min-w-[120px] px-4 py-2 rounded-xl bg-white border border-gray-200 text-sm inline-flex items-center justify-between gap-3 hover:bg-black/5 disabled:opacity-60"
-              >
-                <span>{stepValue}%</span>
-                <ChevronDown size={16} className="text-gray-500" />
-              </button>
-              {isStepMenuOpen && (
-                <div className="absolute top-full right-0 mt-2 bg-white border border-gray-200 rounded-xl p-2 min-w-[140px] z-20 animate-fade-in">
-                  <OutsideClickHandler
-                    onOutsideClick={() => setIsStepMenuOpen(false)}
-                  >
+            <OutsideClickHandler
+              onOutsideClick={() => setIsStepMenuOpen(false)}
+            >
+              <div className="relative inline-block text-left">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsModeMenuOpen(false);
+                    setIsStepMenuOpen((prev) => !prev);
+                  }}
+                  disabled={saving}
+                  className="min-w-[120px] px-4 py-2 rounded-xl bg-white border border-gray-200 text-sm inline-flex items-center justify-between gap-3 hover:bg-black/5 disabled:opacity-60"
+                >
+                  <span>{stepValue}%</span>
+                  <ChevronDown size={16} className="text-gray-500" />
+                </button>
+                {isStepMenuOpen && (
+                  <div className="absolute top-full right-0 mt-2 bg-white border border-gray-200 rounded-xl p-2 min-w-[140px] z-20 animate-fade-in">
                     {STEP_OPTIONS.map((step) => (
                       <button
                         key={step}
@@ -297,10 +297,10 @@ export function PortfolioAlertSettings({ portfolioId, onClose }) {
                         <span>{step}%</span>
                       </button>
                     ))}
-                  </OutsideClickHandler>
-                </div>
-              )}
-            </div>
+                  </div>
+                )}
+              </div>
+            </OutsideClickHandler>
           </div>
 
           <ToggleRow
@@ -331,28 +331,28 @@ export function PortfolioAlertSettings({ portfolioId, onClose }) {
                 className="px-3 py-2 rounded-xl border border-gray-200 w-full bg-white"
                 disabled={saving}
               />
-              <div className="relative w-full">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsStepMenuOpen(false);
-                    setIsModeMenuOpen((prev) => !prev);
-                  }}
-                  disabled={saving}
-                  className="min-w-[180px] bg-white px-3 py-2 rounded-xl border border-gray-200 text-sm inline-flex items-center justify-between gap-3 hover:bg-black/5 disabled:opacity-60"
-                >
-                  <span>
-                    {customMode === "TOTAL"
-                      ? "One-time (TOTAL)"
-                      : "Recurring (EVERY)"}
-                  </span>
-                  <ChevronDown size={16} className="text-gray-500" />
-                </button>
-                {isModeMenuOpen && (
-                  <div className="absolute top-full left-0 mt-2 bg-white border border-gray-200 rounded-xl p-2 min-w-[220px] z-20 animate-fade-in">
-                    <OutsideClickHandler
-                      onOutsideClick={() => setIsModeMenuOpen(false)}
-                    >
+              <OutsideClickHandler
+                onOutsideClick={() => setIsModeMenuOpen(false)}
+              >
+                <div className="relative w-full">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsStepMenuOpen(false);
+                      setIsModeMenuOpen((prev) => !prev);
+                    }}
+                    disabled={saving}
+                    className="min-w-[180px] w-full bg-white px-3 py-2 rounded-xl border border-gray-200 text-sm inline-flex items-center justify-between gap-3 hover:bg-black/5 disabled:opacity-60"
+                  >
+                    <span>
+                      {customMode === "TOTAL"
+                        ? "One-time (TOTAL)"
+                        : "Recurring (EVERY)"}
+                    </span>
+                    <ChevronDown size={16} className="text-gray-500" />
+                  </button>
+                  {isModeMenuOpen && (
+                    <div className="absolute top-full left-0 mt-2 bg-white border border-gray-200 rounded-xl p-2 min-w-[220px] z-20 animate-fade-in">
                       {[
                         { value: "TOTAL", label: "One-time (TOTAL)" },
                         { value: "EVERY", label: "Recurring (EVERY)" },
@@ -378,10 +378,10 @@ export function PortfolioAlertSettings({ portfolioId, onClose }) {
                           <span>{item.label}</span>
                         </button>
                       ))}
-                    </OutsideClickHandler>
-                  </div>
-                )}
-              </div>
+                    </div>
+                  )}
+                </div>
+              </OutsideClickHandler>
               <button
                 type="button"
                 onClick={handleAddCustom}
