@@ -1,14 +1,31 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Bell, Loader2, Plus, Search, Trash2, X } from "lucide-react";
+import {
+  Bell,
+  HelpCircle,
+  Loader2,
+  Plus,
+  Search,
+  Trash2,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../hooks/useAuth";
 import { apiCall } from "../utils/api";
 import { watchlistApi } from "../utils/alertsApi";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "../components/ui/tooltip";
 
 const POLL_MS = 60000;
 const SEARCH_DEBOUNCE_MS = 250;
+const MIN_THRESHOLD = 1;
+const MAX_THRESHOLD = 50;
 
 const NARRATIVE_OPTIONS = [
+  // { id: "diversified", label: "Diversified" },
+  { id: "defi", label: "DeFi" },
   { id: "layer2", label: "Layer 2" },
   { id: "privacy", label: "Privacy" },
   { id: "infra", label: "Infrastructure" },
@@ -17,6 +34,7 @@ const NARRATIVE_OPTIONS = [
   { id: "ai", label: "AI-Powered Crypto" },
   { id: "gaming", label: "Gaming" },
   { id: "depin", label: "DePIN" },
+  { id: "memes", label: "Memecoins" },
 ];
 
 export function WatchlistPage() {
@@ -36,6 +54,12 @@ export function WatchlistPage() {
   const [narrativeLoading, setNarrativeLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [thresholdDrafts, setThresholdDrafts] = useState({});
+
+  const normalizeThreshold = (value, fallback = 5) => {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) return fallback;
+    return Math.min(MAX_THRESHOLD, Math.max(MIN_THRESHOLD, parsed));
+  };
 
   const loadWatchlist = useCallback(async () => {
     setLoading(true);
@@ -115,6 +139,11 @@ export function WatchlistPage() {
     runSearch();
   }, [debouncedQuery, ensureAuthenticated, logout]);
 
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    document.title = "Watchlist";
+  }, []);
+
   const handleAdd = async (
     token = selectedToken,
     threshold = selectedThreshold,
@@ -130,7 +159,7 @@ export function WatchlistPage() {
       await watchlistApi.addToken({
         symbol,
         chain: token?.chain || token?.chainId || undefined,
-        alertThreshold: Number(threshold) || 5,
+        alertThreshold: normalizeThreshold(threshold, 5),
       });
       setSelectedToken(null);
       setSelectedThreshold(5);
@@ -180,13 +209,16 @@ export function WatchlistPage() {
 
   const handleThresholdInputChange = (symbol, value) => {
     const key = String(symbol || "").toUpperCase();
-    const next = Math.min(50, Math.max(1, Number(value || 1)));
-    setThresholdDrafts((prev) => ({ ...prev, [key]: next }));
+    const parsed = Number(value);
+    setThresholdDrafts((prev) => ({
+      ...prev,
+      [key]: Number.isFinite(parsed) ? parsed : value,
+    }));
   };
 
   const handleThresholdUpdate = async (symbol) => {
     const key = String(symbol || "").toUpperCase();
-    const next = Math.min(50, Math.max(1, Number(thresholdDrafts[key] || 1)));
+    const next = normalizeThreshold(thresholdDrafts[key], 5);
     try {
       await ensureAuthenticated();
       await watchlistApi.updateThreshold(symbol, next);
@@ -218,7 +250,7 @@ export function WatchlistPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 items-start">
-        <div className="glass-card p-5">
+        <div className="glass-card p-5 relative z-20">
           <h3 className="text-lg font-bold mb-3">Token Explorer</h3>
           <div className="relative mb-4">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
@@ -232,7 +264,7 @@ export function WatchlistPage() {
               <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 size-4 animate-spin text-gray-400" />
             )}
             {searchResults.length > 0 && (
-              <div className="absolute left-0 right-0 top-full mt-2 bg-white border border-gray-200 rounded-xl shadow-lg max-h-72 overflow-y-auto z-10">
+              <div className="absolute left-0 right-0 top-full mt-2 bg-white border border-gray-200 rounded-xl shadow-lg max-h-72 overflow-y-auto z-40">
                 {searchResults.map((item, idx) => {
                   const token = item?.token ?? item;
                   const symbol = token?.symbol ?? item?.symbol;
@@ -243,7 +275,7 @@ export function WatchlistPage() {
                       key={`${symbol}-${idx}`}
                       onClick={() => {
                         setSelectedToken(token);
-                        setSelectedThreshold('');
+                        setSelectedThreshold("");
                         setHighlightedNarrativeId(null);
                         setSearchResults([]);
                         setQuery(symbol || "");
@@ -313,14 +345,35 @@ export function WatchlistPage() {
               </div>
               <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
                 <label className="flex min-w-0 flex-1 flex-col gap-1.5 sm:max-w-44">
-                  <span className="text-xs font-medium text-gray-600">
+                  <span className="text-xs font-medium text-gray-600 inline-flex items-center gap-1.5">
                     Alert threshold (%)
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          className="text-red-500 hover:text-red-600"
+                          aria-label="Threshold help"
+                        >
+                          <HelpCircle size={13} />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent
+                        side="top"
+                        sideOffset={8}
+                        hideArrow
+                        className="max-w-[280px] rounded-xl bg-black text-white px-3 py-2 text-xs"
+                      >
+                        This threshold is the 24h % move needed to trigger an
+                        alert for this token in your watchlist. Token watchlist
+                        thresholds are positive only (range: 1% to 50%).
+                      </TooltipContent>
+                    </Tooltip>
                   </span>
                   <input
                     type="number"
-                    placeholder="2%"
-                    min={1}
-                    max={50}
+                    placeholder="2% or 10%"
+                    min={MIN_THRESHOLD}
+                    max={MAX_THRESHOLD}
                     value={selectedThreshold}
                     onChange={(e) => setSelectedThreshold(e.target.value)}
                     className="w-full min-w-0 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm shadow-inner focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-200"
@@ -339,7 +392,7 @@ export function WatchlistPage() {
           )}
         </div>
 
-        <div>
+        <div className="relative z-0">
           {loading && (
             <div className="glass-card p-4 text-gray-600">Loading...</div>
           )}
@@ -366,15 +419,26 @@ export function WatchlistPage() {
                     const priceChange24h = Number(item?.priceChange24h || 0);
                     const pnlSinceAdd = Number(item?.pnlSinceAdd || 0);
                     const draftThreshold =
-                      thresholdDrafts[symbolKey] ?? Number(item?.alertThreshold || 5);
+                      thresholdDrafts[symbolKey] ??
+                      Number(item?.alertThreshold || 5);
                     const hasPendingThreshold =
-                      Number(draftThreshold) !== Number(item?.alertThreshold || 5);
+                      Number(draftThreshold) !==
+                      Number(item?.alertThreshold || 5);
                     return (
                       <tr
                         key={`${symbol}-${item?.chain || ""}`}
                         className="border-b border-gray-100"
                       >
-                        <td className="p-3 font-semibold">{symbol}</td>
+                        <td className="p-3 font-semibold">
+                          <div className="flex items-center gap-2 w-fit">
+                            <img
+                              src={item.logo}
+                              className="rounded-full h-6 w-6"
+                              alt=""
+                            />{" "}
+                            {symbol}
+                          </div>
+                        </td>
                         <td className="p-3">
                           ${Number(item?.currentPriceUsd || 0).toFixed(4)}
                         </td>
@@ -393,8 +457,8 @@ export function WatchlistPage() {
                         <td className="p-3">
                           <input
                             type="number"
-                            min={1}
-                            max={50}
+                            min={MIN_THRESHOLD}
+                            max={MAX_THRESHOLD}
                             value={draftThreshold}
                             onChange={(e) =>
                               handleThresholdInputChange(symbol, e.target.value)
@@ -491,8 +555,10 @@ export function WatchlistPage() {
                         type="button"
                         onClick={() => {
                           setSelectedToken(token);
-                          setSelectedThreshold('');
-                          setHighlightedNarrativeId(activeNarrative?.id ?? null);
+                          setSelectedThreshold("");
+                          setHighlightedNarrativeId(
+                            activeNarrative?.id ?? null,
+                          );
                           setActiveNarrative(null);
                         }}
                         className="px-3 py-2 rounded-xl bg-black text-white text-sm inline-flex items-center gap-2"

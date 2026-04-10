@@ -20,6 +20,8 @@ const CHART_TIMEFRAMES = [
   { label: "7D", value: "7d", interval: "1h" },
   { label: "30D", value: "30d", interval: "1d" },
 ];
+const MIN_THRESHOLD = 1;
+const MAX_THRESHOLD = 50;
 
 export function TokenDetailPage() {
   const [searchParams] = useSearchParams();
@@ -134,9 +136,13 @@ export function TokenDetailPage() {
     try {
       setIsAdding(true);
       await ensureAuthenticated();
+      const normalizedThreshold = Math.min(
+        MAX_THRESHOLD,
+        Math.max(MIN_THRESHOLD, Number(watchlistThreshold) || 5),
+      );
       await watchlistApi.addToken({
         symbol,
-        alertThreshold: Number(watchlistThreshold),
+        alertThreshold: normalizedThreshold,
       });
       toast.success(`${symbol} added to watchlist`);
       const data = await watchlistApi.getWatchlist();
@@ -500,7 +506,8 @@ export function TokenDetailPage() {
             <div className="rounded-xl bg-gray-50 border border-gray-100 p-3 text-sm text-gray-600 mb-4 flex items-start gap-2">
               <Info size={16} className="mt-0.5 shrink-0 text-gray-500" />
               <p>
-                Set your preferred alert threshold in percentage (eg 2%). You
+                Set your preferred alert threshold in percentage (eg 2% or
+                10%). Token watchlist thresholds are positive only, and you
                 will get alerts when the token's 24h move crosses this level.
               </p>
             </div>
@@ -510,9 +517,9 @@ export function TokenDetailPage() {
               </label>
               <input
                 type="number"
-                placeholder="2%"
-                min={1}
-                max={50}
+                placeholder="2% or 10%"
+                min={MIN_THRESHOLD}
+                max={MAX_THRESHOLD}
                 value={watchlistThreshold}
                 onChange={(e) => setWatchlistThreshold(e.target.value)}
                 className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400"

@@ -66,7 +66,9 @@ export function PortfolioAlertSettings({ portfolioId, onClose }) {
   const handleAddCustom = async () => {
     const percent = Number(customPercent);
     if (!percent || percent < -1000 || percent > 1000) {
-      toast.error("Enter a valid threshold percent.");
+      toast.error(
+        "Enter a valid threshold percent (negative values allowed, e.g. -2).",
+      );
       return;
     }
     try {
@@ -314,10 +316,16 @@ export function PortfolioAlertSettings({ portfolioId, onClose }) {
 
           <div className="pt-2 border-t border-gray-100">
             <h5 className="text-sm font-semibold mb-2">Custom Thresholds</h5>
+            <p className="text-xs text-gray-500 mb-2">
+              Use positive values for gain alerts and negative values for loss
+              alerts (e.g. -2%).
+            </p>
             <div className="flex flex-col md:flex-row items-center gap-2 mb-3">
               <input
                 type="number"
-                placeholder="2%"
+                placeholder="-2% or 10%"
+                min={-1000}
+                max={1000}
                 value={customPercent}
                 onChange={(e) => setCustomPercent(e.target.value)}
                 className="px-3 py-2 rounded-xl border border-gray-200 w-full bg-white"
@@ -386,6 +394,8 @@ export function PortfolioAlertSettings({ portfolioId, onClose }) {
             </div>
 
             <div className="space-y-2">
+              <h5 className="text-sm font-semibold mb-2">Current Alerts</h5>
+
               {customThresholds.map((item) => {
                 const id = item?._id || item?.id;
                 return (

@@ -149,6 +149,13 @@ const NARRATIVE_MODAL_OPTIONS = [
       "Decentralized physical infrastructure networks — storage, compute, wireless, IoT, and bandwidth.",
     riskProfile: "MEDIUM_TO_HIGH",
   },
+  {
+    id: "memes",
+    label: "Memecoins",
+    description:
+      "Community-driven tokens driven by attention, culture, and speculation.",
+    riskProfile: "HIGH",
+  },
 ];
 
 export function ChatPage() {
@@ -3726,6 +3733,8 @@ export function ChatPage() {
                               badge: "PAY",
                             },
                             { value: "AI", label: "AI", badge: "AI" },
+                            { value: "memes", label: "Memecoins", badge: "Memecoins" },
+
                             { value: "Gaming", label: "Gaming", badge: "G" },
                             { value: "DePin", label: "DePin", badge: "DP" },
                           ].map((opt) => {
