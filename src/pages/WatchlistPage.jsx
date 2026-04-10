@@ -35,6 +35,7 @@ export function WatchlistPage() {
   const [narrativeTokens, setNarrativeTokens] = useState([]);
   const [narrativeLoading, setNarrativeLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [thresholdDrafts, setThresholdDrafts] = useState({});
 
   const loadWatchlist = useCallback(async () => {
     setLoading(true);
@@ -44,6 +45,13 @@ export function WatchlistPage() {
       const data = await watchlistApi.getWatchlist();
       const items = Array.isArray(data?.items) ? data.items : [];
       setWatchlistItems(items);
+      setThresholdDrafts(
+        items.reduce((acc, item) => {
+          const key = String(item?.symbol || "").toUpperCase();
+          if (key) acc[key] = Number(item?.alertThreshold || 5);
+          return acc;
+        }, {}),
+      );
     } catch (error) {
       if (error?.status === 401) logout();
       setErrorMessage(error?.message || "Unable to load watchlist.");
@@ -170,16 +178,26 @@ export function WatchlistPage() {
     }
   };
 
-  const handleThresholdChange = async (symbol, value) => {
+  const handleThresholdInputChange = (symbol, value) => {
+    const key = String(symbol || "").toUpperCase();
     const next = Math.min(50, Math.max(1, Number(value || 1)));
-    setWatchlistItems((prev) =>
-      prev.map((item) =>
-        item?.symbol === symbol ? { ...item, alertThreshold: next } : item,
-      ),
-    );
+    setThresholdDrafts((prev) => ({ ...prev, [key]: next }));
+  };
+
+  const handleThresholdUpdate = async (symbol) => {
+    const key = String(symbol || "").toUpperCase();
+    const next = Math.min(50, Math.max(1, Number(thresholdDrafts[key] || 1)));
     try {
       await ensureAuthenticated();
       await watchlistApi.updateThreshold(symbol, next);
+      setWatchlistItems((prev) =>
+        prev.map((item) =>
+          String(item?.symbol || "").toUpperCase() === key
+            ? { ...item, alertThreshold: next }
+            : item,
+        ),
+      );
+      toast.success(`${symbol} threshold updated to ${next}%`);
     } catch (error) {
       if (error?.status === 401) logout();
       toast.error(error?.message || "Unable to update threshold.");
@@ -344,8 +362,13 @@ export function WatchlistPage() {
                 <tbody>
                   {watchlistItems.map((item) => {
                     const symbol = item?.symbol || "-";
+                    const symbolKey = String(symbol).toUpperCase();
                     const priceChange24h = Number(item?.priceChange24h || 0);
                     const pnlSinceAdd = Number(item?.pnlSinceAdd || 0);
+                    const draftThreshold =
+                      thresholdDrafts[symbolKey] ?? Number(item?.alertThreshold || 5);
+                    const hasPendingThreshold =
+                      Number(draftThreshold) !== Number(item?.alertThreshold || 5);
                     return (
                       <tr
                         key={`${symbol}-${item?.chain || ""}`}
@@ -372,14 +395,22 @@ export function WatchlistPage() {
                             type="number"
                             min={1}
                             max={50}
-                            value={item?.alertThreshold || 5}
+                            value={draftThreshold}
                             onChange={(e) =>
-                              handleThresholdChange(symbol, e.target.value)
+                              handleThresholdInputChange(symbol, e.target.value)
                             }
                             className="w-20 px-2 py-1 rounded-lg border border-gray-200"
                           />
                         </td>
                         <td className="p-3">
+                          <button
+                            type="button"
+                            onClick={() => handleThresholdUpdate(symbol)}
+                            disabled={!hasPendingThreshold}
+                            className="inline-flex items-center gap-1 text-emerald-600 hover:text-blue-800 disabled:opacity-40 disabled:cursor-not-allowed mr-3"
+                          >
+                            Update
+                          </button>
                           <button
                             type="button"
                             onClick={() => handleRemove(symbol)}
