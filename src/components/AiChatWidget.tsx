@@ -45,7 +45,7 @@ export function AIChatWidget() {
         className="fixed bottom-6 right-6 w-14 h-14 bg-black rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center z-50 hover:scale-110"
       >
         {/* <MessageCircle className="w-6 h-6 text-white" /> */}
-        <img src="https://cdn.allox.ai/allox/chatIcon.svg" alt="chat icon" className="h-6 w-6" />
+        <img src="https://cdn.allox.ai/allox/alloxWhite.svg" alt="chat icon" className="h-6 w-6" />
       </button>
     );
   }
@@ -58,9 +58,9 @@ export function AIChatWidget() {
           className="glass-card px-4 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
         >
           <div className="w-8 h-8 bg-black rounded-full flex items-center justify-center">
-            <img src="https://cdn.allox.ai/allox/chatIcon.svg" alt="chat icon" className="h-4 w-4" />
+            <img src="https://cdn.allox.ai/allox/alloxWhite.svg" alt="chat icon" className="h-4 w-4" />
           </div>
-          <span className="font-semibold text-gray-900">ChainGPT AI</span>
+          <span className="font-semibold text-gray-900">Allox Web3</span>
         </button>
       </div>
     );
@@ -72,11 +72,11 @@ export function AIChatWidget() {
       <div className="bg-black p-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
-           <img src="https://cdn.allox.ai/allox/chatIcon.svg" alt="chat icon" className="h-5 w-5" />
+           <img src="https://cdn.allox.ai/allox/alloxWhite.svg" alt="chat icon" className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="font-bold text-white">ChainGPT AI</h3>
-            <p className="text-xs text-blue-100">Ask me about anything</p>
+            <h3 className="font-bold text-white">Allox Web3</h3>
+            <p className="text-xs text-blue-100">Powered by ChainGPT</p>
           </div>
         </div>
         <div className="flex items-center gap-1">
