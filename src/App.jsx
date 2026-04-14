@@ -621,7 +621,6 @@ function App() {
   const { address } = useSelector((state) => state.wallet);
   const { isAuthenticated } = useAuth();
 
-
   // const [showModal, setShowModal] = useState(false);
   // const lastShown = localStorage.getItem("chatDate");
   // const count = parseInt(localStorage.getItem("chatCount") || "0", 10);
