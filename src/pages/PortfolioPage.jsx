@@ -12,8 +12,10 @@ import {
   TrendingDown,
   TrendingUp,
   Wallet,
+  DollarSign,
   X,
 } from "lucide-react";
+import { encodeFunctionData } from "viem";
 import { useDispatch, useSelector } from "react-redux";
 import { NavLink, useLocation, useNavigate } from "react-router";
 import OutsideClickHandler from "react-outside-click-handler/build/OutsideClickHandler";
@@ -22,6 +24,40 @@ import getFormattedNumber from "../hooks/get-formatted-number";
 import { apiCall } from "../utils/api";
 import { useAuth } from "../hooks/useAuth";
 import { PortfolioAlertSettings } from "../components/PortfolioAlertSettings";
+import { createWagmiExecutionTxEnv } from "../utils/execution";
+
+const ERC20_ABI = [
+  {
+    name: "approve",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "spender", type: "address" },
+      { name: "amount", type: "uint256" },
+    ],
+    outputs: [{ name: "", type: "bool" }],
+  },
+];
+
+const PERMIT2_ABI = [
+  {
+    name: "approve",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "token", type: "address" },
+      { name: "spender", type: "address" },
+      { name: "amount", type: "uint160" },
+      { name: "expiration", type: "uint48" },
+    ],
+    outputs: [],
+  },
+];
+
+const POLL_INTERVAL_MS = 3500;
+const MAX_POLL_ATTEMPTS = 60;
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const archivePortfolio = async (portfolioId) => {
   await apiCall(`/portfolio/${portfolioId}`, {
@@ -110,6 +146,16 @@ export function PortfolioPage() {
   const [isRiskMenuOpen, setIsRiskMenuOpen] = useState(false);
   const [isSortMenuOpen, setIsSortMenuOpen] = useState(false);
   const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
+  const [isSellModalOpen, setIsSellModalOpen] = useState(false);
+  const [sellTarget, setSellTarget] = useState(null);
+  const [sellSlippage, setSellSlippage] = useState("1");
+  const [isSellQuoteLoading, setIsSellQuoteLoading] = useState(false);
+  const [sellQuote, setSellQuote] = useState(null);
+  const [sellQuoteError, setSellQuoteError] = useState("");
+  const [sellRequiredSlippage, setSellRequiredSlippage] = useState(null);
+  const [isSellExecuting, setIsSellExecuting] = useState(false);
+  const [sellExecutionError, setSellExecutionError] = useState("");
+  const [sellExecutionLogs, setSellExecutionLogs] = useState([]);
 
   const getAnalytics = useCallback(async (portfolioId) => {
     const response = await apiCall(`/portfolio/${portfolioId}/analytics`);
@@ -426,6 +472,228 @@ export function PortfolioPage() {
     navigate,
   ]);
 
+  const addSellLog = useCallback((message) => {
+    setSellExecutionLogs((prev) => [...prev, message]);
+  }, []);
+
+  const closeSellModal = useCallback(() => {
+    if (isSellExecuting) return;
+    setIsSellModalOpen(false);
+    setSellTarget(null);
+    setSellQuote(null);
+    setSellQuoteError("");
+    setSellExecutionError("");
+    setSellExecutionLogs([]);
+    setSellRequiredSlippage(null);
+  }, [isSellExecuting]);
+
+  const quoteSell = useCallback(
+    async (target) => {
+      if (!target?.portfolioId) return;
+      setIsSellQuoteLoading(true);
+      setSellQuoteError("");
+      setSellExecutionError("");
+      setSellRequiredSlippage(null);
+      try {
+        await ensureAuthenticated();
+        const nextSlippage = Number(sellSlippage);
+        const body = {
+          ...(target?.symbol ? { symbol: target.symbol } : {}),
+          ...(Number.isFinite(nextSlippage) && nextSlippage > 0
+            ? { slippage: nextSlippage }
+            : {}),
+        };
+        const quote = await apiCall(`/portfolio/${target.portfolioId}/sell/quote`, {
+          method: "POST",
+          body: JSON.stringify(body),
+        });
+        setSellQuote(quote);
+      } catch (error) {
+        if (error?.status === 401) {
+          logout();
+        }
+        setSellQuoteError(error?.message || "Unable to quote sell request.");
+      } finally {
+        setIsSellQuoteLoading(false);
+      }
+    },
+    [ensureAuthenticated, logout, sellSlippage],
+  );
+
+  const openSellModal = useCallback(
+    (target) => {
+      if (!target?.portfolioId) return;
+      setSellTarget(target);
+      setIsSellModalOpen(true);
+      setSellQuote(null);
+      setSellQuoteError("");
+      setSellExecutionError("");
+      setSellExecutionLogs([]);
+      setSellRequiredSlippage(null);
+      quoteSell(target);
+    },
+    [quoteSell],
+  );
+
+  const runApprovalStep = useCallback(async (approvalStep, txEnv) => {
+    const method = approvalStep?.tx?.method;
+    const args = approvalStep?.tx?.args || [];
+    const to = approvalStep?.tx?.to;
+    if (!to || !method) {
+      throw new Error("Approval step is missing transaction details.");
+    }
+
+    let data;
+    if (method === "approve(address,uint256)") {
+      data = encodeFunctionData({
+        abi: ERC20_ABI,
+        functionName: "approve",
+        args: [args[0], BigInt(args[1])],
+      });
+    } else if (method === "approve(address,address,uint160,uint48)") {
+      data = encodeFunctionData({
+        abi: PERMIT2_ABI,
+        functionName: "approve",
+        args: [args[0], args[1], BigInt(args[2]), BigInt(args[3])],
+      });
+    } else {
+      throw new Error(`Unsupported approval method: ${method}`);
+    }
+
+    const txHash = await txEnv.sendTransaction({ to, data, value: 0n });
+    await txEnv.waitForTransactionReceipt({ hash: txHash });
+    return txHash;
+  }, []);
+
+  const executeSingleOrder = useCallback(
+    async (order, txEnv, slippageValue) => {
+      const symbol = order?.symbol || "TOKEN";
+      let prepare;
+      try {
+        prepare = await apiCall(`/execution/${order.executionOrderId}/prepare`, {
+          method: "POST",
+          body: JSON.stringify({ slippage: slippageValue }),
+        });
+      } catch (error) {
+        if (error?.status === 428 && Array.isArray(error?.data?.approvalSteps)) {
+          addSellLog(`${symbol}: approvals required.`);
+          for (const step of error.data.approvalSteps) {
+            await runApprovalStep(step, txEnv);
+          }
+          prepare = await apiCall(`/execution/${order.executionOrderId}/prepare`, {
+            method: "POST",
+            body: JSON.stringify({ slippage: slippageValue }),
+          });
+        } else if (
+          error?.status === 422 &&
+          error?.data?.error === "SLIPPAGE_INCREASE_REQUIRED"
+        ) {
+          setSellRequiredSlippage(error?.data?.requiredSlippage ?? null);
+          throw new Error(
+            error?.data?.message ||
+              `${symbol}: higher slippage is required to continue.`,
+          );
+        } else {
+          throw error;
+        }
+      }
+
+      const txData = prepare?.txData;
+      if (!txData?.to || !txData?.data) {
+        throw new Error(`${symbol}: invalid prepared transaction data.`);
+      }
+
+      addSellLog(`${symbol}: waiting for wallet confirmation...`);
+      const txHash = await txEnv.sendTransaction({
+        to: txData.to,
+        data: txData.data,
+        value:
+          txData.value != null && txData.value !== "" ? BigInt(txData.value) : 0n,
+        ...(txData.nonce != null && txData.nonce !== ""
+          ? { nonce: Number(txData.nonce) }
+          : {}),
+      });
+      addSellLog(`${symbol}: tx submitted ${txHash.slice(0, 10)}...`);
+
+      await apiCall(`/execution/${order.executionOrderId}/submit`, {
+        method: "POST",
+        body: JSON.stringify({ txHash }),
+      });
+
+      for (let i = 0; i < MAX_POLL_ATTEMPTS; i += 1) {
+        await sleep(POLL_INTERVAL_MS);
+        const statusData = await apiCall(
+          `/execution/${order.executionOrderId}/status`,
+        );
+        const status = statusData?.status;
+        if (status === "CONFIRMED") {
+          addSellLog(`${symbol}: confirmed.`);
+          return true;
+        }
+        if (status === "FAILED") {
+          addSellLog(`${symbol}: failed on-chain.`);
+          return false;
+        }
+      }
+
+      addSellLog(`${symbol}: status timeout.`);
+      return false;
+    },
+    [addSellLog, runApprovalStep],
+  );
+
+  const confirmSell = useCallback(async () => {
+    if (!sellTarget?.portfolioId || !sellQuote?.orders?.length) return;
+    setIsSellExecuting(true);
+    setSellExecutionError("");
+    setSellRequiredSlippage(null);
+    setSellExecutionLogs([]);
+    const slippageValue = Number(sellSlippage) > 0 ? Number(sellSlippage) : 1;
+
+    try {
+      await ensureAuthenticated();
+      const txEnv = createWagmiExecutionTxEnv();
+      txEnv.assertReady();
+
+      let confirmed = 0;
+      for (const order of sellQuote.orders) {
+        const ok = await executeSingleOrder(order, txEnv, slippageValue);
+        if (ok) confirmed += 1;
+      }
+
+      if (confirmed > 0) {
+        await apiCall(`/portfolio/${sellTarget.portfolioId}/sell/complete`, {
+          method: "POST",
+        });
+      }
+      addSellLog(
+        `Completed. ${confirmed}/${sellQuote.orders.length} order(s) confirmed.`,
+      );
+      await loadPortfolios();
+      await handlePortfolioSelect(sellTarget.portfolioId);
+      if (confirmed > 0) {
+        setTimeout(() => closeSellModal(), 900);
+      }
+    } catch (error) {
+      if (error?.status === 401) {
+        logout();
+      }
+      setSellExecutionError(error?.message || "Sell execution failed.");
+    } finally {
+      setIsSellExecuting(false);
+    }
+  }, [
+    closeSellModal,
+    ensureAuthenticated,
+    executeSingleOrder,
+    handlePortfolioSelect,
+    loadPortfolios,
+    logout,
+    sellQuote?.orders,
+    sellSlippage,
+    sellTarget?.portfolioId,
+  ]);
+
   const totalBalance = Number(activePortfolio?.totalCurrentValue || 0);
   const totalPnL = Number(activePortfolio?.totalPnL || 0);
   const totalPnLPercent = Number(activePortfolio?.totalPnLPercent || 0);
@@ -444,6 +712,15 @@ export function PortfolioPage() {
   const selectedSortLabel =
     SORT_OPTIONS.find((item) => item.value === sortBy)?.label ||
     "Sort by: Recent";
+  const sellQuoteOrders = Array.isArray(sellQuote?.orders) ? sellQuote.orders : [];
+  const sellFailedQuotes = Array.isArray(sellQuote?.failed) ? sellQuote.failed : [];
+  const sellEstimatedUsdtTotal = sellQuoteOrders.reduce(
+    (sum, order) => sum + Number(order?.estimatedUsdtOut || 0),
+    0,
+  );
+  const highPriceImpactOrders = sellQuoteOrders.filter(
+    (order) => Number(order?.priceImpact || 0) >= 5,
+  );
   return (
     <div className="flex-1 px-6 py-8 portfolio-wrapper ms-auto w-full overflow-y-auto relative">
       <div className="">
@@ -761,9 +1038,27 @@ export function PortfolioPage() {
                                       </div>
                                     </div>
                                   ) : (
-                                    <h3 className="text-lg font-bold mb-2 group-hover:text-blue-600 transition-colors">
+                                    <div className="flex items-center gap-2">
+                                    <h3 className="text-lg font-bold mb-0 group-hover:text-blue-600 transition-colors">
                                       {portfolio?.name || "Portfolio"}
                                     </h3>
+                                             <button
+                                    type="button"
+                                    title="Sell portfolio"
+                                    aria-label="Sell portfolio"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      openSellModal({
+                                        type: "portfolio",
+                                        portfolioId: portfolio.id,
+                                        title: portfolio?.name || "Portfolio",
+                                      });
+                                    }}
+                                    className=" rounded-xl px-3 border border-gray-200 text-gray-500 hover:text-emerald-600 hover:border-emerald-200 bg-white/70 flex items-center justify-center"
+                                  >
+                                    <DollarSign size={15} /> Sell
+                                  </button>
+                                    </div>
                                   )}
                                   <span
                                     className={`inline-block text-xs px-2.5 py-1 rounded-full border font-medium ${getRiskColor(
@@ -775,7 +1070,9 @@ export function PortfolioPage() {
                                     ).toUpperCase()}
                                   </span>
                                 </div>
+                           
                                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
+                              
                                   <button
                                     type="button"
                                     title="Rename portfolio"
@@ -889,8 +1186,22 @@ export function PortfolioPage() {
                       </div>
 
                       <div className="glass-card p-5">
-                        <div className="text-sm text-gray-600 mb-1">
-                          Total Balance
+                        <div className="text-sm text-gray-600 mb-1 flex items-center justify-between gap-3">
+                          <span>Total Balance</span>
+                         <button
+                              type="button"
+                              onClick={() =>
+                                openSellModal({
+                                  type: "portfolio",
+                                  portfolioId: activePortfolio.id,
+                                  title: activePortfolio.name || "Portfolio",
+                                })
+                              }
+                              className="px-3 py-2 rounded-xl bg-black text-white text-xs font-semibold hover:bg-gray-800 inline-flex items-center gap-2"
+                            >
+                              <DollarSign size={14} />
+                              Sell Portfolio
+                            </button>
                         </div>
                         <div className="text-4xl font-bold mb-2">
                           $
@@ -929,6 +1240,7 @@ export function PortfolioPage() {
                               <BarChart3 size={20} className="text-gray-500" />
                               Portfolio Analytics
                             </h3>
+                            
                           </div>
 
                           {overview && (
@@ -1048,7 +1360,8 @@ export function PortfolioPage() {
                                           <div className="w-12 h-12 rounded-full bg-gray-100 border border-gray-200" />
                                         )}
                                         <div className="min-w-0 flex-1">
-                                          <div className="flex items-center gap-2 min-w-0">
+                                          <div className="flex items-center gap-2 min-w-0 justify-between">
+                                            <div className="flex items-center gap-2 min-w-0">
                                             <div className="font-bold text-lg truncate">
                                               {symbol}
                                             </div>
@@ -1060,6 +1373,23 @@ export function PortfolioPage() {
                                                 )}
                                               </span>
                                             ) : null}
+                                            </div>
+                                            <button
+                                              type="button"
+                                              onClick={(event) => {
+                                                event.stopPropagation();
+                                                openSellModal({
+                                                  type: "token",
+                                                  portfolioId: activePortfolio.id,
+                                                  symbol: String(symbol),
+                                                  title: `${symbol} in ${activePortfolio.name || "Portfolio"}`,
+                                                });
+                                              }}
+                                              className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-lg border border-emerald-200 text-emerald-700 hover:bg-emerald-50 shrink-0"
+                                            >
+                                              <DollarSign size={12} />
+                                              Sell
+                                            </button>
                                           </div>
                                           {name ? (
                                             <div className="text-sm text-gray-500 truncate">
@@ -1505,6 +1835,200 @@ export function PortfolioPage() {
               portfolioId={activePortfolioId}
               onClose={() => setIsAlertModalOpen(false)}
             />
+          </div>
+        </div>
+      )}
+
+      {isSellModalOpen && sellTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-sm p-4"
+          onClick={closeSellModal}
+        >
+          <div
+            className="w-full max-w-2xl bg-white border border-gray-200 rounded-3xl p-6 md:p-7 max-h-[85vh] overflow-y-auto shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <div>
+                <h3 className="text-2xl font-bold">
+                  {sellTarget.type === "token" ? "Sell Token" : "Sell Portfolio"}
+                </h3>
+                <p className="text-sm text-gray-600">{sellTarget.title}</p>
+              </div>
+              <button
+                type="button"
+                onClick={closeSellModal}
+                disabled={isSellExecuting}
+                className="h-8 w-8 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:text-black disabled:opacity-50"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="flex flex-wrap items-end gap-3 mb-4 bg-gray-50 border border-gray-200 rounded-2xl p-3">
+              <label className="text-sm text-gray-700">
+                Slippage %
+                <input
+                  type="number"
+                  min="0.1"
+                  step="0.1"
+                  value={sellSlippage}
+                  onChange={(event) => setSellSlippage(event.target.value)}
+                  disabled={isSellExecuting}
+                  className="mt-1 w-32 px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none"
+                />
+              </label>
+              <button
+                type="button"
+                onClick={() => quoteSell(sellTarget)}
+                disabled={isSellQuoteLoading || isSellExecuting}
+                className="px-3 py-2 rounded-xl border border-gray-200 text-sm hover:bg-gray-50 disabled:opacity-60"
+              >
+                {isSellQuoteLoading ? "Refreshing quote..." : "Refresh quote"}
+              </button>
+            </div>
+
+            {sellQuoteError ? (
+              <div className="mb-4 text-sm text-red-600">{sellQuoteError}</div>
+            ) : null}
+
+            {sellQuote ? (
+              <div className="space-y-4">
+                <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
+                    Quote summary
+                  </div>
+                  <div className="grid md:grid-cols-3 gap-3 text-sm">
+                    <div>
+                      <span className="text-gray-500">Positions quoted:</span>{" "}
+                      <span className="font-semibold">
+                        {sellQuote?.summary?.quoted ?? sellQuoteOrders.length}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Failed:</span>{" "}
+                      <span className="font-semibold">
+                        {sellQuote?.summary?.failed ?? sellFailedQuotes.length}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Est. USDT out:</span>{" "}
+                      <span className="font-semibold">
+                        {sellEstimatedUsdtTotal.toFixed(4)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {highPriceImpactOrders.length > 0 ? (
+                  <div className="text-xs text-amber-800 bg-amber-50 border border-amber-300 rounded-2xl p-3">
+                    {highPriceImpactOrders.length} route
+                    {highPriceImpactOrders.length > 1 ? "s" : ""} have high
+                    price impact (5%+). Review before confirming.
+                  </div>
+                ) : null}
+
+                {sellQuoteOrders.length > 0 ? (
+                  <div className="space-y-2">
+                    {sellQuoteOrders.map((order) => {
+                      const priceImpact = Number(order.priceImpact || 0);
+                      const isHighImpact = priceImpact >= 5;
+                      return (
+                      <div
+                        key={order.executionOrderId}
+                        className={`border rounded-xl p-3 text-sm ${
+                          isHighImpact
+                            ? "bg-amber-50 border-amber-300"
+                            : "bg-white border-gray-200"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="font-semibold flex items-center gap-2">
+                            {order.symbol}
+                            {isHighImpact ? (
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-200 text-amber-900 uppercase tracking-wide">
+                                High impact
+                              </span>
+                            ) : null}
+                          </div>
+                          <div className="text-gray-700">
+                            ~{Number(order.estimatedUsdtOut || 0).toFixed(4)} USDT
+                          </div>
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1 flex items-center gap-2 flex-wrap">
+                          Provider: {order.swapProvider || "N/A"} | Price impact:{" "}
+                          <span
+                            className={
+                              isHighImpact ? "font-semibold text-amber-800" : ""
+                            }
+                          >
+                            {priceImpact.toFixed(2)}%
+                          </span>
+                        </div>
+                      </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-sm text-amber-700">
+                    No executable orders returned.
+                  </div>
+                )}
+
+                {sellFailedQuotes.length > 0 ? (
+                  <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl p-3">
+                    Failed quotes:{" "}
+                    {sellFailedQuotes
+                      .map((item) => `${item.symbol}: ${item.error}`)
+                      .join(" | ")}
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <div className="text-sm text-gray-600">
+                {isSellQuoteLoading ? "Loading quote..." : "Quote not loaded yet."}
+              </div>
+            )}
+
+            {sellRequiredSlippage != null ? (
+              <div className="mt-4 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl p-3">
+                Higher slippage is required by the API. Required:{" "}
+                {sellRequiredSlippage}%.
+              </div>
+            ) : null}
+            {sellExecutionError ? (
+              <div className="mt-4 text-sm text-red-600">{sellExecutionError}</div>
+            ) : null}
+            {sellExecutionLogs.length > 0 ? (
+              <div className="mt-4 bg-black text-green-300 rounded-xl p-3 text-xs space-y-1 max-h-36 overflow-y-auto">
+                {sellExecutionLogs.map((line, idx) => (
+                  <div key={`${line}-${idx}`}>{line}</div>
+                ))}
+              </div>
+            ) : null}
+
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={closeSellModal}
+                disabled={isSellExecuting}
+                className="px-4 py-2 rounded-xl border border-gray-200 text-sm hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmSell}
+                disabled={
+                  isSellExecuting ||
+                  isSellQuoteLoading ||
+                  sellQuoteOrders.length === 0
+                }
+                className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-60"
+              >
+                {isSellExecuting ? "Executing sell..." : "Confirm Sell"}
+              </button>
+            </div>
           </div>
         </div>
       )}
