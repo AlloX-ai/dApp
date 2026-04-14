@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 
 export const navigationTabs = [
-  { id: "chat", label: "Chat", path: "/", Icon: MessageSquare },
+  { id: "build-portfolio", label: "Build Portfolio", path: "/", Icon: MessageSquare },
   { id: "portfolio", label: "Portfolio", path: "/portfolio", Icon: PieChart },
   { id: "season1", label: "Spring Series S3", path: "/spring-series", Icon: Flame },
   { id: "rewards", label: "Rewards", path: "/rewards", Icon: Coins },
