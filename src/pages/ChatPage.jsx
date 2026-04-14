@@ -1,5 +1,14 @@
 import { useRef, useEffect, useState, useCallback } from "react";
-import { Send, Loader2, Wallet, Gift, Clock, X, RefreshCw } from "lucide-react";
+import {
+  Send,
+  Loader2,
+  Wallet,
+  Gift,
+  Clock,
+  X,
+  RefreshCw,
+  TrendingUp,
+} from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import { ChatBubble } from "../components/ChatBubble";
 import {
@@ -98,7 +107,7 @@ export function ChatPage() {
   const [refreshOnchainLoading, setRefreshOnchainLoading] = useState(false);
   const [refreshOnchainMessage, setRefreshOnchainMessage] = useState(null);
   const [statusLoading, setStatusLoading] = useState(false);
- 
+  const [pnl, setPnl] = useState(0);
 
   useEffect(() => {
     const aiMessages = currentMessages.filter(
@@ -125,6 +134,13 @@ export function ChatPage() {
     });
   }, [currentMessages]);
 
+  const fetchPLData = async () => {
+    const data = await apiCall(`/portfolio/stats/pnl`, {}, "v2");
+    if (data) {
+      setPnl(data.pnlPercent);
+    }
+  };
+
   useEffect(() => {
     return () => {
       if (typingTimerRef.current) {
@@ -137,6 +153,7 @@ export function ChatPage() {
   useEffect(() => {
     window.scrollTo(0, 0);
     document.title = "AlloX AI Agent";
+    fetchPLData();
   }, []);
 
   const fetchChatStatus = useCallback(async () => {
@@ -1386,7 +1403,20 @@ export function ChatPage() {
       <div className="flex-1 flex flex-col overflow-y-auto">
         {currentMessages.length === 0 && (
           <div className="h-full flex items-center justify-center px-6">
-            <div className="text-center max-w-2xl">
+            <div className="text-center max-w-2xl relative">
+              <div className="mx-auto inline-flex items-center gap-2.5 px-5 py-2.5 bg-gradient-to-r from-green-500/15 to-emerald-500/15 border border-green-500/30 rounded-full mb-6 shadow-sm shadow-green-500/10 sm:fixed sm:top-25 sm:left-1/2 sm:-translate-x-1/2 sm:mb-0 sm:z-20">
+                <div className="flex items-center justify-center w-6 h-6 bg-green-500 rounded-full">
+                  <TrendingUp
+                    size={14}
+                    className="text-white"
+                    strokeWidth={3}
+                  />
+                </div>
+                <span className="text-sm font-semibold text-green-700">
+                  {pnl}% positive P&L
+                </span>
+              </div>
+
               <h2 className="text-3xl font-bold mb-4">Hello, I'm AlloX</h2>
 
               <p className="text-gray-600 mb-8">
@@ -1770,7 +1800,6 @@ export function ChatPage() {
           </div>
         </div>
       )}
-      
     </div>
   );
 }
