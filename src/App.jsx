@@ -52,6 +52,7 @@ import { store } from "./redux/store";
 import { PointsPage } from "./pages/Points";
 import { useSocial } from "./hooks/useSocial";
 import { CongratsModal } from "./components/CongratsModal";
+import { AIChatWidget } from "./components/AiChatWidget";
 
 const SOLANA_MAINNET_CHAIN_ID = 101;
 const PREFERRED_CHAIN_STORAGE_KEY = "walletPreferredChainId";
@@ -618,6 +619,7 @@ function RequireAuth({ children }) {
 
 function App() {
   const { address } = useSelector((state) => state.wallet);
+  const { isAuthenticated } = useAuth();
 
   // const [showModal, setShowModal] = useState(false);
   // const lastShown = localStorage.getItem("chatDate");
@@ -661,6 +663,7 @@ function App() {
           address={address}
         />
       )} */}
+      {isAuthenticated && <AIChatWidget />}
     </>
   );
 }
