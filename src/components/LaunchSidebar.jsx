@@ -43,16 +43,15 @@ export function LaunchSidebar() {
   }, []);
 
   const lastClaimed = useMemo(() => {
-    for (let i = checkinStatus?.rewards?.length - 1; i >= 0; i--) {
-      if (checkinStatus.rewards[i].claimed === true) {
-        if (i === checkinStatus.rewards.length - 1) {
-          return checkinStatus.rewards[0];
-        } else {
-          return checkinStatus.rewards[i];
-        }
-      }
+    const rewards = checkinStatus?.rewards ?? [];
+
+    const result =
+      checkinStatus?.rewards?.find((item) => {
+        return item.current === true;
+      }) || rewards?.toReversed().find((item) => item.claimed);
+    if (result) {
+      return result;
     }
-    return checkinStatus?.rewards[0];
   }, [checkinStatus]);
 
   const handleNewChat = (e) => {
@@ -80,7 +79,7 @@ export function LaunchSidebar() {
             }
             const { id, label, path, Icon } = row.tab;
             const isActive = isActivePath(pathname, path);
-            const isChat = id === "chat";
+            const isChat = id === "build-portfolio";
             return (
               <button
                 key={id}
