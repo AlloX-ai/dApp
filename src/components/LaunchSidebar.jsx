@@ -47,7 +47,7 @@ export function LaunchSidebar() {
         <div className="p-6 space-y-2">
           {navigationTabs.map(({ id, label, path, Icon }) => {
             const isActive = isActivePath(pathname, path);
-            const isChat = id === "chat";
+            const isChat = id === "build-portfolio";
             return (
               <button
                 key={id}
