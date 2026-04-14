@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 
 export const navigationTabs = [
-  { id: "build-portfolio", label: "Build Portfolio", path: "/", Icon: MessageSquare },
+  { id: "chat", label: "Build Portfolio", path: "/", Icon: MessageSquare },
   { id: "portfolio", label: "Portfolio", path: "/portfolio", Icon: PieChart },
   { id: "campaigns", label: "Campaigns", path: "/campaigns", Icon: Flame },
   { id: "watchlist", label: "Watchlist", path: "/watchlist", Icon: Eye },

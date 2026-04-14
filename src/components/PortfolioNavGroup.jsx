@@ -81,12 +81,12 @@ export function PortfolioNavGroup({
                   type="button"
                   onClick={() => {
                     navigate(item.path);
-                    setOpen(false);
+                    // setOpen(false);
                     onItemNavigate?.();
                   }}
                   className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors ${
                     subActive
-                      ? "bg-slate-100 text-slate-900 shadow-[inset_0_0_0_1px_rgba(15,23,42,0.06)]"
+                      ? "bg-slate-200 text-slate-900 shadow-[inset_0_0_0_1px_rgba(15,23,42,0.06)]"
                       : "text-slate-700 hover:bg-slate-50 active:bg-slate-100/80"
                   }`}
                   aria-current={subActive ? "page" : undefined}

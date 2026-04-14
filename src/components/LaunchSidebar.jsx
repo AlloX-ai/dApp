@@ -79,7 +79,7 @@ export function LaunchSidebar() {
             }
             const { id, label, path, Icon } = row.tab;
             const isActive = isActivePath(pathname, path);
-            const isChat = id === "build-portfolio";
+            const isChat = id === "chat";
             return (
               <button
                 key={id}
