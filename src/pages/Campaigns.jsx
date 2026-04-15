@@ -122,7 +122,7 @@ export function CampaignsPage() {
               Spring series
             </h3>
             <p className="text-gray-600 mb-6">
-              Claim your welocme bonus each season to eran rewards from the 9,000 Gem reward pool
+              Claim your welcome bonus each season to earn rewards from the 9,000 Gem reward pool
             </p>
 
             {/* Stats */}
