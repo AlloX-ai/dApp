@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Check, Loader2, Gift } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Check, Loader2, Gift, ChevronLeft } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import { setWalletModal } from "../redux/slices/walletSlice";
 import { shortAddress } from "../hooks/shortAddress";
@@ -11,6 +11,10 @@ interface BetaAccessModalProps {
   variant?: "modal" | "page";
   onWalletConnect?: (wallet: { name: string; icon: string; walletType: string }) => void;
   isSigning?: boolean;
+    /** Shown in the loading state while wallet signing or Privy backend verification runs */
+  signingMessage?: string;
+  onPrivySignIn?: () => void;
+  privyReady?: boolean;
 }
 
 const WALLET_OPTIONS = [
@@ -38,6 +42,12 @@ const WALLET_OPTIONS = [
     icon: "https://cdn.allox.ai/allox/wallets/trustWalletLogo.svg",
     type: "top",
     walletType: "trust",
+  },
+  {
+    name: "Gate",
+    icon: "https://cdn.allox.ai/allox/wallets/gateWallet.svg",
+    type: "top",
+    walletType: "gate",
   },
   {
     name: "Phantom",
@@ -73,17 +83,27 @@ export function BetaAccessModal({
   variant = "modal",
   onWalletConnect,
   isSigning = false,
+  signingMessage = "Please sign the message in your wallet",
+  onPrivySignIn,
+  privyReady = true,
 }: BetaAccessModalProps) {
   const dispatch = useDispatch();
   const { address, isConnected } = useSelector((state: any) => state.wallet);
+  const [view, setView] = useState<"list" | "metamask">("list");
 
-  const handleWalletOptionClick = (wallet: (typeof WALLET_OPTIONS)[0]) => {
+  const handleWalletOptionClick = (wallet: (typeof WALLET_OPTIONS)[0] & { isSolana?: boolean }) => {
     if (onWalletConnect) {
       onWalletConnect(wallet);
     } else {
       dispatch(setWalletModal(true));
     }
   };
+
+  const metaMaskWallet = WALLET_OPTIONS.find((w) => w.walletType === "metamask")!;
+
+  useEffect(() => {
+    if (!isConnected) setView("list");
+  }, [isConnected]);
 
   if (!isOpen) return null;
 
@@ -128,22 +148,128 @@ export function BetaAccessModal({
             <div className="flex flex-col items-center justify-center py-12 gap-4">
               <Loader2 className="w-14 h-14 animate-spin text-gray-400" />
               <p className="text-sm font-medium text-gray-600">
-                Please sign the message in your wallet
+                {signingMessage}
               </p>
 
             </div>
           ) : !isConnected ? (
-            <div className="space-y-5">
-              <div>
-                <p className="text-sm font-medium text-gray-600 mb-3">Suggested wallets</p>
+            view === "metamask" ? (
+              <div className="space-y-4">
+                <div className="relative flex items-center justify-between mb-4">
+                  <button
+                    type="button"
+                    onClick={() => setView("list")}
+                    className="p-2 -ml-2 hover:bg-black/5 rounded-lg transition-colors flex items-center gap-1"
+                    aria-label="Back"
+                  >
+                    <ChevronLeft size={24} />
+                  </button>
+                  <h3 className="text-lg font-bold absolute left-1/2 -translate-x-1/2">
+                    Select ecosystem
+                  </h3>
+                  <div className="w-10" />
+                </div>
+                <div className="flex flex-col items-center pt-2 pb-2">
+                  <div className="w-16 h-16 rounded-2xl bg-white border border-gray-200/50 flex items-center justify-center mb-4">
+                    <img
+                      src={metaMaskWallet.icon}
+                      alt="MetaMask"
+                      className="h-10 w-10 object-contain"
+                    />
+                  </div>
+                  <p className="text-sm text-gray-600 text-center mb-4">
+                    MetaMask supports multiple network types. Please select the
+                    one you&apos;d like to use.
+                  </p>
+                </div>
                 <div className="space-y-3">
-                  {getSuggestedWallets().map((wallet) => (
+
+                  <button
+                    type="button"
+                    onClick={() => handleWalletOptionClick(metaMaskWallet)}
+                    className="w-full flex items-center gap-3 p-4 bg-white/70 border border-gray-200/50 rounded-2xl hover:bg-white/90 hover:border-gray-300 transition-all text-left"
+                  >
+                    <img
+                      src="https://cdn.allox.ai/allox/networks/eth.svg"
+                      alt=""
+                      className="h-8 w-8 shrink-0"
+                    />
+                    <div className="flex-1">
+                      <span className="font-medium block">EVM</span>
+                      <span className="text-xs text-gray-500">
+                        Ethereum, BNB, Base
+                      </span>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleWalletOptionClick({
+                        ...metaMaskWallet,
+                        name: "MetaMask (Solana)",
+                        walletType: "solana",
+                        isSolana: true,
+                      } as any)
+                    }
+                    className="w-full flex items-center gap-3 p-4 bg-white/70 border border-gray-200/50 rounded-2xl hover:bg-white/90 hover:border-gray-300 transition-all text-left"
+                  >
+                    <img
+                      src="https://cdn.allox.ai/allox/networks/solana.svg"
+                      alt=""
+                      className="h-8 w-8 shrink-0"
+                    />
+                    <div className="flex-1">
+                      <span className="font-medium block">Solana</span>
+                      <span className="text-xs text-gray-500">
+                        MetaMask Solana Snap
+                      </span>
+                    </div>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                 {onPrivySignIn && (
+                <div>
+                  <button
+                    type="button"
+                    onClick={onPrivySignIn}
+                    disabled={!privyReady}
+                    className="w-full py-3.5 rounded-2xl font-medium text-base transition-all duration-200 bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:from-violet-500 hover:to-indigo-500 disabled:opacity-50 disabled:pointer-events-none shadow-md"
+                  >
+                    Continue with email or Google
+                  </button>
+                  <p className="text-xs text-center text-gray-500 mt-2">
+                    A wallet will be created for you automatically
+                  </p>
+                  <div className="relative my-5">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t border-gray-200/80" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase tracking-wide">
+                      <span className="bg-white/80 px-3 text-gray-500">Or use a wallet</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+                <p className="text-sm font-medium text-gray-600 mb-3">Suggested wallets</p>
+
+                {WALLET_OPTIONS.slice(0, 2).map((wallet) => {
+                  const isMetaMask = wallet.walletType === "metamask";
+                  return (
                     <button
                       key={wallet.name}
                       type="button"
-                      onClick={() => handleWalletOptionClick(wallet)}
+                      onClick={() => {
+                        if (isMetaMask) {
+                          setView("metamask");
+                        } else {
+                          handleWalletOptionClick(wallet);
+                        }
+                      }}
                       className="w-full flex items-center gap-4 p-2 bg-white/60 border border-gray-200/50 rounded-2xl hover:bg-white/80 hover:border-gray-300 transition-all text-left"
                     >
+
                       <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center border border-gray-200/50 overflow-hidden">
                         <img
                           src={wallet.icon}
@@ -151,34 +277,50 @@ export function BetaAccessModal({
                           className="h-8 w-8 object-contain"
                         />
                       </div>
-                      <span className="font-medium">{wallet.name}</span>
+                      <div className="flex items-center gap-4 w-100 justify-between"> 
+                        <span className="text-xs">{wallet.name}</span>
+                        {isMetaMask && (
+                          <span className="text-gray-400 text-sm">▸</span>
+                        )}
+                        </div>
                     </button>
-                  ))}
-                </div>
-              </div>
-              <div>
+                  );
+                })}
                 <p className="text-sm font-medium text-gray-600 mb-3">Other wallets</p>
-                <div className="space-y-3 grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {getOtherWallets().map((wallet) => (
-                    <button
-                      key={wallet.name}
-                      type="button"
-                      onClick={() => handleWalletOptionClick(wallet)}
-                      className="w-full flex flex-col items-center mb-0 gap-4 p-2 bg-white/60 border border-gray-200/50 rounded-2xl hover:bg-white/80 hover:border-gray-300 transition-all text-left"
-                    >
-                      <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center border border-gray-200/50 overflow-hidden">
-                        <img
-                          src={wallet.icon}
-                          alt=""
-                          className="h-8 w-8 object-contain"
-                        />
-                      </div>
-                      <span className="text-xs">{wallet.name}</span>
-                    </button>
-                  ))}
+                <div className="space-y-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {WALLET_OPTIONS.slice(2, 7).map((wallet) => {
+                    const isMetaMask = wallet.walletType === "metamask";
+                    return (
+                      <button
+                        key={wallet.name}
+                        type="button"
+                        onClick={() => {
+                          if (isMetaMask) {
+                            setView("metamask");
+                          } else {
+                            handleWalletOptionClick(wallet);
+                          }
+                        }}
+                        className="w-full flex flex-col items-center mb-0 gap-4 p-2 bg-white/60 border border-gray-200/50 rounded-2xl hover:bg-white/80 hover:border-gray-300 transition-all text-left"
+                      >
+                        {/* <div className="flex items-center gap-4"> */}
+                        <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center border border-gray-200/50 overflow-hidden">
+                          <img
+                            src={wallet.icon}
+                            alt=""
+                            className="h-8 w-8 object-contain"
+                          />
+                        </div>
+                        <span className="text-xs">{wallet.name}</span>
+                        {/* </div> */}
+
+                      </button>
+                    );
+                  })}
                 </div>
+
               </div>
-            </div>
+            )
           ) : (
             <div className="bg-green-50/50 border border-green-200/50 rounded-2xl p-5 flex items-center justify-between">
               <div className="flex items-center gap-4">

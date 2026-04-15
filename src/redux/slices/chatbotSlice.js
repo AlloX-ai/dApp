@@ -5,7 +5,7 @@ const initialState = {
 		{
 			id: "welcome",
 			type: "ai",
-			content: "Hi! I'm your ChainGPT AI assistant. How can I help you today?",
+			content: "Hi, I'm your AlloX Web3 AI assistant. I can answer questions about crypto, blockchain, DeFi, tokens, NFTs, and Web3 concepts.",
 			timestamp: new Date().toISOString(),
 		},
 	],
