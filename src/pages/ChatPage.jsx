@@ -35,7 +35,12 @@ import {
 } from "../redux/slices/pointsSlice";
 import { apiCall } from "../utils/api";
 import { fetchChatStatus as fetchChatStatusApi } from "../utils/chatStatusFetch";
-import { getTotalMessagesRemaining } from "../utils/rateLimitMessages";
+import {
+  getBonusMessages,
+  getDailyMessagesRemaining,
+  getTotalMessagesRemaining,
+} from "../utils/rateLimitMessages";
+import { MessageLimitModal } from "../components/MessageLimitModal";
 
 import {
   executePortfolioOnChain,
@@ -179,6 +184,8 @@ export function ChatPage() {
   const walletAddress = useSelector((state) => state.wallet.address);
   const pointsBalance = useSelector((state) => state.points?.balance);
   const messagesRemaining = getTotalMessagesRemaining(rateLimit);
+  const dailyMessagesRemaining = getDailyMessagesRemaining(rateLimit);
+  const bonusMessages = getBonusMessages(rateLimit);
   const resetAt = rateLimit?.resetAt;
   const canRefresh = chatStatus?.activity?.canRefresh === true;
   const {
@@ -197,6 +204,7 @@ export function ChatPage() {
   const completedMessageIdsRef = useRef(new Set());
   const consumedRouteSuggestionKeysRef = useRef(new Set());
   const [showWalletPrompt, setShowWalletPrompt] = useState(false);
+  const [isMessageLimitModalOpen, setIsMessageLimitModalOpen] = useState(false);
   const [showWelcomeGiftModal, setShowWelcomeGiftModal] = useState(false);
   const [userDismissedClaimModal, setUserDismissedClaimModal] = useState(false);
   const [claiming, setClaiming] = useState(false);
@@ -1393,6 +1401,32 @@ export function ChatPage() {
         }
         if (response.rateLimit) {
           dispatch(setRateLimit(response.rateLimit));
+        } else {
+          // Some chat responses omit rateLimit; fetch latest so Header counters stay in sync.
+          void fetchChatStatusApi(dispatch, { setUser });
+        }
+
+        let meRateLimit = null;
+        // Keep full rate-limit shape (messagesRemaining + bonusMessages) in sync from /auth/me.
+        try {
+          const me = await apiCall("/auth/me");
+          if (me?.season1?.rateLimit) {
+            meRateLimit = me.season1.rateLimit;
+            dispatch(setRateLimit(me.season1.rateLimit));
+          }
+          if (me && typeof me === "object") {
+            const currentUser = authUser ?? {};
+            setUser({
+              ...currentUser,
+              ...me,
+              season1: {
+                ...(currentUser?.season1 ?? {}),
+                ...(me?.season1 ?? {}),
+              },
+            });
+          }
+        } catch (meError) {
+          // Non-fatal: chat succeeded, keep going with best available counters.
         }
 
         // Keep authUser in localStorage in sync with points and rate limit from chat API
@@ -1410,7 +1444,8 @@ export function ChatPage() {
               ...(response.points?.breakdown && {
                 pointsBreakdown: response.points.breakdown,
               }),
-              ...(response.rateLimit && { rateLimit: response.rateLimit }),
+              ...(response.rateLimit &&
+                !meRateLimit && { rateLimit: response.rateLimit }),
             },
           };
           setUser(nextUser);
@@ -1559,9 +1594,13 @@ export function ChatPage() {
         );
         return;
       }
+      if (String(message).trim().toLowerCase() === "start over") {
+        handleStartNewChat();
+        return;
+      }
       sendChatMessage(String(message));
     },
-    [sendChatMessage, walletChainId],
+    [sendChatMessage, walletChainId, handleStartNewChat],
   );
 
   // Open claim popup only when user has not already claimed and needs to claim
@@ -3373,16 +3412,25 @@ export function ChatPage() {
                       : "Try again later."}
                   </p>
                 </div>
-                {canRefresh && (
+                <div className="flex items-center gap-2 shrink-0">
                   <button
                     type="button"
-                    onClick={handleRefreshLimit}
-                    disabled={statusLoading}
-                    className="btn-primary text-sm px-4 py-2 whitespace-nowrap"
+                    onClick={() => setIsMessageLimitModalOpen(true)}
+                    className="px-4 py-2 rounded-xl border border-gray-200 bg-white text-gray-800 text-sm font-medium hover:bg-gray-50 whitespace-nowrap"
                   >
-                    {statusLoading ? "Checking…" : "Refresh limit"}
+                    Buy more messages
                   </button>
-                )}
+                  {canRefresh && (
+                    <button
+                      type="button"
+                      onClick={handleRefreshLimit}
+                      disabled={statusLoading}
+                      className="btn-primary text-sm px-4 py-2 whitespace-nowrap"
+                    >
+                      {statusLoading ? "Checking…" : "Refresh limit"}
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -3539,6 +3587,13 @@ export function ChatPage() {
         </div>
       )}
 
+      <MessageLimitModal
+        isOpen={isMessageLimitModalOpen}
+        onClose={() => setIsMessageLimitModalOpen(false)}
+        dailyMessagesRemaining={dailyMessagesRemaining}
+        bonusMessages={bonusMessages}
+      />
+
       {claimSuccess && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-300">
           <div className="glass-card max-w-sm w-full p-8 text-center animate-in zoom-in-95 duration-300">
@@ -3662,7 +3717,7 @@ export function ChatPage() {
                           {[
                             {
                               value: "BSC",
-                              label: "BNB Chain (on chain)",
+                              label: "BNB Chain (on-chain)",
                               badge: "BSC",
                               icon: "https://cdn.allox.ai/allox/networks/bnbIcon.svg",
                             },
