@@ -18,13 +18,21 @@ import {
 import { encodeFunctionData } from "viem";
 import { useDispatch, useSelector } from "react-redux";
 import { NavLink, useLocation, useNavigate } from "react-router";
+import {
+  getEmbeddedConnectedWallet,
+  useSendTransaction,
+  useWallets,
+} from "@privy-io/react-auth";
 import OutsideClickHandler from "react-outside-click-handler/build/OutsideClickHandler";
 import { setWalletModal } from "../redux/slices/walletSlice";
 import getFormattedNumber from "../hooks/get-formatted-number";
 import { apiCall } from "../utils/api";
 import { useAuth } from "../hooks/useAuth";
 import { PortfolioAlertSettings } from "../components/PortfolioAlertSettings";
-import { createWagmiExecutionTxEnv } from "../utils/execution";
+import {
+  createPrivyExecutionTxEnv,
+  createWagmiExecutionTxEnv,
+} from "../utils/execution";
 
 const ERC20_ABI = [
   {
@@ -92,12 +100,17 @@ const SORT_OPTIONS = [
   { value: "pnl", label: "Sort by: Performance" },
 ];
 
+const isOnChainExecutionMode = (executionMode) =>
+  String(executionMode || "").toUpperCase() === "ON_CHAIN";
+
 export function PortfolioPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
   const isConnected = useSelector((state) => state.wallet.isConnected);
-  const { ensureAuthenticated, logout } = useAuth();
+  const { ensureAuthenticated, logout, user: authUser } = useAuth();
+  const { wallets } = useWallets();
+  const { sendTransaction: privySendTransaction } = useSendTransaction();
   const selectedPortfolioIdFromUrl = useMemo(
     () => new URLSearchParams(location.search).get("portfolio"),
     [location.search],
@@ -347,7 +360,9 @@ export function PortfolioPage() {
         narrativeText.includes(search);
       const risk = String(portfolio?.riskProfile || "").toUpperCase();
       const matchesRisk = filterRisk === "ALL" || risk === filterRisk;
-      const executionMode = String(portfolio?.executionMode || "").toUpperCase();
+      const executionMode = String(
+        portfolio?.executionMode || "",
+      ).toUpperCase();
       const matchesExecutionMode =
         filterExecutionMode === "ALL" || executionMode === filterExecutionMode;
       return matchesSearch && matchesRisk && matchesExecutionMode;
@@ -514,10 +529,13 @@ export function PortfolioPage() {
             ? { slippage: nextSlippage }
             : {}),
         };
-        const quote = await apiCall(`/portfolio/${target.portfolioId}/sell/quote`, {
-          method: "POST",
-          body: JSON.stringify(body),
-        });
+        const quote = await apiCall(
+          `/portfolio/${target.portfolioId}/sell/quote`,
+          {
+            method: "POST",
+            body: JSON.stringify(body),
+          },
+        );
         setSellQuote(quote);
       } catch (error) {
         if (error?.status === 401) {
@@ -581,20 +599,29 @@ export function PortfolioPage() {
       const symbol = order?.symbol || "TOKEN";
       let prepare;
       try {
-        prepare = await apiCall(`/execution/${order.executionOrderId}/prepare`, {
-          method: "POST",
-          body: JSON.stringify({ slippage: slippageValue }),
-        });
+        prepare = await apiCall(
+          `/execution/${order.executionOrderId}/prepare`,
+          {
+            method: "POST",
+            body: JSON.stringify({ slippage: slippageValue }),
+          },
+        );
       } catch (error) {
-        if (error?.status === 428 && Array.isArray(error?.data?.approvalSteps)) {
+        if (
+          error?.status === 428 &&
+          Array.isArray(error?.data?.approvalSteps)
+        ) {
           addSellLog(`${symbol}: approvals required.`);
           for (const step of error.data.approvalSteps) {
             await runApprovalStep(step, txEnv);
           }
-          prepare = await apiCall(`/execution/${order.executionOrderId}/prepare`, {
-            method: "POST",
-            body: JSON.stringify({ slippage: slippageValue }),
-          });
+          prepare = await apiCall(
+            `/execution/${order.executionOrderId}/prepare`,
+            {
+              method: "POST",
+              body: JSON.stringify({ slippage: slippageValue }),
+            },
+          );
         } else if (
           error?.status === 422 &&
           error?.data?.error === "SLIPPAGE_INCREASE_REQUIRED"
@@ -619,7 +646,9 @@ export function PortfolioPage() {
         to: txData.to,
         data: txData.data,
         value:
-          txData.value != null && txData.value !== "" ? BigInt(txData.value) : 0n,
+          txData.value != null && txData.value !== ""
+            ? BigInt(txData.value)
+            : 0n,
         ...(txData.nonce != null && txData.nonce !== ""
           ? { nonce: Number(txData.nonce) }
           : {}),
@@ -663,7 +692,31 @@ export function PortfolioPage() {
 
     try {
       await ensureAuthenticated();
-      const txEnv = createWagmiExecutionTxEnv();
+      let txEnv;
+      if (authUser?.authProvider === "privy") {
+        const embedded = getEmbeddedConnectedWallet(wallets);
+        if (!embedded) {
+          throw new Error(
+            "Embedded wallet not found. Refresh the page or sign in again.",
+          );
+        }
+        const chainId = embedded.chainId;
+        const onBsc =
+          chainId === "eip155:56" ||
+          (typeof chainId === "string" &&
+            chainId.startsWith("0x") &&
+            parseInt(chainId, 16) === 56) ||
+          Number(chainId) === 56;
+        if (!onBsc) {
+          await embedded.switchChain(56);
+        }
+        txEnv = createPrivyExecutionTxEnv(
+          embedded.address,
+          privySendTransaction,
+        );
+      } else {
+        txEnv = createWagmiExecutionTxEnv();
+      }
       txEnv.assertReady();
 
       let confirmed = 0;
@@ -694,15 +747,18 @@ export function PortfolioPage() {
       setIsSellExecuting(false);
     }
   }, [
+    authUser?.authProvider,
     closeSellModal,
     ensureAuthenticated,
     executeSingleOrder,
     handlePortfolioSelect,
     loadPortfolios,
     logout,
+    privySendTransaction,
     sellQuote?.orders,
     sellSlippage,
     sellTarget?.portfolioId,
+    wallets,
   ]);
 
   const totalBalance = Number(activePortfolio?.totalCurrentValue || 0);
@@ -727,8 +783,12 @@ export function PortfolioPage() {
   const selectedSortLabel =
     SORT_OPTIONS.find((item) => item.value === sortBy)?.label ||
     "Sort by: Recent";
-  const sellQuoteOrders = Array.isArray(sellQuote?.orders) ? sellQuote.orders : [];
-  const sellFailedQuotes = Array.isArray(sellQuote?.failed) ? sellQuote.failed : [];
+  const sellQuoteOrders = Array.isArray(sellQuote?.orders)
+    ? sellQuote.orders
+    : [];
+  const sellFailedQuotes = Array.isArray(sellQuote?.failed)
+    ? sellQuote.failed
+    : [];
   const sellEstimatedUsdtTotal = sellQuoteOrders.reduce(
     (sum, order) => sum + Number(order?.estimatedUsdtOut || 0),
     0,
@@ -799,16 +859,16 @@ export function PortfolioPage() {
                 {!searchQuery &&
                   filterRisk === "ALL" &&
                   filterExecutionMode === "ALL" && (
-                  <button
-                    onClick={() => {
-                      goToPortfolio();
-                    }}
-                    className="btn-primary px-6 py-3 inline-flex items-center gap-2"
-                  >
-                    <Plus size={20} />
-                    Create Portfolio
-                  </button>
-                )}
+                    <button
+                      onClick={() => {
+                        goToPortfolio();
+                      }}
+                      className="btn-primary px-6 py-3 inline-flex items-center gap-2"
+                    >
+                      <Plus size={20} />
+                      Create Portfolio
+                    </button>
+                  )}
               </div>
             )}
 
@@ -847,8 +907,8 @@ export function PortfolioPage() {
                               : "text-red-600"
                           }`}
                         >
-                          {totalPortfolioPnL >= 0 ? "+" : ""}
-                          ${totalPortfolioPnL.toFixed(2)}
+                          {totalPortfolioPnL >= 0 ? "+" : ""}$
+                          {totalPortfolioPnL.toFixed(2)}
                         </p>
                       </div>
                       <div className="glass-card p-5">
@@ -1102,25 +1162,30 @@ export function PortfolioPage() {
                                     </div>
                                   ) : (
                                     <div className="flex items-center gap-2">
-                                    <h3 className="text-lg font-bold mb-0 group-hover:text-blue-600 transition-colors">
-                                      {portfolio?.name || "Portfolio"}
-                                    </h3>
-                                             {/* <button
-                                    type="button"
-                                    title="Sell portfolio"
-                                    aria-label="Sell portfolio"
-                                    onClick={(event) => {
-                                      event.stopPropagation();
-                                      openSellModal({
-                                        type: "portfolio",
-                                        portfolioId: portfolio.id,
-                                        title: portfolio?.name || "Portfolio",
-                                      });
-                                    }}
-                                    className=" rounded-xl px-3 border border-gray-200 text-gray-500 hover:text-emerald-600 hover:border-emerald-200 bg-white/70 flex items-center justify-center"
-                                  >
-                                    <DollarSign size={15} /> Sell
-                                  </button> */}
+                                      <h3 className="text-lg font-bold mb-0 group-hover:text-blue-600 transition-colors">
+                                        {portfolio?.name || "Portfolio"}
+                                      </h3>
+                                      {isOnChainExecutionMode(
+                                        portfolio?.executionMode,
+                                      ) && (
+                                        <button
+                                          type="button"
+                                          title="Sell portfolio"
+                                          aria-label="Sell portfolio"
+                                          onClick={(event) => {
+                                            event.stopPropagation();
+                                            openSellModal({
+                                              type: "portfolio",
+                                              portfolioId: portfolio.id,
+                                              title:
+                                                portfolio?.name || "Portfolio",
+                                            });
+                                          }}
+                                          className=" rounded-xl px-3 border border-gray-200 text-gray-500 hover:text-emerald-600 hover:border-emerald-200 bg-white/70 flex items-center justify-center"
+                                        >
+                                          <DollarSign size={15} /> Sell
+                                        </button>
+                                      )}
                                     </div>
                                   )}
                                   <span
@@ -1133,9 +1198,8 @@ export function PortfolioPage() {
                                     ).toUpperCase()}
                                   </span>
                                 </div>
-                           
+
                                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
-                              
                                   <button
                                     type="button"
                                     title="Rename portfolio"
@@ -1251,7 +1315,10 @@ export function PortfolioPage() {
                       <div className="glass-card p-5">
                         <div className="text-sm text-gray-600 mb-1 flex items-center justify-between gap-3">
                           <span>Total Balance</span>
-                         {/* <button
+                          {isOnChainExecutionMode(
+                            activePortfolio?.executionMode,
+                          ) && (
+                            <button
                               type="button"
                               onClick={() =>
                                 openSellModal({
@@ -1264,7 +1331,8 @@ export function PortfolioPage() {
                             >
                               <DollarSign size={14} />
                               Sell Portfolio
-                            </button> */}
+                            </button>
+                          )}
                         </div>
                         <div className="text-4xl font-bold mb-2">
                           $
@@ -1303,7 +1371,6 @@ export function PortfolioPage() {
                               <BarChart3 size={20} className="text-gray-500" />
                               Portfolio Analytics
                             </h3>
-                            
                           </div>
 
                           {overview && (
@@ -1425,34 +1492,39 @@ export function PortfolioPage() {
                                         <div className="min-w-0 flex-1">
                                           <div className="flex items-center gap-2 min-w-0 justify-between">
                                             <div className="flex items-center gap-2 min-w-0">
-                                            <div className="font-bold text-lg truncate">
-                                              {symbol}
+                                              <div className="font-bold text-lg truncate">
+                                                {symbol}
+                                              </div>
+                                              {narrative ? (
+                                                <span className="text-xs uppercase tracking-wide text-gray-500 bg-white/70 border border-gray-200/60 px-2 py-1 rounded-full shrink-0">
+                                                  {String(narrative).replace(
+                                                    /_/g,
+                                                    " ",
+                                                  )}
+                                                </span>
+                                              ) : null}
                                             </div>
-                                            {narrative ? (
-                                              <span className="text-xs uppercase tracking-wide text-gray-500 bg-white/70 border border-gray-200/60 px-2 py-1 rounded-full shrink-0">
-                                                {String(narrative).replace(
-                                                  /_/g,
-                                                  " ",
-                                                )}
-                                              </span>
-                                            ) : null}
-                                            </div>
-                                            {/* <button
-                                              type="button"
-                                              onClick={(event) => {
-                                                event.stopPropagation();
-                                                openSellModal({
-                                                  type: "token",
-                                                  portfolioId: activePortfolio.id,
-                                                  symbol: String(symbol),
-                                                  title: `${symbol} in ${activePortfolio.name || "Portfolio"}`,
-                                                });
-                                              }}
-                                              className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-lg border border-emerald-200 text-emerald-700 hover:bg-emerald-50 shrink-0"
-                                            >
-                                              <DollarSign size={12} />
-                                              Sell
-                                            </button> */}
+                                            {isOnChainExecutionMode(
+                                              activePortfolio?.executionMode,
+                                            ) && (
+                                              <button
+                                                type="button"
+                                                onClick={(event) => {
+                                                  event.stopPropagation();
+                                                  openSellModal({
+                                                    type: "token",
+                                                    portfolioId:
+                                                      activePortfolio.id,
+                                                    symbol: String(symbol),
+                                                    title: `${symbol} in ${activePortfolio.name || "Portfolio"}`,
+                                                  });
+                                                }}
+                                                className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-lg border border-emerald-200 text-emerald-700 hover:bg-emerald-50 shrink-0"
+                                              >
+                                                <DollarSign size={12} />
+                                                Sell
+                                              </button>
+                                            )}
                                           </div>
                                           {name ? (
                                             <div className="text-sm text-gray-500 truncate">
@@ -1893,7 +1965,10 @@ export function PortfolioPage() {
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
           onClick={() => setIsAlertModalOpen(false)}
         >
-          <div className="w-full max-w-[580px]" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="w-full max-w-[580px]"
+            onClick={(e) => e.stopPropagation()}
+          >
             <PortfolioAlertSettings
               portfolioId={activePortfolioId}
               onClose={() => setIsAlertModalOpen(false)}
@@ -1914,7 +1989,9 @@ export function PortfolioPage() {
             <div className="flex items-start justify-between gap-4 mb-4">
               <div>
                 <h3 className="text-2xl font-bold">
-                  {sellTarget.type === "token" ? "Sell Token" : "Sell Portfolio"}
+                  {sellTarget.type === "token"
+                    ? "Sell Token"
+                    : "Sell Portfolio"}
                 </h3>
                 <p className="text-sm text-gray-600">{sellTarget.title}</p>
               </div>
@@ -1997,38 +2074,42 @@ export function PortfolioPage() {
                       const priceImpact = Number(order.priceImpact || 0);
                       const isHighImpact = priceImpact >= 5;
                       return (
-                      <div
-                        key={order.executionOrderId}
-                        className={`border rounded-xl p-3 text-sm ${
-                          isHighImpact
-                            ? "bg-amber-50 border-amber-300"
-                            : "bg-white border-gray-200"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="font-semibold flex items-center gap-2">
-                            {order.symbol}
-                            {isHighImpact ? (
-                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-200 text-amber-900 uppercase tracking-wide">
-                                High impact
-                              </span>
-                            ) : null}
+                        <div
+                          key={order.executionOrderId}
+                          className={`border rounded-xl p-3 text-sm ${
+                            isHighImpact
+                              ? "bg-amber-50 border-amber-300"
+                              : "bg-white border-gray-200"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="font-semibold flex items-center gap-2">
+                              {order.symbol}
+                              {isHighImpact ? (
+                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-200 text-amber-900 uppercase tracking-wide">
+                                  High impact
+                                </span>
+                              ) : null}
+                            </div>
+                            <div className="text-gray-700">
+                              ~{Number(order.estimatedUsdtOut || 0).toFixed(4)}{" "}
+                              USDT
+                            </div>
                           </div>
-                          <div className="text-gray-700">
-                            ~{Number(order.estimatedUsdtOut || 0).toFixed(4)} USDT
+                          <div className="text-xs text-gray-500 mt-1 flex items-center gap-2 flex-wrap">
+                            Provider: {order.swapProvider || "N/A"} | Price
+                            impact:{" "}
+                            <span
+                              className={
+                                isHighImpact
+                                  ? "font-semibold text-amber-800"
+                                  : ""
+                              }
+                            >
+                              {priceImpact.toFixed(2)}%
+                            </span>
                           </div>
                         </div>
-                        <div className="text-xs text-gray-500 mt-1 flex items-center gap-2 flex-wrap">
-                          Provider: {order.swapProvider || "N/A"} | Price impact:{" "}
-                          <span
-                            className={
-                              isHighImpact ? "font-semibold text-amber-800" : ""
-                            }
-                          >
-                            {priceImpact.toFixed(2)}%
-                          </span>
-                        </div>
-                      </div>
                       );
                     })}
                   </div>
@@ -2049,7 +2130,9 @@ export function PortfolioPage() {
               </div>
             ) : (
               <div className="text-sm text-gray-600">
-                {isSellQuoteLoading ? "Loading quote..." : "Quote not loaded yet."}
+                {isSellQuoteLoading
+                  ? "Loading quote..."
+                  : "Quote not loaded yet."}
               </div>
             )}
 
@@ -2060,7 +2143,9 @@ export function PortfolioPage() {
               </div>
             ) : null}
             {sellExecutionError ? (
-              <div className="mt-4 text-sm text-red-600">{sellExecutionError}</div>
+              <div className="mt-4 text-sm text-red-600">
+                {sellExecutionError}
+              </div>
             ) : null}
             {sellExecutionLogs.length > 0 ? (
               <div className="mt-4 bg-black text-green-300 rounded-xl p-3 text-xs space-y-1 max-h-36 overflow-y-auto">
