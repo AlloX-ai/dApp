@@ -7,43 +7,6 @@ import { apiCall, getApiUrl } from "../utils/api";
 import { setWalletType } from "../redux/slices/walletSlice";
 import { runPrivyLogoutBridge } from "../auth/privyLogoutBridge";
 
-const AUTH_USER_KEY = "authUser";
-const AUTH_EXPIRY_SKEW_MS = 30 * 1000;
-
-const getJwtExpiryMs = (jwt) => {
-  try {
-    const payload = jwt?.split?.(".")?.[1];
-    if (!payload) return null;
-    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
-    const padded = normalized.padEnd(
-      normalized.length + ((4 - (normalized.length % 4)) % 4),
-      "=",
-    );
-    const decoded = JSON.parse(atob(padded));
-    const expSeconds = Number(decoded?.exp);
-    if (!Number.isFinite(expSeconds)) return null;
-    return expSeconds * 1000;
-  } catch (e) {
-    return null;
-  }
-};
-
-const isJwtExpired = (jwt) => {
-  const expiryMs = getJwtExpiryMs(jwt);
-  if (!expiryMs) return false;
-  return Date.now() >= expiryMs - AUTH_EXPIRY_SKEW_MS;
-};
-
-const loadStoredUser = () => {
-  try {
-    const raw = localStorage.getItem(AUTH_USER_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch (e) {
-    console.error(e);
-  }
-  return null;
-};
-
 // Simple in-module singleton so all `useAuth` hook instances
 // share the same `user` and `token` state instead of each
 // component keeping its own copy.
@@ -51,10 +14,13 @@ let globalAuthState = {
   token: typeof window !== "undefined"
     ? localStorage.getItem("authToken")
     : null,
-  user: typeof window !== "undefined" ? loadStoredUser() : null,
+  user: null,
 };
 
 const subscribers = new Set();
+let meFetchInFlight = null;
+let lastMeFetchAt = 0;
+const ME_FETCH_COOLDOWN_MS = 5000;
 
 const notifySubscribers = () => {
   for (const cb of subscribers) {
@@ -85,26 +51,10 @@ const setGlobalToken = (nextToken) => {
 };
 
 const setGlobalUser = (nextUser) => {
-  globalAuthState = { ...globalAuthState, user: nextUser };
-  if (nextUser != null) {
-    try {
-      localStorage.setItem(AUTH_USER_KEY, JSON.stringify(nextUser));
-    } catch (e) {
-      console.error(e);
-    }
-  } else {
-    try {
-      localStorage.removeItem(AUTH_USER_KEY);
-    } catch (e) {
-      console.error(e);
-    }
-  }
+  const resolvedUser =
+    typeof nextUser === "function" ? nextUser(globalAuthState.user) : nextUser;
+  globalAuthState = { ...globalAuthState, user: resolvedUser };
   notifySubscribers();
-};
-
-const clearGlobalAuth = () => {
-  setGlobalToken(null);
-  setGlobalUser(null);
 };
 
 /**
@@ -170,6 +120,36 @@ export const useAuth = () => {
 
   const { token, user } = state;
 
+  const refreshUser = useCallback(async () => {
+    const t = token || localStorage.getItem("authToken");
+    if (!t) return null;
+    const now = Date.now();
+    if (
+      globalAuthState.user &&
+      now - lastMeFetchAt < ME_FETCH_COOLDOWN_MS
+    ) {
+      return globalAuthState.user;
+    }
+    if (meFetchInFlight) return meFetchInFlight;
+    meFetchInFlight = apiCall("/auth/me")
+      .then((me) => {
+        lastMeFetchAt = Date.now();
+        if (me && typeof me === "object") {
+          setGlobalUser(me);
+        }
+        return me;
+      })
+      .finally(() => {
+        meFetchInFlight = null;
+      });
+    return meFetchInFlight;
+  }, [token]);
+
+  useEffect(() => {
+    if (!token || user) return;
+    refreshUser().catch(() => {});
+  }, [token, user, refreshUser]);
+
   const authInFlightRef = useRef(null);
 
   useEffect(() => {
@@ -181,82 +161,62 @@ export const useAuth = () => {
   }, []);
 
   const authenticate = useCallback(async () => {
-    if (authInFlightRef.current) return authInFlightRef.current;
-
     if (!address) {
       throw new Error("Wallet not connected");
     }
 
-    const authPromise = (async () => {
-      const nonceRes = await apiCall(`/auth/nonce/${address}`);
-      const message = nonceRes.message;
-      const rawWalletType = nonceRes.walletType ?? walletType;
-      const walletTypeFromApi =
-        rawWalletType === "phantom" || rawWalletType === "solana"
-          ? "solana"
-          : rawWalletType || "evm";
+    const nonceRes = await apiCall(`/auth/nonce/${address}`);
+    const message = nonceRes.message;
+    const rawWalletType = nonceRes.walletType ?? walletType;
+    const walletTypeFromApi =
+      rawWalletType === "phantom" || rawWalletType === "solana"
+        ? "solana"
+        : rawWalletType || "evm";
 
-      if (!message) {
-        throw new Error("Missing nonce message");
-      }
-
-      let signature;
-
-      if (walletTypeFromApi === "solana") {
-        if (!signMessageSolana) throw new Error("Solana wallet not connected");
-        const encodedMessage = new TextEncoder().encode(message);
-        const rawSig = await signMessageSolana(encodedMessage);
-        signature =
-          typeof rawSig === "string"
-            ? rawSig
-            : bs58.encode(new Uint8Array(rawSig));
-      } else {
-        signature = await signMessageAsync({ message });
-      }
-
-      const verifyRes = await apiCall("/auth/verify", {
-        method: "POST",
-        body: JSON.stringify({ address, signature }),
-      });
-
-      if (!verifyRes.token) {
-        throw new Error("Missing auth token");
-      }
-
-      // Always persist user with walletType and address so session restore and guards work after navigate
-      setGlobalToken(verifyRes.token);
-      if (verifyRes.user) {
-        setUser({
-          ...verifyRes.user,
-          walletType: walletTypeFromApi,
-          address: verifyRes.user.address ?? address,
-        });
-      } else {
-        const stored = loadStoredUser();
-        setUser(
-          stored
-            ? {
-                ...stored,
-                walletType: walletTypeFromApi,
-                address: stored.address ?? address,
-              }
-            : { walletType: walletTypeFromApi, address },
-        );
-      }
-
-      if (walletTypeFromApi) {
-        dispatch(setWalletType(walletTypeFromApi));
-      }
-
-      return { token: verifyRes.token, user: verifyRes.user };
-    })();
-
-    authInFlightRef.current = authPromise;
-    try {
-      return await authPromise;
-    } finally {
-      authInFlightRef.current = null;
+    if (!message) {
+      throw new Error("Missing nonce message");
     }
+
+    let signature;
+
+    if (walletTypeFromApi === "solana") {
+      if (!signMessageSolana) throw new Error("Solana wallet not connected");
+      const encodedMessage = new TextEncoder().encode(message);
+      const rawSig = await signMessageSolana(encodedMessage);
+      signature =
+        typeof rawSig === "string"
+          ? rawSig
+          : bs58.encode(new Uint8Array(rawSig));
+    } else {
+      signature = await signMessageAsync({ message });
+    }
+
+    const verifyRes = await apiCall("/auth/verify", {
+      method: "POST",
+      body: JSON.stringify({ address, signature }),
+    });
+
+    if (!verifyRes.token) {
+      throw new Error("Missing auth token");
+    }
+
+    // Always persist user with walletType and address so session restore and guards work after navigate
+    setGlobalToken(verifyRes.token);
+    if (verifyRes.user) {
+      setUser({
+        ...verifyRes.user,
+        walletType: walletTypeFromApi,
+        address: verifyRes.user.address ?? address,
+      });
+    } else {
+      setUser({ walletType: walletTypeFromApi, address });
+    }
+
+    if (walletTypeFromApi) {
+      dispatch(setWalletType(walletTypeFromApi));
+    }
+
+    return { token: verifyRes.token, user: verifyRes.user };
   }, [address, walletType, signMessageAsync, signMessageSolana, setUser, dispatch]);
 
   const claimSeason1 = useCallback(async () => {
@@ -268,16 +228,16 @@ export const useAuth = () => {
   }, [token]);
 
   const ensureAuthenticated = useCallback(async () => {
-    const currentToken =
-      token || (typeof localStorage !== "undefined" ? localStorage.getItem("authToken") : null);
-    if (currentToken && !isJwtExpired(currentToken)) return currentToken;
-    if (currentToken && isJwtExpired(currentToken)) {
-      clearGlobalAuth();
-    }
-
+    if (token) return token;
     if (!address) throw new Error("Wallet not connected");
-    const res = await authenticate();
-    return res?.token ?? null;
+    if (authInFlightRef.current) return authInFlightRef.current;
+    const p = authenticate()
+      .then((res) => res?.token ?? token)
+      .finally(() => {
+        authInFlightRef.current = null;
+      });
+    authInFlightRef.current = p;
+    return p;
   }, [token, address, authenticate]);
 
   const logout = useCallback(async () => {
@@ -292,18 +252,9 @@ export const useAuth = () => {
     }
   }, []);
 
-  useEffect(() => {
-    const currentToken =
-      token || (typeof localStorage !== "undefined" ? localStorage.getItem("authToken") : null);
-    if (currentToken && isJwtExpired(currentToken)) {
-      clearGlobalAuth();
-    }
-  }, [token]);
-
   // Resilient to state/localStorage race after navigate: treat as authenticated if token is in state or localStorage
-  const authToken =
-    token || (typeof localStorage !== "undefined" ? localStorage.getItem("authToken") : null);
-  const isAuthenticated = !!authToken && !isJwtExpired(authToken);
+  const isAuthenticated =
+    !!token || (typeof localStorage !== "undefined" && !!localStorage.getItem("authToken"));
 
   return {
     token,
@@ -312,6 +263,7 @@ export const useAuth = () => {
     authenticate,
     ensureAuthenticated,
     claimSeason1,
+    refreshUser,
     logout,
     isAuthenticated,
   };

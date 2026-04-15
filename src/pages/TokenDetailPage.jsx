@@ -60,7 +60,7 @@ export function TokenDetailPage() {
     setLoading(true);
     setError("");
     try {
-      await ensureAuthenticated();
+      // await ensureAuthenticated();
       const response = await apiCall(`/tokens/${encodeURIComponent(symbol)}`);
       setTokenData(response);
     } catch (err) {
@@ -70,7 +70,7 @@ export function TokenDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [symbol, ensureAuthenticated, logout]);
+  }, [symbol, logout]);
 
   const loadChartData = useCallback(async () => {
     if (!symbol) {
@@ -80,7 +80,7 @@ export function TokenDetailPage() {
     }
     setChartLoading(true);
     try {
-      await ensureAuthenticated();
+      // await ensureAuthenticated();
       const response = await apiCall(
         `/tokens/${encodeURIComponent(symbol)}/chart?timeframe=${chartTimeframe.value}&interval=${chartTimeframe.interval}`,
       );
@@ -94,7 +94,7 @@ export function TokenDetailPage() {
     } finally {
       setChartLoading(false);
     }
-  }, [symbol, chartTimeframe, ensureAuthenticated, logout]);
+  }, [symbol, chartTimeframe, logout]);
 
   useEffect(() => {
     window.scrollTo(0, 0);
