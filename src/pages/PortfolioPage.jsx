@@ -79,6 +79,12 @@ const RISK_FILTER_OPTIONS = [
   { value: "AGGRESSIVE", label: "Aggressive" },
 ];
 
+const EXECUTION_MODE_FILTER_OPTIONS = [
+  { value: "ALL", label: "All Execution Modes" },
+  { value: "PAPER", label: "Paper Trading" },
+  { value: "ON_CHAIN", label: "On-Chain" },
+];
+
 const SORT_OPTIONS = [
   { value: "date", label: "Sort by: Recent" },
   { value: "name", label: "Sort by: Name" },
@@ -137,6 +143,7 @@ export function PortfolioPage() {
   const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterRisk, setFilterRisk] = useState("ALL");
+  const [filterExecutionMode, setFilterExecutionMode] = useState("ALL");
   const [sortBy, setSortBy] = useState("date");
   const [editingPortfolioId, setEditingPortfolioId] = useState(null);
   const [renameDraft, setRenameDraft] = useState("");
@@ -144,6 +151,7 @@ export function PortfolioPage() {
   const [deleteCardPortfolio, setDeleteCardPortfolio] = useState(null);
   const [isDeletingCardPortfolio, setIsDeletingCardPortfolio] = useState(false);
   const [isRiskMenuOpen, setIsRiskMenuOpen] = useState(false);
+  const [isExecutionModeMenuOpen, setIsExecutionModeMenuOpen] = useState(false);
   const [isSortMenuOpen, setIsSortMenuOpen] = useState(false);
   const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
   const [isSellModalOpen, setIsSellModalOpen] = useState(false);
@@ -339,7 +347,10 @@ export function PortfolioPage() {
         narrativeText.includes(search);
       const risk = String(portfolio?.riskProfile || "").toUpperCase();
       const matchesRisk = filterRisk === "ALL" || risk === filterRisk;
-      return matchesSearch && matchesRisk;
+      const executionMode = String(portfolio?.executionMode || "").toUpperCase();
+      const matchesExecutionMode =
+        filterExecutionMode === "ALL" || executionMode === filterExecutionMode;
+      return matchesSearch && matchesRisk && matchesExecutionMode;
     });
 
     const sorted = [...filtered].sort((a, b) => {
@@ -362,7 +373,7 @@ export function PortfolioPage() {
     });
 
     return sorted;
-  }, [portfolios, searchQuery, filterRisk, sortBy]);
+  }, [portfolios, searchQuery, filterRisk, filterExecutionMode, sortBy]);
 
   const getRiskColor = useCallback((riskProfile) => {
     const risk = String(riskProfile || "").toUpperCase();
@@ -709,6 +720,10 @@ export function PortfolioPage() {
   const selectedRiskLabel =
     RISK_FILTER_OPTIONS.find((item) => item.value === filterRisk)?.label ||
     "All Risk Levels";
+  const selectedExecutionModeLabel =
+    EXECUTION_MODE_FILTER_OPTIONS.find(
+      (item) => item.value === filterExecutionMode,
+    )?.label || "All Execution Modes";
   const selectedSortLabel =
     SORT_OPTIONS.find((item) => item.value === sortBy)?.label ||
     "Sort by: Recent";
@@ -775,11 +790,15 @@ export function PortfolioPage() {
                 <BarChart3 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-xl font-bold mb-2">No portfolios found</h3>
                 <p className="text-gray-600 mb-6">
-                  {searchQuery || filterRisk !== "ALL"
+                  {searchQuery ||
+                  filterRisk !== "ALL" ||
+                  filterExecutionMode !== "ALL"
                     ? "Try adjusting your search or filters"
                     : "Create your first portfolio to get started"}
                 </p>
-                {!searchQuery && filterRisk === "ALL" && (
+                {!searchQuery &&
+                  filterRisk === "ALL" &&
+                  filterExecutionMode === "ALL" && (
                   <button
                     onClick={() => {
                       goToPortfolio();
@@ -877,6 +896,7 @@ export function PortfolioPage() {
                             <button
                               type="button"
                               onClick={() => {
+                                setIsExecutionModeMenuOpen(false);
                                 setIsSortMenuOpen(false);
                                 setIsRiskMenuOpen((prev) => !prev);
                               }}
@@ -922,6 +942,49 @@ export function PortfolioPage() {
                           <button
                             type="button"
                             onClick={() => {
+                              setIsRiskMenuOpen(false);
+                              setIsSortMenuOpen(false);
+                              setIsExecutionModeMenuOpen((prev) => !prev);
+                            }}
+                            className="px-4 py-3 glass-card text-sm cursor-pointer inline-flex items-center gap-2"
+                          >
+                            {selectedExecutionModeLabel}
+                            <ChevronDown size={16} className="text-gray-500" />
+                          </button>
+                          {isExecutionModeMenuOpen && (
+                            <div className="absolute top-full bg-white border border-gray-200 rounded-xl p-2 min-w-[220px] z-20 animate-fade-in">
+                              <OutsideClickHandler
+                                onOutsideClick={() =>
+                                  setIsExecutionModeMenuOpen(false)
+                                }
+                              >
+                                {EXECUTION_MODE_FILTER_OPTIONS.map((option) => (
+                                  <button
+                                    type="button"
+                                    key={option.value}
+                                    onClick={() => {
+                                      setFilterExecutionMode(option.value);
+                                      setIsExecutionModeMenuOpen(false);
+                                    }}
+                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-colors ${
+                                      filterExecutionMode === option.value
+                                        ? "bg-black text-white font-medium hover:bg-gray-800"
+                                        : "hover:bg-black/5 hover:shadow-sm"
+                                    }`}
+                                  >
+                                    <span>{option.label}</span>
+                                  </button>
+                                ))}
+                              </OutsideClickHandler>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsExecutionModeMenuOpen(false);
                               setIsRiskMenuOpen(false);
                               setIsSortMenuOpen((prev) => !prev);
                             }}
@@ -1042,7 +1105,7 @@ export function PortfolioPage() {
                                     <h3 className="text-lg font-bold mb-0 group-hover:text-blue-600 transition-colors">
                                       {portfolio?.name || "Portfolio"}
                                     </h3>
-                                             <button
+                                             {/* <button
                                     type="button"
                                     title="Sell portfolio"
                                     aria-label="Sell portfolio"
@@ -1057,7 +1120,7 @@ export function PortfolioPage() {
                                     className=" rounded-xl px-3 border border-gray-200 text-gray-500 hover:text-emerald-600 hover:border-emerald-200 bg-white/70 flex items-center justify-center"
                                   >
                                     <DollarSign size={15} /> Sell
-                                  </button>
+                                  </button> */}
                                     </div>
                                   )}
                                   <span
@@ -1149,7 +1212,7 @@ export function PortfolioPage() {
                           No portfolios found
                         </h3>
                         <p className="text-gray-600">
-                          Try adjusting your search or risk filters.
+                          Try adjusting your search or filters.
                         </p>
                       </div>
                     )}
@@ -1188,7 +1251,7 @@ export function PortfolioPage() {
                       <div className="glass-card p-5">
                         <div className="text-sm text-gray-600 mb-1 flex items-center justify-between gap-3">
                           <span>Total Balance</span>
-                         <button
+                         {/* <button
                               type="button"
                               onClick={() =>
                                 openSellModal({
@@ -1201,7 +1264,7 @@ export function PortfolioPage() {
                             >
                               <DollarSign size={14} />
                               Sell Portfolio
-                            </button>
+                            </button> */}
                         </div>
                         <div className="text-4xl font-bold mb-2">
                           $
@@ -1374,7 +1437,7 @@ export function PortfolioPage() {
                                               </span>
                                             ) : null}
                                             </div>
-                                            <button
+                                            {/* <button
                                               type="button"
                                               onClick={(event) => {
                                                 event.stopPropagation();
@@ -1389,7 +1452,7 @@ export function PortfolioPage() {
                                             >
                                               <DollarSign size={12} />
                                               Sell
-                                            </button>
+                                            </button> */}
                                           </div>
                                           {name ? (
                                             <div className="text-sm text-gray-500 truncate">
