@@ -2987,7 +2987,7 @@ export function ChatPage() {
   return (
     <div className="flex-1 flex flex-col">
       <div className="flex-1 flex flex-col overflow-y-auto">
-        {currentMessages.length === 0 && (
+        {currentMessages.length === 0 && !quickWizardOpen && (
           <div className="h-full flex items-center justify-center px-6">
             <div className="text-center max-w-2xl relative">
               {/* <div className="mx-auto inline-flex items-center gap-2.5 px-5 py-2.5 bg-gradient-to-r from-green-500/15 to-emerald-500/15 border border-green-500/30 rounded-full mb-6 shadow-sm shadow-green-500/10 sm:fixed sm:top-25 sm:left-1/2 sm:-translate-x-1/2 sm:mb-0 sm:z-20">
