@@ -29,7 +29,7 @@ export function PortfolioNavGroup({
     "flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm transition-all duration-200";
 
   return (
-    <OutsideClickHandler onOutsideClick={() => setOpen(false)}>
+    // <OutsideClickHandler onOutsideClick={() => setOpen(false)}>
       <div className="relative">
         <button
           type="button"
@@ -105,6 +105,6 @@ export function PortfolioNavGroup({
           </div>
         )}
       </div>
-    </OutsideClickHandler>
+    // </OutsideClickHandler>
   );
 }
