@@ -171,13 +171,14 @@ export function TradingCompetitionPage() {
                   Total Prize Pool
                 </div>
                 <div className="flex items-center gap-2">
-                    <span className="text-gray-900 font-bold">$500,000</span>
-                    <div className="flex items-center text-amber-600">
-                      (  <Gem className="w-5 h-5 text-amber-600 pr-1" />
-                  <div className="font-bold  text-xs sm:text-base text-amber-600">
-                    100,000 
-                  </div>)
+                  <span className="text-gray-900 font-bold">$500,000</span>
+                  <div className="flex items-center text-amber-600">
+                    ( <Gem className="w-5 h-5 text-amber-600 pr-1" />
+                    <div className="font-bold  text-xs sm:text-base text-amber-600">
+                      100,000
                     </div>
+                    )
+                  </div>
                 </div>
               </div>
             </div>

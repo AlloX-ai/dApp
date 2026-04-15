@@ -9,6 +9,7 @@ import {
   Clock,
   X,
   RefreshCw,
+  TrendingUp,
   HelpCircle,
   Check,
   RefreshCcw,
@@ -149,6 +150,13 @@ const NARRATIVE_MODAL_OPTIONS = [
       "Decentralized physical infrastructure networks — storage, compute, wireless, IoT, and bandwidth.",
     riskProfile: "MEDIUM_TO_HIGH",
   },
+  {
+    id: "memes",
+    label: "Memecoins",
+    description:
+      "Community-driven tokens driven by attention, culture, and speculation.",
+    riskProfile: "HIGH",
+  },
 ];
 
 export function ChatPage() {
@@ -208,6 +216,7 @@ export function ChatPage() {
   const [refreshOnchainLoading, setRefreshOnchainLoading] = useState(false);
   const [refreshOnchainMessage, setRefreshOnchainMessage] = useState(null);
   const [statusLoading, setStatusLoading] = useState(false);
+  // const [pnl, setPnl] = useState(0);
 
   const [executionState, setExecutionState] = useState({
     isExecuting: false,
@@ -504,6 +513,13 @@ export function ChatPage() {
     });
   }, [currentMessages]);
 
+  // const fetchPLData = async () => {
+  //   const data = await apiCall(`/portfolio/stats/pnl`, {}, "v2");
+  //   if (data) {
+  //     setPnl(data.pnlPercent);
+  //   }
+  // };
+
   useEffect(() => {
     return () => {
       if (typingTimerRef.current) {
@@ -547,6 +563,7 @@ export function ChatPage() {
   useEffect(() => {
     window.scrollTo(0, 0);
     document.title = "AlloX AI Agent";
+    // fetchPLData();
   }, []);
 
   const fetchChatStatus = useCallback(async () => {
@@ -2995,14 +3012,27 @@ export function ChatPage() {
       <div className="flex-1 flex flex-col overflow-y-auto">
         {currentMessages.length === 0 && !quickWizardOpen && (
           <div className="h-full flex items-center justify-center px-6">
-            <div className="text-center max-w-2xl">
+            <div className="text-center max-w-2xl relative">
+              {/* <div className="mx-auto inline-flex items-center gap-2.5 px-5 py-2.5 bg-gradient-to-r from-green-500/15 to-emerald-500/15 border border-green-500/30 rounded-full mb-6 shadow-sm shadow-green-500/10 sm:fixed sm:top-25 sm:left-1/2 sm:-translate-x-1/2 sm:mb-0 sm:z-20">
+                <div className="flex items-center justify-center w-6 h-6 bg-green-500 rounded-full">
+                  <TrendingUp
+                    size={14}
+                    className="text-white"
+                    strokeWidth={3}
+                  />
+                </div>
+                <span className="text-sm font-semibold text-green-700">
+                  {pnl}% positive P&L
+                </span>
+              </div> */}
+
               <h2 className="text-3xl font-bold mb-4">Hello, I'm AlloX</h2>
 
               <p className="text-gray-600 mb-8">
                 I can help you discover, execute, and manage your portfolio.
               </p>
 
-              <div className="flex flex-wrap gap-2 justify-center mb-8">
+              <div className="mb-8 grid grid-cols-2 md:grid-cols-3 gap-2">
                 {[
                   "Build Quick Portfolio",
                   "Build a Portfolio - Guided",
@@ -3015,7 +3045,7 @@ export function ChatPage() {
                     key={suggestion}
                     onClick={() => handleSuggestionClick(suggestion)}
                     disabled={isReadOnly || messagesRemaining === 0}
-                    className="px-4 py-2 bg-white shadow border border-white text-sm font-medium hover:bg-white/90 hover:shadow-lg hover:border hover:border-gray-200/50 transition-all duration-200 rounded-full disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-white"
+                    className="px-3 sm:px-4 py-2 bg-white shadow border border-white text-xs sm:text-sm font-medium hover:bg-white/90 hover:shadow-lg hover:border hover:border-gray-200/50 transition-all duration-200 rounded-full disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-white"
                   >
                     {suggestion}
                   </button>
@@ -3748,6 +3778,12 @@ export function ChatPage() {
                               badge: "PAY",
                             },
                             { value: "AI", label: "AI", badge: "AI" },
+                            {
+                              value: "memes",
+                              label: "Memecoins",
+                              badge: "Memecoins",
+                            },
+
                             { value: "Gaming", label: "Gaming", badge: "G" },
                             { value: "DePin", label: "DePin", badge: "DP" },
                           ].map((opt) => {

@@ -30,7 +30,7 @@ export function BetaAccessPage({ onWalletConnect }) {
   const { login, authenticated, user: privyUser, getAccessToken, ready: privyReady } =
     usePrivy();
   const { createWallet } = useCreateWallet();
-  const { isAuthenticated, authenticate } = useAuth();
+  const { isAuthenticated, authenticate, ensureAuthenticated } = useAuth();
   const [isSigning, setIsSigning] = useState(false);
   const [isPrivyVerifying, setIsPrivyVerifying] = useState(false);
   const authTriggeredRef = useRef(false);
@@ -109,7 +109,7 @@ export function BetaAccessPage({ onWalletConnect }) {
     if (isConnected || !isAuthenticated) return;
     setIsSigning(true);
     try {
-      await authenticate();
+      await ensureAuthenticated();
       navigate("/", { replace: true });
     } catch (err) {
       toast.error(err?.message || "Failed to sign. Please try again.");

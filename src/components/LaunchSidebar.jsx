@@ -1,7 +1,12 @@
+import { useMemo } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useDispatch, useSelector } from "react-redux";
 import { Plus } from "lucide-react";
-import { navigationTabs, isActivePath } from "../constants/navigation";
+import {
+  navigationTabs,
+  isActivePath,
+  portfolioSidebarNavIds,
+} from "../constants/navigation";
 import { useCheckin } from "../hooks/useCheckin";
 import { openCheckinModal } from "../redux/slices/walletSlice";
 import {
@@ -9,8 +14,8 @@ import {
   setViewingHistorySessionId,
   requestBackendChatReset,
 } from "../redux/slices/chatSlice";
-import { useMemo } from "react";
 import getFormattedNumber from "../hooks/get-formatted-number";
+import { PortfolioNavGroup } from "./PortfolioNavGroup";
 
 export function LaunchSidebar() {
   const navigate = useNavigate();
@@ -19,25 +24,35 @@ export function LaunchSidebar() {
   const isConnected = useSelector((state) => state.wallet.isConnected);
   const currentMessages = useSelector((state) => state.chat.currentMessages);
   const hasChatContent = currentMessages?.length > 0;
-    const checkinStatus = useSelector((state) => state.checkin?.status);
-  
+  const checkinStatus = useSelector((state) => state.checkin?.status);
 
   const { checkedInToday } = useCheckin();
 
-
-  const lastClaimed = useMemo(() => {
-    for (let i = checkinStatus?.rewards?.length - 1; i >= 0; i--) {
-      if (checkinStatus.rewards[i].claimed === true) {
-        if (i === checkinStatus.rewards.length - 1) {
-          return checkinStatus.rewards[0];
-        } else {
-          return checkinStatus.rewards[i];
-        }
+  const sidebarRows = useMemo(() => {
+    const filtered = navigationTabs.filter(
+      (t) => !portfolioSidebarNavIds.has(t.id),
+    );
+    const out = [];
+    for (const t of filtered) {
+      out.push({ kind: "tab", tab: t });
+      if (t.id === "chat") {
+        out.push({ kind: "portfolio" });
       }
     }
-    return checkinStatus?.rewards[0];
-  }, [checkinStatus]);
+    return out;
+  }, []);
 
+  const lastClaimed = useMemo(() => {
+    const rewards = checkinStatus?.rewards ?? [];
+
+    const result =
+      checkinStatus?.rewards?.find((item) => {
+        return item.current === true;
+      }) || rewards?.toReversed().find((item) => item.claimed);
+    if (result) {
+      return result;
+    }
+  }, [checkinStatus]);
 
   const handleNewChat = (e) => {
     e.stopPropagation();
@@ -51,7 +66,18 @@ export function LaunchSidebar() {
     <>
       <aside className="hidden md:block h-full fixed top-20 bottom-0 left-0 w-69 border-r border-gray-200/50 bg-pattern/95">
         <div className="p-6 space-y-2">
-          {navigationTabs.map(({ id, label, path, Icon }) => {
+          {sidebarRows.map((row) => {
+            if (row.kind === "portfolio") {
+              return (
+                <PortfolioNavGroup
+                  key="portfolio-nav"
+                  pathname={pathname}
+                  navigate={navigate}
+                  idPrefix="sidebar-portfolio"
+                />
+              );
+            }
+            const { id, label, path, Icon } = row.tab;
             const isActive = isActivePath(pathname, path);
             const isChat = id === "chat";
             return (
@@ -65,7 +91,10 @@ export function LaunchSidebar() {
                 }`}
                 aria-current={isActive ? "page" : undefined}
               >
-                <Icon size={20} className={`shrink-0 ${id ===  "season1" ? 'text-orange-500 text-orange-600 animate-pulse' : ''}`} />
+                <Icon
+                  size={20}
+                  className={`shrink-0 ${id === "season1" ? "text-orange-500 text-orange-600 animate-pulse" : ""}`}
+                />
                 <span className="flex-1 text-left">{label}</span>
                 {isChat && hasChatContent && (
                   <div
@@ -88,17 +117,7 @@ export function LaunchSidebar() {
         </div>
         {isConnected && (
           <div className="px-4 pb-4 mt-auto space-y-3">
-            {/* <div className="glass-card px-4 py-3 flex items-center justify-between gap-2">
-              <span className="text-xs font-semibold text-neutral-600">
-                Total points
-              </span>
-              <span className="flex items-center gap-1.5 text-sm font-bold tabular-nums text-amber-600">
-                <Gem className="size-4 text-amber-500" />
-                {totalPoints.toLocaleString()}
-              </span>
-            </div> */}
             <div className="relative overflow-hidden bg-gradient-to-br from-purple-500 via-blue-500 to-purple-600 rounded-2xl p-4 shadow-lg">
-              {/* Decorative elements */}
               <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-12 -mt-12"></div>
               <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/10 rounded-full -ml-8 -mb-8"></div>
 
@@ -107,15 +126,15 @@ export function LaunchSidebar() {
                   Daily Bonus
                 </div>
                 <div className="text-white font-bold text-sm mb-3">
-                  Get {getFormattedNumber(lastClaimed?.points || 0, 0)} points today
+                  Get {getFormattedNumber(lastClaimed?.points || 0, 0)} points
+                  today
                 </div>
                 <button
                   onClick={() => dispatch(openCheckinModal())}
                   disabled={!isConnected}
                   className="w-full bg-white text-purple-600 font-semibold text-sm py-2 px-4 rounded-xl hover:bg-white/90 transition-all shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  {checkedInToday ? "Already Claimed" : "Claim"}
-                  {/* Coming Soon */}
+                  {checkedInToday ? "Claimed" : "Claim"}
                 </button>
               </div>
             </div>

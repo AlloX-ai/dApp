@@ -54,13 +54,13 @@ export function useCheckin() {
   const { switchChainAsync } = useSwitchChain();
   const { signMessage: signMessageSolana } = useWallet();
 
-  const [status, setStatus] = useState(null);
+  const status = useSelector((state) => state.checkin?.status);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   const isSolana = walletType === "solana";
   const currentEVMChainId = isSolana ? null : (wagmiChainId ?? chainId);
-const dispatch = useDispatch();
+  const dispatch = useDispatch();
   const fetchStatus = useCallback(async () => {
     const token = localStorage.getItem("authToken");
     if (!token) {
@@ -69,7 +69,6 @@ const dispatch = useDispatch();
     }
     try {
       const data = await apiCall("/checkin/status");
-      setStatus(data);
       dispatch(setCheckinStatus(data));
       setError(null);
     } catch (err) {

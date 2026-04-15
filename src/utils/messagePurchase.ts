@@ -820,7 +820,13 @@ export async function purchaseEvmPackage(args: {
         value: nativePrice,
         chainId,
       });
-      await waitForReceiptWithFallback({ hash, chainId });
+      try {
+        await waitForTransactionReceipt(wagmiClient, { hash });
+      } catch (e) {
+        // Mobile RPCs used by viem can intermittently fail even when Privy broadcast succeeded.
+        // We still return the tx hash and let backend confirmation + later status refresh reconcile.
+        console.warn("Privy native receipt polling failed; continuing with tx hash:", e);
+      }
       return { txHash: hash };
     }
     const txHash = await args.writeContractAsync!({
@@ -879,7 +885,11 @@ export async function purchaseEvmPackage(args: {
         data: approveData,
         chainId,
       });
-      await waitForReceiptWithFallback({ hash: approveHash, chainId });
+      try {
+        await waitForTransactionReceipt(wagmiClient, { hash: approveHash });
+      } catch (e) {
+        console.warn("Privy approve receipt polling failed; continuing:", e);
+      }
     } else {
       const approveHash = await args.writeContractAsync!({
         address: match.address,
@@ -903,7 +913,11 @@ export async function purchaseEvmPackage(args: {
       data: buyData,
       chainId,
     });
-    await waitForReceiptWithFallback({ hash, chainId });
+    try {
+      await waitForTransactionReceipt(wagmiClient, { hash });
+    } catch (e) {
+      console.warn("Privy buy receipt polling failed; continuing with tx hash:", e);
+    }
     return { txHash: hash };
   }
 
