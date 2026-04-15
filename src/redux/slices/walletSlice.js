@@ -8,6 +8,8 @@ const initialState = {
   walletId: "connect",
   walletType: "",
   isConnected: false,
+  /** "wallet" | "privy" | null — avoids wagmi zero-connection sync wiping a Privy-only session */
+  sessionSource: null,
 };
 
 const walletSlice = createSlice({
@@ -48,6 +50,9 @@ const walletSlice = createSlice({
     setIsConnected: (state, action) => {
       state.isConnected = action.payload;
     },
+    setSessionSource: (state, action) => {
+      state.sessionSource = action.payload;
+    },
   },
 });
 export const {
@@ -63,5 +68,6 @@ export const {
   setWalletId,
   setWalletType,
   setIsConnected,
+  setSessionSource,
 } = walletSlice.actions;
 export default walletSlice.reducer;
