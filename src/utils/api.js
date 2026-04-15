@@ -1,6 +1,5 @@
-const API_URL = "https://api.allox.ai";
-const API2_URL = "https://api2.allox.ai";
-const WS_URL = "wss://api.allox.ai/ws";
+const API_URL = "https://api2.allox.ai";
+const WS_URL = "wss://api2.allox.ai/ws";
 
 const getAuthToken = () => localStorage.getItem("authToken");
 
@@ -12,7 +11,7 @@ const getAuthHeaders = () => {
 export const apiCall = async (endpoint, options = {}, apiType) => {
   const { returnRawResponse = false, ...fetchOptions } = options;
 
-  const response = await fetch(`${apiType ? API2_URL : API_URL}${endpoint}`, {
+  const response = await fetch(`${API_URL}${endpoint}`, {
     ...fetchOptions,
     headers: {
       "Content-Type": "application/json",

@@ -96,6 +96,10 @@ button {
     0 1px 2px #00000005,
     inset 0 1px #ffffffe6;
 }
+.privy-input:focus-visible{
+  outline: none !important;
+  outline-offset: 0px !important;
+}
 
 .glass-card:hover {
   box-shadow: 
