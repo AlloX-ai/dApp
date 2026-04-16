@@ -937,7 +937,7 @@ export function PortfolioPage() {
           <div className="flex flex-col sm:flex-row items-center justify-between mb-6 gap-3">
             <h2 className="text-3xl font-bold">Portfolio</h2>
             <div className="flex flex-col sm:flex-row gap-2 items-center">
-              {!activePortfolio && (
+              {/* {!activePortfolio && (
                 <button
                   type="button"
                   onClick={() => setIsSellInfoModalOpen(true)}
@@ -946,7 +946,7 @@ export function PortfolioPage() {
                   <HelpCircle size={14} className="text-blue-600" />
                   <span className="font-medium">More info</span>
                 </button>
-              )}
+              )} */}
               {activePortfolio ? (
                 <div className="flex items-center gap-2">
                   <button
@@ -2479,7 +2479,7 @@ export function PortfolioPage() {
         </div>
       )}
 
-      {isSellInfoModalOpen && (
+      {/* {isSellInfoModalOpen && (
         <div
           className="fixed inset-0 z-[60] flex items-center justify-center bg-black/45 backdrop-blur-sm p-4"
           onClick={() => setIsSellInfoModalOpen(false)}
@@ -2581,7 +2581,7 @@ export function PortfolioPage() {
             </div>
           </div>
         </div>
-      )}
+      )} */}
     </div>
   );
 }
