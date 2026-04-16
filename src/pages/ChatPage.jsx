@@ -182,6 +182,8 @@ export function ChatPage() {
   const isConnected = useSelector((state) => state.wallet.isConnected);
   const walletChainId = useSelector((state) => state.wallet.chainId);
   const walletAddress = useSelector((state) => state.wallet.address);
+  const walletType = useSelector((state) => state.wallet.walletType);
+  const sessionSource = useSelector((state) => state.wallet.sessionSource);
   const pointsBalance = useSelector((state) => state.points?.balance);
   const messagesRemaining = getTotalMessagesRemaining(rateLimit);
   const dailyMessagesRemaining = getDailyMessagesRemaining(rateLimit);
@@ -222,7 +224,7 @@ export function ChatPage() {
   const [refreshOnchainLoading, setRefreshOnchainLoading] = useState(false);
   const [refreshOnchainMessage, setRefreshOnchainMessage] = useState(null);
   const [statusLoading, setStatusLoading] = useState(false);
-  // const [pnl, setPnl] = useState(0);
+  const [pnl, setPnl] = useState(0);
 
   const [executionState, setExecutionState] = useState({
     isExecuting: false,
@@ -519,12 +521,12 @@ export function ChatPage() {
     });
   }, [currentMessages]);
 
-  // const fetchPLData = async () => {
-  //   const data = await apiCall(`/portfolio/stats/pnl`, {}, "v2");
-  //   if (data) {
-  //     setPnl(data.pnlPercent);
-  //   }
-  // };
+  const fetchPLData = async () => {
+    const data = await apiCall(`/portfolio/stats/pnl`);
+    if (data) {
+      setPnl(data.pnlPercent);
+    }
+  };
 
   useEffect(() => {
     return () => {
@@ -569,7 +571,7 @@ export function ChatPage() {
   useEffect(() => {
     window.scrollTo(0, 0);
     document.title = "AlloX AI Agent";
-    // fetchPLData();
+    fetchPLData();
   }, []);
 
   const fetchChatStatus = useCallback(async () => {
@@ -594,10 +596,12 @@ export function ChatPage() {
     dispatch(setWalletModal(nextValue));
   };
 
+  const claimStatusKnown = typeof authUser?.season1?.claimed === "boolean";
   const hasAlreadyClaimed = authUser?.season1?.claimed === true;
   const needsToClaimPoints =
     isConnected &&
-    !hasAlreadyClaimed &&
+    claimStatusKnown &&
+    authUser?.season1?.claimed === false &&
     (pointsBalance == null || pointsBalance === 0);
   const handleClaimPoints = async () => {
     setClaimError(null);
@@ -957,8 +961,13 @@ export function ChatPage() {
                 : 0.5,
         };
 
+        const isPrivyExecutionSession =
+          authUser?.authProvider === "privy" ||
+          sessionSource === "privy" ||
+          walletType === "privy";
+
         let privyTxEnv;
-        if (authUser?.authProvider === "privy") {
+        if (isPrivyExecutionSession) {
           const embedded = getEmbeddedConnectedWallet(wallets);
           if (!embedded) {
             throw new Error(
@@ -1036,6 +1045,8 @@ export function ChatPage() {
       privySendTransaction,
       promptExecutionDecision,
       queryClient,
+      sessionSource,
+      walletType,
       wallets,
     ],
   );
@@ -1451,6 +1462,10 @@ export function ChatPage() {
           setUser(nextUser);
         }
 
+        // Always refresh server-side status after each message so header points/messages
+        // stay consistent across the app even when response payload shapes vary.
+        void fetchChatStatusApi(dispatch, { setUser });
+
         // Handle on-chain execution handoff
         if (response.action === "START_EXECUTION" && response.execution) {
           handleStartExecution(response.execution);
@@ -1546,6 +1561,10 @@ export function ChatPage() {
       //     timestamp: new Date(),
       //   }),
       // );
+      if (!isConnected) {
+        setShowWalletPrompt(true);
+        return;
+      }
       openQuickWizard();
       return;
     }
@@ -3029,7 +3048,7 @@ export function ChatPage() {
         {currentMessages.length === 0 && !quickWizardOpen && (
           <div className="h-full flex items-center justify-center px-6">
             <div className="text-center max-w-2xl relative">
-              {/* <div className="mx-auto inline-flex items-center gap-2.5 px-5 py-2.5 bg-gradient-to-r from-green-500/15 to-emerald-500/15 border border-green-500/30 rounded-full mb-6 shadow-sm shadow-green-500/10 sm:fixed sm:top-25 sm:left-1/2 sm:-translate-x-1/2 sm:mb-0 sm:z-20">
+              <div className="mx-auto inline-flex items-center gap-2.5 px-5 py-2.5 bg-gradient-to-r from-green-500/15 to-emerald-500/15 border border-green-500/30 rounded-full mb-6 shadow-sm shadow-green-500/10 sm:fixed sm:top-25 sm:left-1/2 sm:-translate-x-1/2 sm:mb-0 sm:z-20">
                 <div className="flex items-center justify-center w-6 h-6 bg-green-500 rounded-full">
                   <TrendingUp
                     size={14}
@@ -3040,7 +3059,7 @@ export function ChatPage() {
                 <span className="text-sm font-semibold text-green-700">
                   {pnl}% positive P&L
                 </span>
-              </div> */}
+              </div>
 
               <h2 className="text-3xl font-bold mb-4">Hello, I'm AlloX</h2>
 
@@ -3693,13 +3712,29 @@ export function ChatPage() {
                           Fill the form and generate portfolio
                         </div>
                       </div>
-                      <button
-                        onClick={() => setShowMoreInfoModal(true)}
-                        className="border border-gray-200 bg-white rounded-full px-3 py-2 hover:bg-gray-50 transition-colors flex items-center gap-2 text-xs whitespace-nowrap hover:bg-gray-200 transition-colors"
-                      >
-                        <HelpCircle size={14} className="text-blue-600" />
-                        <span className="font-medium">More info</span>
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <a
+                          href="https://skynet.certik.com/projects/allox"
+                          target="_blank"
+                          className="flex items-center w-full gap-2"
+                        >
+                          <div className="text-black font-medium text-xs ">
+                            Secured by
+                          </div>
+                          <img
+                            src="https://cdn.allox.ai/allox/partners/certikLarge.svg"
+                            className="w-18"
+                            alt=""
+                          />
+                        </a>
+                        <button
+                          onClick={() => setShowMoreInfoModal(true)}
+                          className="border border-gray-200 bg-white rounded-full px-3 py-2 hover:bg-gray-50 transition-colors flex items-center gap-2 text-xs whitespace-nowrap hover:bg-gray-200 transition-colors"
+                        >
+                          <HelpCircle size={14} className="text-blue-600" />
+                          <span className="font-medium">More info</span>
+                        </button>
+                      </div>
                     </div>
 
                     {quickError && (

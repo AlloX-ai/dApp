@@ -773,13 +773,8 @@ export async function purchaseEvmPackage(args: {
         value: nativePrice,
         chainId,
       });
-      try {
-        await waitForTransactionReceipt(wagmiClient, { hash });
-      } catch (e) {
-        // Mobile RPCs used by viem can intermittently fail even when Privy broadcast succeeded.
-        // We still return the tx hash and let backend confirmation + later status refresh reconcile.
-        console.warn("Privy native receipt polling failed; continuing with tx hash:", e);
-      }
+      // Don't await receipt for Privy — their tx goes through their infra and the wagmi
+      // public client would poll forever. Backend confirmation reconciles the purchase.
       return { txHash: hash };
     }
     const txHash = await args.writeContractAsync!({
@@ -838,11 +833,10 @@ export async function purchaseEvmPackage(args: {
         data: approveData,
         chainId,
       });
-      try {
-        await waitForTransactionReceipt(wagmiClient, { hash: approveHash });
-      } catch (e) {
-        console.warn("Privy approve receipt polling failed; continuing:", e);
-      }
+      // Don't await receipt for Privy — poll would hang. Give the tx a moment to propagate
+      // before the buy call so the on-chain allowance is visible.
+      await new Promise((r) => setTimeout(r, 3000));
+      void approveHash; // hash logged above if needed
     } else {
       const approveHash = await args.writeContractAsync!({
         address: match.address,
@@ -866,11 +860,8 @@ export async function purchaseEvmPackage(args: {
       data: buyData,
       chainId,
     });
-    try {
-      await waitForTransactionReceipt(wagmiClient, { hash });
-    } catch (e) {
-      console.warn("Privy buy receipt polling failed; continuing with tx hash:", e);
-    }
+    // Don't await receipt for Privy — wagmi public client would poll forever.
+    // Backend confirmation reconciles the purchase.
     return { txHash: hash };
   }
 

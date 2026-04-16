@@ -16,10 +16,12 @@ import {
   BookOpen,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { PortfolioTutorialModal } from "../components/PortfolioTutorialModal";
 import { Link } from "react-router";
 import { useTrading } from "../hooks/useTrading";
+import { useAuth } from "../hooks/useAuth";
+import { setWalletModal } from "../redux/slices/walletSlice";
 import getFormattedNumber from "../hooks/get-formatted-number";
 import { shortAddress } from "../hooks/shortAddress";
 
@@ -46,6 +48,8 @@ const normalizeLeaderboardEntry = (entry, index) => ({
 });
 
 export function TradingCompetitionPage() {
+  const dispatch = useDispatch();
+  const { isAuthenticated } = useAuth();
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [showTutorialModal, setShowTutorialModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -61,25 +65,15 @@ export function TradingCompetitionPage() {
     fetchUserCompetitionData,
   } = useTrading();
 
-  // Mock current user (outside top 100 for demo purposes)
-  const fallbackCurrentUserPosition = 150;
-  const fallbackCurrentUserData = {
-    position: fallbackCurrentUserPosition,
-    address: walletAddress || "0x7a8c...4f2e",
-    portfoliosCreated: 3,
-    totalValue: 5420,
-    gemReward: 0,
-  };
-
   const rawLeaderboardEntries = getLeaderboardEntries(leaderboard);
   const normalizedLeaderboard = rawLeaderboardEntries.map(
     normalizeLeaderboardEntry,
   );
   const hasLeaderboardRecords = normalizedLeaderboard.length > 0;
-  const currentUserData = userData ? userData : fallbackCurrentUserData;
-  const currentUserPosition = currentUserData.position;
+  const currentUserData = isAuthenticated && userData ? userData : null;
+  const currentUserPosition = currentUserData?.position ?? null;
 
-  const isUserInTopHundred = currentUserPosition <= 100;
+  const isUserInTopHundred = currentUserPosition != null && currentUserPosition <= 100;
 
   // Pagination calculations
   const totalEntries =
@@ -107,34 +101,26 @@ export function TradingCompetitionPage() {
         const activeCompetitionId = activeResult.competitionId;
 
         const competitionResult = await fetchCompetition(activeCompetitionId);
-        console.log(
-          "[TradingCompetition] /competition/:id raw response",
-          competitionResult,
-        );
+        // console.log(
+        //   "[TradingCompetition] /competition/:id raw response",
+        //   competitionResult,
+        // );
 
         const leaderboardResult = await fetchLeaderboard({
           competitionId: activeCompetitionId,
           page: currentPage,
           limit: itemsPerPage,
         });
-        console.log(
-          "[TradingCompetition] /competition/:id/leaderboard raw response",
-          leaderboardResult,
-        );
+        // console.log(
+        //   "[TradingCompetition] /competition/:id/leaderboard raw response",
+        //   leaderboardResult,
+        // );
 
-        if (walletAddress) {
-          const userResult = await fetchUserCompetitionData({
+        if (isAuthenticated && walletAddress) {
+          await fetchUserCompetitionData({
             competitionId: activeCompetitionId,
             address: walletAddress,
           });
-          console.log(
-            "[TradingCompetition] /competition/:id/user/:address raw response",
-            userResult,
-          );
-        } else {
-          console.log(
-            "[TradingCompetition] skipped /competition/:id/user/:address because no wallet address is available yet",
-          );
         }
       } catch (fetchError) {
         console.error(
@@ -147,6 +133,7 @@ export function TradingCompetitionPage() {
     loadCompetitionData();
   }, [
     currentPage,
+    isAuthenticated,
     fetchActiveCompetition,
     fetchCompetition,
     fetchLeaderboard,
@@ -162,7 +149,19 @@ export function TradingCompetitionPage() {
         <h2 className="text-xl sm:text-3xl font-bold text-gray-900">
           The Allocation Race
         </h2>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col lg:flex-row items-center gap-3">
+          <a
+            href="https://skynet.certik.com/projects/allox"
+            target="_blank"
+            className="flex items-center w-full gap-2"
+          >
+            <div className="text-black font-medium text-xs ">Secured by</div>
+            <img
+              src="https://cdn.allox.ai/allox/partners/certikLarge.svg"
+              className="w-18"
+              alt=""
+            />
+          </a>
           {/* Reward Pool Badge */}
           <div className="glass-card px-4 py-2 bg-gradient-to-r from-amber-500/20 to-orange-600/20 border-amber-500/40">
             <div className="flex items-center gap-2">
@@ -171,13 +170,14 @@ export function TradingCompetitionPage() {
                   Total Prize Pool
                 </div>
                 <div className="flex items-center gap-2">
-                    <span className="text-gray-900 font-bold">$500,000</span>
-                    <div className="flex items-center text-amber-600">
-                      (  <Gem className="w-5 h-5 text-amber-600 pr-1" />
-                  <div className="font-bold  text-xs sm:text-base text-amber-600">
-                    100,000 
-                  </div>)
+                  <span className="text-gray-900 font-bold">$500,000</span>
+                  <div className="flex items-center text-amber-600">
+                    ( <Gem className="w-5 h-5 text-amber-600 pr-1" />
+                    <div className="font-bold  text-xs sm:text-base text-amber-600">
+                      100,000
                     </div>
+                    )
+                  </div>
                 </div>
               </div>
             </div>
@@ -204,7 +204,7 @@ export function TradingCompetitionPage() {
                       Your Rank
                     </span>
                     <div className="text-xl font-bold text-gray-900">
-                      #{currentUserData.rank}
+                      {isAuthenticated && currentUserData?.rank != null ? `#${currentUserData.rank}` : "--"}
                     </div>
                   </div>
                 </div>
@@ -216,11 +216,9 @@ export function TradingCompetitionPage() {
                   Portfolios Created
                 </span>
                 <span className="text-lg font-bold text-gray-900">
-                  {currentUserData.portfolioCount}
+                  {isAuthenticated ? (currentUserData?.portfolioCount ?? 0) : 0}
                 </span>
               </div>
-
-              {/* Wallet */}
 
               {/* Volume */}
               <div className="flex items-center justify-between py-1.5 border-b border-blue-200">
@@ -228,7 +226,7 @@ export function TradingCompetitionPage() {
                   Total Volume
                 </span>
                 <span className="text-base font-bold text-gray-900">
-                  ${getFormattedNumber(currentUserData.totalValue, 0)}
+                  ${isAuthenticated ? getFormattedNumber(currentUserData?.totalValue ?? 0, 0) : "0"}
                 </span>
               </div>
 
@@ -237,7 +235,7 @@ export function TradingCompetitionPage() {
                 <span className="text-xs text-gray-600 font-semibold">
                   Your Reward
                 </span>
-                {currentUserData?.reward?.gems > 0 ? (
+                {isAuthenticated && currentUserData?.reward?.gems > 0 ? (
                   <div className="flex items-center gap-1">
                     <span className="text-base font-bold text-gray-900">
                       ${getFormattedNumber(currentUserData.reward.gems * 5, 0)}
@@ -253,23 +251,32 @@ export function TradingCompetitionPage() {
                   </div>
                 ) : (
                   <div className="text-xs font-bold text-gray-400">
-                    Top 100 only
+                    {isAuthenticated ? "Top 100 only" : "0"}
                   </div>
                 )}
               </div>
             </div>
           </div>
 
-          {!isUserInTopHundred && null}
-
-          {/* Create Portfolio Button - Below */}
-          <Link
-            to={"/"}
-            className="btn-primary w-full flex items-center justify-center gap-2 text-sm mt-3"
-          >
-            <Plus size={16} />
-            Create Portfolio
-          </Link>
+          {/* Create Portfolio / Connect Wallet Button */}
+          {isAuthenticated ? (
+            <Link
+              to={"/"}
+              className="btn-primary w-full flex items-center justify-center gap-2 text-sm mt-3"
+            >
+              <Plus size={16} />
+              Create Portfolio
+            </Link>
+          ) : (
+            <button
+              type="button"
+              onClick={() => dispatch(setWalletModal(true))}
+              className="btn-primary w-full flex items-center justify-center gap-2 text-sm mt-3"
+            >
+              <Wallet size={16} />
+              Connect Wallet
+            </button>
+          )}
         </div>
 
         {/* Right: How it Works & Rewards - Compact */}
@@ -304,14 +311,7 @@ export function TradingCompetitionPage() {
                 <strong>Create portfolios</strong> on BNB Chain
               </p>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
-                <TrendingUp className="w-3 h-3 text-purple-600" />
-              </div>
-              <p className="text-xs text-gray-700">
-                <strong>Rankings</strong> based on total USD portfolio value
-              </p>
-            </div>
+          
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
                 <Trophy className="w-3 h-3 text-amber-600" />
@@ -320,13 +320,21 @@ export function TradingCompetitionPage() {
                 <strong>Top 100</strong> share 100K Gems prize pool
               </p>
             </div>
+              <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
+                <TrendingUp className="w-3 h-3 text-purple-600" />
+              </div>
+              <p className="text-xs text-gray-700">
+                <strong>Rankings</strong> based on total USD value of all your portfolio activity (buy, sell)
+              </p>
+            </div>
           </div>
 
           {/* Compact Reward Tiers */}
           <div className="border-t border-gray-200 pt-3">
             <h4 className="text-sm font-bold text-gray-900 mb-2">Rewards</h4>
             <div className="grid grid-cols-2 gap-2">
-              <div className="bg-gradient-to-br from-amber-50 to-yellow-50 border border-amber-200 rounded-lg p-2">
+              <div className="bg-gradient-to-br from-gray-50 to-slate-50 border border-amber-200 rounded-lg p-2">
                 <div className="flex items-center gap-1 mb-1">
                   <Crown className="w-3 h-3 text-amber-600" />
                   <span className="font-bold text-xs text-gray-900">Top 3</span>
@@ -338,7 +346,7 @@ export function TradingCompetitionPage() {
                 </div>
               </div>
 
-              <div className="bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-200 rounded-lg p-2">
+              <div className="bg-gradient-to-br from-gray-50 to-slate-50 border border-purple-200 rounded-lg p-2">
                 <div className="flex items-center gap-1 mb-1">
                   <Trophy className="w-3 h-3 text-purple-600" />
                   <span className="font-bold text-xs text-gray-900">4-10</span>
@@ -349,7 +357,7 @@ export function TradingCompetitionPage() {
                 </div>
               </div>
 
-              <div className="bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-200 rounded-lg p-2">
+              <div className="bg-gradient-to-br from-gray-50 to-slate-50 border border-blue-200 rounded-lg p-2">
                 <div className="flex items-center gap-1 mb-1">
                   <Medal className="w-3 h-3 text-blue-600" />
                   <span className="font-bold text-xs text-gray-900">11-50</span>
@@ -411,6 +419,8 @@ export function TradingCompetitionPage() {
               {hasLeaderboardRecords ? (
                 currentPageData.map((entry) => {
                   const isCurrentUser =
+                    isAuthenticated &&
+                    currentUserData?.address != null &&
                     entry.address === currentUserData.address &&
                     isUserInTopHundred;
                   const bgColor = isCurrentUser
@@ -656,8 +666,9 @@ export function TradingCompetitionPage() {
                   <li className="flex gap-2">
                     <span className="text-purple-500 font-bold">•</span>
                     <span>
-                      Rankings based on total USD value of all on-chain
-                      portfolios created during the competition period
+                      Rankings are based on the total USD value of all
+                      portfolios you create during the competition, including
+                      portfolios that you buy and sell.
                     </span>
                   </li>
                   <li className="flex gap-2">
