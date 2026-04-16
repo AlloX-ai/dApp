@@ -41,7 +41,7 @@ export function CampaignsPage() {
             {/* Trading Competition Card */}
             <button
               onClick={() => {
-                setSearchParams({ campaign: "allocation-race" });
+                // setSearchParams({ campaign: "allocation-race" });
               }}
               className="glass-card overflow-hidden text-left hover:shadow-2xl transition-all duration-300 group relative"
             >
@@ -56,8 +56,8 @@ export function CampaignsPage() {
                 <div className="absolute inset-0 " />
 
                 {/* Badge on Banner */}
-                <div className="absolute top-4 right-4 bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold shadow-lg">
-                  ACTIVE
+                <div className="absolute top-4 right-4 bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs font-bold shadow-lg">
+                  UPCOMING
                 </div>
 
                 {/* Icon on Banner */}
@@ -93,11 +93,11 @@ export function CampaignsPage() {
                 </div>
 
                 {/* CTA */}
-                <div className="flex items-center justify-end gap-2">
+                <div className="flex items-center justify-end gap-2 ">
                   <span className="text-sm font-semibold text-amber-600 group-hover:text-amber-700">
-                    View
+                    Upcoming
                   </span>
-                  <ChevronRight className="w-5 h-5 text-amber-600 group-hover:translate-x-1 transition-transform" />
+                  {/* <ChevronRight className="w-5 h-5 text-amber-600 group-hover:translate-x-1 transition-transform" /> */}
                 </div>
               </div>
             </button>
