@@ -46,7 +46,7 @@ export function useCheckin() {
   const chainId = useSelector((state) => state.wallet.chainId);
   const isConnected = useSelector((state) => state.wallet.isConnected);
   const sessionSource = useSelector((state) => state.wallet.sessionSource);
-  const { user: authUser } = useAuth();
+  const { user: authUser, isAuthenticated } = useAuth();
   const { wallets } = useWallets();
 
   const { chainId: wagmiChainId } = useAccount();
@@ -79,12 +79,9 @@ export function useCheckin() {
   }, [dispatch]);
 
   useEffect(() => {
-    if (isConnected) fetchStatus();
-    else 
-      dispatch(setCheckinStatus(null));
-  }, [isConnected,
-     fetchStatus,
-      dispatch]);
+    if (isAuthenticated) fetchStatus();
+    else dispatch(setCheckinStatus(null));
+  }, [isAuthenticated, fetchStatus, dispatch]);
 
   const claimSolana = useCallback(async () => {
     if (!signMessageSolana || !walletAddress) {

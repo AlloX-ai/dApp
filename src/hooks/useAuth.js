@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useAccount, useSignMessage } from "wagmi";
 import { useWallet } from "@solana/wallet-adapter-react";
@@ -21,6 +21,11 @@ const subscribers = new Set();
 let meFetchInFlight = null;
 let lastMeFetchAt = 0;
 const ME_FETCH_COOLDOWN_MS = 5000;
+
+// Global auth in-flight dedup — shared across all hook instances and React render cycles.
+// Prevents double sign requests when React effects re-run due to walletType/address settling.
+let globalAuthInFlight = null;
+let globalAuthInFlightAddress = null;
 
 const notifySubscribers = () => {
   for (const cb of subscribers) {
@@ -150,12 +155,6 @@ export const useAuth = () => {
     refreshUser().catch(() => {});
   }, [token, user, refreshUser]);
 
-  const authInFlightRef = useRef(null);
-
-  useEffect(() => {
-    authInFlightRef.current = null;
-  }, [address, walletType]);
-
   const setUser = useCallback((nextUser) => {
     setGlobalUser(nextUser);
   }, []);
@@ -230,14 +229,18 @@ export const useAuth = () => {
   const ensureAuthenticated = useCallback(async () => {
     if (token) return token;
     if (!address) throw new Error("Wallet not connected");
-    if (authInFlightRef.current) return authInFlightRef.current;
-    const p = authenticate()
+    // Reuse in-flight promise for the same address to prevent double sign
+    if (globalAuthInFlight && globalAuthInFlightAddress === address) {
+      return globalAuthInFlight;
+    }
+    globalAuthInFlightAddress = address;
+    globalAuthInFlight = authenticate()
       .then((res) => res?.token ?? token)
       .finally(() => {
-        authInFlightRef.current = null;
+        globalAuthInFlight = null;
+        globalAuthInFlightAddress = null;
       });
-    authInFlightRef.current = p;
-    return p;
+    return globalAuthInFlight;
   }, [token, address, authenticate]);
 
   const logout = useCallback(async () => {

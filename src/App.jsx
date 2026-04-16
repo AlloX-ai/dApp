@@ -130,6 +130,7 @@ function LaunchAppLayout() {
   const wasConnectedRef = useRef(false);
   const prevAddressRef = useRef(undefined);
   const prevWalletTypeRef = useRef(undefined);
+  const authTriggeredRef = useRef(false);
   const { connector } = getAccount(wagmiClient);
   const {
     wallets: solanaWallets,
@@ -146,7 +147,7 @@ function LaunchAppLayout() {
     chainId,
   } = useSelector((state) => state.wallet);
   const [fundModalOpen, setFundModalOpen] = useState(false);
-  const { token, user, logout } = useAuth();
+  const { token, user, logout, ensureAuthenticated } = useAuth();
   const {
     login,
     authenticated,
@@ -167,6 +168,43 @@ function LaunchAppLayout() {
     // On-chain execution uses BNB Chain (56); keeps quick wizard / chat BSC gates in sync for Privy users
     dispatch(setChainId(56));
   }, [user?.authProvider, user?.address, user?.walletType, dispatch]);
+
+  // Reset auth trigger only when wallet identity genuinely switches (not on initial connect).
+  // Using prevAddressRef/prevWalletTypeRef to detect account/type changes vs. initial settle.
+  useEffect(() => {
+    const prevAddr = prevAddressRef.current;
+    const prevType = prevWalletTypeRef.current;
+    prevAddressRef.current = address;
+    prevWalletTypeRef.current = walletType;
+
+    // Account switch: had a real address before and it changed
+    const addrSwitch = prevAddr && address && prevAddr.toLowerCase() !== address.toLowerCase();
+    // Wallet type switch: had a real type before and it changed (e.g. evm → solana)
+    const typeSwitch = prevType && walletType && prevType !== walletType;
+
+    if (!address || addrSwitch || typeSwitch) {
+      authTriggeredRef.current = false;
+    }
+  }, [address, walletType]);
+
+  // Auto-sign: when wallet connects and no token exists, trigger sign message
+  useEffect(() => {
+    if (!isConnected) {
+      authTriggeredRef.current = false;
+      return;
+    }
+    if (token) {
+      dispatch(setWalletModal(false));
+      return;
+    }
+    if (authTriggeredRef.current) return;
+    authTriggeredRef.current = true;
+    ensureAuthenticated()
+      .then(() => dispatch(setWalletModal(false)))
+      .catch(() => {
+        authTriggeredRef.current = false;
+      });
+  }, [isConnected, token, address, walletType, ensureAuthenticated, dispatch]);
 
   useEffect(() => {
     if (!authenticated) {
@@ -338,7 +376,6 @@ function LaunchAppLayout() {
         await disconnectAllEvmWagmi();
         selectSolanaWallet(solanaWallet.adapter.name);
         await solanaWallet.adapter.connect();
-        dispatch(setWalletModal(false));
         dispatch(setSessionSource("wallet"));
       } catch (err) {
         console.error("Solana wallet connection error:", err);
@@ -365,7 +402,6 @@ function LaunchAppLayout() {
         .then(() => {
           dispatch(setWalletType(isBinance ? "binance" : "evm"));
           dispatch(setIsConnected(true));
-          dispatch(setWalletModal(false));
           dispatch(setSessionSource("wallet"));
           if (isBinance) {
             setTimeout(() => getAccount(wagmiClient), 2000);
@@ -382,7 +418,6 @@ function LaunchAppLayout() {
           .then(() => {
             dispatch(setWalletType("evm"));
             dispatch(setIsConnected(true));
-            dispatch(setWalletModal(false));
             dispatch(setSessionSource("wallet"));
           })
           .catch((err) => {
@@ -604,7 +639,6 @@ function WalletSync() {
       dispatch(setAddress(solanaPublicKey.toBase58()));
       dispatch(setChainId(SOLANA_MAINNET_CHAIN_ID));
       dispatch(setIsConnected(true));
-      dispatch(setWalletModal(false));
     } else if (currentWalletType === "solana" && !solanaConnected) {
       if (localStorage.getItem("authToken")) return;
       dispatch(setAddress(null));
@@ -641,7 +675,6 @@ function WalletSync() {
             dispatch(setAddress(account.address));
             dispatch(setChainId(account.chainId));
             dispatch(setIsConnected(true));
-            dispatch(setWalletModal(false));
             dispatch(setSessionSource("wallet"));
           }
           break;
@@ -710,14 +743,12 @@ function WalletSync() {
             dispatch(setAddress(activeConnection.accounts[0]));
             dispatch(setChainId(activeConnection.chainId));
             dispatch(setIsConnected(true));
-            dispatch(setWalletModal(false));
             dispatch(setSessionSource("wallet"));
             window.WALLET_TYPE = "metamask";
           }
           if (activeConnection.connector.type === "binanceWallet") {
             dispatch(setWalletType("evm"));
             dispatch(setIsConnected(true));
-            dispatch(setWalletModal(false));
             dispatch(setSessionSource("wallet"));
             window.WALLET_TYPE = "binance";
           } else if (activeConnection.connector.name === "Phantom") {
@@ -735,7 +766,6 @@ function WalletSync() {
                   dispatch(setWalletType("solana"));
                   dispatch(setAddress(walletAddress));
                   dispatch(setIsConnected(true));
-                  dispatch(setWalletModal(false));
                   dispatch(setSessionSource("wallet"));
                   window.WALLET_TYPE = "solana";
 
@@ -756,7 +786,6 @@ function WalletSync() {
           } else {
             dispatch(setWalletType("evm"));
             dispatch(setIsConnected(true));
-            dispatch(setWalletModal(false));
             dispatch(setSessionSource("wallet"));
           }
         }
@@ -843,7 +872,7 @@ function App() {
       <PrivyLogoutBridge />
       <Toaster position="top-right" richColors closeButton />
       <Routes>
-        <Route path="/login" element={<BetaAccessLayout />} />
+        <Route path="/login" element={<Navigate to="/" replace />} />
         <Route path="/" element={<LaunchAppLayout />}>
           <Route index element={<ChatPage />} />
           <Route path="/portfolio" element={<PortfolioPage />} />

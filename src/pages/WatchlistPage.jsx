@@ -6,10 +6,13 @@ import {
   Plus,
   Search,
   Trash2,
+  Wallet,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useDispatch } from "react-redux";
 import { useAuth } from "../hooks/useAuth";
+import { setWalletModal } from "../redux/slices/walletSlice";
 import { apiCall } from "../utils/api";
 import { watchlistApi } from "../utils/alertsApi";
 import {
@@ -38,7 +41,8 @@ const NARRATIVE_OPTIONS = [
 ];
 
 export function WatchlistPage() {
-  const { ensureAuthenticated, logout } = useAuth();
+  const dispatch = useDispatch();
+  const { ensureAuthenticated, logout, isAuthenticated } = useAuth();
   const [watchlistItems, setWatchlistItems] = useState([]);
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -100,13 +104,14 @@ export function WatchlistPage() {
   }, [ensureAuthenticated, logout]);
 
   useEffect(() => {
+    if (!isAuthenticated) return;
     loadWatchlist();
     loadAlerts();
     const id = setInterval(() => {
       loadAlerts();
     }, POLL_MS);
     return () => clearInterval(id);
-  }, [loadAlerts, loadWatchlist]);
+  }, [isAuthenticated, loadAlerts, loadWatchlist]);
 
   useEffect(() => {
     const id = setTimeout(
@@ -193,13 +198,11 @@ export function WatchlistPage() {
     setActiveNarrative(narrative);
     setNarrativeLoading(true);
     try {
-      await ensureAuthenticated();
       const data = await apiCall(
         `/narratives/${encodeURIComponent(narrative.id)}/tokens?limit=50&sortBy=marketCap`,
       );
       setNarrativeTokens(Array.isArray(data?.tokens) ? data.tokens : []);
     } catch (error) {
-      if (error?.status === 401) logout();
       setNarrativeTokens([]);
       toast.error(error?.message || "Unable to load narrative tokens.");
     } finally {
@@ -402,24 +405,51 @@ export function WatchlistPage() {
                     className="w-full min-w-0 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm shadow-inner focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-200"
                   />
                 </label>
-                <button
-                  type="button"
-                  onClick={() => handleAdd(selectedToken, selectedThreshold)}
-                  className="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-black px-5 py-2.5 text-sm font-semibold text-white shadow-md transition-colors hover:bg-gray-900 sm:w-auto"
-                >
-                  <Plus size={16} className="shrink-0" />
-                  Add to watchlist
-                </button>
+                {isAuthenticated ? (
+                  <button
+                    type="button"
+                    onClick={() => handleAdd(selectedToken, selectedThreshold)}
+                    className="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-black px-5 py-2.5 text-sm font-semibold text-white shadow-md transition-colors hover:bg-gray-900 sm:w-auto"
+                  >
+                    <Plus size={16} className="shrink-0" />
+                    Add to watchlist
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => dispatch(setWalletModal(true))}
+                    className="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-black px-5 py-2.5 text-sm font-semibold text-white shadow-md transition-colors hover:bg-gray-900 sm:w-auto"
+                  >
+                    <Wallet size={16} className="shrink-0" />
+                    Connect Wallet
+                  </button>
+                )}
               </div>
             </div>
           )}
         </div>
 
         <div className="relative z-0">
-          {loading && (
+          {!isAuthenticated && (
+            <div className="glass-card p-10 flex flex-col items-center justify-center gap-4 text-center">
+              <Wallet className="size-10 text-gray-300" />
+              <div>
+                <p className="font-semibold text-gray-700">Connect your wallet to view your watchlist</p>
+                <p className="text-sm text-gray-400 mt-1">Track tokens and set price alerts after connecting.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => dispatch(setWalletModal(true))}
+                className="btn-primary px-6 py-2.5 text-sm"
+              >
+                Connect Wallet
+              </button>
+            </div>
+          )}
+          {isAuthenticated && loading && (
             <div className="glass-card p-4 text-gray-600">Loading...</div>
           )}
-          {!loading && !errorMessage && (
+          {isAuthenticated && !loading && !errorMessage && (
             <div className="glass-card overflow-x-auto">
               <div className="px-4 py-3 border-b border-gray-200">
                 <h3 className="font-bold">My Watchlist</h3>
@@ -524,7 +554,7 @@ export function WatchlistPage() {
         </div>
       </div>
 
-      {!loading && errorMessage && (
+      {isAuthenticated && !loading && errorMessage && (
         <div className="glass-card p-4 text-red-600">{errorMessage}</div>
       )}
 
