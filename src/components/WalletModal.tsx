@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
-import { Check, Loader2, X, ChevronLeft } from "lucide-react";
+import { Check, Loader2, X, ChevronLeft, Mail } from "lucide-react";
 import { shortAddress } from "../hooks/shortAddress";
 
 interface WalletModalProps {
@@ -207,9 +207,9 @@ export function WalletModal({
                     type="button"
                     onClick={onPrivySignIn}
                     disabled={!privyReady}
-                    className="w-full py-3.5 rounded-2xl font-medium text-base transition-all duration-200 bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:from-violet-500 hover:to-indigo-500 disabled:opacity-50 disabled:pointer-events-none shadow-md"
+                    className="w-ful flex w-full justify-center gap-2 py-3.5 rounded-2xl font-medium text-base transition-all duration-200 bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:from-violet-500 hover:to-indigo-500 disabled:opacity-50 disabled:pointer-events-none shadow-md"
                   >
-                    Continue with email
+                    <Mail className="text-white" />   Continue with email
                   </button>
                   <p className="text-xs text-center text-gray-500 mt-2">
                     A wallet will be created for you automatically
@@ -328,6 +328,15 @@ export function WalletModal({
             Privacy Policy
           </a>
         </p>
+        <a
+          href="https://skynet.certik.com/projects/allox"
+          target="_blank"
+          className="flex items-center justify-center w-full text-xs text-center text-gray-500 gap-2 mt-3">
+          <div className="text-black">
+            Secured by
+          </div>
+          <img src="https://cdn.allox.ai/allox/partners/certikLarge.svg" className="w-24" alt="" />
+        </a>
       </div>
     </div>
   );
