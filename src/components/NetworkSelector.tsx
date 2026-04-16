@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { ChevronDown, Loader2 } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import OutsideClickHandler from "react-outside-click-handler";
@@ -16,17 +16,6 @@ import {
 
 const PREFERRED_CHAIN_STORAGE_KEY = "walletPreferredChainId";
 const SOLANA_CHAIN_ID = 101;
-const AUTH_USER_KEY = "authUser";
-
-function getStoredAuthUser(): { walletType?: string; address?: string;[k: string]: unknown } | null {
-  try {
-    const raw = localStorage.getItem(AUTH_USER_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch (e) {
-    console.error(e);
-  }
-  return null;
-}
 
 type NetworkOption = {
   name: string;
@@ -51,10 +40,10 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
   const dispatch = useDispatch();
   const [isOpen, setIsOpen] = useState(false);
   const [isSwitching, setIsSwitching] = useState(false);
-    const [switching, setSwitching] = useState(false);
+  const [switching, setSwitching] = useState(false);
   const chainId = useSelector((state: any) => state.wallet.chainId);
   const walletType = useSelector((state: any) => state.wallet.walletType);
-    const { connected: solanaConnected, publicKey: solanaPublicKey } = useWallet();
+  const { connected: solanaConnected, publicKey: solanaPublicKey } = useWallet();
   const sessionSource = useSelector((state: any) => state.wallet.sessionSource);
   const { wallets } = useWallets();
   const { connector } = useAccount();
@@ -134,7 +123,7 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
     // Switching from Solana to an EVM network.
     // Phantom exposes an EVM provider at window.phantom.ethereum; fall back to window.ethereum.
     const evmProvider = (window as any).phantom?.ethereum ?? (window as any).ethereum;
-    if (!evmProvider) {
+    if (!evmProvider && walletType === "solana" && !isPrivySession) {
       toast.error("No EVM wallet detected. Connect a wallet that supports EVM (e.g. Phantom, MetaMask).");
       setIsOpen(false);
       return;
@@ -191,27 +180,52 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
           }
         }
       }
-
-      const address = getAccount(wagmiClient).address ?? evmAddress;
-      if (address) {
-        dispatch(setAddress(address));
-        dispatch(setWalletType("evm"));
-        dispatch(setChainId(network.chainId));
-        dispatch(setIsConnected(true));
-        localStorage.removeItem(PREFERRED_CHAIN_STORAGE_KEY);
-        const stored = getStoredAuthUser();
-        if (stored) {
-          localStorage.setItem(
-            AUTH_USER_KEY,
-            JSON.stringify({ ...stored, walletType: "evm", address }),
+      dispatch(setChainId(network.chainId));
+      setIsOpen(false);
+    } catch (error) {
+      const walletError = error as { code?: number };
+      if (walletError?.code === 4902 && connector) {
+        try {
+          const provider: any = await connector.getProvider();
+          await provider.request({
+            method: "wallet_addEthereumChain",
+            params: [
+              {
+                chainId: network.chainHex,
+                chainName: network.chainName,
+                rpcUrls: network.rpcUrls,
+                blockExplorerUrls: network.blockExplorerUrls,
+                nativeCurrency: network.nativeCurrency,
+              },
+            ],
+          });
+          const metaMaskConnector = wagmiClient.connectors.find(
+            (c) => c.name?.toLowerCase().includes("metamask"),
           );
+          if (metaMaskConnector) {
+            const existingAccount = getAccount(wagmiClient);
+            const alreadyMetaMask =
+              existingAccount?.connector?.name?.toLowerCase?.().includes("metamask") &&
+              existingAccount?.status === "connected";
+            if (!alreadyMetaMask) {
+              await connect(wagmiClient, { connector: metaMaskConnector });
+            }
+            const account = getAccount(wagmiClient);
+            if (account?.address) {
+              dispatch(setAddress(account.address));
+              dispatch(setWalletType("evm"));
+              dispatch(setIsConnected(true));
+            }
+          }
+          dispatch(setChainId(network.chainId));
+          setIsOpen(false);
+        } catch (addErr) {
+          console.error("Add network error:", addErr);
+          toast.error("Failed to add or switch network.");
         }
       }
       setIsOpen(false);
-    } catch (error) {
-      console.error("Network switch error:", error);
-      toast.error("Failed to switch network.");
-    } finally {
+    }  finally {
       setSwitching(false);
       setIsSwitching(false);
     }
@@ -309,17 +323,6 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
       dispatch(setAddress(address));
       dispatch(setChainId(SOLANA_CHAIN_ID));
       dispatch(setIsConnected(true));
-      const stored = getStoredAuthUser();
-      if (stored) {
-        localStorage.setItem(
-          AUTH_USER_KEY,
-          JSON.stringify({
-            ...stored,
-            walletType: "solana",
-            address: address ?? stored.address,
-          }),
-        );
-      }
       setIsOpen(false);
     } catch (err) {
       console.error("Switch to Solana:", err);
@@ -356,7 +359,7 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
       handleSwitchNetworkEVM(network);
     }
   };
-  
+
   return (
     <div className="relative">
       <button

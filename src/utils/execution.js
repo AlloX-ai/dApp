@@ -78,6 +78,7 @@ const RECEIPT_POLL_INTERVAL_MS = 2500;
 const RECEIPT_POLL_MAX_ATTEMPTS = 120;
 const POSITION_STATUS_POLL_INTERVAL_MS = 1500;
 const POSITION_STATUS_MAX_ATTEMPTS = 120;
+const MAX_SWAP_RETRIES = 3;
 
 const normalizeTxHash = (txResult) => {
   if (typeof txResult === "string") return txResult;
@@ -207,6 +208,18 @@ const isUserRejectedTx = (error) => {
   if (error.code === 4001) return true;
   const msg = String(error.message || error).toLowerCase();
   return msg.includes("user rejected") || msg.includes("rejected the request");
+};
+
+const isRetryableWalletTxFailure = (error) => {
+  if (!error) return false;
+  if (isUserRejectedTx(error)) return true;
+  const msg = String(error.message || error).toLowerCase();
+  return (
+    msg.includes("transaction failed") ||
+    msg.includes("failed to send") ||
+    msg.includes("send transaction failed") ||
+    msg.includes("wallet request failed")
+  );
 };
 
 const isExecutionReverted = (error) => {
@@ -518,6 +531,7 @@ export async function executePortfolioOnChain(
 
     let done = false;
     let slippageForPosition = initialPrepareSlippage;
+    let swapRetryCount = 0;
     while (!done) {
       try {
         // 1) /prepare → fresh txData (slippage increases only after user confirms 422)
@@ -748,8 +762,8 @@ export async function executePortfolioOnChain(
           });
         } catch (err) {
           console.error(err);
-          // 4) MetaMask rejects (no txHash): offer Retry (call /prepare again for fresh nonce)
-          if (isUserRejectedTx(err)) {
+          // Wallet send failed before tx hash (MetaMask/Privy/etc): offer Retry/Skip with capped retries.
+          if (isRetryableWalletTxFailure(err)) {
             update("POSITION_REJECTED", {
               symbol: pos.symbol,
               executionOrderId: pos.executionOrderId,
@@ -760,24 +774,68 @@ export async function executePortfolioOnChain(
                 ? await onPrompt({
                     symbol: pos.symbol,
                     executionOrderId: pos.executionOrderId,
+                    retryCount: swapRetryCount + 1,
+                    maxRetries: MAX_SWAP_RETRIES,
                   })
                 : "retry";
 
             if (decision === "retry") {
+              swapRetryCount += 1;
+              if (swapRetryCount >= MAX_SWAP_RETRIES) {
+                update("POSITION_ERROR", {
+                  symbol: pos.symbol,
+                  executionOrderId: pos.executionOrderId,
+                  error: `Token could not be swapped after ${MAX_SWAP_RETRIES} attempts.`,
+                });
+                try {
+                  await apiCall(
+                    `${EXECUTION_API_BASE}/${pos.executionOrderId}/cancel`,
+                    {
+                      method: "POST",
+                      body: JSON.stringify({ reason: "swap_failed" }),
+                    },
+                  );
+                  cancelledOrderIds.push(pos.executionOrderId);
+                  skipped.push({
+                    executionOrderId: pos.executionOrderId,
+                    symbol: pos.symbol,
+                    reason: "SWAP_FAILED",
+                  });
+                  update("POSITION_CANCELLED", {
+                    symbol: pos.symbol,
+                    executionOrderId: pos.executionOrderId,
+                  });
+                } catch (cancelErr) {
+                  console.error(cancelErr);
+                  update("POSITION_FAILED", {
+                    symbol: pos.symbol,
+                    executionOrderId: pos.executionOrderId,
+                  });
+                }
+                done = true;
+                break;
+              }
               continue;
             }
 
             if (decision === "skip") {
+              const cancelReason =
+                swapRetryCount >= MAX_SWAP_RETRIES ? "swap_failed" : undefined;
               try {
                 await apiCall(
                   `${EXECUTION_API_BASE}/${pos.executionOrderId}/cancel`,
-                  { method: "POST" },
+                  {
+                    method: "POST",
+                    ...(cancelReason
+                      ? { body: JSON.stringify({ reason: cancelReason }) }
+                      : {}),
+                  },
                 );
                 cancelledOrderIds.push(pos.executionOrderId);
                 skipped.push({
                   executionOrderId: pos.executionOrderId,
                   symbol: pos.symbol,
-                  reason: "USER_SKIPPED",
+                  reason: cancelReason ? "SWAP_FAILED" : "USER_SKIPPED",
                 });
                 update("POSITION_CANCELLED", {
                   symbol: pos.symbol,
@@ -795,6 +853,41 @@ export async function executePortfolioOnChain(
             }
 
             // Default to retry if unknown decision
+            swapRetryCount += 1;
+            if (swapRetryCount >= MAX_SWAP_RETRIES) {
+              update("POSITION_ERROR", {
+                symbol: pos.symbol,
+                executionOrderId: pos.executionOrderId,
+                error: `Token could not be swapped after ${MAX_SWAP_RETRIES} attempts.`,
+              });
+              try {
+                await apiCall(
+                  `${EXECUTION_API_BASE}/${pos.executionOrderId}/cancel`,
+                  {
+                    method: "POST",
+                    body: JSON.stringify({ reason: "swap_failed" }),
+                  },
+                );
+                cancelledOrderIds.push(pos.executionOrderId);
+                skipped.push({
+                  executionOrderId: pos.executionOrderId,
+                  symbol: pos.symbol,
+                  reason: "SWAP_FAILED",
+                });
+                update("POSITION_CANCELLED", {
+                  symbol: pos.symbol,
+                  executionOrderId: pos.executionOrderId,
+                });
+              } catch (cancelErr) {
+                console.error(cancelErr);
+                update("POSITION_FAILED", {
+                  symbol: pos.symbol,
+                  executionOrderId: pos.executionOrderId,
+                });
+              }
+              done = true;
+              break;
+            }
             continue;
           }
           throw err;

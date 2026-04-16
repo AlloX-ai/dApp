@@ -24,7 +24,7 @@ export function TradingPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  const { ensureAuthenticated, logout } = useAuth();
+  const {  logout } = useAuth();
 
   const tokenSymbol = searchParams.get("token")?.trim();
   const narrativeId = searchParams.get("narrative")?.trim();
@@ -64,7 +64,7 @@ export function TradingPage() {
 
   const createMarketQueryFn = useCallback(
     (endpoint) => async () => {
-      await ensureAuthenticated();
+      // await ensureAuthenticated();
       try {
         return await apiCall(endpoint);
       } catch (err) {
@@ -72,7 +72,7 @@ export function TradingPage() {
         throw err;
       }
     },
-    [ensureAuthenticated, logout],
+    [ logout],
   );
 
   const trendingQuery = useQuery({
@@ -109,7 +109,7 @@ export function TradingPage() {
   const searchQueryResult = useQuery({
     queryKey: ["tokens", "search", debouncedSearch],
     queryFn: async () => {
-      await ensureAuthenticated();
+      // await ensureAuthenticated();
       try {
         const response = await apiCall(
           `/tokens/search?q=${encodeURIComponent(debouncedSearch)}&limit=10`,

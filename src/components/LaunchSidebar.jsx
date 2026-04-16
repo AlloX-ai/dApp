@@ -8,7 +8,8 @@ import {
   portfolioSidebarNavIds,
 } from "../constants/navigation";
 import { useCheckin } from "../hooks/useCheckin";
-import { openCheckinModal } from "../redux/slices/walletSlice";
+import { openCheckinModal, setWalletModal } from "../redux/slices/walletSlice";
+import { useAuth } from "../hooks/useAuth";
 import {
   setCurrentMessages,
   setViewingHistorySessionId,
@@ -25,6 +26,7 @@ export function LaunchSidebar() {
   const currentMessages = useSelector((state) => state.chat.currentMessages);
   const hasChatContent = currentMessages?.length > 0;
   const checkinStatus = useSelector((state) => state.checkin?.status);
+  const { isAuthenticated } = useAuth();
 
   const { checkedInToday } = useCheckin();
 
@@ -64,8 +66,9 @@ export function LaunchSidebar() {
 
   return (
     <>
-      <aside className="hidden md:block h-full fixed top-20 bottom-0 left-0 w-69 border-r border-gray-200/50 bg-pattern/95">
-        <div className="p-6 space-y-2">
+      <aside className="hidden md:flex flex-col  fixed top-20 bottom-0 left-0 w-69 border-r border-gray-200/50 bg-pattern/95">
+      <div className="flex flex-col w-full align-center">
+           <div className="p-6 space-y-2">
           {sidebarRows.map((row) => {
             if (row.kind === "portfolio") {
               return (
@@ -115,8 +118,7 @@ export function LaunchSidebar() {
             );
           })}
         </div>
-        {isConnected && (
-          <div className="px-4 pb-4 mt-auto space-y-3">
+        <div className="px-4 pb-4 space-y-3">
             <div className="relative overflow-hidden bg-gradient-to-br from-purple-500 via-blue-500 to-purple-600 rounded-2xl p-4 shadow-lg">
               <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-12 -mt-12"></div>
               <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/10 rounded-full -ml-8 -mb-8"></div>
@@ -126,20 +128,29 @@ export function LaunchSidebar() {
                   Daily Bonus
                 </div>
                 <div className="text-white font-bold text-sm mb-3">
-                  Get {getFormattedNumber(lastClaimed?.points || 0, 0)} points
-                  today
+                  {isAuthenticated
+                    ? `Get ${getFormattedNumber(lastClaimed?.points || 0, 0)} points today`
+                    : "Get 500 points today"}
                 </div>
                 <button
                   onClick={() => dispatch(openCheckinModal())}
-                  disabled={!isConnected}
-                  className="w-full bg-white text-purple-600 font-semibold text-sm py-2 px-4 rounded-xl hover:bg-white/90 transition-all shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="w-full bg-white text-purple-600 font-semibold text-sm py-2 px-4 rounded-xl hover:bg-white/90 transition-all shadow-md"
                 >
-                  {checkedInToday ? "Claimed" : "Claim"}
+                  {isAuthenticated && checkedInToday ? "Claimed" : "Claim"}
                 </button>
               </div>
             </div>
           </div>
-        )}
+      </div>
+      <a 
+      href="https://skynet.certik.com/projects/allox"
+      target="_blank"
+      className="flex items-center w-full p-6  gap-2">
+         <div className="text-black font-medium text-sm ">
+                Secured by
+                </div>
+                <img src="https://cdn.allox.ai/allox/partners/certikLarge.svg" className="w-24" alt="" />
+      </a>
       </aside>
     </>
   );
