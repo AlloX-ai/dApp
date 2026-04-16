@@ -292,26 +292,30 @@ function LaunchAppLayout() {
   const allConnectors = wagmiClient.connectors;
 
   const handleWalletConnect = async (option) => {
-    // Solana (MetaMask via Wallet Standard) – Redux is synced by WalletSync when adapter connects
-    if (option.isSolana || option.walletType === "solana") {
-      const metaMaskWallet = solanaWallets.find((w) =>
-        w.adapter?.name?.toLowerCase?.().includes("metamask"),
+    // Solana wallets (MetaMask via Wallet Standard, Phantom) – Redux is synced by WalletSync when adapter connects
+    if (option.isSolana || option.walletType === "solana" || option.walletType === "phantom" || option.isPhantom) {
+      const isPhantom = option.isPhantom || option.walletType === "phantom";
+      const searchName = isPhantom ? "phantom" : "metamask";
+      const solanaWallet = solanaWallets.find((w) =>
+        w.adapter?.name?.toLowerCase?.().includes(searchName),
       );
-      if (!metaMaskWallet) {
+      if (!solanaWallet) {
         toast.error(
-          "MetaMask with Solana support not found. Install or enable MetaMask.",
+          isPhantom
+            ? "Phantom wallet not found. Install the Phantom browser extension."
+            : "MetaMask with Solana support not found. Install or enable MetaMask.",
         );
         return;
       }
       try {
         await disconnectAllEvmWagmi();
-        selectSolanaWallet(metaMaskWallet.adapter.name);
-        await metaMaskWallet.adapter.connect();
+        selectSolanaWallet(solanaWallet.adapter.name);
+        await solanaWallet.adapter.connect();
         dispatch(setWalletModal(false));
         dispatch(setSessionSource("wallet"));
       } catch (err) {
-        console.error("Solana (MetaMask) connection error:", err);
-        toast.error("Failed to connect MetaMask for Solana. Please try again.");
+        console.error("Solana wallet connection error:", err);
+        toast.error("Failed to connect " + option.name + " for Solana. Please try again.");
       }
       return;
     }
@@ -429,25 +433,29 @@ function BetaAccessLayout() {
   };
 
   const handleWalletConnect = async (option) => {
-    if (option.isSolana || option.walletType === "solana") {
-      const metaMaskWallet = solanaWallets.find((w) =>
-        w.adapter?.name?.toLowerCase?.().includes("metamask"),
+    if (option.isSolana || option.walletType === "solana" || option.walletType === "phantom" || option.isPhantom) {
+      const isPhantom = option.isPhantom || option.walletType === "phantom";
+      const searchName = isPhantom ? "phantom" : "metamask";
+      const solanaWallet = solanaWallets.find((w) =>
+        w.adapter?.name?.toLowerCase?.().includes(searchName),
       );
-      if (!metaMaskWallet) {
+      if (!solanaWallet) {
         toast.error(
-          "MetaMask with Solana support not found. Install or enable MetaMask.",
+          isPhantom
+            ? "Phantom wallet not found. Install the Phantom browser extension."
+            : "MetaMask with Solana support not found. Install or enable MetaMask.",
         );
         return;
       }
       try {
         await disconnectAllEvmWagmi();
-        selectSolanaWallet(metaMaskWallet.adapter.name);
-        await metaMaskWallet.adapter.connect();
+        selectSolanaWallet(solanaWallet.adapter.name);
+        await solanaWallet.adapter.connect();
         dispatch(setWalletModal(false));
         dispatch(setSessionSource("wallet"));
       } catch (err) {
-        console.error("Solana (MetaMask) connection error:", err);
-        toast.error("Failed to connect MetaMask for Solana. Please try again.");
+        console.error("Solana wallet connection error:", err);
+        toast.error("Failed to connect " + option.name + " for Solana. Please try again.");
       }
       return;
     }
