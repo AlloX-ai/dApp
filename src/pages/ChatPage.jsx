@@ -3712,13 +3712,29 @@ export function ChatPage() {
                           Fill the form and generate portfolio
                         </div>
                       </div>
-                      <button
-                        onClick={() => setShowMoreInfoModal(true)}
-                        className="border border-gray-200 bg-white rounded-full px-3 py-2 hover:bg-gray-50 transition-colors flex items-center gap-2 text-xs whitespace-nowrap hover:bg-gray-200 transition-colors"
-                      >
-                        <HelpCircle size={14} className="text-blue-600" />
-                        <span className="font-medium">More info</span>
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <a
+                          href="https://skynet.certik.com/projects/allox"
+                          target="_blank"
+                          className="flex items-center w-full gap-2"
+                        >
+                          <div className="text-black font-medium text-xs ">
+                            Secured by
+                          </div>
+                          <img
+                            src="https://cdn.allox.ai/allox/partners/certikLarge.svg"
+                            className="w-18"
+                            alt=""
+                          />
+                        </a>
+                        <button
+                          onClick={() => setShowMoreInfoModal(true)}
+                          className="border border-gray-200 bg-white rounded-full px-3 py-2 hover:bg-gray-50 transition-colors flex items-center gap-2 text-xs whitespace-nowrap hover:bg-gray-200 transition-colors"
+                        >
+                          <HelpCircle size={14} className="text-blue-600" />
+                          <span className="font-medium">More info</span>
+                        </button>
+                      </div>
                     </div>
 
                     {quickError && (
