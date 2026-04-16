@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router";
 import { useDispatch, useSelector } from "react-redux";
-import { openCheckinModal } from "../redux/slices/walletSlice";
+import { openCheckinModal, setWalletModal } from "../redux/slices/walletSlice";
 import {
   Wallet,
   Menu,
@@ -56,7 +56,7 @@ export function Header({
 
   const user = useMemo(() => findSeason2RewardForWallet(coinbase), [coinbase]);
   const { checkedInToday } = useCheckin();
-  const { user: authUser } = useAuth();
+  const { user: authUser, isAuthenticated } = useAuth();
 
   const mobileMainTabs = useMemo(() => {
     const filtered = navigationTabs.filter(
@@ -351,8 +351,7 @@ export function Header({
                             )}
                             </div>
                           )}
-                          {isConnected && (
-                            <div className="px-4 pb-4 mt-auto">
+                          <div className="px-4 pb-4 mt-auto">
                               <div className="relative overflow-hidden bg-linear-to-br from-purple-500 via-blue-500 to-purple-600 rounded-2xl p-4 shadow-lg">
                                 {/* Decorative elements */}
                                 <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-12 -mt-12"></div>
@@ -370,16 +369,13 @@ export function Header({
 
                                   <button
                                     onClick={handleOpenCheckinModal}
-                                    disabled={!isConnected}
-                                    className="w-full bg-white text-purple-600 font-semibold text-sm py-2 px-4 rounded-xl hover:bg-white/90 transition-all shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
+                                    className="w-full bg-white text-purple-600 font-semibold text-sm py-2 px-4 rounded-xl hover:bg-white/90 transition-all shadow-md"
                                   >
-                                    {checkedInToday ? "Claimed" : "Claim"}
-                                    {/* Coming Soon */}
+                                    {isAuthenticated && checkedInToday ? "Claimed" : "Claim"}
                                   </button>
                                 </div>
                               </div>
                             </div>
-                          )}
                         </div>
                       </div>
                     </OutsideClickHandler>
