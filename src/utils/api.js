@@ -1,5 +1,5 @@
-const API_URL = "https://api2.allox.ai";
-const WS_URL = "wss://api2.allox.ai/ws";
+const API_URL = "https://api.allox.ai";
+const WS_URL = "wss://api.allox.ai/ws";
 
 const getAuthToken = () => localStorage.getItem("authToken");
 
