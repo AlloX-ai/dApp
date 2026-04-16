@@ -13,18 +13,27 @@ import {
   TrendingUp,
   Wallet,
   DollarSign,
+  HelpCircle,
   X,
 } from "lucide-react";
 import { encodeFunctionData } from "viem";
 import { useDispatch, useSelector } from "react-redux";
 import { NavLink, useLocation, useNavigate } from "react-router";
+import {
+  getEmbeddedConnectedWallet,
+  useSendTransaction,
+  useWallets,
+} from "@privy-io/react-auth";
 import OutsideClickHandler from "react-outside-click-handler/build/OutsideClickHandler";
 import { setWalletModal } from "../redux/slices/walletSlice";
 import getFormattedNumber from "../hooks/get-formatted-number";
 import { apiCall } from "../utils/api";
 import { useAuth } from "../hooks/useAuth";
 import { PortfolioAlertSettings } from "../components/PortfolioAlertSettings";
-import { createWagmiExecutionTxEnv } from "../utils/execution";
+import {
+  createPrivyExecutionTxEnv,
+  createWagmiExecutionTxEnv,
+} from "../utils/execution";
 
 const ERC20_ABI = [
   {
@@ -92,12 +101,21 @@ const SORT_OPTIONS = [
   { value: "pnl", label: "Sort by: Performance" },
 ];
 
+const isOnChainExecutionMode = (executionMode) =>
+  String(executionMode || "").toUpperCase() === "ON_CHAIN";
+
+const isPortfolioClosed = (portfolio) =>
+  String(portfolio?.status || portfolio?.sellStatus || "").toUpperCase() ===
+  "CLOSED";
+
 export function PortfolioPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
   const isConnected = useSelector((state) => state.wallet.isConnected);
-  const { ensureAuthenticated, logout } = useAuth();
+  const { ensureAuthenticated, logout, user: authUser } = useAuth();
+  const { wallets } = useWallets();
+  const { sendTransaction: privySendTransaction } = useSendTransaction();
   const selectedPortfolioIdFromUrl = useMemo(
     () => new URLSearchParams(location.search).get("portfolio"),
     [location.search],
@@ -155,6 +173,7 @@ export function PortfolioPage() {
   const [isSortMenuOpen, setIsSortMenuOpen] = useState(false);
   const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
   const [isSellModalOpen, setIsSellModalOpen] = useState(false);
+  const [isSellInfoModalOpen, setIsSellInfoModalOpen] = useState(false);
   const [sellTarget, setSellTarget] = useState(null);
   const [sellSlippage, setSellSlippage] = useState("1");
   const [isSellQuoteLoading, setIsSellQuoteLoading] = useState(false);
@@ -347,7 +366,9 @@ export function PortfolioPage() {
         narrativeText.includes(search);
       const risk = String(portfolio?.riskProfile || "").toUpperCase();
       const matchesRisk = filterRisk === "ALL" || risk === filterRisk;
-      const executionMode = String(portfolio?.executionMode || "").toUpperCase();
+      const executionMode = String(
+        portfolio?.executionMode || "",
+      ).toUpperCase();
       const matchesExecutionMode =
         filterExecutionMode === "ALL" || executionMode === filterExecutionMode;
       return matchesSearch && matchesRisk && matchesExecutionMode;
@@ -490,6 +511,7 @@ export function PortfolioPage() {
   const closeSellModal = useCallback(() => {
     if (isSellExecuting) return;
     setIsSellModalOpen(false);
+    setIsSellInfoModalOpen(false);
     setSellTarget(null);
     setSellQuote(null);
     setSellQuoteError("");
@@ -514,10 +536,13 @@ export function PortfolioPage() {
             ? { slippage: nextSlippage }
             : {}),
         };
-        const quote = await apiCall(`/portfolio/${target.portfolioId}/sell/quote`, {
-          method: "POST",
-          body: JSON.stringify(body),
-        });
+        const quote = await apiCall(
+          `/portfolio/${target.portfolioId}/sell/quote`,
+          {
+            method: "POST",
+            body: JSON.stringify(body),
+          },
+        );
         setSellQuote(quote);
       } catch (error) {
         if (error?.status === 401) {
@@ -581,20 +606,29 @@ export function PortfolioPage() {
       const symbol = order?.symbol || "TOKEN";
       let prepare;
       try {
-        prepare = await apiCall(`/execution/${order.executionOrderId}/prepare`, {
-          method: "POST",
-          body: JSON.stringify({ slippage: slippageValue }),
-        });
+        prepare = await apiCall(
+          `/execution/${order.executionOrderId}/prepare`,
+          {
+            method: "POST",
+            body: JSON.stringify({ slippage: slippageValue }),
+          },
+        );
       } catch (error) {
-        if (error?.status === 428 && Array.isArray(error?.data?.approvalSteps)) {
+        if (
+          error?.status === 428 &&
+          Array.isArray(error?.data?.approvalSteps)
+        ) {
           addSellLog(`${symbol}: approvals required.`);
           for (const step of error.data.approvalSteps) {
             await runApprovalStep(step, txEnv);
           }
-          prepare = await apiCall(`/execution/${order.executionOrderId}/prepare`, {
-            method: "POST",
-            body: JSON.stringify({ slippage: slippageValue }),
-          });
+          prepare = await apiCall(
+            `/execution/${order.executionOrderId}/prepare`,
+            {
+              method: "POST",
+              body: JSON.stringify({ slippage: slippageValue }),
+            },
+          );
         } else if (
           error?.status === 422 &&
           error?.data?.error === "SLIPPAGE_INCREASE_REQUIRED"
@@ -619,7 +653,9 @@ export function PortfolioPage() {
         to: txData.to,
         data: txData.data,
         value:
-          txData.value != null && txData.value !== "" ? BigInt(txData.value) : 0n,
+          txData.value != null && txData.value !== ""
+            ? BigInt(txData.value)
+            : 0n,
         ...(txData.nonce != null && txData.nonce !== ""
           ? { nonce: Number(txData.nonce) }
           : {}),
@@ -663,7 +699,31 @@ export function PortfolioPage() {
 
     try {
       await ensureAuthenticated();
-      const txEnv = createWagmiExecutionTxEnv();
+      let txEnv;
+      if (authUser?.authProvider === "privy") {
+        const embedded = getEmbeddedConnectedWallet(wallets);
+        if (!embedded) {
+          throw new Error(
+            "Embedded wallet not found. Refresh the page or sign in again.",
+          );
+        }
+        const chainId = embedded.chainId;
+        const onBsc =
+          chainId === "eip155:56" ||
+          (typeof chainId === "string" &&
+            chainId.startsWith("0x") &&
+            parseInt(chainId, 16) === 56) ||
+          Number(chainId) === 56;
+        if (!onBsc) {
+          await embedded.switchChain(56);
+        }
+        txEnv = createPrivyExecutionTxEnv(
+          embedded.address,
+          privySendTransaction,
+        );
+      } else {
+        txEnv = createWagmiExecutionTxEnv();
+      }
       txEnv.assertReady();
 
       let confirmed = 0;
@@ -694,15 +754,18 @@ export function PortfolioPage() {
       setIsSellExecuting(false);
     }
   }, [
+    authUser?.authProvider,
     closeSellModal,
     ensureAuthenticated,
     executeSingleOrder,
     handlePortfolioSelect,
     loadPortfolios,
     logout,
+    privySendTransaction,
     sellQuote?.orders,
     sellSlippage,
     sellTarget?.portfolioId,
+    wallets,
   ]);
 
   const totalBalance = Number(activePortfolio?.totalCurrentValue || 0);
@@ -717,6 +780,26 @@ export function PortfolioPage() {
   const positionsInfo = Array.isArray(portfolioInfo?.portfolio?.positions)
     ? portfolioInfo.portfolio.positions
     : [];
+  const activePositionsInfo = useMemo(
+    () =>
+      positionsInfo.filter(
+        (pos) =>
+          !pos?.soldAt &&
+          String(pos?.status || "").toUpperCase() !== "CLOSED" &&
+          String(pos?.sellStatus || "").toUpperCase() !== "CLOSED",
+      ),
+    [positionsInfo],
+  );
+  const closedPositionsInfo = useMemo(
+    () =>
+      positionsInfo.filter(
+        (pos) =>
+          !!pos?.soldAt ||
+          String(pos?.status || "").toUpperCase() === "CLOSED" ||
+          String(pos?.sellStatus || "").toUpperCase() === "CLOSED",
+      ),
+    [positionsInfo],
+  );
   const selectedRiskLabel =
     RISK_FILTER_OPTIONS.find((item) => item.value === filterRisk)?.label ||
     "All Risk Levels";
@@ -727,8 +810,12 @@ export function PortfolioPage() {
   const selectedSortLabel =
     SORT_OPTIONS.find((item) => item.value === sortBy)?.label ||
     "Sort by: Recent";
-  const sellQuoteOrders = Array.isArray(sellQuote?.orders) ? sellQuote.orders : [];
-  const sellFailedQuotes = Array.isArray(sellQuote?.failed) ? sellQuote.failed : [];
+  const sellQuoteOrders = Array.isArray(sellQuote?.orders)
+    ? sellQuote.orders
+    : [];
+  const sellFailedQuotes = Array.isArray(sellQuote?.failed)
+    ? sellQuote.failed
+    : [];
   const sellEstimatedUsdtTotal = sellQuoteOrders.reduce(
     (sum, order) => sum + Number(order?.estimatedUsdtOut || 0),
     0,
@@ -742,26 +829,38 @@ export function PortfolioPage() {
         <div className="mb-8">
           <div className="flex flex-col sm:flex-row items-center justify-between mb-6 gap-3">
             <h2 className="text-3xl font-bold">Portfolio</h2>
-            {activePortfolio ? (
-              <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row gap-2 items-center">
+              {!activePortfolio && (
                 <button
                   type="button"
-                  onClick={() => setIsAlertModalOpen(true)}
-                  className="px-4 py-2.5 rounded-xl bg-black text-white text-sm font-semibold hover:bg-gray-800 inline-flex items-center gap-2"
+                  onClick={() => setIsSellInfoModalOpen(true)}
+                  className="mt-3 border border-gray-200 bg-white rounded-full px-3 py-2 hover:bg-gray-100 transition-colors flex items-center gap-2 text-xs whitespace-nowrap"
                 >
-                  <BellPlus size={16} />
-                  Add portfolio alert
+                  <HelpCircle size={14} className="text-blue-600" />
+                  <span className="font-medium">More info</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={handleArchiveActivePortfolio}
-                  disabled={!activePortfolioId || isArchiving}
-                  className="px-4 py-2.5 glass-card text-sm text-red-600 hover:font-semibold disabled:opacity-60"
-                >
-                  {isArchiving ? "Deleting..." : "Delete Portfolio"}
-                </button>
-              </div>
-            ) : null}
+              )}
+              {activePortfolio ? (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsAlertModalOpen(true)}
+                    className="px-4 py-2.5 rounded-xl bg-black text-white text-sm font-semibold hover:bg-gray-800 inline-flex items-center gap-2"
+                  >
+                    <BellPlus size={16} />
+                    Add portfolio alert
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleArchiveActivePortfolio}
+                    disabled={!activePortfolioId || isArchiving}
+                    className="px-4 py-2.5 glass-card text-sm text-red-600 hover:font-semibold disabled:opacity-60"
+                  >
+                    {isArchiving ? "Deleting..." : "Delete Portfolio"}
+                  </button>
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
 
@@ -799,16 +898,16 @@ export function PortfolioPage() {
                 {!searchQuery &&
                   filterRisk === "ALL" &&
                   filterExecutionMode === "ALL" && (
-                  <button
-                    onClick={() => {
-                      goToPortfolio();
-                    }}
-                    className="btn-primary px-6 py-3 inline-flex items-center gap-2"
-                  >
-                    <Plus size={20} />
-                    Create Portfolio
-                  </button>
-                )}
+                    <button
+                      onClick={() => {
+                        goToPortfolio();
+                      }}
+                      className="btn-primary px-6 py-3 inline-flex items-center gap-2"
+                    >
+                      <Plus size={20} />
+                      Create Portfolio
+                    </button>
+                  )}
               </div>
             )}
 
@@ -847,8 +946,8 @@ export function PortfolioPage() {
                               : "text-red-600"
                           }`}
                         >
-                          {totalPortfolioPnL >= 0 ? "+" : ""}
-                          ${totalPortfolioPnL.toFixed(2)}
+                          {totalPortfolioPnL >= 0 ? "+" : ""}$
+                          {totalPortfolioPnL.toFixed(2)}
                         </p>
                       </div>
                       <div className="glass-card p-5">
@@ -1031,6 +1130,7 @@ export function PortfolioPage() {
                           );
                           const isActive =
                             portfolio?.id === activePortfolio?.id;
+                          const isClosed = isPortfolioClosed(portfolio);
 
                           return (
                             <button
@@ -1038,10 +1138,14 @@ export function PortfolioPage() {
                               onClick={() =>
                                 handlePortfolioCardClick(portfolio.id)
                               }
-                              className={`glass-card p-6 text-left transition-all duration-200 group ${
+                              className={` p-6 text-left transition-all duration-200 group ${
                                 isActive
                                   ? "ring-2 ring-black/80"
                                   : "hover:shadow-lg"
+                              } ${
+                                isClosed
+                                  ? "bg-blue-50/70 border border-blue-200/70 rounded-2xl"
+                                  : "glass-card"
                               }`}
                             >
                               <div className="flex items-start justify-between mb-4">
@@ -1102,25 +1206,32 @@ export function PortfolioPage() {
                                     </div>
                                   ) : (
                                     <div className="flex items-center gap-2">
-                                    <h3 className="text-lg font-bold mb-0 group-hover:text-blue-600 transition-colors">
-                                      {portfolio?.name || "Portfolio"}
-                                    </h3>
-                                             {/* <button
-                                    type="button"
-                                    title="Sell portfolio"
-                                    aria-label="Sell portfolio"
-                                    onClick={(event) => {
-                                      event.stopPropagation();
-                                      openSellModal({
-                                        type: "portfolio",
-                                        portfolioId: portfolio.id,
-                                        title: portfolio?.name || "Portfolio",
-                                      });
-                                    }}
-                                    className=" rounded-xl px-3 border border-gray-200 text-gray-500 hover:text-emerald-600 hover:border-emerald-200 bg-white/70 flex items-center justify-center"
-                                  >
-                                    <DollarSign size={15} /> Sell
-                                  </button> */}
+                                      <h3 className="text-lg font-bold mb-0 group-hover:text-blue-600 transition-colors">
+                                        {portfolio?.name || "Portfolio"}
+                                      </h3>
+                                      {isOnChainExecutionMode(
+                                        portfolio?.executionMode,
+                                      ) &&
+                                        !isClosed && (
+                                          <button
+                                            type="button"
+                                            title="Sell portfolio"
+                                            aria-label="Sell portfolio"
+                                            onClick={(event) => {
+                                              event.stopPropagation();
+                                              openSellModal({
+                                                type: "portfolio",
+                                                portfolioId: portfolio.id,
+                                                title:
+                                                  portfolio?.name ||
+                                                  "Portfolio",
+                                              });
+                                            }}
+                                            className=" rounded-xl px-3 border border-gray-200 text-gray-500 hover:text-emerald-600 hover:border-emerald-200 bg-white/70 flex items-center justify-center"
+                                          >
+                                            <DollarSign size={15} /> Sell
+                                          </button>
+                                        )}
                                     </div>
                                   )}
                                   <span
@@ -1132,10 +1243,14 @@ export function PortfolioPage() {
                                       portfolio?.riskProfile || "UNKNOWN",
                                     ).toUpperCase()}
                                   </span>
+                                  {isClosed && (
+                                    <span className="ml-2 inline-block text-xs px-2.5 py-1 rounded-full border font-medium bg-gray-100 text-gray-700 border-gray-200">
+                                      CLOSED
+                                    </span>
+                                  )}
                                 </div>
-                           
+
                                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
-                              
                                   <button
                                     type="button"
                                     title="Rename portfolio"
@@ -1245,26 +1360,38 @@ export function PortfolioPage() {
                               Risk: {activePortfolio.riskProfile}
                             </div>
                           )}
+                          {isPortfolioClosed(activePortfolio) && (
+                            <div className="mt-2">
+                              <span className="inline-block text-xs px-2.5 py-1 rounded-full border font-medium bg-gray-100 text-gray-700 border-gray-200">
+                                CLOSED
+                              </span>
+                            </div>
+                          )}
                         </div>
                       </div>
 
                       <div className="glass-card p-5">
                         <div className="text-sm text-gray-600 mb-1 flex items-center justify-between gap-3">
                           <span>Total Balance</span>
-                         {/* <button
-                              type="button"
-                              onClick={() =>
-                                openSellModal({
-                                  type: "portfolio",
-                                  portfolioId: activePortfolio.id,
-                                  title: activePortfolio.name || "Portfolio",
-                                })
-                              }
-                              className="px-3 py-2 rounded-xl bg-black text-white text-xs font-semibold hover:bg-gray-800 inline-flex items-center gap-2"
-                            >
-                              <DollarSign size={14} />
-                              Sell Portfolio
-                            </button> */}
+                          {isOnChainExecutionMode(
+                            activePortfolio?.executionMode,
+                          ) &&
+                            !isPortfolioClosed(activePortfolio) && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  openSellModal({
+                                    type: "portfolio",
+                                    portfolioId: activePortfolio.id,
+                                    title: activePortfolio.name || "Portfolio",
+                                  })
+                                }
+                                className="px-3 py-2 rounded-xl bg-black text-white text-xs font-semibold hover:bg-gray-800 inline-flex items-center gap-2"
+                              >
+                                <DollarSign size={14} />
+                                Sell Portfolio
+                              </button>
+                            )}
                         </div>
                         <div className="text-4xl font-bold mb-2">
                           $
@@ -1303,7 +1430,6 @@ export function PortfolioPage() {
                               <BarChart3 size={20} className="text-gray-500" />
                               Portfolio Analytics
                             </h3>
-                            
                           </div>
 
                           {overview && (
@@ -1367,7 +1493,7 @@ export function PortfolioPage() {
                                 </span>
                               </div>
                               <div className="grid md:grid-cols-3 gap-4">
-                                {positionsInfo.map((pos, idx) => {
+                                {activePositionsInfo.map((pos, idx) => {
                                   const symbol =
                                     pos?.symbol ??
                                     pos?.name ??
@@ -1425,34 +1551,42 @@ export function PortfolioPage() {
                                         <div className="min-w-0 flex-1">
                                           <div className="flex items-center gap-2 min-w-0 justify-between">
                                             <div className="flex items-center gap-2 min-w-0">
-                                            <div className="font-bold text-lg truncate">
-                                              {symbol}
+                                              <div className="font-bold text-lg truncate">
+                                                {symbol}
+                                              </div>
+                                              {narrative ? (
+                                                <span className="text-xs uppercase tracking-wide text-gray-500 bg-white/70 border border-gray-200/60 px-2 py-1 rounded-full shrink-0">
+                                                  {String(narrative).replace(
+                                                    /_/g,
+                                                    " ",
+                                                  )}
+                                                </span>
+                                              ) : null}
                                             </div>
-                                            {narrative ? (
-                                              <span className="text-xs uppercase tracking-wide text-gray-500 bg-white/70 border border-gray-200/60 px-2 py-1 rounded-full shrink-0">
-                                                {String(narrative).replace(
-                                                  /_/g,
-                                                  " ",
-                                                )}
-                                              </span>
-                                            ) : null}
-                                            </div>
-                                            {/* <button
-                                              type="button"
-                                              onClick={(event) => {
-                                                event.stopPropagation();
-                                                openSellModal({
-                                                  type: "token",
-                                                  portfolioId: activePortfolio.id,
-                                                  symbol: String(symbol),
-                                                  title: `${symbol} in ${activePortfolio.name || "Portfolio"}`,
-                                                });
-                                              }}
-                                              className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-lg border border-emerald-200 text-emerald-700 hover:bg-emerald-50 shrink-0"
-                                            >
-                                              <DollarSign size={12} />
-                                              Sell
-                                            </button> */}
+                                            {isOnChainExecutionMode(
+                                              activePortfolio?.executionMode,
+                                            ) &&
+                                              !isPortfolioClosed(
+                                                activePortfolio,
+                                              ) && (
+                                                <button
+                                                  type="button"
+                                                  onClick={(event) => {
+                                                    event.stopPropagation();
+                                                    openSellModal({
+                                                      type: "token",
+                                                      portfolioId:
+                                                        activePortfolio.id,
+                                                      symbol: String(symbol),
+                                                      title: `${symbol} in ${activePortfolio.name || "Portfolio"}`,
+                                                    });
+                                                  }}
+                                                  className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-lg border border-emerald-200 text-emerald-700 hover:bg-emerald-50 shrink-0"
+                                                >
+                                                  <DollarSign size={12} />
+                                                  Sell
+                                                </button>
+                                              )}
                                           </div>
                                           {name ? (
                                             <div className="text-sm text-gray-500 truncate">
@@ -1550,6 +1684,79 @@ export function PortfolioPage() {
                                   );
                                 })}
                               </div>
+                              {closedPositionsInfo.length > 0 && (
+                                <div className="mt-6">
+                                  <h5 className="text-sm font-semibold text-gray-600 mb-3">
+                                    Closed positions
+                                  </h5>
+                                  <div className="grid md:grid-cols-3 gap-4">
+                                    {closedPositionsInfo.map((pos, idx) => {
+                                      const symbol =
+                                        pos?.symbol ??
+                                        pos?.name ??
+                                        `Closed Asset ${idx + 1}`;
+                                      const name = pos?.name ?? "";
+                                      const logo = pos?.logo;
+                                      const soldAmountUsd =
+                                        pos?.soldAmountUsd ??
+                                        pos?.sold_amount_usd ??
+                                        null;
+                                      const soldAt = pos?.soldAt ?? null;
+
+                                      return (
+                                        <div
+                                          key={`closed-${symbol}-${idx}`}
+                                          className="glass-card p-5 border border-gray-200/70 bg-gray-50/70 opacity-85"
+                                        >
+                                          <div className="flex items-center gap-4 mb-4">
+                                            {logo ? (
+                                              <img
+                                                src={logo}
+                                                alt=""
+                                                className="w-12 h-12 rounded-full bg-white border border-gray-200 object-cover"
+                                                loading="lazy"
+                                              />
+                                            ) : (
+                                              <div className="w-12 h-12 rounded-full bg-gray-100 border border-gray-200" />
+                                            )}
+                                            <div className="min-w-0 flex-1">
+                                              <div className="flex items-center gap-2">
+                                                <div className="font-bold text-lg truncate text-gray-700">
+                                                  {symbol}
+                                                </div>
+                                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-200 text-gray-700 uppercase tracking-wide">
+                                                  Closed
+                                                </span>
+                                              </div>
+                                              {name ? (
+                                                <div className="text-sm text-gray-500 truncate">
+                                                  {name}
+                                                </div>
+                                              ) : null}
+                                            </div>
+                                          </div>
+                                          <div className="text-sm text-gray-600 space-y-1">
+                                            <div>
+                                              Realized:{" "}
+                                              {soldAmountUsd != null
+                                                ? `$${Number(soldAmountUsd).toFixed(2)}`
+                                                : "—"}
+                                            </div>
+                                            <div>
+                                              Sold at:{" "}
+                                              {soldAt
+                                                ? new Date(
+                                                    soldAt,
+                                                  ).toLocaleString()
+                                                : "—"}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           )}
                           <div
@@ -1893,7 +2100,10 @@ export function PortfolioPage() {
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
           onClick={() => setIsAlertModalOpen(false)}
         >
-          <div className="w-full max-w-[580px]" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="w-full max-w-[580px]"
+            onClick={(e) => e.stopPropagation()}
+          >
             <PortfolioAlertSettings
               portfolioId={activePortfolioId}
               onClose={() => setIsAlertModalOpen(false)}
@@ -1914,7 +2124,9 @@ export function PortfolioPage() {
             <div className="flex items-start justify-between gap-4 mb-4">
               <div>
                 <h3 className="text-2xl font-bold">
-                  {sellTarget.type === "token" ? "Sell Token" : "Sell Portfolio"}
+                  {sellTarget.type === "token"
+                    ? "Sell Token"
+                    : "Sell Portfolio"}
                 </h3>
                 <p className="text-sm text-gray-600">{sellTarget.title}</p>
               </div>
@@ -1997,38 +2209,42 @@ export function PortfolioPage() {
                       const priceImpact = Number(order.priceImpact || 0);
                       const isHighImpact = priceImpact >= 5;
                       return (
-                      <div
-                        key={order.executionOrderId}
-                        className={`border rounded-xl p-3 text-sm ${
-                          isHighImpact
-                            ? "bg-amber-50 border-amber-300"
-                            : "bg-white border-gray-200"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="font-semibold flex items-center gap-2">
-                            {order.symbol}
-                            {isHighImpact ? (
-                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-200 text-amber-900 uppercase tracking-wide">
-                                High impact
-                              </span>
-                            ) : null}
+                        <div
+                          key={order.executionOrderId}
+                          className={`border rounded-xl p-3 text-sm ${
+                            isHighImpact
+                              ? "bg-amber-50 border-amber-300"
+                              : "bg-white border-gray-200"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="font-semibold flex items-center gap-2">
+                              {order.symbol}
+                              {isHighImpact ? (
+                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-200 text-amber-900 uppercase tracking-wide">
+                                  High impact
+                                </span>
+                              ) : null}
+                            </div>
+                            <div className="text-gray-700">
+                              ~{Number(order.estimatedUsdtOut || 0).toFixed(4)}{" "}
+                              USDT
+                            </div>
                           </div>
-                          <div className="text-gray-700">
-                            ~{Number(order.estimatedUsdtOut || 0).toFixed(4)} USDT
+                          <div className="text-xs text-gray-500 mt-1 flex items-center gap-2 flex-wrap">
+                            Provider: {order.swapProvider || "N/A"} | Price
+                            impact:{" "}
+                            <span
+                              className={
+                                isHighImpact
+                                  ? "font-semibold text-amber-800"
+                                  : ""
+                              }
+                            >
+                              {priceImpact.toFixed(2)}%
+                            </span>
                           </div>
                         </div>
-                        <div className="text-xs text-gray-500 mt-1 flex items-center gap-2 flex-wrap">
-                          Provider: {order.swapProvider || "N/A"} | Price impact:{" "}
-                          <span
-                            className={
-                              isHighImpact ? "font-semibold text-amber-800" : ""
-                            }
-                          >
-                            {priceImpact.toFixed(2)}%
-                          </span>
-                        </div>
-                      </div>
                       );
                     })}
                   </div>
@@ -2049,7 +2265,9 @@ export function PortfolioPage() {
               </div>
             ) : (
               <div className="text-sm text-gray-600">
-                {isSellQuoteLoading ? "Loading quote..." : "Quote not loaded yet."}
+                {isSellQuoteLoading
+                  ? "Loading quote..."
+                  : "Quote not loaded yet."}
               </div>
             )}
 
@@ -2060,7 +2278,9 @@ export function PortfolioPage() {
               </div>
             ) : null}
             {sellExecutionError ? (
-              <div className="mt-4 text-sm text-red-600">{sellExecutionError}</div>
+              <div className="mt-4 text-sm text-red-600">
+                {sellExecutionError}
+              </div>
             ) : null}
             {sellExecutionLogs.length > 0 ? (
               <div className="mt-4 bg-black text-green-300 rounded-xl p-3 text-xs space-y-1 max-h-36 overflow-y-auto">
@@ -2091,6 +2311,110 @@ export function PortfolioPage() {
               >
                 {isSellExecuting ? "Executing sell..." : "Confirm Sell"}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isSellInfoModalOpen && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/45 backdrop-blur-sm p-4"
+          onClick={() => setIsSellInfoModalOpen(false)}
+        >
+          <div
+            className="w-full max-w-3xl bg-white border border-gray-200 rounded-3xl p-6 md:p-7 max-h-[85vh] overflow-y-auto shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4 mb-5">
+              <div>
+                <h3 className="text-2xl font-bold">How selling works</h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  Quick guide before you confirm a sell.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsSellInfoModalOpen(false)}
+                className="h-8 w-8 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:text-black"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-sm text-gray-700">
+              <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4">
+                <div className="font-semibold text-gray-900 mb-2">
+                  What you can sell
+                </div>
+                <p>
+                  You can sell either:
+                  <span className="font-medium"> some tokens</span> from a
+                  portfolio, or{" "}
+                  <span className="font-medium">the entire portfolio</span>.
+                </p>
+                <p className="mt-2">
+                  Before final confirmation, you will see an estimated amount
+                  you are expected to receive.
+                </p>
+              </div>
+
+              <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4">
+                <div className="font-semibold text-gray-900 mb-2">
+                  What happens after you confirm
+                </div>
+                <p>
+                  We first fetch the best available routes, then your wallet may
+                  ask for one or more confirmations to complete the sale.
+                </p>
+                <p className="mt-2">
+                  If the market moves too fast, you may be asked to increase
+                  slippage to continue.
+                </p>
+              </div>
+
+              <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4">
+                <div className="font-semibold text-gray-900 mb-2">
+                  Price impact and estimates
+                </div>
+                <p>
+                  Estimated USDT values are shown before execution. Routes with
+                  high price impact are highlighted so you can decide whether to
+                  proceed.
+                </p>
+                <p className="mt-2">
+                  Final received amounts can differ slightly from estimates due
+                  to market movement and execution timing.
+                </p>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
+                <div className="font-semibold text-gray-900 mb-2">
+                  After selling
+                </div>
+                <p>
+                  Sold positions are marked as closed and become read-only in
+                  the UI.
+                </p>
+                <p className="mt-2">
+                  If all positions are sold, the portfolio status becomes
+                  <span className="font-semibold"> CLOSED</span> and remains
+                  visible in your portfolio list.
+                </p>
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+                <div className="font-semibold text-gray-900 mb-2">
+                  If something fails
+                </div>
+                <p>
+                  Some positions can fail while others succeed. You can retry
+                  safely, and already sold positions are skipped automatically.
+                </p>
+                <p className="mt-2">
+                  If you see an error, review the message in this modal and try
+                  again with updated slippage or after a short wait.
+                </p>
+              </div>
             </div>
           </div>
         </div>
