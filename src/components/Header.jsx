@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router";
 import { useDispatch, useSelector } from "react-redux";
-import { openCheckinModal } from "../redux/slices/walletSlice";
+import { openCheckinModal, setWalletModal } from "../redux/slices/walletSlice";
 import {
   Wallet,
   Menu,
@@ -56,7 +56,7 @@ export function Header({
 
   const user = useMemo(() => findSeason2RewardForWallet(coinbase), [coinbase]);
   const { checkedInToday } = useCheckin();
-  const { user: authUser } = useAuth();
+  const { user: authUser, isAuthenticated } = useAuth();
 
   const mobileMainTabs = useMemo(() => {
     const filtered = navigationTabs.filter(
@@ -107,36 +107,41 @@ export function Header({
             }}
           >
             <div className="flex gap-2 sm:gap-4">
-              <div
-                className="hidden md:flex bg-white rounded-full px-3 py-2 items-center gap-3 cursor-pointer hover:bg-gray-200 transition-colors"
-                onClick={() => {
-                  navigate("/rewards");
-                }}
-                role="button"
-              >
-                <div className="flex items-center gap-2">
-                  <Coins className="size-4 text-amber-500" />
+              {isConnected && (
+                <div
+                  className="bg-white rounded-full px-3 py-2 flex items-center gap-3 cursor-pointer hover:bg-gray-200 transition-colors"
+                  onClick={() => {
+                    if (!isConnected) {
+                      onConnectClick();
+                      return;
+                    }
+                    navigate("/rewards");
+                  }}
+                  role="button"
+                >
+                  <div className="flex items-center gap-2">
+                    <Coins className="size-4 text-amber-500" />
 
-                  <span className="text-xs sm:text-sm font-semibold tabular-nums">
-                    {totalPoints.toLocaleString()}
-                  </span>
-                </div>
-                {(messagesRemaining != null || user) && (
-                  <div className="border-l border-gray-200/60 pl-3 flex items-center gap-2">
-                    <Gem className="size-4 text-purple-600" />
-                    <span className="text-xs sm:text-sm font-semibold tabular-nums flex">
-                      {user ? user.gems : 0}
-                      <span className="text-xs sm:text-sm font-semibold tabular-nums text-[#4A5565]">
-                        (${user ? user.gems * 5 : 0})
-                      </span>
+                    <span className="text-xs sm:text-sm font-semibold tabular-nums">
+                      {totalPoints.toLocaleString()}
                     </span>
                   </div>
-                )}
-              </div>
-
+                  {(messagesRemaining != null || user) && (
+                    <div className="border-l border-gray-200/60 pl-3 flex items-center gap-2">
+                      <Gem className="size-4 text-purple-600" />
+                      <span className="text-xs sm:text-sm font-semibold tabular-nums flex">
+                        {user ? user.gems : 0}
+                        <span className="text-xs sm:text-sm font-semibold tabular-nums text-[#4A5565]">
+                          (${user ? user.gems * 5 : 0})
+                        </span>
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
               {totalPoints >= 0 && isConnected && (
                 <div
-                  className="hidden md:flex bg-white rounded-full px-3 py-2 items-center gap-3 cursor-pointer hover:bg-gray-200 transition-color"
+                  className="bg-white rounded-full px-3 py-2 flex items-center gap-3 cursor-pointer hover:bg-gray-200 transition-color"
                   onClick={() => setMessageLimitModalOpen(true)}
                   role="button"
                 >
@@ -150,55 +155,7 @@ export function Header({
                   )}
                 </div>
               )}
-              {isConnected && authUser?.authProvider === "privy" && (
-                <button
-                  type="button"
-                  onClick={onOpenFundModal}
-                  className="md:hidden  flex items-center shrink-0 text-xs font-semibold px-3 py-2 rounded-full bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
-                >
-                  Add funds
-                </button>
-              )}
-              {isConnected && <NotificationBell isConnected={isConnected} />}
-              {/* {totalPoints >= 0 && isConnected && (
-              <Tooltip
-                open={showTooltip}
-              
-              >
-                <TooltipTrigger asChild>
-                
-                </TooltipTrigger>
-                <TooltipContent
-                  side="bottom"
-                  sideOffset={10}
-                  hideArrow={true}
-                  className="border border-neutral-200/80 max-w-[370px] bg-white/95 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.08),0_2px_8px_rgba(0,0,0,0.04)] rounded-2xl px-2 py-2 text-sm font-medium text-neutral-800 flex items-center gap-2.5 [&>svg]:text-amber-500"
-                >
-                  <div className="flex flex-col gap-2 p-1 w-fit items-center justify-center">
-                    <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-3 border-2 border-indigo-200 hover:shadow-md transition-shadow">
-                      <span className="w-full">
-                        <b>Daily limit:</b> You have {messagesRemaining}{" "}
-                        messages remaining today. The limit resets every 24
-                        hours.
-                      </span>
-                    </div>
-                    <button
-                      onMouseDown={(event) => {
-                        // Tooltip content renders in a portal, so outside-click can
-                        // close it before click fires. Open modal on mousedown first.
-                        event.preventDefault();
-                        event.stopPropagation();
-                        setMessageLimitModalOpen(true);
-                        setShowTooltip(false);
-                      }}
-                      className="bg-black w-fit text-white px-8 py-3 rounded-xl font-semibold hover:bg-black/80 transition-colors"
-                    >
-                      Buy Messages
-                    </button>
-                  </div>
-                </TooltipContent>
-              </Tooltip>
-            )} */}
+
               {isConnected ? (
                 <div className="glass-card px-0 md:pr-4 flex items-center gap-3 transition-all duration-200 hover:shadow-md">
                   {authUser?.authProvider === "privy" && (
@@ -394,8 +351,7 @@ export function Header({
                             )}
                             </div>
                           )}
-                          {isConnected && (
-                            <div className="px-4 pb-4 mt-auto">
+                          <div className="px-4 pb-4 mt-auto">
                               <div className="relative overflow-hidden bg-linear-to-br from-purple-500 via-blue-500 to-purple-600 rounded-2xl p-4 shadow-lg">
                                 {/* Decorative elements */}
                                 <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-12 -mt-12"></div>
@@ -413,16 +369,13 @@ export function Header({
 
                                   <button
                                     onClick={handleOpenCheckinModal}
-                                    disabled={!isConnected}
-                                    className="w-full bg-white text-purple-600 font-semibold text-sm py-2 px-4 rounded-xl hover:bg-white/90 transition-all shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
+                                    className="w-full bg-white text-purple-600 font-semibold text-sm py-2 px-4 rounded-xl hover:bg-white/90 transition-all shadow-md"
                                   >
-                                    {checkedInToday ? "Claimed" : "Claim"}
-                                    {/* Coming Soon */}
+                                    {isAuthenticated && checkedInToday ? "Claimed" : "Claim"}
                                   </button>
                                 </div>
                               </div>
                             </div>
-                          )}
                         </div>
                       </div>
                     </OutsideClickHandler>

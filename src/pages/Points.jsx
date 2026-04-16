@@ -24,7 +24,7 @@ import {
   setPointsBalance,
   INITIAL_CLAIM_POINTS,
 } from "../redux/slices/pointsSlice";
-import { openCheckinModal } from "../redux/slices/walletSlice";
+import { openCheckinModal, setWalletModal } from "../redux/slices/walletSlice";
 import { XTasksModal } from "../components/XTasksModal";
 // import { motion, AnimatePresence } from "motion/react";
 import FAQModal from "../components/FaqModal";
@@ -72,8 +72,17 @@ export function PointsPage() {
   //   const message = params.get('message');
   //   const success = params.get('success');
 
+  const requireConnectedAction = (action) => {
+    if (!isConnected) {
+      dispatch(setWalletModal(true));
+      return false;
+    }
+    if (typeof action === "function") action();
+    return true;
+  };
+
   const handleXTasksClick = () => {
-    setShowXTasksModal(true);
+    requireConnectedAction(() => setShowXTasksModal(true));
   };
 
   const handleTasksViewed = () => {
@@ -84,7 +93,8 @@ export function PointsPage() {
 
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { user, setUser, claimSeason1 } = useAuth();
+  const { user, setUser, claimSeason1, ensureAuthenticated } = useAuth();
+  const claimStatusKnown = typeof user?.season1?.claimed === "boolean";
   const hasClaimedWelcomeBonus = user?.season1?.claimed === true;
   const userPointsBreakdown = user?.season1?.pointsBreakdown || {};
   const rateLimit =
@@ -95,6 +105,24 @@ export function PointsPage() {
   const socialPoints = useSelector((state) => state.social?.socialPoints);
   const telegramPoints = useSelector((state) => state.social?.telegramPoints);
   const newCount = useSelector((state) => state.social?.newCount);
+
+  useEffect(() => {
+    if (!isConnected) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        await ensureAuthenticated();
+        if (cancelled) return;
+        await Promise.all([fetchSocialPoints(), fetchAllPoints()]);
+      } catch (err) {
+        // no-op: existing UI/hook error handlers cover failed fetches/auth
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isConnected, ensureAuthenticated, fetchSocialPoints, fetchAllPoints]);
 
   const lastClaimed = useMemo(() => {
     const rewards = checkinStatus?.rewards ?? [];
@@ -234,16 +262,16 @@ export function PointsPage() {
   };
 
   const handleClick = (id) => {
-    if (id === 1 && !hasClaimedWelcomeBonus) {
-      setShowWelcomeGiftModal(true);
+    if (id === 1 && claimStatusKnown && !hasClaimedWelcomeBonus) {
+      requireConnectedAction(() => setShowWelcomeGiftModal(true));
     } else if (id === 4) {
-      dispatch(openCheckinModal());
+      requireConnectedAction(() => dispatch(openCheckinModal()));
     } else if (id === 5) {
       // navigate("/referrals", { replace: true });
     } else if (id === 7) {
       navigate("/referrals", { replace: true });
     } else if (id > 1 && id <= 3) {
-      navigate("/", { replace: true });
+      requireConnectedAction(() => navigate("/", { replace: true }));
     } else if (id === 6) {
       handleXTasksClick();
     }
@@ -630,8 +658,14 @@ export function PointsPage() {
               <p className="text-sm text-red-600 mb-2">{claimError}</p>
             )}
             <button
-              onClick={handleClaimPoints}
-              disabled={claiming || !isConnected}
+              onClick={() => {
+                if (!isConnected) {
+                  dispatch(setWalletModal(true));
+                  return;
+                }
+                handleClaimPoints();
+              }}
+              disabled={claiming}
               className="w-full py-4 rounded-2xl font-medium bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {claiming ? (
@@ -640,7 +674,7 @@ export function PointsPage() {
                   Claiming...
                 </>
               ) : (
-                "Claim"
+                isConnected ? "Claim" : "Connect Wallet"
               )}
             </button>
           </div>

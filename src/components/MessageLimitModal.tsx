@@ -535,15 +535,24 @@ export function MessageLimitModal({
       }
 
       const chainKey = selectedChainKey as Exclude<MessageChainKey, "solana">;
-      const isPrivyEvm = authUser?.authProvider === "privy";
+      const isPrivyEvm =
+        authUser?.authProvider === "privy" ||
+        sessionSource === "privy" ||
+        walletType === "privy";
 
       if (isPrivyEvm) {
-        const addr = (authUser?.address || solanaAddress || "").trim();
+        const embedded = getPrivyEmbedded(wallets);
+        const addr = (
+          embedded?.address ||
+          authUser?.address ||
+          evmAddress ||
+          solanaAddress ||
+          ""
+        ).trim();
         if (!/^0x[a-fA-F0-9]{40}$/i.test(addr)) {
           toast.error("Wallet address not available.");
           return;
         }
-        const embedded = getPrivyEmbedded(wallets);
         if (!embedded) {
           toast.error("Embedded wallet not ready. Refresh or sign in again.");
           return;
@@ -659,6 +668,8 @@ export function MessageLimitModal({
     sendTransaction,
     authUser?.address,
     authUser?.authProvider,
+    sessionSource,
+    walletType,
     evmAddress,
     evmChainId,
     reduxChainId,

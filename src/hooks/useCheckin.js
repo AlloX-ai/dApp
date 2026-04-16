@@ -45,7 +45,8 @@ export function useCheckin() {
   const walletAddress = useSelector((state) => state.wallet.address);
   const chainId = useSelector((state) => state.wallet.chainId);
   const isConnected = useSelector((state) => state.wallet.isConnected);
-  const { user: authUser } = useAuth();
+  const sessionSource = useSelector((state) => state.wallet.sessionSource);
+  const { user: authUser, isAuthenticated } = useAuth();
   const { wallets } = useWallets();
 
   const { chainId: wagmiChainId } = useAccount();
@@ -78,12 +79,9 @@ export function useCheckin() {
   }, [dispatch]);
 
   useEffect(() => {
-    if (isConnected) fetchStatus();
-    else 
-      dispatch(setCheckinStatus(null));
-  }, [isConnected,
-     fetchStatus,
-      dispatch]);
+    if (isAuthenticated) fetchStatus();
+    else dispatch(setCheckinStatus(null));
+  }, [isAuthenticated, fetchStatus, dispatch]);
 
   const claimSolana = useCallback(async () => {
     if (!signMessageSolana || !walletAddress) {
@@ -112,7 +110,12 @@ export function useCheckin() {
       const apiChain = CHAIN_ID_TO_API[effectiveChainId];
       const contractAddress = CHAIN_ID_TO_ADDRESS[effectiveChainId];
 
-      if (authUser?.authProvider === "privy") {
+      const isPrivySession =
+        authUser?.authProvider === "privy" ||
+        sessionSource === "privy" ||
+        walletType === "privy";
+
+      if (isPrivySession) {
         const embedded = getPrivyEmbedded(wallets);
         if (!embedded) {
           throw new Error(
@@ -199,6 +202,8 @@ export function useCheckin() {
     },
     [
       authUser?.authProvider,
+      sessionSource,
+      walletType,
       currentEVMChainId,
       switchChainAsync,
       wallets,

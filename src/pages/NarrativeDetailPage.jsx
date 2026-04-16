@@ -19,7 +19,7 @@ export function NarrativeDetailPage() {
   const tokensQuery = useQuery({
     queryKey: ["narratives", narrativeId, "tokens", TOKENS_LIMIT, SORT_BY],
     queryFn: async () => {
-      await ensureAuthenticated();
+      // await ensureAuthenticated();
       try {
         const response = await apiCall(
           `/narratives/${encodeURIComponent(narrativeId)}/tokens?limit=${TOKENS_LIMIT}&sortBy=${SORT_BY}`,

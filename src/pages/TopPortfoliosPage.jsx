@@ -15,7 +15,7 @@ export function TopPortfoliosPage() {
   const [selectedPeriod, setSelectedPeriod] = useState("24h");
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { ensureAuthenticated, logout } = useAuth();
+  const { logout } = useAuth();
   const selectedPortfolioId = searchParams.get("portfolio")?.trim() || "";
 
   useEffect(() => {
@@ -114,7 +114,7 @@ export function TopPortfoliosPage() {
   const topPortfoliosQuery = useQuery({
     queryKey: ["portfolio", "top"],
     queryFn: async () => {
-      await ensureAuthenticated();
+      // await ensureAuthenticated();
       try {
         return await apiCall(`/portfolio/top`);
       } catch (err) {

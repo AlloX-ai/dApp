@@ -19,11 +19,12 @@ import {
 import { useAccount, useSwitchChain } from "wagmi";
 import { useWallets } from "@privy-io/react-auth";
 import { SOLANA_CHAIN_ID } from "../hooks/useCheckin";
-import { setChainId } from "../redux/slices/walletSlice";
+import { setChainId, setWalletModal } from "../redux/slices/walletSlice";
 import {
   getPrivyEmbedded,
   switchPrivyEmbeddedToChain,
 } from "../utils/privyWalletUtils";
+import { useAuth } from "../hooks/useAuth";
 
 const PREFERRED_CHAIN_STORAGE_KEY = "walletPreferredChainId";
 
@@ -113,6 +114,7 @@ export function CheckinModal({
   const chainId = useSelector((state) => state.wallet.chainId);
   const sessionSource = useSelector((state) => state.wallet.sessionSource);
   const { wallets } = useWallets();
+  const { isAuthenticated } = useAuth();
   const isSolana = walletType === "solana";
   const isPrivySession =
     sessionSource === "privy" || walletType === "privy";
@@ -145,12 +147,12 @@ export function CheckinModal({
     () => mapStatusToWeekDays(status?.rewards),
     [status?.rewards],
   );
-  const totalPointsCollected = status?.totalPointsEarned ?? 0;
-  const { totalPoints } = useTotalPoints();
-  const giftsCollected =
-    status?.rewards.filter((items) => {
-      return items.claimed === true;
-    }).length ?? 0;
+  const totalPointsCollected = isAuthenticated ? (status?.totalPointsEarned ?? 0) : 0;
+  const { totalPoints: rawTotalPoints } = useTotalPoints();
+  const totalPoints = isAuthenticated ? rawTotalPoints : 0;
+  const giftsCollected = isAuthenticated
+    ? (status?.rewards?.filter((items) => items.claimed === true).length ?? 0)
+    : 0;
 
   const activeDay = weekDays.find((day) => day.status === "active");
   const currentDay =
@@ -576,8 +578,8 @@ export function CheckinModal({
                       </div>
                     )}
 
-                    {/* Chain selector */}
-                    <div className="w-full mb-4">
+                    {/* Chain selector — only shown when authenticated */}
+                    {isAuthenticated && <div className="w-full mb-4">
                       <label className="block text-xs font-semibold text-gray-500 mb-2">
                         Claim on
                       </label>
@@ -644,10 +646,17 @@ export function CheckinModal({
                           </>
                         )}
                       </div>
-                    </div>
+                    </div>}
 
                     {/* Claim Button or Status */}
-                    {isClaimedView ? (
+                    {!isAuthenticated ? (
+                      <button
+                        onClick={() => { dispatch(setWalletModal(true)); onClose(); }}
+                        className="w-full px-8 py-3 rounded-xl font-semibold transition-all shadow-lg bg-black text-white hover:shadow-xl hover:scale-105"
+                      >
+                        Connect Wallet
+                      </button>
+                    ) : isClaimedView ? (
                       <div className="w-full px-8 py-3 rounded-xl font-semibold text-center bg-green-100 text-green-700 border-2 border-green-300">
                         <span className="flex items-center justify-center gap-2">
                           <Check size={20} />
