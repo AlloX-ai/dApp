@@ -1,12 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  AlertTriangle,
   ArrowLeft,
   BellPlus,
   BarChart3,
   Check,
   ChevronDown,
+  Loader2,
   Plus,
   Pencil,
+  RefreshCw,
   Search,
   Trash2,
   TrendingDown,
@@ -127,16 +130,6 @@ export function PortfolioPage() {
     });
   }, [navigate]);
 
-  const goToToken = useCallback(
-    (symbol) => {
-      if (!symbol) return;
-      navigate(
-        `/trending?token=${encodeURIComponent(String(symbol).toUpperCase())}`,
-      );
-    },
-    [navigate],
-  );
-
   const goToNarrative = useCallback(
     (id, label) => {
       if (!id) return;
@@ -183,6 +176,23 @@ export function PortfolioPage() {
   const [isSellExecuting, setIsSellExecuting] = useState(false);
   const [sellExecutionError, setSellExecutionError] = useState("");
   const [sellExecutionLogs, setSellExecutionLogs] = useState([]);
+  // Per-order execution status: executionOrderId -> 'executing'|'confirmed'|'failed'
+  const [orderStatusMap, setOrderStatusMap] = useState({});
+  // Retry prompt state: pauses execution until user decides
+  const [retryPrompt, setRetryPrompt] = useState(null); // { symbol, attempt, maxAttempts }
+  const retryResolverRef = useRef(null);
+
+  const goToToken = useCallback(
+    (symbol) => {
+      if (!symbol) return;
+      const params = new URLSearchParams();
+      params.set("token", String(symbol).toUpperCase());
+      params.set("from", "portfolio");
+      if (activePortfolioId) params.set("portfolioId", activePortfolioId);
+      navigate(`/trending?${params.toString()}`);
+    },
+    [navigate, activePortfolioId],
+  );
 
   const getAnalytics = useCallback(async (portfolioId) => {
     const response = await apiCall(`/portfolio/${portfolioId}/analytics`);
@@ -518,7 +528,16 @@ export function PortfolioPage() {
     setSellExecutionError("");
     setSellExecutionLogs([]);
     setSellRequiredSlippage(null);
+    setOrderStatusMap({});
+    setRetryPrompt(null);
+    retryResolverRef.current = null;
   }, [isSellExecuting]);
+
+  const handleRetryDecision = useCallback((shouldRetry) => {
+    setRetryPrompt(null);
+    retryResolverRef.current?.(shouldRetry);
+    retryResolverRef.current = null;
+  }, []);
 
   const quoteSell = useCallback(
     async (target) => {
@@ -689,12 +708,16 @@ export function PortfolioPage() {
     [addSellLog, runApprovalStep],
   );
 
+  const MAX_ORDER_ATTEMPTS = 3;
+
   const confirmSell = useCallback(async () => {
     if (!sellTarget?.portfolioId || !sellQuote?.orders?.length) return;
     setIsSellExecuting(true);
     setSellExecutionError("");
     setSellRequiredSlippage(null);
     setSellExecutionLogs([]);
+    setOrderStatusMap({});
+    setRetryPrompt(null);
     const slippageValue = Number(sellSlippage) > 0 ? Number(sellSlippage) : 1;
 
     try {
@@ -727,9 +750,88 @@ export function PortfolioPage() {
       txEnv.assertReady();
 
       let confirmed = 0;
-      for (const order of sellQuote.orders) {
-        const ok = await executeSingleOrder(order, txEnv, slippageValue);
-        if (ok) confirmed += 1;
+      for (const initialOrder of sellQuote.orders) {
+        let currentOrder = initialOrder;
+        let orderConfirmed = false;
+
+        for (let attempt = 1; attempt <= MAX_ORDER_ATTEMPTS; attempt++) {
+          setOrderStatusMap((prev) => ({
+            ...prev,
+            [currentOrder.executionOrderId]: "executing",
+          }));
+
+          const ok = await executeSingleOrder(
+            currentOrder,
+            txEnv,
+            slippageValue,
+          );
+
+          if (ok) {
+            setOrderStatusMap((prev) => ({
+              ...prev,
+              [currentOrder.executionOrderId]: "confirmed",
+            }));
+            orderConfirmed = true;
+            break;
+          }
+
+          setOrderStatusMap((prev) => ({
+            ...prev,
+            [currentOrder.executionOrderId]: "failed",
+          }));
+
+          if (attempt >= MAX_ORDER_ATTEMPTS) {
+            addSellLog(
+              `${currentOrder.symbol}: max retries (${MAX_ORDER_ATTEMPTS}) reached, skipping.`,
+            );
+            break;
+          }
+
+          // Pause and wait for user retry/skip decision
+          setRetryPrompt({
+            symbol: currentOrder.symbol,
+            attempt,
+            maxAttempts: MAX_ORDER_ATTEMPTS,
+          });
+          const shouldRetry = await new Promise((resolve) => {
+            retryResolverRef.current = resolve;
+          });
+
+          if (!shouldRetry) {
+            addSellLog(`${currentOrder.symbol}: skipped by user.`);
+            break;
+          }
+
+          // Re-quote this token to get a fresh executionOrderId
+          addSellLog(
+            `${currentOrder.symbol}: re-quoting for retry ${attempt + 1}...`,
+          );
+          try {
+            const reQuote = await apiCall(
+              `/portfolio/${sellTarget.portfolioId}/sell/quote`,
+              {
+                method: "POST",
+                body: JSON.stringify({
+                  symbol: currentOrder.symbol,
+                  slippage: slippageValue,
+                }),
+              },
+            );
+            const newOrder = reQuote?.orders?.[0];
+            if (!newOrder?.executionOrderId) {
+              addSellLog(
+                `${currentOrder.symbol}: no new order from re-quote, skipping.`,
+              );
+              break;
+            }
+            currentOrder = newOrder;
+          } catch {
+            addSellLog(`${currentOrder.symbol}: re-quote failed, skipping.`);
+            break;
+          }
+        }
+
+        if (orderConfirmed) confirmed += 1;
       }
 
       if (confirmed > 0) {
@@ -748,13 +850,19 @@ export function PortfolioPage() {
     } catch (error) {
       if (error?.status === 401) {
         logout();
+        return;
       }
       setSellExecutionError(error?.message || "Sell execution failed.");
+      // Auto re-quote so user can retry with fresh execution order IDs
+      quoteSell(sellTarget);
     } finally {
       setIsSellExecuting(false);
+      setRetryPrompt(null);
+      retryResolverRef.current = null;
     }
   }, [
     authUser?.authProvider,
+    addSellLog,
     closeSellModal,
     ensureAuthenticated,
     executeSingleOrder,
@@ -762,9 +870,10 @@ export function PortfolioPage() {
     loadPortfolios,
     logout,
     privySendTransaction,
+    quoteSell,
     sellQuote?.orders,
     sellSlippage,
-    sellTarget?.portfolioId,
+    sellTarget,
     wallets,
   ]);
 
@@ -780,24 +889,22 @@ export function PortfolioPage() {
   const positionsInfo = Array.isArray(portfolioInfo?.portfolio?.positions)
     ? portfolioInfo.portfolio.positions
     : [];
+  const isPositionClosed = (pos) => {
+    if (pos?.soldAt) return true;
+    const status = String(pos?.status || "").toUpperCase();
+    const sellStatus = String(pos?.sellStatus || "").toUpperCase();
+    return (
+      status === "CLOSED" ||
+      sellStatus === "CLOSED" ||
+      sellStatus === "CONFIRMED"
+    );
+  };
   const activePositionsInfo = useMemo(
-    () =>
-      positionsInfo.filter(
-        (pos) =>
-          !pos?.soldAt &&
-          String(pos?.status || "").toUpperCase() !== "CLOSED" &&
-          String(pos?.sellStatus || "").toUpperCase() !== "CLOSED",
-      ),
+    () => positionsInfo.filter((pos) => !isPositionClosed(pos)),
     [positionsInfo],
   );
   const closedPositionsInfo = useMemo(
-    () =>
-      positionsInfo.filter(
-        (pos) =>
-          !!pos?.soldAt ||
-          String(pos?.status || "").toUpperCase() === "CLOSED" ||
-          String(pos?.sellStatus || "").toUpperCase() === "CLOSED",
-      ),
+    () => positionsInfo.filter((pos) => isPositionClosed(pos)),
     [positionsInfo],
   );
   const selectedRiskLabel =
@@ -2208,27 +2315,54 @@ export function PortfolioPage() {
                     {sellQuoteOrders.map((order) => {
                       const priceImpact = Number(order.priceImpact || 0);
                       const isHighImpact = priceImpact >= 5;
+                      const orderStatus =
+                        orderStatusMap[order.executionOrderId];
                       return (
                         <div
                           key={order.executionOrderId}
-                          className={`border rounded-xl p-3 text-sm ${
-                            isHighImpact
-                              ? "bg-amber-50 border-amber-300"
-                              : "bg-white border-gray-200"
+                          className={`border rounded-xl p-3 text-sm transition-colors ${
+                            orderStatus === "confirmed"
+                              ? "bg-emerald-50 border-emerald-300"
+                              : orderStatus === "failed"
+                                ? "bg-red-50 border-red-200"
+                                : isHighImpact
+                                  ? "bg-amber-50 border-amber-300"
+                                  : "bg-white border-gray-200"
                           }`}
                         >
-                          <div className="flex items-center justify-between">
+                          <div className="flex items-center justify-between gap-2">
                             <div className="font-semibold flex items-center gap-2">
                               {order.symbol}
-                              {isHighImpact ? (
+                              {isHighImpact && orderStatus !== "confirmed" ? (
                                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-200 text-amber-900 uppercase tracking-wide">
                                   High impact
                                 </span>
                               ) : null}
                             </div>
-                            <div className="text-gray-700">
-                              ~{Number(order.estimatedUsdtOut || 0).toFixed(4)}{" "}
-                              USDT
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-700">
+                                ~
+                                {Number(order.estimatedUsdtOut || 0).toFixed(4)}{" "}
+                                USDT
+                              </span>
+                              {orderStatus === "executing" && (
+                                <Loader2
+                                  size={15}
+                                  className="animate-spin text-blue-500 shrink-0"
+                                />
+                              )}
+                              {orderStatus === "confirmed" && (
+                                <Check
+                                  size={15}
+                                  className="text-emerald-600 shrink-0"
+                                />
+                              )}
+                              {orderStatus === "failed" && (
+                                <AlertTriangle
+                                  size={15}
+                                  className="text-red-500 shrink-0"
+                                />
+                              )}
                             </div>
                           </div>
                           <div className="text-xs text-gray-500 mt-1 flex items-center gap-2 flex-wrap">
@@ -2289,6 +2423,35 @@ export function PortfolioPage() {
                 ))}
               </div>
             ) : null}
+
+            {retryPrompt && (
+              <div className="mt-4 bg-amber-50 border border-amber-300 rounded-xl p-4">
+                <div className="text-sm text-amber-800 font-semibold mb-1 flex items-center gap-1">
+                  <AlertTriangle size={14} className="shrink-0" />
+                  {retryPrompt.symbol} failed (attempt {retryPrompt.attempt}/
+                  {retryPrompt.maxAttempts})
+                </div>
+                <p className="text-xs text-amber-700 mb-3">
+                  Would you like to retry this order?
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleRetryDecision(true)}
+                    className="px-3 py-1.5 text-xs rounded-xl bg-amber-600 text-white hover:bg-amber-700 font-semibold"
+                  >
+                    Retry
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleRetryDecision(false)}
+                    className="px-3 py-1.5 text-xs rounded-xl border border-gray-200 hover:bg-gray-50"
+                  >
+                    Skip
+                  </button>
+                </div>
+              </div>
+            )}
 
             <div className="mt-5 flex justify-end gap-2">
               <button

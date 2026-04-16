@@ -27,6 +27,8 @@ export function TokenDetailPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const symbol = searchParams.get("token")?.trim()?.toUpperCase() || "";
+  const fromPortfolio = searchParams.get("from") === "portfolio";
+  const fromPortfolioId = searchParams.get("portfolioId") || null;
   const { ensureAuthenticated, logout } = useAuth();
 
   const [tokenData, setTokenData] = useState(null);
@@ -128,7 +130,13 @@ export function TokenDetailPage() {
   }, [symbol, ensureAuthenticated, logout]);
 
   const handleBack = () => {
-    navigate("/trending");
+    if (fromPortfolio && fromPortfolioId) {
+      navigate(`/portfolio?portfolio=${fromPortfolioId}`);
+    } else if (fromPortfolio) {
+      navigate("/portfolio");
+    } else {
+      navigate("/trending");
+    }
   };
 
   const handleAddToWatchlist = async () => {
@@ -223,7 +231,7 @@ export function TokenDetailPage() {
           className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to Trending
+          {fromPortfolio ? "Back to Portfolio" : "Back to Trending"}
         </button>
         <p className="text-gray-600">
           No token specified. Use the search or click a token.
