@@ -162,11 +162,26 @@ export function TradingCompetitionPage() {
         <h2 className="text-xl sm:text-3xl font-bold text-gray-900">
           The Allocation Race
         </h2>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col lg:flex-row items-center gap-3">
+            <a
+                          href="https://skynet.certik.com/projects/allox"
+                          target="_blank"
+                          className="flex items-center w-full gap-2"
+                        >
+                          <div className="text-black font-medium text-xs ">
+                            Secured by
+                          </div>
+                          <img
+                            src="https://cdn.allox.ai/allox/partners/certikLarge.svg"
+                            className="w-18"
+                            alt=""
+                          />
+                        </a>
           {/* Reward Pool Badge */}
           <div className="glass-card px-4 py-2 bg-gradient-to-r from-amber-500/20 to-orange-600/20 border-amber-500/40">
             <div className="flex items-center gap-2">
               <div>
+                
                 <div className="text-xs text-gray-600 font-medium">
                   Total Prize Pool
                 </div>
@@ -327,7 +342,7 @@ export function TradingCompetitionPage() {
           <div className="border-t border-gray-200 pt-3">
             <h4 className="text-sm font-bold text-gray-900 mb-2">Rewards</h4>
             <div className="grid grid-cols-2 gap-2">
-              <div className="bg-gradient-to-br from-amber-50 to-yellow-50 border border-amber-200 rounded-lg p-2">
+              <div className="bg-gradient-to-br from-gray-50 to-slate-50 border border-amber-200 rounded-lg p-2">
                 <div className="flex items-center gap-1 mb-1">
                   <Crown className="w-3 h-3 text-amber-600" />
                   <span className="font-bold text-xs text-gray-900">Top 3</span>
@@ -339,7 +354,7 @@ export function TradingCompetitionPage() {
                 </div>
               </div>
 
-              <div className="bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-200 rounded-lg p-2">
+              <div className="bg-gradient-to-br from-gray-50 to-slate-50 border border-purple-200 rounded-lg p-2">
                 <div className="flex items-center gap-1 mb-1">
                   <Trophy className="w-3 h-3 text-purple-600" />
                   <span className="font-bold text-xs text-gray-900">4-10</span>
@@ -350,7 +365,7 @@ export function TradingCompetitionPage() {
                 </div>
               </div>
 
-              <div className="bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-200 rounded-lg p-2">
+              <div className="bg-gradient-to-br from-gray-50 to-slate-50 border border-blue-200 rounded-lg p-2">
                 <div className="flex items-center gap-1 mb-1">
                   <Medal className="w-3 h-3 text-blue-600" />
                   <span className="font-bold text-xs text-gray-900">11-50</span>
