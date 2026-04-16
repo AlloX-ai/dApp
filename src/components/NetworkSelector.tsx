@@ -8,7 +8,13 @@ import { connect, disconnect, getAccount } from "@wagmi/core";
 import { wagmiClient } from "../wagmiConnectors";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useSwitchChain, useAccount } from "wagmi";
+import { useWallets } from "@privy-io/react-auth";
+import {
+  getPrivyEmbedded,
+  switchPrivyEmbeddedToChain,
+} from "../utils/privyWalletUtils";
 
+const PREFERRED_CHAIN_STORAGE_KEY = "walletPreferredChainId";
 const SOLANA_CHAIN_ID = 101;
 const AUTH_USER_KEY = "authUser";
 
@@ -44,14 +50,19 @@ type NetworkSelectorProps = {
 export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
   const dispatch = useDispatch();
   const [isOpen, setIsOpen] = useState(false);
-  const [switching, setSwitching] = useState(false);
   const [isSwitching, setIsSwitching] = useState(false);
-
+    const [switching, setSwitching] = useState(false);
   const chainId = useSelector((state: any) => state.wallet.chainId);
   const walletType = useSelector((state: any) => state.wallet.walletType);
-  const { connected: solanaConnected, publicKey: solanaPublicKey } = useWallet();
+    const { connected: solanaConnected, publicKey: solanaPublicKey } = useWallet();
+  const sessionSource = useSelector((state: any) => state.wallet.sessionSource);
+  const { wallets } = useWallets();
   const { connector } = useAccount();
   const { switchChainAsync } = useSwitchChain();
+
+  const isPrivySession =
+    sessionSource === "privy" ||
+    walletType === "privy";
   const errorNetwork: NetworkOption[] = [
     {
       name: "",
@@ -112,128 +123,126 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
     networks.find((network) => network.chainId === chainId) ?? errorNetwork[0];
 
   const handleSwitchNetwork = async (network: NetworkOption) => {
+    // Already on Solana — just ensure chain state is correct
     if (network.name === "Solana") {
-      if (walletType !== "solana") {
-        toast.error(
-          "Solana requires a Solana-capable wallet (e.g. MetaMask with Solana). Please connect with a Solana wallet.",
-        );
-        setIsOpen(false);
-        return;
-      }
+      localStorage.setItem(PREFERRED_CHAIN_STORAGE_KEY, String(SOLANA_CHAIN_ID));
       dispatch(setChainId(SOLANA_CHAIN_ID));
       setIsOpen(false);
       return;
     }
 
-    const provider = (window as any).ethereum;
-    if (!provider) {
-      toast.error("No EVM wallet detected (e.g. MetaMask).");
+    // Switching from Solana to an EVM network.
+    // Phantom exposes an EVM provider at window.phantom.ethereum; fall back to window.ethereum.
+    const evmProvider = (window as any).phantom?.ethereum ?? (window as any).ethereum;
+    if (!evmProvider) {
+      toast.error("No EVM wallet detected. Connect a wallet that supports EVM (e.g. Phantom, MetaMask).");
+      setIsOpen(false);
       return;
     }
 
     setSwitching(true);
     setIsSwitching(true);
     try {
-      await provider.request({
-        method: "wallet_switchEthereumChain",
-        params: [{ chainId: network.chainHex }],
-      });
+      // Ask the wallet to switch chain first
       try {
-        await provider.request({ method: "eth_requestAccounts" });
-      } catch (accountsError) {
-        console.error("Failed to request EVM accounts:", accountsError);
+        await evmProvider.request({
+          method: "wallet_switchEthereumChain",
+          params: [{ chainId: network.chainHex }],
+        });
+      } catch (switchErr) {
+        const switchError = switchErr as { code?: number };
+        if (switchError?.code === 4902) {
+          // Chain not added — add it, then switch
+          await evmProvider.request({
+            method: "wallet_addEthereumChain",
+            params: [{
+              chainId: network.chainHex,
+              chainName: network.chainName,
+              rpcUrls: network.rpcUrls,
+              blockExplorerUrls: network.blockExplorerUrls,
+              nativeCurrency: network.nativeCurrency,
+            }],
+          });
+          await evmProvider.request({
+            method: "wallet_switchEthereumChain",
+            params: [{ chainId: network.chainHex }],
+          });
+        } else {
+          throw switchErr;
+        }
       }
 
-      const metaMaskConnector = wagmiClient.connectors.find(
-        (c: { name: string; }) => c.name?.toLowerCase().includes("metamask"),
+      // Request accounts to get the EVM address
+      const accounts: string[] = await evmProvider.request({ method: "eth_requestAccounts" });
+      const evmAddress = accounts?.[0];
+
+      // Connect wagmi to the injected (Phantom EVM) connector
+      const injectedConnector = wagmiClient.connectors.find(
+        (c: { name: string; id: string }) =>
+          c.name?.toLowerCase().includes("phantom") || c.id === "injected",
       );
-      if (metaMaskConnector) {
-        const existingAccount = getAccount(wagmiClient);
-        const alreadyMetaMask =
-          existingAccount?.connector?.name?.toLowerCase?.().includes("metamask") &&
-          existingAccount?.status === "connected";
-        if (!alreadyMetaMask) {
-          await connect(wagmiClient, { connector: metaMaskConnector });
-        }
-        const account = getAccount(wagmiClient);
-        if (account?.address) {
-          dispatch(setAddress(account.address));
-          dispatch(setWalletType("evm"));
-          dispatch(setIsConnected(true));
+      if (injectedConnector) {
+        const existing = getAccount(wagmiClient);
+        if (existing?.status !== "connected") {
+          try {
+            await connect(wagmiClient, { connector: injectedConnector });
+          } catch (e) {
+            // already connected or user dismissed — non-fatal
+          }
         }
       }
-      dispatch(setChainId(network.chainId));
-      const stored = getStoredAuthUser();
-      if (stored) {
-        const account = getAccount(wagmiClient);
-        localStorage.setItem(
-          AUTH_USER_KEY,
-          JSON.stringify({ ...stored, walletType: "evm", address: account?.address ?? stored.address }),
-        );
+
+      const address = getAccount(wagmiClient).address ?? evmAddress;
+      if (address) {
+        dispatch(setAddress(address));
+        dispatch(setWalletType("evm"));
+        dispatch(setChainId(network.chainId));
+        dispatch(setIsConnected(true));
+        localStorage.removeItem(PREFERRED_CHAIN_STORAGE_KEY);
+        const stored = getStoredAuthUser();
+        if (stored) {
+          localStorage.setItem(
+            AUTH_USER_KEY,
+            JSON.stringify({ ...stored, walletType: "evm", address }),
+          );
+        }
       }
       setIsOpen(false);
     } catch (error) {
-      const walletError = error as { code?: number };
-      if (walletError?.code === 4902 && connector) {
-        try {
-          const provider: any = await connector.getProvider();
-          await provider.request({
-            method: "wallet_addEthereumChain",
-            params: [
-              {
-                chainId: network.chainHex,
-                chainName: network.chainName,
-                rpcUrls: network.rpcUrls,
-                blockExplorerUrls: network.blockExplorerUrls,
-                nativeCurrency: network.nativeCurrency,
-              },
-            ],
-          });
-          const metaMaskConnector = wagmiClient.connectors.find(
-            (c) => c.name?.toLowerCase().includes("metamask"),
-          );
-          if (metaMaskConnector) {
-            const existingAccount = getAccount(wagmiClient);
-            const alreadyMetaMask =
-              existingAccount?.connector?.name?.toLowerCase?.().includes("metamask") &&
-              existingAccount?.status === "connected";
-            if (!alreadyMetaMask) {
-              await connect(wagmiClient, { connector: metaMaskConnector });
-            }
-            const account = getAccount(wagmiClient);
-            if (account?.address) {
-              dispatch(setAddress(account.address));
-              dispatch(setWalletType("evm"));
-              dispatch(setIsConnected(true));
-            }
-          }
-          dispatch(setChainId(network.chainId));
-          const stored = getStoredAuthUser();
-          if (stored) {
-            const account = getAccount(wagmiClient);
-            localStorage.setItem(
-              AUTH_USER_KEY,
-              JSON.stringify({ ...stored, walletType: "evm", address: account?.address ?? stored.address }),
-            );
-          }
-          setIsOpen(false);
-        } catch (addErr) {
-          console.error("Add network error:", addErr);
-          toast.error("Failed to add or switch network.");
-        }
-      } else {
-        console.error("Network switch error:", error);
-        toast.error("Failed to switch network.");
-      }
+      console.error("Network switch error:", error);
       toast.error("Failed to switch network.");
     } finally {
       setSwitching(false);
+      setIsSwitching(false);
+    }
+  }
+
+  const switchPrivyEVMChain = async (network: NetworkOption) => {
+    const embedded = getPrivyEmbedded(wallets);
+    if (!embedded) {
+      toast.error("Embedded wallet not ready. Refresh the page or sign in again.");
+      return;
+    }
+    try {
+      setIsSwitching(true);
+      await switchPrivyEmbeddedToChain(embedded, network.chainId);
+      dispatch(setChainId(network.chainId));
+      localStorage.removeItem(PREFERRED_CHAIN_STORAGE_KEY);
+      setIsOpen(false);
+    } catch (error) {
+      console.error("Privy network switch error:", error);
+      toast.error("Failed to switch network.");
+    } finally {
       setIsSwitching(false);
     }
   };
 
   const switchEVMChain = async (network: NetworkOption) => {
     if (network.name === "Solana") return;
+    if (isPrivySession) {
+      await switchPrivyEVMChain(network);
+      return;
+    }
     if (!switchChainAsync) {
       toast.error("Unable to switch chain. Please try reconnecting your wallet.");
       return;
@@ -246,7 +255,7 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
       setIsSwitching(true);
       await switchChainAsync({ chainId: network.chainId });
       dispatch(setChainId(network.chainId));
-      // localStorage.removeItem(PREFERRED_CHAIN_STORAGE_KEY);
+      localStorage.removeItem(PREFERRED_CHAIN_STORAGE_KEY);
       setIsOpen(false);
     } catch (error) {
       const err = error as { code?: number };
@@ -267,7 +276,7 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
           });
           await switchChainAsync({ chainId: network.chainId });
           dispatch(setChainId(network.chainId));
-          // localStorage.removeItem(PREFERRED_CHAIN_STORAGE_KEY);
+          localStorage.removeItem(PREFERRED_CHAIN_STORAGE_KEY);
           setIsOpen(false);
         } catch (addErr) {
           console.error("Add network error:", addErr);
@@ -285,7 +294,7 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
   const handleSwitchToSolana = async () => {
     if (!solanaConnected || !solanaPublicKey) {
       toast.error(
-        "Please connect MetaMask Solana from the wallet modal first.",
+        "Please connect a Solana wallet (Phantom or MetaMask Solana) from the wallet modal first.",
       );
       return;
     }
@@ -322,8 +331,15 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
 
   const handleSwitchNetworkEVM = async (network: NetworkOption) => {
     if (network.name === "Solana") {
+      if (isPrivySession) {
+        toast.error(
+          "Your session uses Privy’s embedded EVM wallet. Use Ethereum, BNB Chain, or Base.",
+        );
+        setIsOpen(false);
+        return;
+      }
       toast.error(
-        "Solana requires a Solana-capable wallet (e.g. MetaMask with Solana). Please connect with a Solana wallet.",
+        "Solana requires a Solana-capable wallet (e.g. Phantom). Please connect with a Solana wallet.",
       );
       setIsOpen(false);
       return;
@@ -340,7 +356,7 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
       handleSwitchNetworkEVM(network);
     }
   };
-
+  
   return (
     <div className="relative">
       <button

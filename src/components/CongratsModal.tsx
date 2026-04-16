@@ -16,7 +16,7 @@ export function CongratsModal({
 }: CongratsModalProps) {
 
   const handleShareToTwitter = () => {
-    const twitterUrl = `https://twitter.com/intent/tweet`;
+    const twitterUrl = `https://x.com/intent/tweet`;
     window.open(twitterUrl, "_blank");
   };
 

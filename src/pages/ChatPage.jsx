@@ -9,6 +9,7 @@ import {
   Clock,
   X,
   RefreshCw,
+  TrendingUp,
   HelpCircle,
   Check,
   RefreshCcw,
@@ -34,7 +35,22 @@ import {
 } from "../redux/slices/pointsSlice";
 import { apiCall } from "../utils/api";
 import { fetchChatStatus as fetchChatStatusApi } from "../utils/chatStatusFetch";
-import { executePortfolioOnChain } from "../utils/execution";
+import {
+  getBonusMessages,
+  getDailyMessagesRemaining,
+  getTotalMessagesRemaining,
+} from "../utils/rateLimitMessages";
+import { MessageLimitModal } from "../components/MessageLimitModal";
+
+import {
+  executePortfolioOnChain,
+  createPrivyExecutionTxEnv,
+} from "../utils/execution";
+import {
+  useWallets,
+  getEmbeddedConnectedWallet,
+  useSendTransaction,
+} from "@privy-io/react-auth";
 import { useAuth } from "../hooks/useAuth";
 import { NavLink, useLocation, useNavigate } from "react-router";
 import getFormattedNumber from "../hooks/get-formatted-number";
@@ -85,10 +101,38 @@ function formatResetAt(resetAt) {
 
 const NARRATIVE_MODAL_OPTIONS = [
   {
-    id: "rwa",
-    label: "Real-World Assets (RWA)",
+    id: "layer2",
+    label: "Layer 2",
     description:
-      "Protocols bringing real-world assets like treasuries, real estate, and credit on-chain.",
+      "Scaling ecosystems and rollups expanding Ethereum throughput with lower fees.",
+    riskProfile: "LOW_TO_MEDIUM",
+  },
+  {
+    id: "privacy",
+    label: "Privacy",
+    description:
+      "Privacy-focused protocols and tooling enabling confidential transfers and on-chain privacy.",
+    riskProfile: "MEDIUM",
+  },
+  {
+    id: "infra",
+    label: "Infrastructure",
+    description:
+      "Core blockchain infrastructure across data, middleware, indexing, and developer platforms.",
+    riskProfile: "MEDIUM",
+  },
+  {
+    id: "social",
+    label: "SocialFi",
+    description:
+      "Social finance applications combining creator economies, communities, and on-chain incentives.",
+    riskProfile: "MEDIUM_TO_HIGH",
+  },
+  {
+    id: "payments",
+    label: "Payments",
+    description:
+      "Projects focused on crypto payments, settlement rails, remittances, and merchant adoption.",
     riskProfile: "LOW_TO_MEDIUM",
   },
   {
@@ -111,6 +155,13 @@ const NARRATIVE_MODAL_OPTIONS = [
       "Decentralized physical infrastructure networks — storage, compute, wireless, IoT, and bandwidth.",
     riskProfile: "MEDIUM_TO_HIGH",
   },
+  {
+    id: "memes",
+    label: "Memecoins",
+    description:
+      "Community-driven tokens driven by attention, culture, and speculation.",
+    riskProfile: "HIGH",
+  },
 ];
 
 export function ChatPage() {
@@ -125,13 +176,16 @@ export function ChatPage() {
     rateLimit,
     chatStatus,
     backendResetRequestId,
+    slippage: chatSlippageSetting,
   } = useSelector((state) => state.chat);
   const isReadOnly = !!viewingHistorySessionId;
   const isConnected = useSelector((state) => state.wallet.isConnected);
   const walletChainId = useSelector((state) => state.wallet.chainId);
   const walletAddress = useSelector((state) => state.wallet.address);
   const pointsBalance = useSelector((state) => state.points?.balance);
-  const messagesRemaining = rateLimit?.remaining;
+  const messagesRemaining = getTotalMessagesRemaining(rateLimit);
+  const dailyMessagesRemaining = getDailyMessagesRemaining(rateLimit);
+  const bonusMessages = getBonusMessages(rateLimit);
   const resetAt = rateLimit?.resetAt;
   const canRefresh = chatStatus?.activity?.canRefresh === true;
   const {
@@ -141,6 +195,8 @@ export function ChatPage() {
     claimSeason1,
     logout,
   } = useAuth();
+  const { wallets } = useWallets();
+  const { sendTransaction: privySendTransaction } = useSendTransaction();
 
   const speechBoxRef = useRef(null);
   const typingTimerRef = useRef(null);
@@ -148,6 +204,7 @@ export function ChatPage() {
   const completedMessageIdsRef = useRef(new Set());
   const consumedRouteSuggestionKeysRef = useRef(new Set());
   const [showWalletPrompt, setShowWalletPrompt] = useState(false);
+  const [isMessageLimitModalOpen, setIsMessageLimitModalOpen] = useState(false);
   const [showWelcomeGiftModal, setShowWelcomeGiftModal] = useState(false);
   const [userDismissedClaimModal, setUserDismissedClaimModal] = useState(false);
   const [claiming, setClaiming] = useState(false);
@@ -165,6 +222,7 @@ export function ChatPage() {
   const [refreshOnchainLoading, setRefreshOnchainLoading] = useState(false);
   const [refreshOnchainMessage, setRefreshOnchainMessage] = useState(null);
   const [statusLoading, setStatusLoading] = useState(false);
+  // const [pnl, setPnl] = useState(0);
 
   const [executionState, setExecutionState] = useState({
     isExecuting: false,
@@ -191,12 +249,26 @@ export function ChatPage() {
   const [quickIsRemoving, setQuickIsRemoving] = useState(false);
   const [quickForm, setQuickForm] = useState({
     chain: null, // "BSC" | "ETH" | "BASE"
-    portfolioType: null, // "Diversified" | "Defi" | "RWA" | "AI" | ...
+    portfolioType: null, // "Diversified" | "Defi" | "layer2" | "privacy" | "infra" | "social" | "payments" | "AI" | ...
     amountUsd: null,
     customAmountUsdText: "",
     risk: null, // "CONSERVATIVE" | "BALANCED" | "AGGRESSIVE"
     paymentToken: null, // "BNB" | "USDT" | "USDC"
   });
+  const quickMissingSelections = useMemo(() => {
+    const missing = [];
+    if (!quickForm.chain) missing.push("blockchain");
+    if (!quickForm.portfolioType) missing.push("portfolio type");
+    if (!quickForm.amountUsd) missing.push("investment amount");
+    if (!quickForm.risk) missing.push("risk tolerance");
+    return missing;
+  }, [
+    quickForm.amountUsd,
+    quickForm.chain,
+    quickForm.portfolioType,
+    quickForm.risk,
+  ]);
+  const quickCanGenerate = quickMissingSelections.length === 0;
   const [quickBasket, setQuickBasket] = useState([]);
   const [quickPreviewMeta, setQuickPreviewMeta] = useState(null); // { chain, executionMode, positions... }
 
@@ -447,6 +519,13 @@ export function ChatPage() {
     });
   }, [currentMessages]);
 
+  // const fetchPLData = async () => {
+  //   const data = await apiCall(`/portfolio/stats/pnl`, {}, "v2");
+  //   if (data) {
+  //     setPnl(data.pnlPercent);
+  //   }
+  // };
+
   useEffect(() => {
     return () => {
       if (typingTimerRef.current) {
@@ -490,6 +569,7 @@ export function ChatPage() {
   useEffect(() => {
     window.scrollTo(0, 0);
     document.title = "AlloX AI Agent";
+    // fetchPLData();
   }, []);
 
   const fetchChatStatus = useCallback(async () => {
@@ -866,10 +946,49 @@ export function ChatPage() {
           portfolioId: null,
           tokenStatuses: {},
         }));
-        const completeData = await executePortfolioOnChain(execution, {
-          onUpdate: handleExecutionUpdate,
-          onPrompt: promptExecutionDecision,
-        });
+        const slippageFromChat = parseFloat(chatSlippageSetting);
+        const executionWithSlippage = {
+          ...execution,
+          slippage:
+            execution?.slippage != null && execution.slippage !== ""
+              ? Number(execution.slippage)
+              : Number.isFinite(slippageFromChat) && slippageFromChat > 0
+                ? slippageFromChat
+                : 0.5,
+        };
+
+        let privyTxEnv;
+        if (authUser?.authProvider === "privy") {
+          const embedded = getEmbeddedConnectedWallet(wallets);
+          if (!embedded) {
+            throw new Error(
+              "Embedded wallet not found. Refresh the page or sign in again.",
+            );
+          }
+          const cid = embedded.chainId;
+          const onBsc =
+            cid === "eip155:56" ||
+            (typeof cid === "string" &&
+              cid.startsWith("0x") &&
+              parseInt(cid, 16) === 56) ||
+            Number(cid) === 56;
+          if (!onBsc) {
+            await embedded.switchChain(56);
+          }
+          privyTxEnv = createPrivyExecutionTxEnv(
+            embedded.address,
+            privySendTransaction,
+          );
+        }
+
+        const completeData = await executePortfolioOnChain(
+          executionWithSlippage,
+          {
+            onUpdate: handleExecutionUpdate,
+            onPrompt: promptExecutionDecision,
+            ...(privyTxEnv ? { txEnv: privyTxEnv } : {}),
+          },
+        );
         const portfolioId = completeData?.portfolioId;
         setExecutionState((prev) => ({
           ...prev,
@@ -909,7 +1028,16 @@ export function ChatPage() {
         );
       }
     },
-    [dispatch, handleExecutionUpdate, promptExecutionDecision],
+    [
+      authUser?.authProvider,
+      chatSlippageSetting,
+      dispatch,
+      handleExecutionUpdate,
+      privySendTransaction,
+      promptExecutionDecision,
+      queryClient,
+      wallets,
+    ],
   );
 
   const QUICK_CHAIN_LABELS = useMemo(
@@ -925,7 +1053,11 @@ export function ChatPage() {
     () => ({
       Diversified: "Diversified",
       Defi: "DeFi",
-      RWA: "Real world assets (RWA)",
+      layer2: "Layer 2",
+      privacy: "Privacy",
+      infra: "Infrastructure",
+      social: "SocialFi",
+      payments: "Payments",
       AI: "AI",
       Gaming: "Gaming",
       DePin: "DePin",
@@ -961,7 +1093,9 @@ export function ChatPage() {
         !quickForm.risk
         //  || !quickForm.paymentToken
       ) {
-        setQuickError("Please complete all form selections first.");
+        setQuickError(
+          `Please select: ${quickMissingSelections.join(", ")} before generating.`,
+        );
         return;
       }
       if (quickForm.chain === "BSC" && walletChainId !== 56) {
@@ -995,7 +1129,7 @@ export function ChatPage() {
         const riskLabel =
           QUICK_RISK_TO_PROMPT[quickForm.risk] || quickForm.risk;
 
-        const prompt = `Build a $${quickForm.amountUsd} ${quickForm.risk} ${quickForm.portfolioType} portfolio on ${quickForm.chain}`;
+        const prompt = `Build a $${quickForm.amountUsd} ${riskLabel} ${interestLabel} portfolio on ${chainLabel}`;
 
         const response = await apiCall("/chat/message", {
           method: "POST",
@@ -1037,6 +1171,7 @@ export function ChatPage() {
       isReadOnly,
       logout,
       messagesRemaining,
+      quickMissingSelections,
       parseQuickBasketFromResponse,
       quickForm.amountUsd,
       quickForm.chain,
@@ -1266,6 +1401,32 @@ export function ChatPage() {
         }
         if (response.rateLimit) {
           dispatch(setRateLimit(response.rateLimit));
+        } else {
+          // Some chat responses omit rateLimit; fetch latest so Header counters stay in sync.
+          void fetchChatStatusApi(dispatch, { setUser });
+        }
+
+        let meRateLimit = null;
+        // Keep full rate-limit shape (messagesRemaining + bonusMessages) in sync from /auth/me.
+        try {
+          const me = await apiCall("/auth/me");
+          if (me?.season1?.rateLimit) {
+            meRateLimit = me.season1.rateLimit;
+            dispatch(setRateLimit(me.season1.rateLimit));
+          }
+          if (me && typeof me === "object") {
+            const currentUser = authUser ?? {};
+            setUser({
+              ...currentUser,
+              ...me,
+              season1: {
+                ...(currentUser?.season1 ?? {}),
+                ...(me?.season1 ?? {}),
+              },
+            });
+          }
+        } catch (meError) {
+          // Non-fatal: chat succeeded, keep going with best available counters.
         }
 
         // Keep authUser in localStorage in sync with points and rate limit from chat API
@@ -1283,7 +1444,8 @@ export function ChatPage() {
               ...(response.points?.breakdown && {
                 pointsBreakdown: response.points.breakdown,
               }),
-              ...(response.rateLimit && { rateLimit: response.rateLimit }),
+              ...(response.rateLimit &&
+                !meRateLimit && { rateLimit: response.rateLimit }),
             },
           };
           setUser(nextUser);
@@ -1432,9 +1594,13 @@ export function ChatPage() {
         );
         return;
       }
+      if (String(message).trim().toLowerCase() === "start over") {
+        handleStartNewChat();
+        return;
+      }
       sendChatMessage(String(message));
     },
-    [sendChatMessage, walletChainId],
+    [sendChatMessage, walletChainId, handleStartNewChat],
   );
 
   // Open claim popup only when user has not already claimed and needs to claim
@@ -1571,8 +1737,8 @@ export function ChatPage() {
     const isOnChain = preview.executionMode === "ON_CHAIN";
 
     return (
-      <div className="mt-4 rounded-2xl bg-linear-to-br from-blue-50/80 to-purple-50/80 border border-blue-200/50 shadow-sm p-4 text-sm space-y-2">
-        <div className="flex items-center justify-between">
+      <div className="mt-4 rounded-2xl bg-linear-to-br from-blue-50/80 to-purple-50/80 border border-blue-200/50 shadow-sm p-2 sm:p-4 text-sm space-y-2">
+        <div className="flex flex-col sm:flex-row items-center justify-between">
           <div className="font-semibold text-gray-900">
             {chainLabel} ·{" "}
             {isOnChain ? "On-Chain Execution" : "Paper Trading Preview"}
@@ -1724,7 +1890,7 @@ export function ChatPage() {
                 return (
                   <div
                     key={`${p.symbol || p.name || idx}-${idx}`}
-                    className="flex items-center justify-between rounded-xl bg-white/70 border border-green-200/50 px-3 py-2"
+                    className="flex items-center justify-between rounded-xl bg-white/70 border border-green-200/50 px-3 py-2 gap-5"
                   >
                     <div className="min-w-0">
                       <div className="text-xs font-medium text-gray-900 truncate">
@@ -1780,7 +1946,7 @@ export function ChatPage() {
           </div>
         )}
         <div className="flex gap-2">
-          <NavLink
+          {/* <NavLink
             to={`/portfolio?portfolio=${portfolio?.id}`}
             className="px-3 py-2 bg-white/80 border border-gray-200 rounded-xl text-xs font-medium hover:bg-white hover:border-gray-300 hover:shadow-md transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
           >
@@ -1797,7 +1963,7 @@ export function ChatPage() {
             className="px-3 py-2 bg-white/80 border border-gray-200 rounded-xl text-xs font-medium hover:bg-white hover:border-gray-300 hover:shadow-md transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
           >
             Create another portfolio
-          </button>
+          </button> */}
           {safeOptions.length > 0 && (
             <div className="border-t border-green-200/60">
               <div className="flex flex-wrap gap-2">
@@ -1928,7 +2094,7 @@ export function ChatPage() {
           </div>
         )}
 
-        <div className="flex gap-2 pt-2">
+        {/* <div className="flex gap-2 pt-2">
           <NavLink
             to={`/portfolio?portfolio=${portfolio?.id}`}
             className="px-3 py-2 bg-white/80 border border-gray-200 rounded-xl text-xs font-medium hover:bg-white hover:border-gray-300 hover:shadow-md transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
@@ -1948,7 +2114,7 @@ export function ChatPage() {
           >
             Create another portfolio
           </button>
-        </div>
+        </div> */}
       </div>
     );
   };
@@ -2862,18 +3028,30 @@ export function ChatPage() {
       <div className="flex-1 flex flex-col overflow-y-auto">
         {currentMessages.length === 0 && !quickWizardOpen && (
           <div className="h-full flex items-center justify-center px-6">
-            <div className="text-center max-w-2xl">
+            <div className="text-center max-w-2xl relative">
+              {/* <div className="mx-auto inline-flex items-center gap-2.5 px-5 py-2.5 bg-gradient-to-r from-green-500/15 to-emerald-500/15 border border-green-500/30 rounded-full mb-6 shadow-sm shadow-green-500/10 sm:fixed sm:top-25 sm:left-1/2 sm:-translate-x-1/2 sm:mb-0 sm:z-20">
+                <div className="flex items-center justify-center w-6 h-6 bg-green-500 rounded-full">
+                  <TrendingUp
+                    size={14}
+                    className="text-white"
+                    strokeWidth={3}
+                  />
+                </div>
+                <span className="text-sm font-semibold text-green-700">
+                  {pnl}% positive P&L
+                </span>
+              </div> */}
+
               <h2 className="text-3xl font-bold mb-4">Hello, I'm AlloX</h2>
 
               <p className="text-gray-600 mb-8">
                 I can help you discover, execute, and manage your portfolio.
               </p>
 
-              <div className="flex flex-wrap gap-2 justify-center mb-8">
+              <div className="mb-8 grid grid-cols-2 md:grid-cols-3 gap-2">
                 {[
                   "Build Quick Portfolio",
                   "Build a Portfolio - Guided",
-
                   "Explain narratives",
                   "Trending Tokens",
                   "How should I invest $100?",
@@ -2883,7 +3061,7 @@ export function ChatPage() {
                     key={suggestion}
                     onClick={() => handleSuggestionClick(suggestion)}
                     disabled={isReadOnly || messagesRemaining === 0}
-                    className="px-4 py-2 bg-white shadow border border-white text-sm font-medium hover:bg-white/90 hover:shadow-lg hover:border hover:border-gray-200/50 transition-all duration-200 rounded-full disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-white"
+                    className="px-3 sm:px-4 py-2 bg-white shadow border border-white text-xs sm:text-sm font-medium hover:bg-white/90 hover:shadow-lg hover:border hover:border-gray-200/50 transition-all duration-200 rounded-full disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-white"
                   >
                     {suggestion}
                   </button>
@@ -3234,16 +3412,25 @@ export function ChatPage() {
                       : "Try again later."}
                   </p>
                 </div>
-                {canRefresh && (
+                <div className="flex items-center gap-2 shrink-0">
                   <button
                     type="button"
-                    onClick={handleRefreshLimit}
-                    disabled={statusLoading}
-                    className="btn-primary text-sm px-4 py-2 whitespace-nowrap"
+                    onClick={() => setIsMessageLimitModalOpen(true)}
+                    className="px-4 py-2 rounded-xl border border-gray-200 bg-white text-gray-800 text-sm font-medium hover:bg-gray-50 whitespace-nowrap"
                   >
-                    {statusLoading ? "Checking…" : "Refresh limit"}
+                    Buy more messages
                   </button>
-                )}
+                  {canRefresh && (
+                    <button
+                      type="button"
+                      onClick={handleRefreshLimit}
+                      disabled={statusLoading}
+                      className="btn-primary text-sm px-4 py-2 whitespace-nowrap"
+                    >
+                      {statusLoading ? "Checking…" : "Refresh limit"}
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -3329,7 +3516,7 @@ export function ChatPage() {
           onClick={() => setIsNarrativesModalOpen(false)}
         >
           <div
-            className="glass-card max-w-xl w-full p-6 animate-fade-in"
+            className="glass-card max-h-[80vh] overflow-y-auto max-w-xl w-full p-6 animate-fade-in"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-4 mb-4">
@@ -3399,6 +3586,13 @@ export function ChatPage() {
           </div>
         </div>
       )}
+
+      <MessageLimitModal
+        isOpen={isMessageLimitModalOpen}
+        onClose={() => setIsMessageLimitModalOpen(false)}
+        dailyMessagesRemaining={dailyMessagesRemaining}
+        bonusMessages={bonusMessages}
+      />
 
       {claimSuccess && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-300">
@@ -3523,7 +3717,7 @@ export function ChatPage() {
                           {[
                             {
                               value: "BSC",
-                              label: "BNB Chain (on chain)",
+                              label: "BNB Chain (on-chain)",
                               badge: "BSC",
                               icon: "https://cdn.allox.ai/allox/networks/bnbIcon.svg",
                             },
@@ -3591,11 +3785,37 @@ export function ChatPage() {
                             },
                             { value: "Defi", label: "DeFi", badge: "DeFi" },
                             {
-                              value: "RWA",
-                              label: "Real world assets (RWA)",
-                              badge: "RWA",
+                              value: "layer2",
+                              label: "Layer 2",
+                              badge: "L2",
+                            },
+                            {
+                              value: "privacy",
+                              label: "Privacy",
+                              badge: "PRV",
+                            },
+                            {
+                              value: "infra",
+                              label: "Infrastructure",
+                              badge: "INF",
+                            },
+                            {
+                              value: "social",
+                              label: "SocialFi",
+                              badge: "SF",
+                            },
+                            {
+                              value: "payments",
+                              label: "Payments",
+                              badge: "PAY",
                             },
                             { value: "AI", label: "AI", badge: "AI" },
+                            {
+                              value: "memes",
+                              label: "Memecoins",
+                              badge: "Memecoins",
+                            },
+
                             { value: "Gaming", label: "Gaming", badge: "G" },
                             { value: "DePin", label: "DePin", badge: "DP" },
                           ].map((opt) => {
@@ -3794,17 +4014,20 @@ export function ChatPage() {
                         </div>
                       </div> */}
 
-                      <div className="flex justify-end pt-2">
+                      <div className="flex flex-col sm:flex-row gap-2 justify-end pt-2 items-center">
+                        {!quickCanGenerate && (
+                          <div className="mr-auto text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 flex items-center h-fit">
+                            Select {quickMissingSelections.join(", ")} to enable
+                            Generate.
+                          </div>
+                        )}
                         <button
                           type="button"
                           onClick={() => void handleQuickGenerate("generate")}
                           disabled={
                             quickIsGenerating ||
                             quickIsExecuting ||
-                            !quickForm.chain ||
-                            !quickForm.portfolioType ||
-                            !quickForm.amountUsd ||
-                            !quickForm.risk
+                            !quickCanGenerate
                             // ||!quickForm.paymentToken
                           }
                           className="px-6 py-3 bg-gray-900 text-white border border-gray-900 rounded-2xl text-sm font-semibold hover:bg-gray-800 disabled:opacity-60 disabled:cursor-not-allowed"
@@ -4157,6 +4380,50 @@ export function ChatPage() {
                         </button>
                       </div>
                     </>
+                  ) : executionPrompt.type === "SLIPPAGE_INCREASE_REQUIRED" ? (
+                    <>
+                      <p className="font-medium text-gray-900 mb-1">
+                        Higher slippage needed for{" "}
+                        {executionPrompt.symbol || "this token"}
+                      </p>
+                      <p className="text-xs text-gray-700 mb-2">
+                        {executionPrompt.message ||
+                          "Simulation needs a higher slippage tolerance to proceed."}
+                      </p>
+                      <p className="text-xs text-gray-600 mb-3">
+                        Requested:{" "}
+                        {executionPrompt.requestedSlippage != null
+                          ? `${executionPrompt.requestedSlippage}%`
+                          : "—"}{" "}
+                        → Required:{" "}
+                        {executionPrompt.requiredSlippage != null
+                          ? `${executionPrompt.requiredSlippage}%`
+                          : "—"}
+                      </p>
+                      <p className="text-xs text-gray-600 mb-3">
+                        Your order stays at the original setting until you
+                        confirm. If you continue, only this prepare step will
+                        use the higher value.
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => resolveExecutionPrompt("accept")}
+                          className="px-3 py-2 rounded-xl bg-gray-900 text-white text-xs font-medium hover:bg-gray-800"
+                        >
+                          {executionPrompt.requiredSlippage != null
+                            ? `Use ${executionPrompt.requiredSlippage}% and continue`
+                            : "Accept higher slippage and continue"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => resolveExecutionPrompt("decline")}
+                          className="px-3 py-2 rounded-xl bg-white border border-gray-300 text-gray-700 text-xs font-medium hover:bg-gray-50"
+                        >
+                          Stop execution
+                        </button>
+                      </div>
+                    </>
                   ) : (
                     <>
                       <p className="font-medium text-gray-900 mb-1">
@@ -4207,6 +4474,22 @@ export function ChatPage() {
                         You can safely confirm transactions even if a failure
                         warning appears. <b>Note:</b> MetaMask Smart
                         Transactions may affect execution.
+                      </p>
+                      <p className="text-xs text-gray-600 mt-2">
+                        <b>Token approvals:</b> Some swap routes use Permit2,
+                        which may ask for a large allowance that stays in effect
+                        until you revoke it. Other routes approve only the
+                        amount needed for that swap. Review or revoke allowances
+                        anytime for your wallet on{" "}
+                        <a
+                          href="https://revoke.cash/chain/56"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-700 underline font-medium"
+                        >
+                          Revoke.cash (BNB Chain)
+                        </a>
+                        .
                       </p>
                     </div>
                   </div>

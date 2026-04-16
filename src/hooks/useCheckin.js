@@ -3,6 +3,9 @@ import { useSelector } from "react-redux";
 import { useWriteContract, useSwitchChain, useAccount } from "wagmi";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { waitForTransactionReceipt as wagmiWaitForTransactionReceipt } from "@wagmi/core";
+import { encodeFunctionData } from "viem";
+import { ethers } from "ethers";
+import { useWallets } from "@privy-io/react-auth";
 import bs58 from "bs58";
 import { apiCall } from "../utils/api";
 import {
@@ -17,6 +20,11 @@ import {
   addOptimisticCheckinPoints as addOptimisticCheckinPointsAction,
 } from "../redux/slices/checkinSlice";
 import { useDispatch } from "react-redux";
+import { useAuth } from "./useAuth";
+import {
+  getPrivyEmbedded,
+  switchPrivyEmbeddedToChain,
+} from "../utils/privyWalletUtils";
 const CHAIN_ID_TO_API = {
   1: "ethereum",
   56: "bnb",
@@ -37,19 +45,21 @@ export function useCheckin() {
   const walletAddress = useSelector((state) => state.wallet.address);
   const chainId = useSelector((state) => state.wallet.chainId);
   const isConnected = useSelector((state) => state.wallet.isConnected);
+  const { user: authUser } = useAuth();
+  const { wallets } = useWallets();
 
   const { chainId: wagmiChainId } = useAccount();
   const { writeContractAsync } = useWriteContract();
   const { switchChainAsync } = useSwitchChain();
   const { signMessage: signMessageSolana } = useWallet();
 
-  const [status, setStatus] = useState(null);
+  const status = useSelector((state) => state.checkin?.status);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   const isSolana = walletType === "solana";
   const currentEVMChainId = isSolana ? null : (wagmiChainId ?? chainId);
-const dispatch = useDispatch();
+  const dispatch = useDispatch();
   const fetchStatus = useCallback(async () => {
     const token = localStorage.getItem("authToken");
     if (!token) {
@@ -58,7 +68,6 @@ const dispatch = useDispatch();
     }
     try {
       const data = await apiCall("/checkin/status");
-      setStatus(data);
       dispatch(setCheckinStatus(data));
       setError(null);
     } catch (err) {
@@ -102,6 +111,46 @@ const dispatch = useDispatch();
         : SUPPORTED_EVM_CHAIN_IDS[0];
       const apiChain = CHAIN_ID_TO_API[effectiveChainId];
       const contractAddress = CHAIN_ID_TO_ADDRESS[effectiveChainId];
+
+      if (authUser?.authProvider === "privy") {
+        const embedded = getPrivyEmbedded(wallets);
+        if (!embedded) {
+          throw new Error(
+            "Embedded wallet not found. Refresh the page or sign in again.",
+          );
+        }
+        try {
+          await switchPrivyEmbeddedToChain(embedded, effectiveChainId);
+        } catch (switchErr) {
+          throw new Error(
+            switchErr?.message ||
+              `Please switch to ${apiChain} (chain ID ${effectiveChainId}) to claim.`,
+          );
+        }
+        const ethProvider = await embedded.getEthereumProvider();
+        const web3Provider = new ethers.providers.Web3Provider(ethProvider);
+        const signer = web3Provider.getSigner();
+        const data = encodeFunctionData({
+          abi: CHECKIN_ABI,
+          functionName: "checkIn",
+          args: [],
+        });
+        const txResponse = await signer.sendTransaction({
+          to: contractAddress,
+          data,
+        });
+        const txHash = txResponse.hash;
+        await txResponse.wait(1);
+
+        return apiCall("/checkin", {
+          method: "POST",
+          body: JSON.stringify({
+            chain: apiChain,
+            txHash:
+              typeof txHash === "string" ? txHash : (txHash?.hash ?? txHash),
+          }),
+        });
+      }
 
       if (currentEVMChainId !== effectiveChainId && switchChainAsync) {
         try {
@@ -148,7 +197,13 @@ const dispatch = useDispatch();
         });
       }
     },
-    [currentEVMChainId, switchChainAsync, writeContractAsync],
+    [
+      authUser?.authProvider,
+      currentEVMChainId,
+      switchChainAsync,
+      wallets,
+      writeContractAsync,
+    ],
   );
 
   const claim = useCallback(

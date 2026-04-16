@@ -19,6 +19,7 @@ import {
   setTelegramPoints,
 } from "../redux/slices/socialSlice";
 import { toast } from "sonner";
+import { setRateLimit } from "../redux/slices/chatSlice";
 
 const TELEGRAM_BOT_ID = "8677110292";
 const TELEGRAM_APP_ORIGIN = "https://app.allox.ai/rewards/";
@@ -103,6 +104,9 @@ export function useSocial() {
       dispatch(
         setTelegramPoints(data?.season1?.pointsBreakdown?.fromTelegram ?? 0),
       );
+      if (data?.season1?.rateLimit) {
+        dispatch(setRateLimit(data.season1.rateLimit));
+      }
     } catch (err) {
       dispatch(setError(err.message || "Failed to fetch total points"));
     } finally {
@@ -476,7 +480,7 @@ export function useSocial() {
   // Post promo tweet
   const postPromoTweet = useCallback((tweetText) => {
     const encodedText = encodeURIComponent(tweetText);
-    window.open(`https://twitter.com/intent/tweet`, "_blank");
+    window.open(`https://x.com/intent/tweet`, "_blank");
   }, []);
 
   // Verify promo tweet

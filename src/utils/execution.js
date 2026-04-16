@@ -1,5 +1,6 @@
 import {
   getAccount,
+  getPublicClient,
   readContract as wagmiReadContract,
   sendTransaction as wagmiSendTransaction,
   waitForTransactionReceipt as wagmiWaitForTransactionReceipt,
@@ -71,6 +72,135 @@ const PERMIT2_ABI = [
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+const BSC_CHAIN_ID = 56;
+const RECEIPT_WAIT_TIMEOUT_MS = 120000;
+const RECEIPT_POLL_INTERVAL_MS = 2500;
+const RECEIPT_POLL_MAX_ATTEMPTS = 120;
+const POSITION_STATUS_POLL_INTERVAL_MS = 1500;
+const POSITION_STATUS_MAX_ATTEMPTS = 120;
+
+const normalizeTxHash = (txResult) => {
+  if (typeof txResult === "string") return txResult;
+  if (txResult?.hash) return txResult.hash;
+  if (txResult?.transactionHash) return txResult.transactionHash;
+  return null;
+};
+
+const waitForReceiptWithFallback = async ({
+  hash,
+  timeoutMs = RECEIPT_WAIT_TIMEOUT_MS,
+}) => {
+  if (!hash) throw new Error("Missing transaction hash");
+
+  // Prefer wagmi's receipt waiter first (handles replacements/reorgs),
+  // but don't block forever on mobile wallet provider quirks.
+  try {
+    return await Promise.race([
+      wagmiWaitForTransactionReceipt(wagmiClient, { hash }),
+      new Promise((_, reject) =>
+        setTimeout(
+          () =>
+            reject(
+              new Error(
+                `Timed out waiting for receipt for ${hash} after ${timeoutMs}ms`,
+              ),
+            ),
+          timeoutMs,
+        ),
+      ),
+    ]);
+  } catch (waitErr) {
+    const client = getPublicClient(wagmiClient, { chainId: BSC_CHAIN_ID });
+    if (!client) throw waitErr;
+
+    for (let i = 0; i < RECEIPT_POLL_MAX_ATTEMPTS; i += 1) {
+      try {
+        const receipt = await client.getTransactionReceipt({ hash });
+        if (receipt) return receipt;
+      } catch (pollErr) {
+        const msg = String(pollErr?.message || pollErr).toLowerCase();
+        // Keep polling while receipt is not indexed yet.
+        if (!msg.includes("not found") && !msg.includes("unknown transaction")) {
+          throw pollErr;
+        }
+      }
+      await sleep(RECEIPT_POLL_INTERVAL_MS);
+    }
+    throw waitErr;
+  }
+};
+
+/**
+ * Default path: MetaMask / WalletConnect / etc. via wagmi.
+ * @returns {{ userAddress: string, assertReady: () => void, sendTransaction: Function, waitForTransactionReceipt: Function }}
+ */
+export function createWagmiExecutionTxEnv() {
+  const accountState = getAccount(wagmiClient);
+  const userAddress = accountState?.address;
+  return {
+    userAddress,
+    assertReady() {
+      if (!accountState?.isConnected || !userAddress) {
+        throw new Error(
+          "Wallet not connected. Connect your wallet (including WalletConnect/QR) and try again.",
+        );
+      }
+      if (Number(accountState?.chainId) !== BSC_CHAIN_ID) {
+        throw new Error(
+          "Please switch your wallet to BNB Chain (chainId 56) before executing on-chain.",
+        );
+      }
+    },
+    sendTransaction: async ({ to, data, value, nonce }) => {
+      return wagmiSendTransaction(wagmiClient, {
+        account: userAddress,
+        chainId: BSC_CHAIN_ID,
+        to,
+        data,
+        value: value ?? 0n,
+        ...(nonce !== undefined && { nonce: Number(nonce) }),
+      });
+    },
+    waitForTransactionReceipt: async ({ hash }) =>
+      waitForReceiptWithFallback({ hash }),
+  };
+}
+
+/**
+ * Privy embedded wallet — same calldata/value as wagmi; signing happens in Privy’s modal.
+ * @param {string} userAddress checksummed or lowercase 0x address
+ * @param {Function} privySendTransaction from useSendTransaction()
+ */
+export function createPrivyExecutionTxEnv(userAddress, privySendTransaction) {
+  return {
+    userAddress,
+    assertReady() {
+      if (!userAddress) {
+        throw new Error(
+          "Embedded wallet not ready. Sign in again or refresh the page.",
+        );
+      }
+    },
+    sendTransaction: async ({ to, data, value, nonce }) => {
+      const input = {
+        to,
+        data,
+        value: value ?? 0n,
+        chainId: BSC_CHAIN_ID,
+      };
+      if (nonce !== undefined) input.nonce = nonce;
+      const txResult = await privySendTransaction(input);
+      const hash = normalizeTxHash(txResult);
+      if (!hash) {
+        throw new Error("Privy transaction did not return a valid tx hash.");
+      }
+      return hash;
+    },
+    waitForTransactionReceipt: async ({ hash }) =>
+      waitForReceiptWithFallback({ hash }),
+  };
+}
+
 const isUserRejectedTx = (error) => {
   // MetaMask / EIP-1193 user rejected request
   if (!error) return false;
@@ -102,6 +232,18 @@ const parseBigInt = (value, fallback = 0n) => {
   }
 };
 
+const parsePositiveNumber = (value, fallback) => {
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n) || n <= 0) return fallback;
+  return n;
+};
+
+const resolveInitialPrepareSlippage = (execution) => {
+  const fromPayload = parsePositiveNumber(execution?.slippage, null);
+  if (fromPayload != null) return fromPayload;
+  return 0.5;
+};
+
 const buildApprovalStepCalldata = (approvalStep) => {
   const method = approvalStep?.tx?.method;
   const args = approvalStep?.tx?.args || [];
@@ -130,20 +272,18 @@ const buildApprovalStepCalldata = (approvalStep) => {
   throw new Error(`Unsupported approval method: ${method || "unknown"}`);
 };
 
-async function executeApprovalSteps({ approvalSteps, account, update, chainId = 56 }) {
+async function executeApprovalSteps({ approvalSteps, update, txEnv }) {
   for (const approvalStep of approvalSteps) {
     const to = approvalStep?.tx?.to;
     if (!to) throw new Error("Missing approval transaction target");
 
     const data = buildApprovalStepCalldata(approvalStep);
-    const txHash = await wagmiSendTransaction(wagmiClient, {
-      account,
-      chainId,
+    const txHash = await txEnv.sendTransaction({
       to,
       data,
       value: 0n,
     });
-    await wagmiWaitForTransactionReceipt(wagmiClient, { hash: txHash });
+    await txEnv.waitForTransactionReceipt({ hash: txHash });
     update("APPROVAL_PROGRESS", {
       target: to,
       txHash,
@@ -152,19 +292,24 @@ async function executeApprovalSteps({ approvalSteps, account, update, chainId = 
   }
 }
 
-async function ensureApprovals({
+async function ensurePermit2Approvals({
   permit2Approval,
   fromTokenAddress,
   userAddress,
   requiredAmount,
   update,
+  txEnv,
 }) {
   const permit2Address = permit2Approval?.permit2Address || PERMIT2_ADDRESS;
   const routerAddress = permit2Approval?.spender;
 
-  if (!fromTokenAddress || !routerAddress) return;
+  if (!fromTokenAddress || !routerAddress) {
+    throw new Error(
+      "Permit2 approval requires permit2Approval.spender and fromTokenAddress from the server.",
+    );
+  }
 
-  const chainId = 56;
+  const chainId = BSC_CHAIN_ID;
   const now = BigInt(Math.floor(Date.now() / 1000));
 
   // Approval 1: ERC20 approve token -> Permit2
@@ -183,15 +328,13 @@ async function ensureApprovals({
       args: [permit2Address, MAX_UINT256],
     });
 
-    const txHash = await wagmiSendTransaction(wagmiClient, {
-      account: userAddress,
-      chainId,
+    const txHash = await txEnv.sendTransaction({
       to: fromTokenAddress,
       data: approveData,
       value: 0n,
     });
 
-    await wagmiWaitForTransactionReceipt(wagmiClient, { hash: txHash });
+    await txEnv.waitForTransactionReceipt({ hash: txHash });
     update("APPROVAL_PROGRESS", {
       target: permit2Address,
       txHash,
@@ -226,15 +369,13 @@ async function ensureApprovals({
       args: [fromTokenAddress, routerAddress, MAX_UINT160, MAX_UINT48],
     });
 
-    const txHash = await wagmiSendTransaction(wagmiClient, {
-      account: userAddress,
-      chainId,
+    const txHash = await txEnv.sendTransaction({
       to: permit2Address,
       data: permit2ApproveData,
       value: 0n,
     });
 
-    await wagmiWaitForTransactionReceipt(wagmiClient, { hash: txHash });
+    await txEnv.waitForTransactionReceipt({ hash: txHash });
     update("APPROVAL_PROGRESS", {
       target: routerAddress,
       txHash,
@@ -243,31 +384,68 @@ async function ensureApprovals({
   }
 }
 
+async function ensureStandardApproval({
+  approvalContract,
+  tokenAddress,
+  userAddress,
+  requiredAmount,
+  update,
+  txEnv,
+}) {
+  if (!approvalContract || !tokenAddress) {
+    throw new Error(
+      "Standard approval requires approvalContract and fromTokenAddress from the server.",
+    );
+  }
+  if (requiredAmount <= 0n) return;
+
+  const chainId = BSC_CHAIN_ID;
+
+  const erc20Allowance = await wagmiReadContract(wagmiClient, {
+    address: tokenAddress,
+    abi: ERC20_ABI,
+    functionName: "allowance",
+    args: [userAddress, approvalContract],
+    chainId,
+  });
+
+  if (parseBigInt(erc20Allowance) < requiredAmount) {
+    const approveData = encodeFunctionData({
+      abi: ERC20_ABI,
+      functionName: "approve",
+      args: [approvalContract, requiredAmount],
+    });
+
+    const txHash = await txEnv.sendTransaction({
+      to: tokenAddress,
+      data: approveData,
+      value: 0n,
+    });
+
+    await txEnv.waitForTransactionReceipt({ hash: txHash });
+    update("APPROVAL_PROGRESS", {
+      target: approvalContract,
+      txHash,
+      type: "ERC20_STANDARD",
+    });
+  }
+}
+
 export async function executePortfolioOnChain(
   execution,
-  { onUpdate, onPrompt } = {},
+  { onUpdate, onPrompt, txEnv: txEnvOption } = {},
 ) {
   const { chain, sourceToken, positions, portfolioData } = execution;
+  const initialPrepareSlippage = resolveInitialPrepareSlippage(execution);
 
   const jwt = localStorage.getItem("authToken");
   if (!jwt) {
     throw new Error("You must be logged in before executing a portfolio.");
   }
 
-  const accountState = getAccount(wagmiClient);
-  const userAddress = accountState?.address;
-
-  if (!accountState?.isConnected || !userAddress) {
-    throw new Error(
-      "Wallet not connected. Connect your wallet (including WalletConnect/QR) and try again.",
-    );
-  }
-
-  if (Number(accountState?.chainId) !== 56) {
-    throw new Error(
-      "Please switch your wallet to BNB Chain (chainId 56) before executing on-chain.",
-    );
-  }
+  const txEnv = txEnvOption ?? createWagmiExecutionTxEnv();
+  txEnv.assertReady();
+  const userAddress = txEnv.userAddress;
 
   const update = (step, payload) => {
     if (typeof onUpdate === "function") {
@@ -339,56 +517,108 @@ export async function executePortfolioOnChain(
     });
 
     let done = false;
+    let slippageForPosition = initialPrepareSlippage;
     while (!done) {
       try {
-        // 1) /prepare → fresh txData
+        // 1) /prepare → fresh txData (slippage increases only after user confirms 422)
         let prepData;
-        let prepareAttempts = 0;
-        while (!prepData && prepareAttempts < 5) {
-          prepareAttempts += 1;
+        let prepareRound = 0;
+        const maxPrepareRounds = 30;
+
+        while (!prepData && prepareRound < maxPrepareRounds) {
+          prepareRound += 1;
           try {
             prepData = await apiCall(
               `${EXECUTION_API_BASE}/${pos.executionOrderId}/prepare`,
               {
                 method: "POST",
-                body: JSON.stringify({ slippage: 3 }),
+                body: JSON.stringify({ slippage: slippageForPosition }),
               },
             );
           } catch (prepareError) {
-            const approvalSteps = prepareError?.data?.approvalSteps;
+            const errBody = prepareError?.data;
+            const approvalSteps = errBody?.approvalSteps;
             const needsApproval =
               prepareError?.status === 428 &&
               Array.isArray(approvalSteps) &&
               approvalSteps.length > 0;
 
-            if (!needsApproval) {
-              throw prepareError;
+            if (needsApproval) {
+              update("APPROVAL_START", {
+                symbol: pos.symbol,
+                executionOrderId: pos.executionOrderId,
+                fromTokenAddress: errBody?.fromTokenAddress,
+                permit2Address: errBody?.permit2Address,
+                routerAddress: errBody?.universalRouterAddress,
+              });
+
+              await executeApprovalSteps({
+                approvalSteps,
+                update,
+                txEnv,
+              });
+
+              update("APPROVAL_COMPLETE", {
+                symbol: pos.symbol,
+                executionOrderId: pos.executionOrderId,
+              });
+              continue;
             }
 
-            update("APPROVAL_START", {
-              symbol: pos.symbol,
-              executionOrderId: pos.executionOrderId,
-              fromTokenAddress: prepareError?.data?.fromTokenAddress,
-              permit2Address: prepareError?.data?.permit2Address,
-              routerAddress: prepareError?.data?.universalRouterAddress,
-            });
+            if (
+              prepareError?.status === 422 &&
+              errBody?.error === "SLIPPAGE_INCREASE_REQUIRED"
+            ) {
+              if (typeof onPrompt !== "function") {
+                throw new Error(
+                  errBody?.message ||
+                    `Higher slippage (${errBody?.requiredSlippage}%) is required for ${errBody?.symbol || pos.symbol}.`,
+                );
+              }
 
-            await executeApprovalSteps({
-              approvalSteps,
-              account: userAddress,
-              update,
-            });
+              const decision = await onPrompt({
+                type: "SLIPPAGE_INCREASE_REQUIRED",
+                symbol: errBody?.symbol ?? pos.symbol,
+                message: errBody?.message,
+                requestedSlippage: errBody?.requestedSlippage,
+                requiredSlippage: errBody?.requiredSlippage,
+                executionOrderId: pos.executionOrderId,
+              });
 
-            update("APPROVAL_COMPLETE", {
-              symbol: pos.symbol,
-              executionOrderId: pos.executionOrderId,
-            });
+              if (decision === "accept") {
+                const nextSlippage = parsePositiveNumber(
+                  errBody?.requiredSlippage,
+                  null,
+                );
+                if (nextSlippage == null) {
+                  throw new Error(
+                    "Server returned an invalid requiredSlippage value.",
+                  );
+                }
+                slippageForPosition = nextSlippage;
+                update("SLIPPAGE_ACCEPTED", {
+                  symbol: pos.symbol,
+                  executionOrderId: pos.executionOrderId,
+                  slippage: slippageForPosition,
+                });
+                continue;
+              }
+
+              const declineErr = new Error(
+                errBody?.message ||
+                  `Higher slippage was not accepted for ${errBody?.symbol || pos.symbol}. Execution stopped.`,
+              );
+              declineErr.abortPortfolioExecution = true;
+              throw declineErr;
+            }
+
+            throw prepareError;
           }
         }
 
         if (!prepData) {
           throw new Error(
-            "Unable to prepare swap after completing required approvals.",
+            "Unable to prepare swap after approvals and slippage handling.",
           );
         }
 
@@ -399,50 +629,102 @@ export async function executePortfolioOnChain(
 
         const txData = prepData.txData;
 
-        // Ensure approvals using /prepare payload (authoritative source).
-        if (sourceToken !== "BNB" && prepData?.approvalNeeded) {
-          const fromTokenAddress =
-            prepData.fromTokenAddress || quoteData.fromTokenAddress;
-          const permit2Approval = prepData.permit2Approval || {
-            permit2Address:
-              prepData.approvalContract || quoteData.approvalContract,
-            spender: txData?.to,
-          };
-          const permit2Address =
-            permit2Approval?.permit2Address || PERMIT2_ADDRESS;
-          const routerAddress = permit2Approval?.spender || txData?.to;
-          const approvalKey = [
-            String(userAddress).toLowerCase(),
-            String(fromTokenAddress || "").toLowerCase(),
-            String(permit2Address || "").toLowerCase(),
-            String(routerAddress || "").toLowerCase(),
-          ].join(":");
+        const fromTokenAddress =
+          prepData.fromTokenAddress || quoteData.fromTokenAddress;
+        const requiredAmount = parseBigInt(prepData.fromAmount, 0n);
 
-          if (
-            fromTokenAddress &&
-            routerAddress &&
-            !ensuredApprovalKeys.has(approvalKey)
-          ) {
-            update("APPROVAL_START", {
-              fromTokenAddress,
-              sourceToken,
-              permit2Address,
-              routerAddress,
-              executionOrderId: pos.executionOrderId,
-            });
+        // Ensure approvals using /prepare payload (authoritative approvalType).
+        if (prepData?.approvalNeeded) {
+          if (prepData.approvalType === "permit2") {
+            const p2 = prepData.permit2Approval;
+            if (!p2?.spender) {
+              throw new Error(
+                "Prepare response is missing permit2Approval for approvalType permit2.",
+              );
+            }
+            const permit2Address = p2.permit2Address || PERMIT2_ADDRESS;
+            const routerAddress = p2.spender;
+            const approvalKey = [
+              String(userAddress).toLowerCase(),
+              String(fromTokenAddress || "").toLowerCase(),
+              String(permit2Address || "").toLowerCase(),
+              String(routerAddress || "").toLowerCase(),
+            ].join(":");
 
-            await ensureApprovals({
-              permit2Approval: { permit2Address, spender: routerAddress },
-              fromTokenAddress,
-              userAddress,
-              requiredAmount: parseBigInt(prepData.fromAmount, 0n),
-              update,
-            });
+            if (
+              fromTokenAddress &&
+              !ensuredApprovalKeys.has(approvalKey)
+            ) {
+              update("APPROVAL_START", {
+                fromTokenAddress,
+                sourceToken,
+                approvalType: "permit2",
+                permit2Address,
+                routerAddress,
+                executionOrderId: pos.executionOrderId,
+              });
 
-            ensuredApprovalKeys.add(approvalKey);
-            update("APPROVAL_COMPLETE", {
-              executionOrderId: pos.executionOrderId,
-            });
+              await ensurePermit2Approvals({
+                permit2Approval: p2,
+                fromTokenAddress,
+                userAddress,
+                requiredAmount,
+                update,
+                txEnv,
+              });
+
+              ensuredApprovalKeys.add(approvalKey);
+              update("APPROVAL_COMPLETE", {
+                executionOrderId: pos.executionOrderId,
+                approvalType: "permit2",
+              });
+            }
+          } else if (prepData.approvalType === "standard") {
+            const approvalContract = prepData.approvalContract;
+            if (!approvalContract) {
+              throw new Error(
+                "Prepare response is missing approvalContract for approvalType standard.",
+              );
+            }
+            const approvalKey = [
+              String(userAddress).toLowerCase(),
+              String(fromTokenAddress || "").toLowerCase(),
+              String(approvalContract).toLowerCase(),
+              "standard",
+            ].join(":");
+
+            if (fromTokenAddress && !ensuredApprovalKeys.has(approvalKey)) {
+              update("APPROVAL_START", {
+                fromTokenAddress,
+                sourceToken,
+                approvalType: "standard",
+                spenderAddress: approvalContract,
+                executionOrderId: pos.executionOrderId,
+              });
+
+              await ensureStandardApproval({
+                approvalContract,
+                tokenAddress: fromTokenAddress,
+                userAddress,
+                requiredAmount,
+                update,
+                txEnv,
+              });
+
+              ensuredApprovalKeys.add(approvalKey);
+              update("APPROVAL_COMPLETE", {
+                executionOrderId: pos.executionOrderId,
+                approvalType: "standard",
+              });
+            }
+          } else if (prepData.approvalType == null) {
+            throw new Error(
+              "On-chain prepare returned approvalNeeded without approvalType. Refresh and try again, or contact support if this persists.",
+            );
+          } else {
+            throw new Error(
+              `Unsupported approvalType: ${String(prepData.approvalType)}`,
+            );
           }
         }
 
@@ -458,9 +740,7 @@ export async function executePortfolioOnChain(
               ? BigInt(txData.value)
               : 0n;
 
-          txHash = await wagmiSendTransaction(wagmiClient, {
-            account: userAddress,
-            chainId: 56,
+          txHash = await txEnv.sendTransaction({
             to: txData.to,
             data: txData.data,
             value,
@@ -527,26 +807,24 @@ export async function executePortfolioOnChain(
         });
 
         try {
-          // 3) If wallet succeeds → /submit with txHash
-          const receipt = await wagmiWaitForTransactionReceipt(wagmiClient, {
-            hash: txHash,
+          // 3) Submit tx hash immediately, then poll backend status.
+          // This avoids extra client-side waiting before the next token.
+          await apiCall(`${EXECUTION_API_BASE}/${pos.executionOrderId}/submit`, {
+            method: "POST",
+            body: JSON.stringify({
+              txHash,
+            }),
           });
-          await apiCall(
-            `${EXECUTION_API_BASE}/${pos.executionOrderId}/submit`,
-            {
-              method: "POST",
-              body: JSON.stringify({
-                txHash: receipt.transactionHash || receipt.hash || txHash,
-              }),
-            },
-          );
 
           // Poll for CONFIRMED/FAILED
           let status = "TX_SUBMITTED";
           let attempts = 0;
 
-          while (!["CONFIRMED", "FAILED"].includes(status) && attempts < 60) {
-            await sleep(4000);
+          while (
+            !["CONFIRMED", "FAILED"].includes(status) &&
+            attempts < POSITION_STATUS_MAX_ATTEMPTS
+          ) {
+            await sleep(POSITION_STATUS_POLL_INTERVAL_MS);
             const statusData = await apiCall(
               `${EXECUTION_API_BASE}/${pos.executionOrderId}/status`,
             );
@@ -634,6 +912,22 @@ export async function executePortfolioOnChain(
           done = true;
         }
       } catch (error) {
+        if (error?.abortPortfolioExecution) {
+          try {
+            await apiCall(
+              `${EXECUTION_API_BASE}/${pos.executionOrderId}/cancel`,
+              { method: "POST" },
+            );
+            cancelledOrderIds.push(pos.executionOrderId);
+            update("POSITION_CANCELLED", {
+              symbol: pos.symbol,
+              executionOrderId: pos.executionOrderId,
+            });
+          } catch (cancelErr) {
+            console.error(cancelErr);
+          }
+          throw error;
+        }
         console.error(`Swap failed for ${pos.symbol}:`, error);
         const friendlyMessage = isUserRejectedTx(error)
           ? "The transaction was rejected in your wallet."

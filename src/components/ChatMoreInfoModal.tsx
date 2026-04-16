@@ -10,7 +10,7 @@ const JOURNEY_INFO = [
     {
         question: "What type of portfolio interests you?",
         answer:
-            "Diversified combines multiple narratives in one basket (DeFi, RWA, AI, Gaming, and DePIN). If you choose a single narrative, token selection focuses more heavily on that theme.",
+            "Diversified combines multiple narratives in one basket (DeFi, Layer 2, Privacy, Infrastructure, SocialFi, Payments, AI, Gaming, DePIN, and Memecoins). If you choose a single narrative, token selection focuses more heavily on that theme.",
     },
     {
         question: "How much would you like to invest?",
