@@ -87,7 +87,7 @@ export function CampaignsPage() {
                     <div className="text-xs text-gray-600 mb-1">Duration</div>
                     <div className="font-bold text-gray-900 flex items-center gap-1">
                       <Calendar className="w-4 h-4 text-blue-600" />
-                      Apr 16 - May 28
+                      Apr 17 - May 29
                     </div>
                   </div>
                 </div>
