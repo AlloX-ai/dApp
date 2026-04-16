@@ -163,36 +163,34 @@ export function TradingCompetitionPage() {
           The Allocation Race
         </h2>
         <div className="flex flex-col lg:flex-row items-center gap-3">
-            <a
-                          href="https://skynet.certik.com/projects/allox"
-                          target="_blank"
-                          className="flex items-center w-full gap-2"
-                        >
-                          <div className="text-black font-medium text-xs ">
-                            Secured by
-                          </div>
-                          <img
-                            src="https://cdn.allox.ai/allox/partners/certikLarge.svg"
-                            className="w-18"
-                            alt=""
-                          />
-                        </a>
+          <a
+            href="https://skynet.certik.com/projects/allox"
+            target="_blank"
+            className="flex items-center w-full gap-2"
+          >
+            <div className="text-black font-medium text-xs ">Secured by</div>
+            <img
+              src="https://cdn.allox.ai/allox/partners/certikLarge.svg"
+              className="w-18"
+              alt=""
+            />
+          </a>
           {/* Reward Pool Badge */}
           <div className="glass-card px-4 py-2 bg-gradient-to-r from-amber-500/20 to-orange-600/20 border-amber-500/40">
             <div className="flex items-center gap-2">
               <div>
-                
                 <div className="text-xs text-gray-600 font-medium">
                   Total Prize Pool
                 </div>
                 <div className="flex items-center gap-2">
-                    <span className="text-gray-900 font-bold">$500,000</span>
-                    <div className="flex items-center text-amber-600">
-                      (  <Gem className="w-5 h-5 text-amber-600 pr-1" />
-                  <div className="font-bold  text-xs sm:text-base text-amber-600">
-                    100,000 
-                  </div>)
+                  <span className="text-gray-900 font-bold">$500,000</span>
+                  <div className="flex items-center text-amber-600">
+                    ( <Gem className="w-5 h-5 text-amber-600 pr-1" />
+                    <div className="font-bold  text-xs sm:text-base text-amber-600">
+                      100,000
                     </div>
+                    )
+                  </div>
                 </div>
               </div>
             </div>
@@ -319,20 +317,21 @@ export function TradingCompetitionPage() {
                 <strong>Create portfolios</strong> on BNB Chain
               </p>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
-                <TrendingUp className="w-3 h-3 text-purple-600" />
-              </div>
-              <p className="text-xs text-gray-700">
-                <strong>Rankings</strong> based on total USD portfolio value
-              </p>
-            </div>
+          
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
                 <Trophy className="w-3 h-3 text-amber-600" />
               </div>
               <p className="text-xs text-gray-700">
                 <strong>Top 100</strong> share 100K Gems prize pool
+              </p>
+            </div>
+              <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
+                <TrendingUp className="w-3 h-3 text-purple-600" />
+              </div>
+              <p className="text-xs text-gray-700">
+                <strong>Rankings</strong> based on total USD value of all your portfolio activity (buy, sell)
               </p>
             </div>
           </div>
@@ -671,8 +670,9 @@ export function TradingCompetitionPage() {
                   <li className="flex gap-2">
                     <span className="text-purple-500 font-bold">•</span>
                     <span>
-                      Rankings based on total USD value of all on-chain
-                      portfolios created during the competition period
+                      Rankings are based on the total USD value of all
+                      portfolios you create during the competition, including
+                      portfolios that you buy and sell.
                     </span>
                   </li>
                   <li className="flex gap-2">
