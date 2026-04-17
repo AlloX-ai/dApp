@@ -28,8 +28,11 @@ import { openCheckinModal, setWalletModal } from "../redux/slices/walletSlice";
 import { XTasksModal } from "../components/XTasksModal";
 // import { motion, AnimatePresence } from "motion/react";
 import FAQModal from "../components/FaqModal";
+import { PortfolioInfoModal } from "../components/PortfolioInfoModal";
 import getFormattedNumber from "../hooks/get-formatted-number";
 import { useSocial } from "../hooks/useSocial";
+import { useGemsStatus } from "../hooks/useGemsStatus";
+import { getTierStyle } from "../utils/gemsTier";
 
 // Custom X (Twitter) Logo Component
 function XLogo({ className }) {
@@ -48,7 +51,11 @@ function XLogo({ className }) {
 export function PointsPage() {
   const [showXTasksModal, setShowXTasksModal] = useState(false);
   const [showFAQModal, setShowFAQModal] = useState(false);
-
+  const [showPortfolioInfoModal, setShowPortfolioInfoModal] = useState(false);
+  const { status: gemsStatus } = useGemsStatus();
+  const portfolioTierName = gemsStatus?.currentTier?.name || "Bronze";
+  const portfolioTierStyle = getTierStyle(portfolioTierName);
+  console.log(gemsStatus);
   // local state kept for backward compatibility but UI now uses Redux newCount
   // const [newTasksCount, setNewTasksCount] = useState(4);
   // const [expandedFaq, setExpandedFaq] = useState(null);
@@ -442,9 +449,40 @@ export function PointsPage() {
                     <div className="mb-4">
                       <h3 className="text-lg font-bold mb-1">{way.name}</h3>
                       <p className="text-sm text-gray-600">{way.description}</p>
+                      {/* {way.id === 2 && gemsStatus?.currentTier && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowPortfolioInfoModal(true);
+                          }}
+                          className={`mt-2 inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full border ${portfolioTierStyle.chip} hover:opacity-90 transition`}
+                        >
+                          <Gem size={11} />
+                          <span>
+                            {gemsStatus.currentTier.ratePct}% rate · see tiers
+                          </span>
+                        </button>
+                      )} */}
                     </div>
                   </div>
-                  <div className="flex gap-2 mb-auto ml-auto">
+                  <div className="flex gap-2 mb-auto ml-auto flex-wrap justify-end">
+                    {way.id === 2 && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowPortfolioInfoModal(true);
+                        }}
+                        title={`Your gems tier: ${portfolioTierName}. Tap for details.`}
+                        style={{
+                          backgroundImage: portfolioTierStyle.backgroundImage,
+                        }}
+                        className="px-2 py-1 text-white text-xs font-bold rounded-lg transition-all cursor-pointer shadow-sm mb-auto hover:brightness-110"
+                      >
+                        {portfolioTierName}
+                      </button>
+                    )}
                     {hasGems && (
                       <div className="flex mb-auto ml-auto items-center gap-1.5 px-2 py-1 bg-purple-100 border border-purple-200 rounded-lg w-fit">
                         <Gem size={14} className="text-purple-600" />
@@ -454,7 +492,7 @@ export function PointsPage() {
                       </div>
                     )}
                     {!way.comingSoon && (
-                      <div className="bg-blue-100 border border-blue-200 px-2 py-1 rounded-lg ml-auto mb-auto">
+                      <div className="bg-blue-100 border border-blue-200 px-2 py-1 rounded-lg mb-auto">
                         <div className="flex gap-1 items-baseline">
                           <span className="text-xs font-bold text-blue-700">
                             {way.points}
@@ -614,6 +652,15 @@ export function PointsPage() {
 
       {/* FAQ Modal */}
       <FAQModal isOpen={showFAQModal} onClose={() => setShowFAQModal(false)} />
+
+      {/* Portfolio / Gems tier info modal (shared with PortfolioPage) */}
+      {showPortfolioInfoModal && (
+        <PortfolioInfoModal
+          isOpen={showPortfolioInfoModal}
+          onClose={() => setShowPortfolioInfoModal(false)}
+          gemsStatus={gemsStatus}
+        />
+      )}
       {/* Welcome Bonus Claim Modal */}
       {showWelcomeGiftModal && (
         <div
@@ -673,8 +720,10 @@ export function PointsPage() {
                   <Loader2 className="w-5 h-5 animate-spin" />
                   Claiming...
                 </>
+              ) : isConnected ? (
+                "Claim"
               ) : (
-                isConnected ? "Claim" : "Connect Wallet"
+                "Connect Wallet"
               )}
             </button>
           </div>

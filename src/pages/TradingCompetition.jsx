@@ -16,12 +16,10 @@ import {
   BookOpen,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useSelector } from "react-redux";
 import { PortfolioTutorialModal } from "../components/PortfolioTutorialModal";
 import { Link } from "react-router";
 import { useTrading } from "../hooks/useTrading";
-import { useAuth } from "../hooks/useAuth";
-import { setWalletModal } from "../redux/slices/walletSlice";
 import getFormattedNumber from "../hooks/get-formatted-number";
 import { shortAddress } from "../hooks/shortAddress";
 
@@ -48,8 +46,6 @@ const normalizeLeaderboardEntry = (entry, index) => ({
 });
 
 export function TradingCompetitionPage() {
-  const dispatch = useDispatch();
-  const { isAuthenticated } = useAuth();
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [showTutorialModal, setShowTutorialModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -65,15 +61,25 @@ export function TradingCompetitionPage() {
     fetchUserCompetitionData,
   } = useTrading();
 
+  // Mock current user (outside top 100 for demo purposes)
+  const fallbackCurrentUserPosition = 150;
+  const fallbackCurrentUserData = {
+    position: fallbackCurrentUserPosition,
+    address: walletAddress || "0x7a8c...4f2e",
+    portfoliosCreated: 3,
+    totalValue: 5420,
+    gemReward: 0,
+  };
+
   const rawLeaderboardEntries = getLeaderboardEntries(leaderboard);
   const normalizedLeaderboard = rawLeaderboardEntries.map(
     normalizeLeaderboardEntry,
   );
   const hasLeaderboardRecords = normalizedLeaderboard.length > 0;
-  const currentUserData = isAuthenticated && userData ? userData : null;
-  const currentUserPosition = currentUserData?.position ?? null;
+  const currentUserData = userData ? userData : fallbackCurrentUserData;
+  const currentUserPosition = currentUserData.position;
 
-  const isUserInTopHundred = currentUserPosition != null && currentUserPosition <= 100;
+  const isUserInTopHundred = currentUserPosition <= 100;
 
   // Pagination calculations
   const totalEntries =
@@ -101,26 +107,34 @@ export function TradingCompetitionPage() {
         const activeCompetitionId = activeResult.competitionId;
 
         const competitionResult = await fetchCompetition(activeCompetitionId);
-        // console.log(
-        //   "[TradingCompetition] /competition/:id raw response",
-        //   competitionResult,
-        // );
+        console.log(
+          "[TradingCompetition] /competition/:id raw response",
+          competitionResult,
+        );
 
         const leaderboardResult = await fetchLeaderboard({
           competitionId: activeCompetitionId,
           page: currentPage,
           limit: itemsPerPage,
         });
-        // console.log(
-        //   "[TradingCompetition] /competition/:id/leaderboard raw response",
-        //   leaderboardResult,
-        // );
+        console.log(
+          "[TradingCompetition] /competition/:id/leaderboard raw response",
+          leaderboardResult,
+        );
 
-        if (isAuthenticated && walletAddress) {
-          await fetchUserCompetitionData({
+        if (walletAddress) {
+          const userResult = await fetchUserCompetitionData({
             competitionId: activeCompetitionId,
             address: walletAddress,
           });
+          console.log(
+            "[TradingCompetition] /competition/:id/user/:address raw response",
+            userResult,
+          );
+        } else {
+          console.log(
+            "[TradingCompetition] skipped /competition/:id/user/:address because no wallet address is available yet",
+          );
         }
       } catch (fetchError) {
         console.error(
@@ -133,7 +147,6 @@ export function TradingCompetitionPage() {
     loadCompetitionData();
   }, [
     currentPage,
-    isAuthenticated,
     fetchActiveCompetition,
     fetchCompetition,
     fetchLeaderboard,
@@ -204,7 +217,7 @@ export function TradingCompetitionPage() {
                       Your Rank
                     </span>
                     <div className="text-xl font-bold text-gray-900">
-                      {isAuthenticated && currentUserData?.rank != null ? `#${currentUserData.rank}` : "--"}
+                      #{currentUserData.rank}
                     </div>
                   </div>
                 </div>
@@ -216,9 +229,11 @@ export function TradingCompetitionPage() {
                   Portfolios Created
                 </span>
                 <span className="text-lg font-bold text-gray-900">
-                  {isAuthenticated ? (currentUserData?.portfolioCount ?? 0) : 0}
+                  {currentUserData.portfolioCount}
                 </span>
               </div>
+
+              {/* Wallet */}
 
               {/* Volume */}
               <div className="flex items-center justify-between py-1.5 border-b border-blue-200">
@@ -226,7 +241,7 @@ export function TradingCompetitionPage() {
                   Total Volume
                 </span>
                 <span className="text-base font-bold text-gray-900">
-                  ${isAuthenticated ? getFormattedNumber(currentUserData?.totalValue ?? 0, 0) : "0"}
+                  ${getFormattedNumber(currentUserData.totalValue, 0)}
                 </span>
               </div>
 
@@ -235,7 +250,7 @@ export function TradingCompetitionPage() {
                 <span className="text-xs text-gray-600 font-semibold">
                   Your Reward
                 </span>
-                {isAuthenticated && currentUserData?.reward?.gems > 0 ? (
+                {currentUserData?.reward?.gems > 0 ? (
                   <div className="flex items-center gap-1">
                     <span className="text-base font-bold text-gray-900">
                       ${getFormattedNumber(currentUserData.reward.gems * 5, 0)}
@@ -251,32 +266,23 @@ export function TradingCompetitionPage() {
                   </div>
                 ) : (
                   <div className="text-xs font-bold text-gray-400">
-                    {isAuthenticated ? "Top 100 only" : "0"}
+                    Top 2000 only
                   </div>
                 )}
               </div>
             </div>
           </div>
 
-          {/* Create Portfolio / Connect Wallet Button */}
-          {isAuthenticated ? (
-            <Link
-              to={"/"}
-              className="btn-primary w-full flex items-center justify-center gap-2 text-sm mt-3"
-            >
-              <Plus size={16} />
-              Create Portfolio
-            </Link>
-          ) : (
-            <button
-              type="button"
-              onClick={() => dispatch(setWalletModal(true))}
-              className="btn-primary w-full flex items-center justify-center gap-2 text-sm mt-3"
-            >
-              <Wallet size={16} />
-              Connect Wallet
-            </button>
-          )}
+          {!isUserInTopHundred && null}
+
+          {/* Create Portfolio Button - Below */}
+          <Link
+            to={"/"}
+            className="btn-primary w-full flex items-center justify-center gap-2 text-sm mt-3"
+          >
+            <Plus size={16} />
+            Create Portfolio
+          </Link>
         </div>
 
         {/* Right: How it Works & Rewards - Compact */}
@@ -311,7 +317,7 @@ export function TradingCompetitionPage() {
                 <strong>Create portfolios</strong> on BNB Chain
               </p>
             </div>
-          
+
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
                 <Trophy className="w-3 h-3 text-amber-600" />
@@ -320,12 +326,13 @@ export function TradingCompetitionPage() {
                 <strong>Top 100</strong> share 100K Gems prize pool
               </p>
             </div>
-              <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
                 <TrendingUp className="w-3 h-3 text-purple-600" />
               </div>
               <p className="text-xs text-gray-700">
-                <strong>Rankings</strong> based on total USD value of all your portfolio activity (buy, sell)
+                <strong>Rankings</strong> based on total USD value of all your
+                portfolio activity (buy, sell)
               </p>
             </div>
           </div>
@@ -337,34 +344,37 @@ export function TradingCompetitionPage() {
               <div className="bg-gradient-to-br from-gray-50 to-slate-50 border border-amber-200 rounded-lg p-2">
                 <div className="flex items-center gap-1 mb-1">
                   <Crown className="w-3 h-3 text-amber-600" />
-                  <span className="font-bold text-xs text-gray-900">Top 3</span>
+                  <span className="font-bold text-xs text-gray-900">1st</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <Gem className="w-4 h-4 text-amber-600" />
-
-                  <p className="text-sm font-bold text-amber-600">10K-5K</p>
+                  <p className="text-sm font-bold text-amber-600">10K</p>
                 </div>
               </div>
 
               <div className="bg-gradient-to-br from-gray-50 to-slate-50 border border-purple-200 rounded-lg p-2">
                 <div className="flex items-center gap-1 mb-1">
                   <Trophy className="w-3 h-3 text-purple-600" />
-                  <span className="font-bold text-xs text-gray-900">4-10</span>
+                  <span className="font-bold text-xs text-gray-900">
+                    2nd-3rd
+                  </span>
                 </div>
                 <div className="flex items-center gap-1">
                   <Gem className="w-4 h-4 text-purple-600" />
-                  <p className="text-sm font-bold text-purple-600">4K-1.25K</p>
+                  <p className="text-sm font-bold text-purple-600">5K-3K</p>
                 </div>
               </div>
 
               <div className="bg-gradient-to-br from-gray-50 to-slate-50 border border-blue-200 rounded-lg p-2">
                 <div className="flex items-center gap-1 mb-1">
                   <Medal className="w-3 h-3 text-blue-600" />
-                  <span className="font-bold text-xs text-gray-900">11-50</span>
+                  <span className="font-bold text-xs text-gray-900">
+                    4th-200th
+                  </span>
                 </div>
                 <div className="flex items-center gap-1">
                   <Gem className="w-4 h-4 text-blue-600" />
-                  <p className="text-sm font-bold text-blue-600">1K-500</p>
+                  <p className="text-sm font-bold text-blue-600">1K-50</p>
                 </div>
               </div>
 
@@ -372,12 +382,12 @@ export function TradingCompetitionPage() {
                 <div className="flex items-center gap-1 mb-1">
                   <Award className="w-3 h-3 text-gray-600" />
                   <span className="font-bold text-xs text-gray-900">
-                    51-100
+                    201st-2000th
                   </span>
                 </div>
                 <div className="flex items-center gap-1">
                   <Gem className="w-4 h-4 text-gray-600" />
-                  <p className="text-sm font-bold text-gray-600">250</p>
+                  <p className="text-sm font-bold text-gray-600">20-4</p>
                 </div>
               </div>
             </div>
@@ -419,8 +429,6 @@ export function TradingCompetitionPage() {
               {hasLeaderboardRecords ? (
                 currentPageData.map((entry) => {
                   const isCurrentUser =
-                    isAuthenticated &&
-                    currentUserData?.address != null &&
                     entry.address === currentUserData.address &&
                     isUserInTopHundred;
                   const bgColor = isCurrentUser
@@ -436,7 +444,7 @@ export function TradingCompetitionPage() {
                   return (
                     <div
                       key={entry.position}
-                      className={`grid grid-cols-[80px_1fr_140px_140px_200px] gap-4 px-4 py-3 ${bgColor} backdrop-blur-sm border border-white/60 rounded-lg hover:shadow-md transition-all ${isCurrentUser ? "ring-2 ring-green-400" : entry.position >= 4 && entry.position <= 10 ? "ring-1 ring-purple-300" : entry.position >= 11 && entry.position <= 50 ? "ring-1 ring-blue-300" : entry.position >= 51 && entry.position <= 100 ? "ring-1 ring-gray-300" : ""}`}
+                      className={`grid grid-cols-[80px_1fr_140px_140px_200px] gap-4 px-4 py-3 ${bgColor} backdrop-blur-sm border border-white/60 rounded-lg hover:shadow-md transition-all ${isCurrentUser ? "ring-2 ring-green-400" : entry.position >= 2 && entry.position <= 3 ? "ring-1 ring-purple-300" : entry.position >= 4 && entry.position <= 200 ? "ring-1 ring-blue-300" : entry.position >= 201 && entry.position <= 2000 ? "ring-1 ring-gray-300" : ""}`}
                     >
                       {/* Rank */}
                       <div className="flex items-center gap-2">
@@ -457,7 +465,7 @@ export function TradingCompetitionPage() {
                             className={`w-8 h-8 rounded-full flex items-center justify-center  bg-gray-100`}
                           >
                             <span
-                              className={`text-xs font-bold ${isCurrentUser ? "text-green-700" : entry.position >= 4 && entry.position <= 10 ? "text-purple-700" : entry.position >= 11 && entry.position <= 50 ? "text-blue-700" : entry.position >= 51 && entry.position <= 100 ? "text-gray-700" : ""}`}
+                              className={`text-xs font-bold ${isCurrentUser ? "text-green-700" : entry.position >= 2 && entry.position <= 3 ? "text-purple-700" : entry.position >= 4 && entry.position <= 200 ? "text-blue-700" : entry.position >= 201 && entry.position <= 2000 ? "text-gray-700" : ""}`}
                             >
                               {entry.position}
                             </span>
@@ -530,7 +538,7 @@ export function TradingCompetitionPage() {
         </div>
 
         {/* Pagination Controls */}
-        <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200">
+        <div className="flex flex-col sm:flex-row items-center justify-between mt-6 pt-4 border-t border-gray-200">
           <div className="text-sm text-gray-600">
             {hasLeaderboardRecords
               ? `Showing ${startIndex + 1}-${Math.min(startIndex + currentPageData.length, totalEntries)} of ${totalEntries}`
@@ -551,32 +559,43 @@ export function TradingCompetitionPage() {
             </button>
 
             <div className="flex items-center gap-1">
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                let pageNum;
-                if (totalPages <= 5) {
-                  pageNum = i + 1;
-                } else if (currentPage <= 3) {
-                  pageNum = i + 1;
-                } else if (currentPage >= totalPages - 2) {
-                  pageNum = totalPages - 4 + i;
-                } else {
-                  pageNum = currentPage - 2 + i;
-                }
+              <div className="sm:hidden">
+                <button
+                  type="button"
+                  className="w-10 h-10 rounded-lg font-semibold bg-black text-white"
+                >
+                  {currentPage}
+                </button>
+              </div>
 
-                return (
-                  <button
-                    key={pageNum}
-                    onClick={() => setCurrentPage(pageNum)}
-                    className={`w-10 h-10 rounded-lg font-semibold transition-all ${
-                      currentPage === pageNum
-                        ? "bg-black text-white"
-                        : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50"
-                    }`}
-                  >
-                    {pageNum}
-                  </button>
-                );
-              })}
+              <div className="hidden sm:flex items-center gap-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`w-10 h-10 rounded-lg font-semibold transition-all ${
+                        currentPage === pageNum
+                          ? "bg-black text-white"
+                          : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50"
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             <button
@@ -681,14 +700,14 @@ export function TradingCompetitionPage() {
                   <li className="flex gap-2">
                     <span className="text-purple-500 font-bold">•</span>
                     <span>
-                      Top 100 participants share the 100,000 Gems ($500,000 USD)
+                      Top 2000 participants share the 100,000 Gems ($500,000 USD)
                       reward pool
                     </span>
                   </li>
                   <li className="flex gap-2">
                     <span className="text-purple-500 font-bold">•</span>
                     <span>
-                      Leaderboard updates in real-time but final rankings
+                      Leaderboard updates in near real-time but final rankings
                       determined at campaign end
                     </span>
                   </li>
