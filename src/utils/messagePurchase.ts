@@ -785,7 +785,12 @@ export async function purchaseEvmPackage(args: {
       chainId,
       value: nativePrice,
     });
-    await waitForTransactionReceipt(wagmiClient, { hash: txHash });
+    // Pin the waiter to the purchase chain so wagmi doesn't default to a
+    // stale connected-chain id and watch the wrong network.
+    await waitForTransactionReceipt(wagmiClient, {
+      hash: txHash,
+      chainId: chainId as 1 | 56 | 8453 | 204,
+    });
     return { txHash };
   }
 
@@ -845,7 +850,10 @@ export async function purchaseEvmPackage(args: {
         args: [contractAddress, match.amount],
         chainId,
       });
-      await waitForTransactionReceipt(wagmiClient, { hash: approveHash });
+      await waitForTransactionReceipt(wagmiClient, {
+        hash: approveHash,
+        chainId: chainId as 1 | 56 | 8453 | 204,
+      });
     }
   }
 
@@ -872,7 +880,10 @@ export async function purchaseEvmPackage(args: {
     args: [match.address, BigInt(args.packageId)],
     chainId,
   });
-  await waitForTransactionReceipt(wagmiClient, { hash: txHash });
+  await waitForTransactionReceipt(wagmiClient, {
+    hash: txHash,
+    chainId: chainId as 1 | 56 | 8453 | 204,
+  });
   return { txHash };
 }
 

@@ -22,6 +22,46 @@ let globalAuthState = {
   user: null,
 };
 
+// Persisted auth-provider marker. The backend returns `authProvider: "privy"`
+// at the top level of `/auth/privy-verify`, but `/auth/me` does NOT echo it
+// back. On a hard reload we hydrate `user` from `/auth/me` and would lose
+// the Privy signal entirely — which silently breaks gates like the "Add
+// funds" button in the header. We stash the provider in localStorage at
+// login time and stitch it back onto the user object whenever the response
+// is missing it. Cleared on logout so a subsequent wallet login can't
+// inherit a stale "privy" marker.
+const AUTH_PROVIDER_STORAGE_KEY = "authProvider";
+
+const readStoredAuthProvider = () => {
+  if (typeof window === "undefined") return null;
+  try {
+    return localStorage.getItem(AUTH_PROVIDER_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+};
+
+const writeStoredAuthProvider = (provider) => {
+  if (typeof window === "undefined") return;
+  try {
+    if (provider) {
+      localStorage.setItem(AUTH_PROVIDER_STORAGE_KEY, provider);
+    } else {
+      localStorage.removeItem(AUTH_PROVIDER_STORAGE_KEY);
+    }
+  } catch (e) {
+    console.error(e);
+  }
+};
+
+const withPersistedAuthProvider = (candidateUser) => {
+  if (!candidateUser || typeof candidateUser !== "object") return candidateUser;
+  if (candidateUser.authProvider) return candidateUser;
+  const stored = readStoredAuthProvider();
+  if (!stored) return candidateUser;
+  return { ...candidateUser, authProvider: stored };
+};
+
 const subscribers = new Set();
 let meFetchInFlight = null;
 let lastMeFetchAt = 0;
@@ -138,10 +178,19 @@ export async function completePrivyAuth(privyToken) {
     throw new Error("Missing auth token");
   }
   setGlobalToken(data.token);
+  const resolvedProvider =
+    data.authProvider != null
+      ? data.authProvider
+      : data.user?.authProvider != null
+        ? data.user.authProvider
+        : "privy";
+  // Persist so reloads (which hydrate from `/auth/me`, an endpoint that
+  // strips `authProvider`) can still identify the session as Privy.
+  writeStoredAuthProvider(resolvedProvider);
   const nextUser = data.user
     ? {
         ...data.user,
-        ...(data.authProvider != null ? { authProvider: data.authProvider } : {}),
+        authProvider: resolvedProvider,
       }
     : null;
   if (nextUser) {
@@ -186,7 +235,9 @@ export const useAuth = () => {
       .then((me) => {
         lastMeFetchAt = Date.now();
         if (me && typeof me === "object") {
-          setGlobalUser(me);
+          // `/auth/me` drops `authProvider`; re-attach from localStorage so
+          // downstream gates (e.g. header "Add funds") survive a reload.
+          setGlobalUser(withPersistedAuthProvider(me));
         }
         return me;
       })
@@ -263,6 +314,9 @@ export const useAuth = () => {
 
     // Always persist user with walletType and address so session restore and guards work after navigate
     setGlobalToken(verifyRes.token);
+    // Wallet-based login — clear any stale Privy marker a previous session
+    // might have left behind in localStorage.
+    writeStoredAuthProvider(null);
     if (verifyRes.user) {
       setUser({
         ...verifyRes.user,
@@ -309,6 +363,9 @@ export const useAuth = () => {
     await runPrivyLogoutBridge();
     setGlobalToken(null);
     setGlobalUser(null);
+    // Clear so the next (possibly wallet-based) login doesn't inherit the
+    // previous Privy session's provider marker.
+    writeStoredAuthProvider(null);
     initialRefreshAttempted = false;
     try {
       localStorage.removeItem("chatCount");

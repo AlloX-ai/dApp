@@ -181,8 +181,14 @@ export function useCheckin() {
       let receipt;
       const maxRetries = 5;
       for (let i = 0; i < maxRetries; i++) {
+        // Pin the receipt waiter to `effectiveChainId`. Without it, wagmi
+        // defaults to the currently-connected account's chain (or the first
+        // chain in config.chains when none is connected), which can differ
+        // from the chain the check-in tx was written on and leave us watching
+        // the wrong network forever.
         receipt = await wagmiWaitForTransactionReceipt(wagmiClient, {
           hash: txHash,
+          chainId: effectiveChainId,
         }).catch(() => null);
         if (receipt) break;
         // wait 2 seconds before retry

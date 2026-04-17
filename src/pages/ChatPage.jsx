@@ -3417,19 +3417,21 @@ export function ChatPage() {
 
           {messagesRemaining === 0 && !isReadOnly && (
             <div className="mb-4 glass-card p-4 border border-amber-200/50 bg-amber-50/30">
-              <div className="flex items-center gap-2">
-                <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
-                  <Clock size={20} className="text-amber-600" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900 mb-1">
-                    No messages left in your current limit
-                  </p>
-                  <p className="text-xs text-gray-600">
-                    {resetAt
-                      ? `Resets ${formatResetAt(resetAt)}.`
-                      : "Try again later."}
-                  </p>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                <div className="flex gap-2 flex-row">
+                  <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <Clock size={20} className="text-amber-600" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-900 mb-1">
+                      No messages left in your current limit
+                    </p>
+                    <p className="text-xs text-gray-600">
+                      {resetAt
+                        ? `Resets ${formatResetAt(resetAt)}.`
+                        : "Try again later."}
+                    </p>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <button
@@ -3703,7 +3705,7 @@ export function ChatPage() {
               {quickWizardOpen && (
                 <ChatBubble type="ai">
                   <div className="space-y-4">
-                    <div className="flex items-start justify-between gap-3">
+                    <div className="flex flex-col sm:flex-row items-start justify-between gap-3">
                       <div className="min-w-0">
                         <h3 className="text-lg font-bold truncate">
                           Quick Portfolio Builder
@@ -3712,7 +3714,7 @@ export function ChatPage() {
                           Fill the form and generate portfolio
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-col sm:flex-row items-center gap-2">
                         <a
                           href="https://skynet.certik.com/projects/allox"
                           target="_blank"
