@@ -251,7 +251,7 @@ export function TradingCompetitionPage() {
                   </div>
                 ) : (
                   <div className="text-xs font-bold text-gray-400">
-                    {isAuthenticated ? "Top 100 only" : "0"}
+                    {isAuthenticated ? "Top 2,000 only" : "0"}
                   </div>
                 )}
               </div>
@@ -317,7 +317,7 @@ export function TradingCompetitionPage() {
                 <Trophy className="w-3 h-3 text-amber-600" />
               </div>
               <p className="text-xs text-gray-700">
-                <strong>Top 100</strong> share 100K Gems prize pool
+                <strong>Top 2000</strong> share 100K Gems prize pool
               </p>
             </div>
               <div className="flex items-center gap-2">
@@ -681,7 +681,7 @@ export function TradingCompetitionPage() {
                   <li className="flex gap-2">
                     <span className="text-purple-500 font-bold">•</span>
                     <span>
-                      Top 100 participants share the 100,000 Gems ($500,000 USD)
+                      Top 2000 participants share the 100,000 Gems ($500,000 USD)
                       reward pool
                     </span>
                   </li>

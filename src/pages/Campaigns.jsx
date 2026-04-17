@@ -41,7 +41,7 @@ export function CampaignsPage() {
             {/* Trading Competition Card */}
             <button
               onClick={() => {
-                // setSearchParams({ campaign: "allocation-race" });
+                setSearchParams({ campaign: "allocation-race" });
               }}
               className="glass-card overflow-hidden text-left hover:shadow-2xl transition-all duration-300 group relative"
             >
@@ -70,17 +70,17 @@ export function CampaignsPage() {
                   The Allocation Race
                 </h3>
                 <p className="text-gray-600 mb-6">
-                  Create on-chain portfolios and compete for 100,000 Gems reward
+                  Create on-chain portfolios and compete for $500,000 reward
                   pool
                 </p>
 
                 {/* Stats */}
                 <div className="flex items-center justify-between mb-6">
                   <div className="bg-white/60 backdrop-blur-sm rounded-xl p-3">
-                    <div className="text-xs text-gray-600 mb-1">Prize Pool</div>
+                    <div className="text-xs text-gray-600 mb-1">Total Rewards</div>
                     <div className="font-bold text-gray-900 flex items-center gap-1">
-                      <Gem className="w-4 h-4 text-purple-600" />
-                      100,000
+                      $500,000 (<Gem className="w-4 h-4 text-purple-600" />
+                      100,000)
                     </div>
                   </div>
                   <div className="bg-white/60 backdrop-blur-sm rounded-xl p-3">
@@ -135,7 +135,7 @@ export function CampaignsPage() {
                 </h3>
                 <p className="text-gray-600 mb-6">
                   Claim your welocme bonus each season to eran rewards from the
-                  9,000 Gem reward pool
+                  $45,000 reward pool
                 </p>
 
                 {/* Stats */}
@@ -145,8 +145,8 @@ export function CampaignsPage() {
                       Total Rewards
                     </div>
                     <div className="font-bold text-base text-gray-900 flex items-center gap-1">
-                      <Gem className="w-4 h-4 text-purple-600" />
-                      9,000
+                      $45,000 (<Gem className="w-4 h-4 text-purple-600" />
+                      9,000)
                     </div>
                   </div>
                   <div className="bg-white/60 backdrop-blur-sm rounded-xl p-3">

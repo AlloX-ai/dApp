@@ -19,6 +19,7 @@ import {
   HelpCircle,
   X,
 } from "lucide-react";
+import { AnimatePresence } from "motion/react";
 import { encodeFunctionData } from "viem";
 import { useDispatch, useSelector } from "react-redux";
 import { NavLink, useLocation, useNavigate } from "react-router";
@@ -36,7 +37,17 @@ import { PortfolioAlertSettings } from "../components/PortfolioAlertSettings";
 import {
   createPrivyExecutionTxEnv,
   createWagmiExecutionTxEnv,
+  ensurePermit2Approvals,
+  ensureStandardApproval,
 } from "../utils/execution";
+import { PortfolioInfoModal } from "../components/PortfolioInfoModal";
+
+const PERMIT2_ADDRESS = "0x31c2F6fcFf4F8759b3Bd5Bf0e1084A055615c768";
+// Small grace period after on-chain approvals before we ask the backend to
+// re-prepare the swap — gives its allowance indexer a moment to catch up.
+const APPROVAL_INDEX_LAG_MS = 3000;
+const PREPARE_RETRY_DELAY_MS = 2500;
+const MAX_POST_APPROVAL_PREPARE_RETRIES = 4;
 
 const ERC20_ABI = [
   {
@@ -211,6 +222,7 @@ export function PortfolioPage() {
   const [orderStatusMap, setOrderStatusMap] = useState({});
   // Retry prompt state: pauses execution until user decides
   const [retryPrompt, setRetryPrompt] = useState(null); // { symbol, attempt, maxAttempts }
+  const [showPortfolioInfoModal, setShowPortfolioInfoModal] = useState(false);
   const retryResolverRef = useRef(null);
 
   const goToToken = useCallback(
@@ -677,15 +689,40 @@ export function PortfolioPage() {
         return err?.message || "wallet error";
       };
 
+      const callPrepare = () =>
+        apiCall(`/execution/${order.executionOrderId}/prepare`, {
+          method: "POST",
+          body: JSON.stringify({ slippage: slippageValue }),
+        });
+
+      // After approvals, the backend may still see the allowance as missing
+      // for a second or two while it indexes the approval tx. Retry /prepare
+      // on 428 **without** re-running the approval steps — otherwise Privy
+      // would pop the approval dialog a second time.
+      const prepareAfterApprovalsWithRetry = async () => {
+        let lastErr;
+        for (
+          let attempt = 0;
+          attempt < MAX_POST_APPROVAL_PREPARE_RETRIES;
+          attempt += 1
+        ) {
+          if (attempt > 0) await sleep(PREPARE_RETRY_DELAY_MS);
+          try {
+            return await callPrepare();
+          } catch (err) {
+            lastErr = err;
+            const stillWaitingForApproval =
+              err?.status === 428 && Array.isArray(err?.data?.approvalSteps);
+            if (!stillWaitingForApproval) throw err;
+            // else loop: backend hasn't indexed the approval yet.
+          }
+        }
+        throw lastErr;
+      };
+
       let prepare;
       try {
-        prepare = await apiCall(
-          `/execution/${order.executionOrderId}/prepare`,
-          {
-            method: "POST",
-            body: JSON.stringify({ slippage: slippageValue }),
-          },
-        );
+        prepare = await callPrepare();
       } catch (error) {
         if (
           error?.status === 428 &&
@@ -702,14 +739,10 @@ export function PortfolioPage() {
             );
             return false;
           }
+          // Give the backend a moment to see the approval tx before retrying.
+          await sleep(APPROVAL_INDEX_LAG_MS);
           try {
-            prepare = await apiCall(
-              `/execution/${order.executionOrderId}/prepare`,
-              {
-                method: "POST",
-                body: JSON.stringify({ slippage: slippageValue }),
-              },
-            );
+            prepare = await prepareAfterApprovalsWithRetry();
           } catch (retryPrepareErr) {
             addSellLog(
               `${symbol}: prepare failed after approvals (${retryPrepareErr?.message || "error"}).`,
@@ -734,6 +767,62 @@ export function PortfolioPage() {
       if (!txData?.to || !txData?.data) {
         addSellLog(`${symbol}: invalid prepared transaction data.`);
         return false;
+      }
+
+      // Some backend responses return 200 OK with approvalNeeded:true plus the
+      // swap txData. In that case the on-chain allowance may or may not
+      // already be sufficient — delegate to the idempotent on-chain checks
+      // from execution.js which read current allowance and only send an
+      // approve tx if it's actually missing. This avoids duplicate Privy
+      // prompts when the legacy 428 path and the success path overlap.
+      if (prepare.approvalNeeded) {
+        const fromTokenAddress = prepare.fromTokenAddress;
+        const requiredAmount = (() => {
+          try {
+            return prepare.fromAmount != null && prepare.fromAmount !== ""
+              ? BigInt(prepare.fromAmount)
+              : 0n;
+          } catch {
+            return 0n;
+          }
+        })();
+
+        try {
+          if (prepare.approvalType === "permit2") {
+            const p2 = prepare.permit2Approval;
+            if (!p2?.spender) {
+              addSellLog(
+                `${symbol}: missing permit2 spender in prepare response.`,
+              );
+              return false;
+            }
+            await ensurePermit2Approvals({
+              permit2Approval: {
+                permit2Address: p2.permit2Address || PERMIT2_ADDRESS,
+                spender: p2.spender,
+              },
+              fromTokenAddress,
+              userAddress: txEnv.userAddress,
+              requiredAmount,
+              update: () => {},
+              txEnv,
+            });
+          } else if (prepare.approvalType === "standard") {
+            await ensureStandardApproval({
+              approvalContract: prepare.approvalContract,
+              tokenAddress: fromTokenAddress,
+              userAddress: txEnv.userAddress,
+              requiredAmount,
+              update: () => {},
+              txEnv,
+            });
+          }
+        } catch (approvalErr) {
+          addSellLog(
+            `${symbol}: approval ${describeWalletError(approvalErr)}.`,
+          );
+          return false;
+        }
       }
 
       addSellLog(`${symbol}: waiting for wallet confirmation...`);
@@ -1030,12 +1119,22 @@ export function PortfolioPage() {
   const highPriceImpactOrders = sellQuoteOrders.filter(
     (order) => Number(order?.priceImpact || 0) >= 5,
   );
+
+  const userTier = "Bronze";
   return (
     <div className="flex-1 px-6 py-8 portfolio-wrapper ms-auto w-full overflow-y-auto relative">
       <div className="">
         <div className="mb-8">
           <div className="flex flex-col sm:flex-row items-center justify-between mb-6 gap-3">
-            <h2 className="text-3xl font-bold">Portfolio</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-3xl font-bold">Portfolio</h2>
+              <button
+                onClick={() => setShowPortfolioInfoModal(true)}
+                className="px-2.5 py-1 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white text-xs font-bold rounded-lg transition-all cursor-pointer"
+              >
+                {userTier}
+              </button>
+            </div>
             <div className="flex flex-col sm:flex-row gap-2 items-center">
               {!activePortfolio && (
                 <button
@@ -2598,6 +2697,15 @@ export function PortfolioPage() {
           </div>
         </div>
       )}
+
+      <AnimatePresence>
+        {showPortfolioInfoModal && (
+          <PortfolioInfoModal
+            isOpen={showPortfolioInfoModal}
+            onClose={() => setShowPortfolioInfoModal(false)}
+          />
+        )}
+      </AnimatePresence>
 
       {/* {isSellInfoModalOpen && (
         <div
