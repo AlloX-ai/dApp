@@ -116,6 +116,8 @@ export function PortfolioPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const isConnected = useSelector((state) => state.wallet.isConnected);
+  const sessionSource = useSelector((state) => state.wallet.sessionSource);
+  const walletType = useSelector((state) => state.wallet.walletType);
   const { ensureAuthenticated, logout, user: authUser } = useAuth();
   const { wallets } = useWallets();
   const { sendTransaction: privySendTransaction } = useSendTransaction();
@@ -723,7 +725,15 @@ export function PortfolioPage() {
     try {
       await ensureAuthenticated();
       let txEnv;
-      if (authUser?.authProvider === "privy") {
+      // Detect Privy across all signals so a Privy session that lost
+      // `authProvider` after /auth/me refresh still uses the embedded wallet
+      // path instead of falling through to wagmi (which would throw
+      // "Wallet not connected" and silently re-quote).
+      const isPrivySession =
+        authUser?.authProvider === "privy" ||
+        sessionSource === "privy" ||
+        walletType === "privy";
+      if (isPrivySession) {
         const embedded = getEmbeddedConnectedWallet(wallets);
         if (!embedded) {
           throw new Error(
@@ -874,6 +884,8 @@ export function PortfolioPage() {
     sellQuote?.orders,
     sellSlippage,
     sellTarget,
+    sessionSource,
+    walletType,
     wallets,
   ]);
 
