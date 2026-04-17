@@ -111,6 +111,35 @@ const isPortfolioClosed = (portfolio) =>
   String(portfolio?.status || portfolio?.sellStatus || "").toUpperCase() ===
   "CLOSED";
 
+const CHAIN_INFO = {
+  BSC: {
+    label: "BNB Chain",
+    icon: "https://cdn.allox.ai/allox/networks/bnbIcon.svg",
+  },
+  ETH: {
+    label: "Ethereum",
+    icon: "https://cdn.allox.ai/allox/networks/eth.svg",
+  },
+  BASE: {
+    label: "Base",
+    icon: "https://cdn.allox.ai/allox/networks/base.svg",
+  },
+  SOL: {
+    label: "Solana",
+    icon: "https://cdn.allox.ai/allox/networks/solana.svg",
+  },
+  SOLANA: {
+    label: "Solana",
+    icon: "https://cdn.allox.ai/allox/networks/solana.svg",
+  },
+};
+
+const getChainInfo = (chain) => {
+  if (!chain) return null;
+  const key = String(chain).toUpperCase();
+  return CHAIN_INFO[key] || { label: key, icon: null };
+};
+
 export function PortfolioPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -625,6 +654,29 @@ export function PortfolioPage() {
   const executeSingleOrder = useCallback(
     async (order, txEnv, slippageValue) => {
       const symbol = order?.symbol || "TOKEN";
+
+      const describeWalletError = (err) => {
+        const code = err?.code;
+        const raw = String(err?.message || err || "").toLowerCase();
+        if (
+          code === 4001 ||
+          raw.includes("user rejected") ||
+          raw.includes("rejected the request") ||
+          raw.includes("user denied")
+        ) {
+          return "rejected in wallet";
+        }
+        if (
+          raw.includes("transaction failed") ||
+          raw.includes("failed to send") ||
+          raw.includes("send transaction failed") ||
+          raw.includes("wallet request failed")
+        ) {
+          return "wallet transaction failed";
+        }
+        return err?.message || "wallet error";
+      };
+
       let prepare;
       try {
         prepare = await apiCall(
@@ -640,16 +692,30 @@ export function PortfolioPage() {
           Array.isArray(error?.data?.approvalSteps)
         ) {
           addSellLog(`${symbol}: approvals required.`);
-          for (const step of error.data.approvalSteps) {
-            await runApprovalStep(step, txEnv);
+          try {
+            for (const step of error.data.approvalSteps) {
+              await runApprovalStep(step, txEnv);
+            }
+          } catch (approvalErr) {
+            addSellLog(
+              `${symbol}: approval ${describeWalletError(approvalErr)}.`,
+            );
+            return false;
           }
-          prepare = await apiCall(
-            `/execution/${order.executionOrderId}/prepare`,
-            {
-              method: "POST",
-              body: JSON.stringify({ slippage: slippageValue }),
-            },
-          );
+          try {
+            prepare = await apiCall(
+              `/execution/${order.executionOrderId}/prepare`,
+              {
+                method: "POST",
+                body: JSON.stringify({ slippage: slippageValue }),
+              },
+            );
+          } catch (retryPrepareErr) {
+            addSellLog(
+              `${symbol}: prepare failed after approvals (${retryPrepareErr?.message || "error"}).`,
+            );
+            return false;
+          }
         } else if (
           error?.status === 422 &&
           error?.data?.error === "SLIPPAGE_INCREASE_REQUIRED"
@@ -666,41 +732,59 @@ export function PortfolioPage() {
 
       const txData = prepare?.txData;
       if (!txData?.to || !txData?.data) {
-        throw new Error(`${symbol}: invalid prepared transaction data.`);
+        addSellLog(`${symbol}: invalid prepared transaction data.`);
+        return false;
       }
 
       addSellLog(`${symbol}: waiting for wallet confirmation...`);
-      const txHash = await txEnv.sendTransaction({
-        to: txData.to,
-        data: txData.data,
-        value:
-          txData.value != null && txData.value !== ""
-            ? BigInt(txData.value)
-            : 0n,
-        ...(txData.nonce != null && txData.nonce !== ""
-          ? { nonce: Number(txData.nonce) }
-          : {}),
-      });
+      let txHash;
+      try {
+        txHash = await txEnv.sendTransaction({
+          to: txData.to,
+          data: txData.data,
+          value:
+            txData.value != null && txData.value !== ""
+              ? BigInt(txData.value)
+              : 0n,
+          ...(txData.nonce != null && txData.nonce !== ""
+            ? { nonce: Number(txData.nonce) }
+            : {}),
+        });
+      } catch (walletErr) {
+        addSellLog(`${symbol}: ${describeWalletError(walletErr)}.`);
+        return false;
+      }
       addSellLog(`${symbol}: tx submitted ${txHash.slice(0, 10)}...`);
 
-      await apiCall(`/execution/${order.executionOrderId}/submit`, {
-        method: "POST",
-        body: JSON.stringify({ txHash }),
-      });
+      try {
+        await apiCall(`/execution/${order.executionOrderId}/submit`, {
+          method: "POST",
+          body: JSON.stringify({ txHash }),
+        });
+      } catch (submitErr) {
+        addSellLog(
+          `${symbol}: submit failed (${submitErr?.message || "error"}).`,
+        );
+        return false;
+      }
 
       for (let i = 0; i < MAX_POLL_ATTEMPTS; i += 1) {
         await sleep(POLL_INTERVAL_MS);
-        const statusData = await apiCall(
-          `/execution/${order.executionOrderId}/status`,
-        );
-        const status = statusData?.status;
-        if (status === "CONFIRMED") {
-          addSellLog(`${symbol}: confirmed.`);
-          return true;
-        }
-        if (status === "FAILED") {
-          addSellLog(`${symbol}: failed on-chain.`);
-          return false;
+        try {
+          const statusData = await apiCall(
+            `/execution/${order.executionOrderId}/status`,
+          );
+          const status = statusData?.status;
+          if (status === "CONFIRMED") {
+            addSellLog(`${symbol}: confirmed.`);
+            return true;
+          }
+          if (status === "FAILED") {
+            addSellLog(`${symbol}: failed on-chain.`);
+            return false;
+          }
+        } catch {
+          // transient status error — keep polling
         }
       }
 
@@ -763,11 +847,14 @@ export function PortfolioPage() {
       for (const initialOrder of sellQuote.orders) {
         let currentOrder = initialOrder;
         let orderConfirmed = false;
+        // statusKey stays tied to the row rendered from sellQuote.orders so
+        // the UI keeps in sync even after a re-quote changes executionOrderId.
+        const statusKey = initialOrder.executionOrderId;
 
         for (let attempt = 1; attempt <= MAX_ORDER_ATTEMPTS; attempt++) {
           setOrderStatusMap((prev) => ({
             ...prev,
-            [currentOrder.executionOrderId]: "executing",
+            [statusKey]: "executing",
           }));
 
           const ok = await executeSingleOrder(
@@ -779,7 +866,7 @@ export function PortfolioPage() {
           if (ok) {
             setOrderStatusMap((prev) => ({
               ...prev,
-              [currentOrder.executionOrderId]: "confirmed",
+              [statusKey]: "confirmed",
             }));
             orderConfirmed = true;
             break;
@@ -787,7 +874,7 @@ export function PortfolioPage() {
 
           setOrderStatusMap((prev) => ({
             ...prev,
-            [currentOrder.executionOrderId]: "failed",
+            [statusKey]: "failed",
           }));
 
           if (attempt >= MAX_ORDER_ATTEMPTS) {
@@ -806,6 +893,7 @@ export function PortfolioPage() {
           const shouldRetry = await new Promise((resolve) => {
             retryResolverRef.current = resolve;
           });
+          setRetryPrompt(null);
 
           if (!shouldRetry) {
             addSellLog(`${currentOrder.symbol}: skipped by user.`);
@@ -1353,20 +1441,40 @@ export function PortfolioPage() {
                                         )}
                                     </div>
                                   )}
-                                  <span
-                                    className={`inline-block text-xs px-2.5 py-1 rounded-full border font-medium ${getRiskColor(
-                                      portfolio?.riskProfile,
-                                    )}`}
-                                  >
-                                    {String(
-                                      portfolio?.riskProfile || "UNKNOWN",
-                                    ).toUpperCase()}
-                                  </span>
-                                  {isClosed && (
-                                    <span className="ml-2 inline-block text-xs px-2.5 py-1 rounded-full border font-medium bg-gray-100 text-gray-700 border-gray-200">
-                                      CLOSED
+                                  <div className="mt-1 flex items-center gap-2 flex-wrap">
+                                    <span
+                                      className={`inline-block text-xs px-2.5 py-1 rounded-full border font-medium ${getRiskColor(
+                                        portfolio?.riskProfile,
+                                      )}`}
+                                    >
+                                      {String(
+                                        portfolio?.riskProfile || "UNKNOWN",
+                                      ).toUpperCase()}
                                     </span>
-                                  )}
+                                    {(() => {
+                                      const chainInfo = getChainInfo(
+                                        portfolio?.chain,
+                                      );
+                                      if (!chainInfo) return null;
+                                      return (
+                                        <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border border-gray-200 bg-gray-50 text-gray-700 font-medium">
+                                          {chainInfo.icon ? (
+                                            <img
+                                              src={chainInfo.icon}
+                                              alt=""
+                                              className="h-3.5 w-3.5"
+                                            />
+                                          ) : null}
+                                          <span>Chain: {chainInfo.label}</span>
+                                        </span>
+                                      );
+                                    })()}
+                                    {isClosed && (
+                                      <span className="inline-block text-xs px-2.5 py-1 rounded-full border font-medium bg-gray-100 text-gray-700 border-gray-200">
+                                        CLOSED
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
 
                                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
