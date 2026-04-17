@@ -700,14 +700,14 @@ export function TradingCompetitionPage() {
                   <li className="flex gap-2">
                     <span className="text-purple-500 font-bold">•</span>
                     <span>
-                      Top 100 participants share the 100,000 Gems ($500,000 USD)
+                      Top 2000 participants share the 100,000 Gems ($500,000 USD)
                       reward pool
                     </span>
                   </li>
                   <li className="flex gap-2">
                     <span className="text-purple-500 font-bold">•</span>
                     <span>
-                      Leaderboard updates in real-time but final rankings
+                      Leaderboard updates in near real-time but final rankings
                       determined at campaign end
                     </span>
                   </li>

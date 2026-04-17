@@ -51,6 +51,23 @@ const APPROVAL_INDEX_LAG_MS = 3000;
 const PREPARE_RETRY_DELAY_MS = 2500;
 const MAX_POST_APPROVAL_PREPARE_RETRIES = 4;
 
+// Maps raw errors (wagmi connector hiccups, user-rejected sign prompts, etc.)
+// to friendly copy so the UI never surfaces internal strings like
+// "Connector not connected. Version: @wagmi/core@2.22.1".
+const describeLoadError = (error) => {
+  const raw = typeof error?.message === "string" ? error.message : "";
+  if (/Connector not connected|getConnectorClient/i.test(raw)) {
+    return "Wallet connection was interrupted. Please reconnect your wallet and retry.";
+  }
+  if (/user rejected|user denied|rejected the request/i.test(raw)) {
+    return "Signature request was cancelled. Please retry to load your portfolios.";
+  }
+  if (error?.status === 401) {
+    return "Your session expired. Please reconnect your wallet.";
+  }
+  return raw || "Unable to load your portfolios right now.";
+};
+
 const ERC20_ABI = [
   {
     name: "approve",
@@ -160,7 +177,7 @@ export function PortfolioPage() {
   const isConnected = useSelector((state) => state.wallet.isConnected);
   const sessionSource = useSelector((state) => state.wallet.sessionSource);
   const walletType = useSelector((state) => state.wallet.walletType);
-  const { ensureAuthenticated, logout, user: authUser } = useAuth();
+  const { ensureAuthenticated, logout, user: authUser, token } = useAuth();
   const { wallets } = useWallets();
   const { sendTransaction: privySendTransaction } = useSendTransaction();
   const selectedPortfolioIdFromUrl = useMemo(
@@ -267,9 +284,7 @@ export function PortfolioPage() {
         if (error?.status === 401) {
           logout();
         }
-        setAnalyticsError(
-          error?.message || "Unable to load analytics for this portfolio.",
-        );
+        setAnalyticsError(describeLoadError(error));
       } finally {
         setIsAnalyticsLoading(false);
       }
@@ -279,10 +294,21 @@ export function PortfolioPage() {
 
   const loadPortfolios = useCallback(async () => {
     if (!isConnected) return;
+    // When no JWT is available yet we deliberately avoid triggering
+    // `ensureAuthenticated()` here: on first render wagmi's connector can
+    // still be in a `reconnecting` / `connecting` state, and calling
+    // `signMessageAsync` at that moment throws the raw wagmi error
+    // ("Connector not connected. Version: @wagmi/core@…") which would leak
+    // into the UI. Instead we wait — once `useAuth` finishes its initial
+    // refresh and sets `token`, this effect re-runs and the fetch proceeds
+    // with the Bearer already attached by `apiCall`.
+    if (!token) {
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     setErrorMessage("");
     try {
-      await ensureAuthenticated();
       const response = await apiCall("/portfolio");
       const list = Array.isArray(response?.portfolios)
         ? response.portfolios
@@ -302,15 +328,13 @@ export function PortfolioPage() {
       if (error?.status === 401) {
         logout();
       }
-      setErrorMessage(
-        error?.message || "Unable to load your portfolios right now.",
-      );
+      setErrorMessage(describeLoadError(error));
     } finally {
       setIsLoading(false);
     }
   }, [
     isConnected,
-    ensureAuthenticated,
+    token,
     handlePortfolioSelect,
     logout,
     selectedPortfolioIdFromUrl,
@@ -2714,7 +2738,7 @@ export function PortfolioPage() {
         )}
       </AnimatePresence>
 
-      {/* {isSellInfoModalOpen && (
+      {isSellInfoModalOpen && (
         <div
           className="fixed inset-0 z-[60] flex items-center justify-center bg-black/45 backdrop-blur-sm p-4"
           onClick={() => setIsSellInfoModalOpen(false)}
@@ -2816,7 +2840,7 @@ export function PortfolioPage() {
             </div>
           </div>
         </div>
-      )} */}
+      )}
     </div>
   );
 }
