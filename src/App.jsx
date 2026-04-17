@@ -187,7 +187,12 @@ function LaunchAppLayout() {
     }
   }, [address, walletType]);
 
-  // Auto-sign: when wallet connects and no token exists, trigger sign message
+  // Auto-sign: when wallet connects and no token exists, trigger sign message.
+  // Skip Privy sessions — their re-auth goes through `completePrivyAuth`
+  // (below). Calling `ensureAuthenticated()` here for a Privy user would
+  // fall through to wagmi's `signMessageAsync`, which throws
+  // "Connector not connected" because Privy doesn't register a wagmi
+  // connector.
   useEffect(() => {
     if (!isConnected) {
       authTriggeredRef.current = false;
@@ -197,6 +202,7 @@ function LaunchAppLayout() {
       dispatch(setWalletModal(false));
       return;
     }
+    if (walletType === "privy" || user?.authProvider === "privy") return;
     if (authTriggeredRef.current) return;
     authTriggeredRef.current = true;
     ensureAuthenticated()
@@ -204,13 +210,33 @@ function LaunchAppLayout() {
       .catch(() => {
         authTriggeredRef.current = false;
       });
-  }, [isConnected, token, address, walletType, ensureAuthenticated, dispatch]);
+  }, [
+    isConnected,
+    token,
+    address,
+    walletType,
+    user?.authProvider,
+    ensureAuthenticated,
+    dispatch,
+  ]);
 
   useEffect(() => {
     if (!authenticated) {
       privyVerifyAttemptedRef.current = false;
     }
   }, [authenticated]);
+
+  // When the app JWT is cleared while the Privy session is still alive
+  // (e.g. a 7-day refresh/`/auth/refresh` failure in api.js), reset the
+  // "already attempted" guard so the re-verify effect below gets another
+  // chance to call `completePrivyAuth` with a fresh Privy access token.
+  // Without this, the user gets stuck logged-out until they manually
+  // disconnect and reconnect Privy.
+  useEffect(() => {
+    if (!token && authenticated) {
+      privyVerifyAttemptedRef.current = false;
+    }
+  }, [token, authenticated]);
 
   useEffect(() => {
     if (!authenticated || token) return;

@@ -73,8 +73,12 @@ const PERMIT2_ABI = [
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const BSC_CHAIN_ID = 56;
-const RECEIPT_WAIT_TIMEOUT_MS = 120000;
+// Keep the initial wagmi watcher short so we fall through to the explicit
+// chain-scoped polling path quickly on mobile Privy (where the watcher can
+// otherwise stall on a wrong/disconnected chain).
+const RECEIPT_WAIT_TIMEOUT_MS = 30000;
 const RECEIPT_POLL_INTERVAL_MS = 2500;
+// Keep total polling window around 5 minutes (2.5s × 120).
 const RECEIPT_POLL_MAX_ATTEMPTS = 120;
 const POSITION_STATUS_POLL_INTERVAL_MS = 1500;
 const POSITION_STATUS_MAX_ATTEMPTS = 120;
@@ -89,15 +93,21 @@ const normalizeTxHash = (txResult) => {
 
 const waitForReceiptWithFallback = async ({
   hash,
+  chainId = BSC_CHAIN_ID,
   timeoutMs = RECEIPT_WAIT_TIMEOUT_MS,
 }) => {
   if (!hash) throw new Error("Missing transaction hash");
 
-  // Prefer wagmi's receipt waiter first (handles replacements/reorgs),
-  // but don't block forever on mobile wallet provider quirks.
+  // Prefer wagmi's receipt waiter first (handles replacements/reorgs), but
+  // ALWAYS pin it to the execution chain. Without an explicit `chainId`,
+  // wagmi uses the currently-connected account's chain and — for Privy
+  // sessions where no wagmi account is connected — falls back to the first
+  // chain in `config.chains` (mainnet here). That means it would watch the
+  // wrong chain for a BSC approval and never see the receipt, freezing the
+  // sell flow on mobile. Passing `chainId` fixes that.
   try {
     return await Promise.race([
-      wagmiWaitForTransactionReceipt(wagmiClient, { hash }),
+      wagmiWaitForTransactionReceipt(wagmiClient, { hash, chainId }),
       new Promise((_, reject) =>
         setTimeout(
           () =>
@@ -111,7 +121,10 @@ const waitForReceiptWithFallback = async ({
       ),
     ]);
   } catch (waitErr) {
-    const client = getPublicClient(wagmiClient, { chainId: BSC_CHAIN_ID });
+    // Fallback: poll the chain-scoped public client directly. This works even
+    // when no wagmi account is connected (Privy/mobile) because it targets
+    // the chain's default RPC transport explicitly.
+    const client = getPublicClient(wagmiClient, { chainId });
     if (!client) throw waitErr;
 
     for (let i = 0; i < RECEIPT_POLL_MAX_ATTEMPTS; i += 1) {
@@ -163,7 +176,7 @@ export function createWagmiExecutionTxEnv() {
       });
     },
     waitForTransactionReceipt: async ({ hash }) =>
-      waitForReceiptWithFallback({ hash }),
+      waitForReceiptWithFallback({ hash, chainId: BSC_CHAIN_ID }),
   };
 }
 
@@ -198,7 +211,7 @@ export function createPrivyExecutionTxEnv(userAddress, privySendTransaction) {
       return hash;
     },
     waitForTransactionReceipt: async ({ hash }) =>
-      waitForReceiptWithFallback({ hash }),
+      waitForReceiptWithFallback({ hash, chainId: BSC_CHAIN_ID }),
   };
 }
 
