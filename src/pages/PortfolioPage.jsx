@@ -41,6 +41,8 @@ import {
   ensureStandardApproval,
 } from "../utils/execution";
 import { PortfolioInfoModal } from "../components/PortfolioInfoModal";
+import { useGemsStatus } from "../hooks/useGemsStatus";
+import { getTierStyle } from "../utils/gemsTier";
 
 const PERMIT2_ADDRESS = "0x31c2F6fcFf4F8759b3Bd5Bf0e1084A055615c768";
 // Small grace period after on-chain approvals before we ask the backend to
@@ -1120,7 +1122,9 @@ export function PortfolioPage() {
     (order) => Number(order?.priceImpact || 0) >= 5,
   );
 
-  const userTier = "Bronze";
+  const { status: gemsStatus } = useGemsStatus();
+  const userTierName = gemsStatus?.currentTier?.name || "Bronze";
+  const userTierStyle = getTierStyle(userTierName);
   return (
     <div className="flex-1 px-6 py-8 portfolio-wrapper ms-auto w-full overflow-y-auto relative">
       <div className="">
@@ -1130,9 +1134,11 @@ export function PortfolioPage() {
               <h2 className="text-3xl font-bold">Portfolio</h2>
               <button
                 onClick={() => setShowPortfolioInfoModal(true)}
-                className="px-2.5 py-1 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white text-xs font-bold rounded-lg transition-all cursor-pointer"
+                style={{ backgroundImage: userTierStyle.backgroundImage }}
+                className="px-2.5 py-1 text-white text-xs font-bold rounded-lg transition-all cursor-pointer shadow-sm hover:brightness-110"
+                title={`Your gems tier: ${userTierName}`}
               >
-                {userTier}
+                {userTierName}
               </button>
             </div>
             <div className="flex flex-col sm:flex-row gap-2 items-center">
@@ -2703,6 +2709,7 @@ export function PortfolioPage() {
           <PortfolioInfoModal
             isOpen={showPortfolioInfoModal}
             onClose={() => setShowPortfolioInfoModal(false)}
+            gemsStatus={gemsStatus}
           />
         )}
       </AnimatePresence>
