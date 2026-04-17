@@ -449,7 +449,7 @@ export function PointsPage() {
                     <div className="mb-4">
                       <h3 className="text-lg font-bold mb-1">{way.name}</h3>
                       <p className="text-sm text-gray-600">{way.description}</p>
-                      {way.id === 2 && gemsStatus?.currentTier && (
+                      {/* {way.id === 2 && gemsStatus?.currentTier && (
                         <button
                           type="button"
                           onClick={(e) => {
@@ -463,7 +463,7 @@ export function PointsPage() {
                             {gemsStatus.currentTier.ratePct}% rate · see tiers
                           </span>
                         </button>
-                      )}
+                      )} */}
                     </div>
                   </div>
                   <div className="flex gap-2 mb-auto ml-auto flex-wrap justify-end">
