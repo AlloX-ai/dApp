@@ -949,7 +949,7 @@ export function PortfolioPage() {
           <div className="flex flex-col sm:flex-row items-center justify-between mb-6 gap-3">
             <h2 className="text-3xl font-bold">Portfolio</h2>
             <div className="flex flex-col sm:flex-row gap-2 items-center">
-              {/* {!activePortfolio && (
+              {!activePortfolio && (
                 <button
                   type="button"
                   onClick={() => setIsSellInfoModalOpen(true)}
@@ -958,7 +958,7 @@ export function PortfolioPage() {
                   <HelpCircle size={14} className="text-blue-600" />
                   <span className="font-medium">More info</span>
                 </button>
-              )} */}
+              )}
               {activePortfolio ? (
                 <div className="flex items-center gap-2">
                   <button
@@ -1328,7 +1328,7 @@ export function PortfolioPage() {
                                       <h3 className="text-lg font-bold mb-0 group-hover:text-blue-600 transition-colors">
                                         {portfolio?.name || "Portfolio"}
                                       </h3>
-                                      {/* {isOnChainExecutionMode(
+                                      {isOnChainExecutionMode(
                                         portfolio?.executionMode,
                                       ) &&
                                         !isClosed && (
@@ -1350,7 +1350,7 @@ export function PortfolioPage() {
                                           >
                                             <DollarSign size={15} /> Sell
                                           </button>
-                                        )} */}
+                                        )}
                                     </div>
                                   )}
                                   <span
@@ -1492,7 +1492,7 @@ export function PortfolioPage() {
                       <div className="glass-card p-5">
                         <div className="text-sm text-gray-600 mb-1 flex items-center justify-between gap-3">
                           <span>Total Balance</span>
-                          {/* {isOnChainExecutionMode(
+                          {isOnChainExecutionMode(
                             activePortfolio?.executionMode,
                           ) &&
                             !isPortfolioClosed(activePortfolio) && (
@@ -1510,7 +1510,7 @@ export function PortfolioPage() {
                                 <DollarSign size={14} />
                                 Sell Portfolio
                               </button>
-                            )} */}
+                            )}
                         </div>
                         <div className="text-4xl font-bold mb-2">
                           $
@@ -1682,7 +1682,7 @@ export function PortfolioPage() {
                                                 </span>
                                               ) : null}
                                             </div>
-                                            {/* {isOnChainExecutionMode(
+                                            {isOnChainExecutionMode(
                                               activePortfolio?.executionMode,
                                             ) &&
                                               !isPortfolioClosed(
@@ -1705,7 +1705,7 @@ export function PortfolioPage() {
                                                   <DollarSign size={12} />
                                                   Sell
                                                 </button>
-                                              )} */}
+                                              )}
                                           </div>
                                           {name ? (
                                             <div className="text-sm text-gray-500 truncate">
