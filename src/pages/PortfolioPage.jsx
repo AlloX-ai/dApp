@@ -19,6 +19,7 @@ import {
   HelpCircle,
   X,
 } from "lucide-react";
+import { AnimatePresence } from "motion/react";
 import { encodeFunctionData } from "viem";
 import { useDispatch, useSelector } from "react-redux";
 import { NavLink, useLocation, useNavigate } from "react-router";
@@ -36,7 +37,36 @@ import { PortfolioAlertSettings } from "../components/PortfolioAlertSettings";
 import {
   createPrivyExecutionTxEnv,
   createWagmiExecutionTxEnv,
+  ensurePermit2Approvals,
+  ensureStandardApproval,
 } from "../utils/execution";
+import { PortfolioInfoModal } from "../components/PortfolioInfoModal";
+import { useGemsStatus } from "../hooks/useGemsStatus";
+import { getTierStyle } from "../utils/gemsTier";
+
+const PERMIT2_ADDRESS = "0x31c2F6fcFf4F8759b3Bd5Bf0e1084A055615c768";
+// Small grace period after on-chain approvals before we ask the backend to
+// re-prepare the swap — gives its allowance indexer a moment to catch up.
+const APPROVAL_INDEX_LAG_MS = 3000;
+const PREPARE_RETRY_DELAY_MS = 2500;
+const MAX_POST_APPROVAL_PREPARE_RETRIES = 4;
+
+// Maps raw errors (wagmi connector hiccups, user-rejected sign prompts, etc.)
+// to friendly copy so the UI never surfaces internal strings like
+// "Connector not connected. Version: @wagmi/core@2.22.1".
+const describeLoadError = (error) => {
+  const raw = typeof error?.message === "string" ? error.message : "";
+  if (/Connector not connected|getConnectorClient/i.test(raw)) {
+    return "Wallet connection was interrupted. Please reconnect your wallet and retry.";
+  }
+  if (/user rejected|user denied|rejected the request/i.test(raw)) {
+    return "Signature request was cancelled. Please retry to load your portfolios.";
+  }
+  if (error?.status === 401) {
+    return "Your session expired. Please reconnect your wallet.";
+  }
+  return raw || "Unable to load your portfolios right now.";
+};
 
 const ERC20_ABI = [
   {
@@ -111,12 +141,43 @@ const isPortfolioClosed = (portfolio) =>
   String(portfolio?.status || portfolio?.sellStatus || "").toUpperCase() ===
   "CLOSED";
 
+const CHAIN_INFO = {
+  BSC: {
+    label: "BNB Chain",
+    icon: "https://cdn.allox.ai/allox/networks/bnbIcon.svg",
+  },
+  ETH: {
+    label: "Ethereum",
+    icon: "https://cdn.allox.ai/allox/networks/eth.svg",
+  },
+  BASE: {
+    label: "Base",
+    icon: "https://cdn.allox.ai/allox/networks/base.svg",
+  },
+  SOL: {
+    label: "Solana",
+    icon: "https://cdn.allox.ai/allox/networks/solana.svg",
+  },
+  SOLANA: {
+    label: "Solana",
+    icon: "https://cdn.allox.ai/allox/networks/solana.svg",
+  },
+};
+
+const getChainInfo = (chain) => {
+  if (!chain) return null;
+  const key = String(chain).toUpperCase();
+  return CHAIN_INFO[key] || { label: key, icon: null };
+};
+
 export function PortfolioPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
   const isConnected = useSelector((state) => state.wallet.isConnected);
-  const { ensureAuthenticated, logout, user: authUser } = useAuth();
+  const sessionSource = useSelector((state) => state.wallet.sessionSource);
+  const walletType = useSelector((state) => state.wallet.walletType);
+  const { ensureAuthenticated, logout, user: authUser, token } = useAuth();
   const { wallets } = useWallets();
   const { sendTransaction: privySendTransaction } = useSendTransaction();
   const selectedPortfolioIdFromUrl = useMemo(
@@ -180,6 +241,7 @@ export function PortfolioPage() {
   const [orderStatusMap, setOrderStatusMap] = useState({});
   // Retry prompt state: pauses execution until user decides
   const [retryPrompt, setRetryPrompt] = useState(null); // { symbol, attempt, maxAttempts }
+  const [showPortfolioInfoModal, setShowPortfolioInfoModal] = useState(false);
   const retryResolverRef = useRef(null);
 
   const goToToken = useCallback(
@@ -222,9 +284,7 @@ export function PortfolioPage() {
         if (error?.status === 401) {
           logout();
         }
-        setAnalyticsError(
-          error?.message || "Unable to load analytics for this portfolio.",
-        );
+        setAnalyticsError(describeLoadError(error));
       } finally {
         setIsAnalyticsLoading(false);
       }
@@ -234,10 +294,21 @@ export function PortfolioPage() {
 
   const loadPortfolios = useCallback(async () => {
     if (!isConnected) return;
+    // When no JWT is available yet we deliberately avoid triggering
+    // `ensureAuthenticated()` here: on first render wagmi's connector can
+    // still be in a `reconnecting` / `connecting` state, and calling
+    // `signMessageAsync` at that moment throws the raw wagmi error
+    // ("Connector not connected. Version: @wagmi/core@…") which would leak
+    // into the UI. Instead we wait — once `useAuth` finishes its initial
+    // refresh and sets `token`, this effect re-runs and the fetch proceeds
+    // with the Bearer already attached by `apiCall`.
+    if (!token) {
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     setErrorMessage("");
     try {
-      await ensureAuthenticated();
       const response = await apiCall("/portfolio");
       const list = Array.isArray(response?.portfolios)
         ? response.portfolios
@@ -257,15 +328,13 @@ export function PortfolioPage() {
       if (error?.status === 401) {
         logout();
       }
-      setErrorMessage(
-        error?.message || "Unable to load your portfolios right now.",
-      );
+      setErrorMessage(describeLoadError(error));
     } finally {
       setIsLoading(false);
     }
   }, [
     isConnected,
-    ensureAuthenticated,
+    token,
     handlePortfolioSelect,
     logout,
     selectedPortfolioIdFromUrl,
@@ -623,31 +692,89 @@ export function PortfolioPage() {
   const executeSingleOrder = useCallback(
     async (order, txEnv, slippageValue) => {
       const symbol = order?.symbol || "TOKEN";
+
+      const describeWalletError = (err) => {
+        const code = err?.code;
+        const raw = String(err?.message || err || "").toLowerCase();
+        if (
+          code === 4001 ||
+          raw.includes("user rejected") ||
+          raw.includes("rejected the request") ||
+          raw.includes("user denied")
+        ) {
+          return "rejected in wallet";
+        }
+        if (
+          raw.includes("transaction failed") ||
+          raw.includes("failed to send") ||
+          raw.includes("send transaction failed") ||
+          raw.includes("wallet request failed")
+        ) {
+          return "wallet transaction failed";
+        }
+        return err?.message || "wallet error";
+      };
+
+      const callPrepare = () =>
+        apiCall(`/execution/${order.executionOrderId}/prepare`, {
+          method: "POST",
+          body: JSON.stringify({ slippage: slippageValue }),
+        });
+
+      // After approvals, the backend may still see the allowance as missing
+      // for a second or two while it indexes the approval tx. Retry /prepare
+      // on 428 **without** re-running the approval steps — otherwise Privy
+      // would pop the approval dialog a second time.
+      const prepareAfterApprovalsWithRetry = async () => {
+        let lastErr;
+        for (
+          let attempt = 0;
+          attempt < MAX_POST_APPROVAL_PREPARE_RETRIES;
+          attempt += 1
+        ) {
+          if (attempt > 0) await sleep(PREPARE_RETRY_DELAY_MS);
+          try {
+            return await callPrepare();
+          } catch (err) {
+            lastErr = err;
+            const stillWaitingForApproval =
+              err?.status === 428 && Array.isArray(err?.data?.approvalSteps);
+            if (!stillWaitingForApproval) throw err;
+            // else loop: backend hasn't indexed the approval yet.
+          }
+        }
+        throw lastErr;
+      };
+
       let prepare;
       try {
-        prepare = await apiCall(
-          `/execution/${order.executionOrderId}/prepare`,
-          {
-            method: "POST",
-            body: JSON.stringify({ slippage: slippageValue }),
-          },
-        );
+        prepare = await callPrepare();
       } catch (error) {
         if (
           error?.status === 428 &&
           Array.isArray(error?.data?.approvalSteps)
         ) {
           addSellLog(`${symbol}: approvals required.`);
-          for (const step of error.data.approvalSteps) {
-            await runApprovalStep(step, txEnv);
+          try {
+            for (const step of error.data.approvalSteps) {
+              await runApprovalStep(step, txEnv);
+            }
+          } catch (approvalErr) {
+            addSellLog(
+              `${symbol}: approval ${describeWalletError(approvalErr)}.`,
+            );
+            return false;
           }
-          prepare = await apiCall(
-            `/execution/${order.executionOrderId}/prepare`,
-            {
-              method: "POST",
-              body: JSON.stringify({ slippage: slippageValue }),
-            },
-          );
+          // Give the backend a moment to see the approval tx before retrying.
+          await sleep(APPROVAL_INDEX_LAG_MS);
+          try {
+            prepare = await prepareAfterApprovalsWithRetry();
+          } catch (retryPrepareErr) {
+            addSellLog(
+              `${symbol}: prepare failed after approvals (${retryPrepareErr?.message || "error"}).`,
+            );
+            return false;
+          }
         } else if (
           error?.status === 422 &&
           error?.data?.error === "SLIPPAGE_INCREASE_REQUIRED"
@@ -664,41 +791,115 @@ export function PortfolioPage() {
 
       const txData = prepare?.txData;
       if (!txData?.to || !txData?.data) {
-        throw new Error(`${symbol}: invalid prepared transaction data.`);
+        addSellLog(`${symbol}: invalid prepared transaction data.`);
+        return false;
+      }
+
+      // Some backend responses return 200 OK with approvalNeeded:true plus the
+      // swap txData. In that case the on-chain allowance may or may not
+      // already be sufficient — delegate to the idempotent on-chain checks
+      // from execution.js which read current allowance and only send an
+      // approve tx if it's actually missing. This avoids duplicate Privy
+      // prompts when the legacy 428 path and the success path overlap.
+      if (prepare.approvalNeeded) {
+        const fromTokenAddress = prepare.fromTokenAddress;
+        const requiredAmount = (() => {
+          try {
+            return prepare.fromAmount != null && prepare.fromAmount !== ""
+              ? BigInt(prepare.fromAmount)
+              : 0n;
+          } catch {
+            return 0n;
+          }
+        })();
+
+        try {
+          if (prepare.approvalType === "permit2") {
+            const p2 = prepare.permit2Approval;
+            if (!p2?.spender) {
+              addSellLog(
+                `${symbol}: missing permit2 spender in prepare response.`,
+              );
+              return false;
+            }
+            await ensurePermit2Approvals({
+              permit2Approval: {
+                permit2Address: p2.permit2Address || PERMIT2_ADDRESS,
+                spender: p2.spender,
+              },
+              fromTokenAddress,
+              userAddress: txEnv.userAddress,
+              requiredAmount,
+              update: () => {},
+              txEnv,
+            });
+          } else if (prepare.approvalType === "standard") {
+            await ensureStandardApproval({
+              approvalContract: prepare.approvalContract,
+              tokenAddress: fromTokenAddress,
+              userAddress: txEnv.userAddress,
+              requiredAmount,
+              update: () => {},
+              txEnv,
+            });
+          }
+        } catch (approvalErr) {
+          addSellLog(
+            `${symbol}: approval ${describeWalletError(approvalErr)}.`,
+          );
+          return false;
+        }
       }
 
       addSellLog(`${symbol}: waiting for wallet confirmation...`);
-      const txHash = await txEnv.sendTransaction({
-        to: txData.to,
-        data: txData.data,
-        value:
-          txData.value != null && txData.value !== ""
-            ? BigInt(txData.value)
-            : 0n,
-        ...(txData.nonce != null && txData.nonce !== ""
-          ? { nonce: Number(txData.nonce) }
-          : {}),
-      });
+      let txHash;
+      try {
+        txHash = await txEnv.sendTransaction({
+          to: txData.to,
+          data: txData.data,
+          value:
+            txData.value != null && txData.value !== ""
+              ? BigInt(txData.value)
+              : 0n,
+          ...(txData.nonce != null && txData.nonce !== ""
+            ? { nonce: Number(txData.nonce) }
+            : {}),
+        });
+      } catch (walletErr) {
+        addSellLog(`${symbol}: ${describeWalletError(walletErr)}.`);
+        return false;
+      }
       addSellLog(`${symbol}: tx submitted ${txHash.slice(0, 10)}...`);
 
-      await apiCall(`/execution/${order.executionOrderId}/submit`, {
-        method: "POST",
-        body: JSON.stringify({ txHash }),
-      });
+      try {
+        await apiCall(`/execution/${order.executionOrderId}/submit`, {
+          method: "POST",
+          body: JSON.stringify({ txHash }),
+        });
+      } catch (submitErr) {
+        addSellLog(
+          `${symbol}: submit failed (${submitErr?.message || "error"}).`,
+        );
+        return false;
+      }
 
       for (let i = 0; i < MAX_POLL_ATTEMPTS; i += 1) {
         await sleep(POLL_INTERVAL_MS);
-        const statusData = await apiCall(
-          `/execution/${order.executionOrderId}/status`,
-        );
-        const status = statusData?.status;
-        if (status === "CONFIRMED") {
-          addSellLog(`${symbol}: confirmed.`);
-          return true;
-        }
-        if (status === "FAILED") {
-          addSellLog(`${symbol}: failed on-chain.`);
-          return false;
+        try {
+          const statusData = await apiCall(
+            `/execution/${order.executionOrderId}/status`,
+          );
+          const status = statusData?.status;
+          if (status === "CONFIRMED") {
+            addSellLog(`${symbol}: confirmed.`);
+            return true;
+          }
+          if (status === "FAILED") {
+            addSellLog(`${symbol}: failed on-chain.`);
+            return false;
+          }
+        } catch {
+          // transient status error — keep polling
         }
       }
 
@@ -723,7 +924,15 @@ export function PortfolioPage() {
     try {
       await ensureAuthenticated();
       let txEnv;
-      if (authUser?.authProvider === "privy") {
+      // Detect Privy across all signals so a Privy session that lost
+      // `authProvider` after /auth/me refresh still uses the embedded wallet
+      // path instead of falling through to wagmi (which would throw
+      // "Wallet not connected" and silently re-quote).
+      const isPrivySession =
+        authUser?.authProvider === "privy" ||
+        sessionSource === "privy" ||
+        walletType === "privy";
+      if (isPrivySession) {
         const embedded = getEmbeddedConnectedWallet(wallets);
         if (!embedded) {
           throw new Error(
@@ -753,11 +962,14 @@ export function PortfolioPage() {
       for (const initialOrder of sellQuote.orders) {
         let currentOrder = initialOrder;
         let orderConfirmed = false;
+        // statusKey stays tied to the row rendered from sellQuote.orders so
+        // the UI keeps in sync even after a re-quote changes executionOrderId.
+        const statusKey = initialOrder.executionOrderId;
 
         for (let attempt = 1; attempt <= MAX_ORDER_ATTEMPTS; attempt++) {
           setOrderStatusMap((prev) => ({
             ...prev,
-            [currentOrder.executionOrderId]: "executing",
+            [statusKey]: "executing",
           }));
 
           const ok = await executeSingleOrder(
@@ -769,7 +981,7 @@ export function PortfolioPage() {
           if (ok) {
             setOrderStatusMap((prev) => ({
               ...prev,
-              [currentOrder.executionOrderId]: "confirmed",
+              [statusKey]: "confirmed",
             }));
             orderConfirmed = true;
             break;
@@ -777,7 +989,7 @@ export function PortfolioPage() {
 
           setOrderStatusMap((prev) => ({
             ...prev,
-            [currentOrder.executionOrderId]: "failed",
+            [statusKey]: "failed",
           }));
 
           if (attempt >= MAX_ORDER_ATTEMPTS) {
@@ -796,6 +1008,7 @@ export function PortfolioPage() {
           const shouldRetry = await new Promise((resolve) => {
             retryResolverRef.current = resolve;
           });
+          setRetryPrompt(null);
 
           if (!shouldRetry) {
             addSellLog(`${currentOrder.symbol}: skipped by user.`);
@@ -874,6 +1087,8 @@ export function PortfolioPage() {
     sellQuote?.orders,
     sellSlippage,
     sellTarget,
+    sessionSource,
+    walletType,
     wallets,
   ]);
 
@@ -930,14 +1145,28 @@ export function PortfolioPage() {
   const highPriceImpactOrders = sellQuoteOrders.filter(
     (order) => Number(order?.priceImpact || 0) >= 5,
   );
+
+  const { status: gemsStatus } = useGemsStatus();
+  const userTierName = gemsStatus?.currentTier?.name || "Bronze";
+  const userTierStyle = getTierStyle(userTierName);
   return (
     <div className="flex-1 px-6 py-8 portfolio-wrapper ms-auto w-full overflow-y-auto relative">
       <div className="">
         <div className="mb-8">
           <div className="flex flex-col sm:flex-row items-center justify-between mb-6 gap-3">
-            <h2 className="text-3xl font-bold">Portfolio</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-3xl font-bold">Portfolio</h2>
+              <button
+                onClick={() => setShowPortfolioInfoModal(true)}
+                style={{ backgroundImage: userTierStyle.backgroundImage }}
+                className="px-2.5 py-1 text-white text-xs font-bold rounded-lg transition-all cursor-pointer shadow-sm hover:brightness-110"
+                title={`Your gems tier: ${userTierName}`}
+              >
+                {userTierName}
+              </button>
+            </div>
             <div className="flex flex-col sm:flex-row gap-2 items-center">
-              {/* {!activePortfolio && (
+              {!activePortfolio && (
                 <button
                   type="button"
                   onClick={() => setIsSellInfoModalOpen(true)}
@@ -946,7 +1175,7 @@ export function PortfolioPage() {
                   <HelpCircle size={14} className="text-blue-600" />
                   <span className="font-medium">More info</span>
                 </button>
-              )} */}
+              )}
               {activePortfolio ? (
                 <div className="flex items-center gap-2">
                   <button
@@ -1316,7 +1545,7 @@ export function PortfolioPage() {
                                       <h3 className="text-lg font-bold mb-0 group-hover:text-blue-600 transition-colors">
                                         {portfolio?.name || "Portfolio"}
                                       </h3>
-                                      {/* {isOnChainExecutionMode(
+                                      {isOnChainExecutionMode(
                                         portfolio?.executionMode,
                                       ) &&
                                         !isClosed && (
@@ -1338,23 +1567,43 @@ export function PortfolioPage() {
                                           >
                                             <DollarSign size={15} /> Sell
                                           </button>
-                                        )} */}
+                                        )}
                                     </div>
                                   )}
-                                  <span
-                                    className={`inline-block text-xs px-2.5 py-1 rounded-full border font-medium ${getRiskColor(
-                                      portfolio?.riskProfile,
-                                    )}`}
-                                  >
-                                    {String(
-                                      portfolio?.riskProfile || "UNKNOWN",
-                                    ).toUpperCase()}
-                                  </span>
-                                  {isClosed && (
-                                    <span className="ml-2 inline-block text-xs px-2.5 py-1 rounded-full border font-medium bg-gray-100 text-gray-700 border-gray-200">
-                                      CLOSED
+                                  <div className="mt-1 flex items-center gap-2 flex-wrap">
+                                    <span
+                                      className={`inline-block text-xs px-2.5 py-1 rounded-full border font-medium ${getRiskColor(
+                                        portfolio?.riskProfile,
+                                      )}`}
+                                    >
+                                      {String(
+                                        portfolio?.riskProfile || "UNKNOWN",
+                                      ).toUpperCase()}
                                     </span>
-                                  )}
+                                    {(() => {
+                                      const chainInfo = getChainInfo(
+                                        portfolio?.chain,
+                                      );
+                                      if (!chainInfo) return null;
+                                      return (
+                                        <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border border-gray-200 bg-gray-50 text-gray-700 font-medium">
+                                          {chainInfo.icon ? (
+                                            <img
+                                              src={chainInfo.icon}
+                                              alt=""
+                                              className="h-3.5 w-3.5"
+                                            />
+                                          ) : null}
+                                          <span>Chain: {chainInfo.label}</span>
+                                        </span>
+                                      );
+                                    })()}
+                                    {isClosed && (
+                                      <span className="inline-block text-xs px-2.5 py-1 rounded-full border font-medium bg-gray-100 text-gray-700 border-gray-200">
+                                        CLOSED
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
 
                                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
@@ -1480,7 +1729,7 @@ export function PortfolioPage() {
                       <div className="glass-card p-5">
                         <div className="text-sm text-gray-600 mb-1 flex items-center justify-between gap-3">
                           <span>Total Balance</span>
-                          {/* {isOnChainExecutionMode(
+                          {isOnChainExecutionMode(
                             activePortfolio?.executionMode,
                           ) &&
                             !isPortfolioClosed(activePortfolio) && (
@@ -1498,7 +1747,7 @@ export function PortfolioPage() {
                                 <DollarSign size={14} />
                                 Sell Portfolio
                               </button>
-                            )} */}
+                            )}
                         </div>
                         <div className="text-4xl font-bold mb-2">
                           $
@@ -1670,7 +1919,7 @@ export function PortfolioPage() {
                                                 </span>
                                               ) : null}
                                             </div>
-                                            {/* {isOnChainExecutionMode(
+                                            {isOnChainExecutionMode(
                                               activePortfolio?.executionMode,
                                             ) &&
                                               !isPortfolioClosed(
@@ -1693,7 +1942,7 @@ export function PortfolioPage() {
                                                   <DollarSign size={12} />
                                                   Sell
                                                 </button>
-                                              )} */}
+                                              )}
                                           </div>
                                           {name ? (
                                             <div className="text-sm text-gray-500 truncate">
@@ -2479,7 +2728,17 @@ export function PortfolioPage() {
         </div>
       )}
 
-      {/* {isSellInfoModalOpen && (
+      <AnimatePresence>
+        {showPortfolioInfoModal && (
+          <PortfolioInfoModal
+            isOpen={showPortfolioInfoModal}
+            onClose={() => setShowPortfolioInfoModal(false)}
+            gemsStatus={gemsStatus}
+          />
+        )}
+      </AnimatePresence>
+
+      {isSellInfoModalOpen && (
         <div
           className="fixed inset-0 z-[60] flex items-center justify-center bg-black/45 backdrop-blur-sm p-4"
           onClick={() => setIsSellInfoModalOpen(false)}
@@ -2581,7 +2840,7 @@ export function PortfolioPage() {
             </div>
           </div>
         </div>
-      )} */}
+      )}
     </div>
   );
 }

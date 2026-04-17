@@ -305,7 +305,7 @@ async function executeApprovalSteps({ approvalSteps, update, txEnv }) {
   }
 }
 
-async function ensurePermit2Approvals({
+export async function ensurePermit2Approvals({
   permit2Approval,
   fromTokenAddress,
   userAddress,
@@ -397,7 +397,7 @@ async function ensurePermit2Approvals({
   }
 }
 
-async function ensureStandardApproval({
+export async function ensureStandardApproval({
   approvalContract,
   tokenAddress,
   userAddress,

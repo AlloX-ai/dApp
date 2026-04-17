@@ -3,7 +3,12 @@ import { useDispatch, useSelector } from "react-redux";
 import { useAccount, useSignMessage } from "wagmi";
 import { useWallet } from "@solana/wallet-adapter-react";
 import bs58 from "bs58";
-import { apiCall, getApiUrl } from "../utils/api";
+import {
+  apiCall,
+  AUTH_TOKEN_CHANGED_EVENT,
+  getApiUrl,
+  refreshAuthToken,
+} from "../utils/api";
 import { setWalletType } from "../redux/slices/walletSlice";
 import { runPrivyLogoutBridge } from "../auth/privyLogoutBridge";
 
@@ -22,6 +27,11 @@ let meFetchInFlight = null;
 let lastMeFetchAt = 0;
 const ME_FETCH_COOLDOWN_MS = 5000;
 
+// Fires at most once per app load: refreshes a potentially-near-expiry JWT
+// before the user hits the first 401. Subsequent refreshes are handled
+// reactively inside api.js on 401 or proactively via `maybeProactiveRefresh`.
+let initialRefreshAttempted = false;
+
 // Global auth in-flight dedup — shared across all hook instances and React render cycles.
 // Prevents double sign requests when React effects re-run due to walletType/address settling.
 let globalAuthInFlight = null;
@@ -37,7 +47,21 @@ const notifySubscribers = () => {
   }
 };
 
+const dispatchTokenChanged = (nextToken) => {
+  if (typeof window === "undefined") return;
+  try {
+    window.dispatchEvent(
+      new CustomEvent(AUTH_TOKEN_CHANGED_EVENT, {
+        detail: { token: nextToken },
+      }),
+    );
+  } catch (e) {
+    console.error(e);
+  }
+};
+
 const setGlobalToken = (nextToken) => {
+  const prev = globalAuthState.token;
   globalAuthState = { ...globalAuthState, token: nextToken };
   if (nextToken != null) {
     try {
@@ -53,6 +77,9 @@ const setGlobalToken = (nextToken) => {
     }
   }
   notifySubscribers();
+  if (prev !== nextToken) {
+    dispatchTokenChanged(nextToken);
+  }
 };
 
 const setGlobalUser = (nextUser) => {
@@ -61,6 +88,25 @@ const setGlobalUser = (nextUser) => {
   globalAuthState = { ...globalAuthState, user: resolvedUser };
   notifySubscribers();
 };
+
+// Keep React state in sync whenever api.js silently refreshes (or clears) the
+// JWT. Without this listener, components call useAuth() and keep reading the
+// stale token that was captured at mount — so after a 7-day expiry + refresh
+// the UI would still show the old token in state even though localStorage was
+// updated. When the refresh fails (token cleared to null), also drop `user`
+// so gates like `isAuthenticated` flip to logged-out immediately.
+if (typeof window !== "undefined") {
+  window.addEventListener(AUTH_TOKEN_CHANGED_EVENT, (event) => {
+    const nextToken = event?.detail?.token ?? null;
+    if (globalAuthState.token === nextToken) return;
+    globalAuthState = { ...globalAuthState, token: nextToken };
+    if (nextToken == null) {
+      globalAuthState = { ...globalAuthState, user: null };
+      lastMeFetchAt = 0;
+    }
+    notifySubscribers();
+  });
+}
 
 /**
  * Exchange Privy access token for app JWT + user (same contract as wallet /auth/verify).
@@ -155,8 +201,24 @@ export const useAuth = () => {
     refreshUser().catch(() => {});
   }, [token, user, refreshUser]);
 
+  // On first mount with an existing token, kick the proactive refresh so a
+  // session that's been idle past (or near) the 7-day window is renewed
+  // before the user's next interaction hits a 401. Guarded by a module-level
+  // flag so it never fires again after the refresh response swaps the token.
+  useEffect(() => {
+    if (!token || initialRefreshAttempted) return;
+    initialRefreshAttempted = true;
+    refreshAuthToken().catch((e) =>
+      console.error("Initial token refresh failed:", e),
+    );
+  }, [token]);
+
   const setUser = useCallback((nextUser) => {
     setGlobalUser(nextUser);
+  }, []);
+
+  const refreshToken = useCallback(async () => {
+    return refreshAuthToken();
   }, []);
 
   const authenticate = useCallback(async () => {
@@ -247,6 +309,7 @@ export const useAuth = () => {
     await runPrivyLogoutBridge();
     setGlobalToken(null);
     setGlobalUser(null);
+    initialRefreshAttempted = false;
     try {
       localStorage.removeItem("chatCount");
       localStorage.removeItem("chatDate");
@@ -267,6 +330,7 @@ export const useAuth = () => {
     ensureAuthenticated,
     claimSeason1,
     refreshUser,
+    refreshToken,
     logout,
     isAuthenticated,
   };
