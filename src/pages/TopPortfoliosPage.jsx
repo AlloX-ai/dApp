@@ -15,7 +15,7 @@ export function TopPortfoliosPage() {
   const [selectedPeriod, setSelectedPeriod] = useState("24h");
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { ensureAuthenticated, logout } = useAuth();
+  const { logout } = useAuth();
   const selectedPortfolioId = searchParams.get("portfolio")?.trim() || "";
 
   useEffect(() => {
@@ -114,7 +114,7 @@ export function TopPortfoliosPage() {
   const topPortfoliosQuery = useQuery({
     queryKey: ["portfolio", "top"],
     queryFn: async () => {
-      await ensureAuthenticated();
+      // await ensureAuthenticated();
       try {
         return await apiCall(`/portfolio/top`);
       } catch (err) {
@@ -582,7 +582,7 @@ export function TopPortfoliosPage() {
                   <div className="text-xs text-gray-500 mb-1">
                     Current Value
                   </div>
-                  <div className="font-bold text-xl text-gray-900">
+                  <div className="font-bold text-sm sm:text-xl text-gray-900">
                     ${portfolio.currentValue.toLocaleString()}
                   </div>
                 </div>
@@ -590,7 +590,7 @@ export function TopPortfoliosPage() {
                   <div className="text-xs text-gray-500 mb-1">P&L</div>
                   <div className="flex items-center gap-2 justify-end">
                     <div
-                      className={`flex items-center justify-end gap-1.5 font-bold text-xl ${
+                      className={`flex items-center justify-end gap-1.5 font-bold text-sm sm:text-xl ${
                         portfolio.plPercentage >= 0
                           ? "text-green-600"
                           : "text-red-600"

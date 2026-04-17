@@ -56,8 +56,8 @@ export function CampaignsPage() {
                 <div className="absolute inset-0 " />
 
                 {/* Badge on Banner */}
-                <div className="absolute top-4 right-4 bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold shadow-lg">
-                  ACTIVE
+                <div className="absolute top-4 right-4 bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs font-bold shadow-lg">
+                  UPCOMING
                 </div>
 
                 {/* Icon on Banner */}
@@ -70,34 +70,34 @@ export function CampaignsPage() {
                   The Allocation Race
                 </h3>
                 <p className="text-gray-600 mb-6">
-                  Create on-chain portfolios and compete for 100,000 Gems reward
+                  Create on-chain portfolios and compete for $500,000 reward
                   pool
                 </p>
 
                 {/* Stats */}
                 <div className="flex items-center justify-between mb-6">
                   <div className="bg-white/60 backdrop-blur-sm rounded-xl p-3">
-                    <div className="text-xs text-gray-600 mb-1">Prize Pool</div>
+                    <div className="text-xs text-gray-600 mb-1">Total Rewards</div>
                     <div className="font-bold text-gray-900 flex items-center gap-1">
-                      <Gem className="w-4 h-4 text-purple-600" />
-                      100,000
+                      $500,000 (<Gem className="w-4 h-4 text-purple-600" />
+                      100,000)
                     </div>
                   </div>
                   <div className="bg-white/60 backdrop-blur-sm rounded-xl p-3">
                     <div className="text-xs text-gray-600 mb-1">Duration</div>
                     <div className="font-bold text-gray-900 flex items-center gap-1">
                       <Calendar className="w-4 h-4 text-blue-600" />
-                      Apr 16 - May 28
+                      Apr 17 - May 29
                     </div>
                   </div>
                 </div>
 
                 {/* CTA */}
-                <div className="flex items-center justify-end gap-2">
+                <div className="flex items-center justify-end gap-2 ">
                   <span className="text-sm font-semibold text-amber-600 group-hover:text-amber-700">
-                    View
+                    Upcoming
                   </span>
-                  <ChevronRight className="w-5 h-5 text-amber-600 group-hover:translate-x-1 transition-transform" />
+                  {/* <ChevronRight className="w-5 h-5 text-amber-600 group-hover:translate-x-1 transition-transform" /> */}
                 </div>
               </div>
             </button>
@@ -135,7 +135,7 @@ export function CampaignsPage() {
                 </h3>
                 <p className="text-gray-600 mb-6">
                   Claim your welocme bonus each season to eran rewards from the
-                  9,000 Gem reward pool
+                  $45,000 reward pool
                 </p>
 
                 {/* Stats */}
@@ -145,8 +145,8 @@ export function CampaignsPage() {
                       Total Rewards
                     </div>
                     <div className="font-bold text-base text-gray-900 flex items-center gap-1">
-                      <Gem className="w-4 h-4 text-purple-600" />
-                      9,000
+                      $45,000 (<Gem className="w-4 h-4 text-purple-600" />
+                      9,000)
                     </div>
                   </div>
                   <div className="bg-white/60 backdrop-blur-sm rounded-xl p-3">

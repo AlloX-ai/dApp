@@ -4,8 +4,6 @@ import { setPointsBalance } from "../redux/slices/pointsSlice";
 import { store } from "../redux/store";
 import { getBonusMessages } from "./rateLimitMessages";
 
-const AUTH_USER_KEY = "authUser";
-
 /** Backend may use camelCase or snake_case — normalize before merging into Redux. */
 function normalizeRateLimitPayload(rl) {
   if (!rl || typeof rl !== "object") return rl;
@@ -24,21 +22,16 @@ function normalizeRateLimitPayload(rl) {
 
 function mergeAuthUserSeason1RateLimit(setUser, rateLimitPartial) {
   if (typeof setUser !== "function" || !rateLimitPartial) return;
-  try {
-    const stored = JSON.parse(localStorage.getItem(AUTH_USER_KEY) || "{}");
-    setUser({
-      ...stored,
-      season1: {
-        ...(stored.season1 ?? {}),
-        rateLimit: {
-          ...(stored.season1?.rateLimit ?? {}),
-          ...rateLimitPartial,
-        },
+  setUser((prev) => ({
+    ...(prev ?? {}),
+    season1: {
+      ...((prev ?? {}).season1 ?? {}),
+      rateLimit: {
+        ...((prev ?? {}).season1?.rateLimit ?? {}),
+        ...rateLimitPartial,
       },
-    });
-  } catch (e) {
-    console.error(e);
-  }
+    },
+  }));
 }
 
 /**
@@ -98,15 +91,13 @@ export async function fetchChatStatus(dispatch, { setUser } = {}) {
       dispatch(setPointsBalance(status.points));
     }
     if (status?.claimed != null && typeof setUser === "function") {
-      try {
-        const stored = JSON.parse(localStorage.getItem(AUTH_USER_KEY) || "{}");
-        setUser({
-          ...stored,
-          season1: { ...(stored?.season1 ?? {}), claimed: status.claimed },
-        });
-      } catch (e) {
-        console.error(e);
-      }
+      setUser((prev) => ({
+        ...(prev ?? {}),
+        season1: {
+          ...((prev ?? {}).season1 ?? {}),
+          claimed: status.claimed,
+        },
+      }));
     }
   } catch (e) {
     if (e?.status !== 401) console.warn("Chat status fetch failed:", e);

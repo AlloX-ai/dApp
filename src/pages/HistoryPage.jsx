@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { MessageSquare, Trash2, Pencil, Loader2 } from "lucide-react";
+import { Trash2, Pencil, Loader2, Wallet } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   setChatSessions,
@@ -8,7 +8,9 @@ import {
   setCurrentMessages,
   setViewingHistorySessionId,
 } from "../redux/slices/chatSlice";
+import { setWalletModal } from "../redux/slices/walletSlice";
 import { apiCall } from "../utils/api";
+import { useAuth } from "../hooks/useAuth";
 
 function formatSessionDate(createdAt) {
   if (!createdAt) return "";
@@ -35,6 +37,9 @@ export function HistoryPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const chatSessions = useSelector((state) => state.chat.chatSessions);
+  const isConnected = useSelector((state) => state.wallet.isConnected);
+  const { isAuthenticated, ensureAuthenticated } = useAuth();
+  const canViewHistory = isConnected && isAuthenticated;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [editingId, setEditingId] = useState(null);
@@ -43,7 +48,18 @@ export function HistoryPage() {
   const [deleteAllConfirm, setDeleteAllConfirm] = useState(false);
   const [deletingAll, setDeletingAll] = useState(false);
 
+  useEffect(() => {
+    if (!isConnected || isAuthenticated) return;
+    ensureAuthenticated().catch(() => {});
+  }, [isConnected, isAuthenticated, ensureAuthenticated]);
+
   const fetchSessions = useCallback(async () => {
+    if (!canViewHistory) {
+      dispatch(setChatSessions([]));
+      setLoading(false);
+      setError(null);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -65,7 +81,7 @@ export function HistoryPage() {
     } finally {
       setLoading(false);
     }
-  }, [dispatch]);
+  }, [canViewHistory, dispatch]);
 
   useEffect(() => {
     fetchSessions();
@@ -201,7 +217,25 @@ export function HistoryPage() {
         </div>
       )}
 
-      {loading ? (
+      {!canViewHistory ? (
+        <div className="glass-card p-12 text-center">
+          <div className="w-20 h-20 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Wallet size={40} className="text-gray-400" />
+          </div>
+          <h3 className="text-xl font-bold mb-3">Connect Your Wallet</h3>
+          <p className="text-gray-600 mb-6">
+            Connect and sign in to view your chat history sessions.
+          </p>
+          <button
+            type="button"
+            onClick={() => dispatch(setWalletModal(true))}
+            className="btn-primary text-lg px-8 py-4 transition-all duration-200 hover:shadow-xl"
+          >
+            <Wallet size={20} className="mr-2" />
+            Connect Wallet
+          </button>
+        </div>
+      ) : loading ? (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
         </div>

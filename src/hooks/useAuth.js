@@ -1,48 +1,16 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useAccount, useSignMessage } from "wagmi";
 import { useWallet } from "@solana/wallet-adapter-react";
 import bs58 from "bs58";
-import { apiCall, getApiUrl } from "../utils/api";
+import {
+  apiCall,
+  AUTH_TOKEN_CHANGED_EVENT,
+  getApiUrl,
+  refreshAuthToken,
+} from "../utils/api";
 import { setWalletType } from "../redux/slices/walletSlice";
 import { runPrivyLogoutBridge } from "../auth/privyLogoutBridge";
-
-const AUTH_USER_KEY = "authUser";
-const AUTH_EXPIRY_SKEW_MS = 30 * 1000;
-
-const getJwtExpiryMs = (jwt) => {
-  try {
-    const payload = jwt?.split?.(".")?.[1];
-    if (!payload) return null;
-    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
-    const padded = normalized.padEnd(
-      normalized.length + ((4 - (normalized.length % 4)) % 4),
-      "=",
-    );
-    const decoded = JSON.parse(atob(padded));
-    const expSeconds = Number(decoded?.exp);
-    if (!Number.isFinite(expSeconds)) return null;
-    return expSeconds * 1000;
-  } catch (e) {
-    return null;
-  }
-};
-
-const isJwtExpired = (jwt) => {
-  const expiryMs = getJwtExpiryMs(jwt);
-  if (!expiryMs) return false;
-  return Date.now() >= expiryMs - AUTH_EXPIRY_SKEW_MS;
-};
-
-const loadStoredUser = () => {
-  try {
-    const raw = localStorage.getItem(AUTH_USER_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch (e) {
-    console.error(e);
-  }
-  return null;
-};
 
 // Simple in-module singleton so all `useAuth` hook instances
 // share the same `user` and `token` state instead of each
@@ -51,10 +19,23 @@ let globalAuthState = {
   token: typeof window !== "undefined"
     ? localStorage.getItem("authToken")
     : null,
-  user: typeof window !== "undefined" ? loadStoredUser() : null,
+  user: null,
 };
 
 const subscribers = new Set();
+let meFetchInFlight = null;
+let lastMeFetchAt = 0;
+const ME_FETCH_COOLDOWN_MS = 5000;
+
+// Fires at most once per app load: refreshes a potentially-near-expiry JWT
+// before the user hits the first 401. Subsequent refreshes are handled
+// reactively inside api.js on 401 or proactively via `maybeProactiveRefresh`.
+let initialRefreshAttempted = false;
+
+// Global auth in-flight dedup — shared across all hook instances and React render cycles.
+// Prevents double sign requests when React effects re-run due to walletType/address settling.
+let globalAuthInFlight = null;
+let globalAuthInFlightAddress = null;
 
 const notifySubscribers = () => {
   for (const cb of subscribers) {
@@ -66,7 +47,21 @@ const notifySubscribers = () => {
   }
 };
 
+const dispatchTokenChanged = (nextToken) => {
+  if (typeof window === "undefined") return;
+  try {
+    window.dispatchEvent(
+      new CustomEvent(AUTH_TOKEN_CHANGED_EVENT, {
+        detail: { token: nextToken },
+      }),
+    );
+  } catch (e) {
+    console.error(e);
+  }
+};
+
 const setGlobalToken = (nextToken) => {
+  const prev = globalAuthState.token;
   globalAuthState = { ...globalAuthState, token: nextToken };
   if (nextToken != null) {
     try {
@@ -82,30 +77,36 @@ const setGlobalToken = (nextToken) => {
     }
   }
   notifySubscribers();
+  if (prev !== nextToken) {
+    dispatchTokenChanged(nextToken);
+  }
 };
 
 const setGlobalUser = (nextUser) => {
-  globalAuthState = { ...globalAuthState, user: nextUser };
-  if (nextUser != null) {
-    try {
-      localStorage.setItem(AUTH_USER_KEY, JSON.stringify(nextUser));
-    } catch (e) {
-      console.error(e);
-    }
-  } else {
-    try {
-      localStorage.removeItem(AUTH_USER_KEY);
-    } catch (e) {
-      console.error(e);
-    }
-  }
+  const resolvedUser =
+    typeof nextUser === "function" ? nextUser(globalAuthState.user) : nextUser;
+  globalAuthState = { ...globalAuthState, user: resolvedUser };
   notifySubscribers();
 };
 
-const clearGlobalAuth = () => {
-  setGlobalToken(null);
-  setGlobalUser(null);
-};
+// Keep React state in sync whenever api.js silently refreshes (or clears) the
+// JWT. Without this listener, components call useAuth() and keep reading the
+// stale token that was captured at mount — so after a 7-day expiry + refresh
+// the UI would still show the old token in state even though localStorage was
+// updated. When the refresh fails (token cleared to null), also drop `user`
+// so gates like `isAuthenticated` flip to logged-out immediately.
+if (typeof window !== "undefined") {
+  window.addEventListener(AUTH_TOKEN_CHANGED_EVENT, (event) => {
+    const nextToken = event?.detail?.token ?? null;
+    if (globalAuthState.token === nextToken) return;
+    globalAuthState = { ...globalAuthState, token: nextToken };
+    if (nextToken == null) {
+      globalAuthState = { ...globalAuthState, user: null };
+      lastMeFetchAt = 0;
+    }
+    notifySubscribers();
+  });
+}
 
 /**
  * Exchange Privy access token for app JWT + user (same contract as wallet /auth/verify).
@@ -170,93 +171,113 @@ export const useAuth = () => {
 
   const { token, user } = state;
 
-  const authInFlightRef = useRef(null);
+  const refreshUser = useCallback(async () => {
+    const t = token || localStorage.getItem("authToken");
+    if (!t) return null;
+    const now = Date.now();
+    if (
+      globalAuthState.user &&
+      now - lastMeFetchAt < ME_FETCH_COOLDOWN_MS
+    ) {
+      return globalAuthState.user;
+    }
+    if (meFetchInFlight) return meFetchInFlight;
+    meFetchInFlight = apiCall("/auth/me")
+      .then((me) => {
+        lastMeFetchAt = Date.now();
+        if (me && typeof me === "object") {
+          setGlobalUser(me);
+        }
+        return me;
+      })
+      .finally(() => {
+        meFetchInFlight = null;
+      });
+    return meFetchInFlight;
+  }, [token]);
 
   useEffect(() => {
-    authInFlightRef.current = null;
-  }, [address, walletType]);
+    if (!token || user) return;
+    refreshUser().catch(() => {});
+  }, [token, user, refreshUser]);
+
+  // On first mount with an existing token, kick the proactive refresh so a
+  // session that's been idle past (or near) the 7-day window is renewed
+  // before the user's next interaction hits a 401. Guarded by a module-level
+  // flag so it never fires again after the refresh response swaps the token.
+  useEffect(() => {
+    if (!token || initialRefreshAttempted) return;
+    initialRefreshAttempted = true;
+    refreshAuthToken().catch((e) =>
+      console.error("Initial token refresh failed:", e),
+    );
+  }, [token]);
 
   const setUser = useCallback((nextUser) => {
     setGlobalUser(nextUser);
   }, []);
 
-  const authenticate = useCallback(async () => {
-    if (authInFlightRef.current) return authInFlightRef.current;
+  const refreshToken = useCallback(async () => {
+    return refreshAuthToken();
+  }, []);
 
+  const authenticate = useCallback(async () => {
     if (!address) {
       throw new Error("Wallet not connected");
     }
 
-    const authPromise = (async () => {
-      const nonceRes = await apiCall(`/auth/nonce/${address}`);
-      const message = nonceRes.message;
-      const rawWalletType = nonceRes.walletType ?? walletType;
-      const walletTypeFromApi =
-        rawWalletType === "phantom" || rawWalletType === "solana"
-          ? "solana"
-          : rawWalletType || "evm";
+    const nonceRes = await apiCall(`/auth/nonce/${address}`);
+    const message = nonceRes.message;
+    const rawWalletType = nonceRes.walletType ?? walletType;
+    const walletTypeFromApi =
+      rawWalletType === "phantom" || rawWalletType === "solana"
+        ? "solana"
+        : rawWalletType || "evm";
 
-      if (!message) {
-        throw new Error("Missing nonce message");
-      }
-
-      let signature;
-
-      if (walletTypeFromApi === "solana") {
-        if (!signMessageSolana) throw new Error("Solana wallet not connected");
-        const encodedMessage = new TextEncoder().encode(message);
-        const rawSig = await signMessageSolana(encodedMessage);
-        signature =
-          typeof rawSig === "string"
-            ? rawSig
-            : bs58.encode(new Uint8Array(rawSig));
-      } else {
-        signature = await signMessageAsync({ message });
-      }
-
-      const verifyRes = await apiCall("/auth/verify", {
-        method: "POST",
-        body: JSON.stringify({ address, signature }),
-      });
-
-      if (!verifyRes.token) {
-        throw new Error("Missing auth token");
-      }
-
-      // Always persist user with walletType and address so session restore and guards work after navigate
-      setGlobalToken(verifyRes.token);
-      if (verifyRes.user) {
-        setUser({
-          ...verifyRes.user,
-          walletType: walletTypeFromApi,
-          address: verifyRes.user.address ?? address,
-        });
-      } else {
-        const stored = loadStoredUser();
-        setUser(
-          stored
-            ? {
-                ...stored,
-                walletType: walletTypeFromApi,
-                address: stored.address ?? address,
-              }
-            : { walletType: walletTypeFromApi, address },
-        );
-      }
-
-      if (walletTypeFromApi) {
-        dispatch(setWalletType(walletTypeFromApi));
-      }
-
-      return { token: verifyRes.token, user: verifyRes.user };
-    })();
-
-    authInFlightRef.current = authPromise;
-    try {
-      return await authPromise;
-    } finally {
-      authInFlightRef.current = null;
+    if (!message) {
+      throw new Error("Missing nonce message");
     }
+
+    let signature;
+
+    if (walletTypeFromApi === "solana") {
+      if (!signMessageSolana) throw new Error("Solana wallet not connected");
+      const encodedMessage = new TextEncoder().encode(message);
+      const rawSig = await signMessageSolana(encodedMessage);
+      signature =
+        typeof rawSig === "string"
+          ? rawSig
+          : bs58.encode(new Uint8Array(rawSig));
+    } else {
+      signature = await signMessageAsync({ message });
+    }
+
+    const verifyRes = await apiCall("/auth/verify", {
+      method: "POST",
+      body: JSON.stringify({ address, signature }),
+    });
+
+    if (!verifyRes.token) {
+      throw new Error("Missing auth token");
+    }
+
+    // Always persist user with walletType and address so session restore and guards work after navigate
+    setGlobalToken(verifyRes.token);
+    if (verifyRes.user) {
+      setUser({
+        ...verifyRes.user,
+        walletType: walletTypeFromApi,
+        address: verifyRes.user.address ?? address,
+      });
+    } else {
+      setUser({ walletType: walletTypeFromApi, address });
+    }
+
+    if (walletTypeFromApi) {
+      dispatch(setWalletType(walletTypeFromApi));
+    }
+
+    return { token: verifyRes.token, user: verifyRes.user };
   }, [address, walletType, signMessageAsync, signMessageSolana, setUser, dispatch]);
 
   const claimSeason1 = useCallback(async () => {
@@ -268,22 +289,27 @@ export const useAuth = () => {
   }, [token]);
 
   const ensureAuthenticated = useCallback(async () => {
-    const currentToken =
-      token || (typeof localStorage !== "undefined" ? localStorage.getItem("authToken") : null);
-    if (currentToken && !isJwtExpired(currentToken)) return currentToken;
-    if (currentToken && isJwtExpired(currentToken)) {
-      clearGlobalAuth();
-    }
-
+    if (token) return token;
     if (!address) throw new Error("Wallet not connected");
-    const res = await authenticate();
-    return res?.token ?? null;
+    // Reuse in-flight promise for the same address to prevent double sign
+    if (globalAuthInFlight && globalAuthInFlightAddress === address) {
+      return globalAuthInFlight;
+    }
+    globalAuthInFlightAddress = address;
+    globalAuthInFlight = authenticate()
+      .then((res) => res?.token ?? token)
+      .finally(() => {
+        globalAuthInFlight = null;
+        globalAuthInFlightAddress = null;
+      });
+    return globalAuthInFlight;
   }, [token, address, authenticate]);
 
   const logout = useCallback(async () => {
     await runPrivyLogoutBridge();
     setGlobalToken(null);
     setGlobalUser(null);
+    initialRefreshAttempted = false;
     try {
       localStorage.removeItem("chatCount");
       localStorage.removeItem("chatDate");
@@ -292,18 +318,9 @@ export const useAuth = () => {
     }
   }, []);
 
-  useEffect(() => {
-    const currentToken =
-      token || (typeof localStorage !== "undefined" ? localStorage.getItem("authToken") : null);
-    if (currentToken && isJwtExpired(currentToken)) {
-      clearGlobalAuth();
-    }
-  }, [token]);
-
   // Resilient to state/localStorage race after navigate: treat as authenticated if token is in state or localStorage
-  const authToken =
-    token || (typeof localStorage !== "undefined" ? localStorage.getItem("authToken") : null);
-  const isAuthenticated = !!authToken && !isJwtExpired(authToken);
+  const isAuthenticated =
+    !!token || (typeof localStorage !== "undefined" && !!localStorage.getItem("authToken"));
 
   return {
     token,
@@ -312,6 +329,8 @@ export const useAuth = () => {
     authenticate,
     ensureAuthenticated,
     claimSeason1,
+    refreshUser,
+    refreshToken,
     logout,
     isAuthenticated,
   };
