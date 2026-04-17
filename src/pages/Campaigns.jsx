@@ -11,7 +11,7 @@ import {
 import { TradingCompetitionPage } from "./TradingCompetition";
 import { Season1 } from "./Season1";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
-import allocationRace from "../assets/allocationRace.png";
+import tcBanner from "../assets/tcBanner.png";
 import springSeries from "../assets/springSeries.png";
 
 export function CampaignsPage() {
@@ -48,7 +48,7 @@ export function CampaignsPage() {
               {/* Banner Image */}
               <div className="relative h-48 w-full overflow-hidden">
                 <ImageWithFallback
-                  src={allocationRace}
+                  src={tcBanner}
                   alt="Trading Competition"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
@@ -56,8 +56,8 @@ export function CampaignsPage() {
                 <div className="absolute inset-0 " />
 
                 {/* Badge on Banner */}
-                <div className="absolute top-4 right-4 bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs font-bold shadow-lg">
-                  UPCOMING
+                <div className="absolute top-4 right-4 bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold shadow-lg">
+                  LIVE
                 </div>
 
                 {/* Icon on Banner */}
@@ -95,9 +95,9 @@ export function CampaignsPage() {
                 {/* CTA */}
                 <div className="flex items-center justify-end gap-2 ">
                   <span className="text-sm font-semibold text-amber-600 group-hover:text-amber-700">
-                    Upcoming
+                    View
                   </span>
-                  {/* <ChevronRight className="w-5 h-5 text-amber-600 group-hover:translate-x-1 transition-transform" /> */}
+                  <ChevronRight className="w-5 h-5 text-amber-600 group-hover:translate-x-1 transition-transform" />
                 </div>
               </div>
             </button>
