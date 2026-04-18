@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router";
 import { useDispatch, useSelector } from "react-redux";
-import { openCheckinModal, setWalletModal} from "../redux/slices/walletSlice";
+import { openCheckinModal, setWalletModal } from "../redux/slices/walletSlice";
 import {
   Wallet,
   Menu,
@@ -108,32 +108,32 @@ export function Header({
           >
             <div className="flex gap-2 sm:gap-4">
               {isConnected && (
-              <div
-                className="hidden md:flex bg-white rounded-full px-3 py-2 items-center gap-3 cursor-pointer hover:bg-gray-200 transition-colors"
-                onClick={() => {
-                  navigate("/rewards");
-                }}
-                role="button"
-              >
-                <div className="flex items-center gap-2">
-                  <Coins className="size-4 text-amber-500" />
+                <div
+                  className="hidden md:flex bg-white rounded-full px-3 py-2 items-center gap-3 cursor-pointer hover:bg-gray-200 transition-colors"
+                  onClick={() => {
+                    navigate("/rewards");
+                  }}
+                  role="button"
+                >
+                  <div className="flex items-center gap-2">
+                    <Coins className="size-4 text-amber-500" />
 
-                  <span className="text-xs sm:text-sm font-semibold tabular-nums">
-                    {totalPoints.toLocaleString()}
-                  </span>
-                </div>
-                {(messagesRemaining != null || user) && (
-                  <div className="border-l border-gray-200/60 pl-3 flex items-center gap-2">
-                    <Gem className="size-4 text-purple-600" />
-                    <span className="text-xs sm:text-sm font-semibold tabular-nums flex">
-                      {user ? user.gems : 0}
-                      <span className="text-xs sm:text-sm font-semibold tabular-nums text-[#4A5565]">
-                        (${user ? user.gems * 5 : 0})
-                      </span>
+                    <span className="text-xs sm:text-sm font-semibold tabular-nums">
+                      {totalPoints.toLocaleString()}
                     </span>
                   </div>
-                )}
-              </div>
+                  {(messagesRemaining != null || user) && (
+                    <div className="border-l border-gray-200/60 pl-3 flex items-center gap-2">
+                      <Gem className="size-4 text-purple-600" />
+                      <span className="text-xs sm:text-sm font-semibold tabular-nums flex">
+                        {user ? user.gems : 0}
+                        <span className="text-xs sm:text-sm font-semibold tabular-nums text-[#4A5565]">
+                          (${user ? user.gems * 5 : 0})
+                        </span>
+                      </span>
+                    </div>
+                  )}
+                </div>
               )}
               {totalPoints >= 0 && isConnected && (
                 <div
@@ -241,7 +241,10 @@ export function Header({
                                 ),
                               )
                           ).map((row) => {
-                            if (mobileMenuView === "main" && row.kind === "portfolio") {
+                            if (
+                              mobileMenuView === "main" &&
+                              row.kind === "portfolio"
+                            ) {
                               return (
                                 <PortfolioNavGroup
                                   key="mobile-portfolio"
@@ -306,10 +309,9 @@ export function Header({
                               <ChevronRight size={18} className="rotate-180" />
                             </button>
                           )}
-                          
+
                           {isConnected && (
                             <div className="rounded-xl border border-gray-100 bg-gray-50/80 p-3 flex items-center gap-2 justify-between">
-                             
                               <div className="flex items-center gap-2 justify-between">
                                 <span
                                   className="pl-1 py-1 text-xs font-medium flex gap-3 items-center"
@@ -323,7 +325,7 @@ export function Header({
                                   {shortAddress(coinbase)}
                                 </span>
                               </div>
-                             
+
                               <div className="rounded-full border border-gray-200/80 px-2 py-1 flex items-center justify-between gap-2 bg-white shadow-sm hover:bg-gray-50">
                                 <div className="flex items-center gap-2">
                                   <Coins className="size-4 text-amber-500" />
@@ -338,52 +340,54 @@ export function Header({
                                   </span>
                                 </div>
                               </div>
-                               {isConnected &&
-                            totalPoints >= 0 &&
-                            messagesRemaining != null && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setMessageLimitModalOpen(true);
-                                  setIsMenuOpen(false);
-                                }}
-                                className="w-full flex items-center justify-center gap-2 rounded-full border border-gray-200/80 bg-white px-2 py-1 text-sm font-semibold text-gray-900 shadow-sm hover:bg-gray-50 transition-colors"
-                              >
-                                <SendHorizontal className="size-4 shrink-0 text-green-600" />
-                                <span className="tabular-nums">
-                                  {messagesRemaining}
-                                </span>
-                              </button>
-                            )}
+                              {isConnected &&
+                                totalPoints >= 0 &&
+                                messagesRemaining != null && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setMessageLimitModalOpen(true);
+                                      setIsMenuOpen(false);
+                                    }}
+                                    className="w-full flex items-center justify-center gap-2 rounded-full border border-gray-200/80 bg-white px-2 py-1 text-sm font-semibold text-gray-900 shadow-sm hover:bg-gray-50 transition-colors"
+                                  >
+                                    <SendHorizontal className="size-4 shrink-0 text-green-600" />
+                                    <span className="tabular-nums">
+                                      {messagesRemaining}
+                                    </span>
+                                  </button>
+                                )}
                             </div>
                           )}
- 
-                            <div className="px-4 pb-4 mt-auto">
-                              <div className="relative overflow-hidden bg-linear-to-br from-purple-500 via-blue-500 to-purple-600 rounded-2xl p-4 shadow-lg">
-                                {/* Decorative elements */}
-                                <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-12 -mt-12"></div>
-                                <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/10 rounded-full -ml-8 -mb-8"></div>
 
-                                <div className="relative items-center z-10 flex gap-2 w-full">
-                                  <div className="w-full">
-                                    <div className="text-white/90 text-xs font-semibold mb-1">
-                                      Daily Bonus
-                                    </div>
-                                    <div className="text-white font-bold text-sm mb-0">
-                                      Get up to 5,000 points
-                                    </div>
+                          <div className="px-4 pb-4 mt-auto">
+                            <div className="relative overflow-hidden bg-linear-to-br from-purple-500 via-blue-500 to-purple-600 rounded-2xl p-4 shadow-lg">
+                              {/* Decorative elements */}
+                              <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-12 -mt-12"></div>
+                              <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/10 rounded-full -ml-8 -mb-8"></div>
+
+                              <div className="relative items-center z-10 flex gap-2 w-full">
+                                <div className="w-full">
+                                  <div className="text-white/90 text-xs font-semibold mb-1">
+                                    Daily Bonus
                                   </div>
-
-                                  <button
-                                    onClick={handleOpenCheckinModal}
-                                    className="w-full bg-white text-purple-600 font-semibold text-sm py-2 px-4 rounded-xl hover:bg-white/90 transition-all shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
-                                  >
-                                    {isAuthenticated && checkedInToday ? "Claimed" : "Claim"}
-                                    {/* Coming Soon */}
-                                  </button>
+                                  <div className="text-white font-bold text-sm mb-0">
+                                    Get up to 5,000 points
+                                  </div>
                                 </div>
+
+                                <button
+                                  onClick={handleOpenCheckinModal}
+                                  className="w-full bg-white text-purple-600 font-semibold text-sm py-2 px-4 rounded-xl hover:bg-white/90 transition-all shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
+                                >
+                                  {isAuthenticated && checkedInToday
+                                    ? "Claimed"
+                                    : "Claim"}
+                                  {/* Coming Soon */}
+                                </button>
                               </div>
                             </div>
+                          </div>
                         </div>
                       </div>
                     </OutsideClickHandler>

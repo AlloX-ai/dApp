@@ -75,7 +75,7 @@ export function CampaignsPage() {
                 </p>
 
                 {/* Stats */}
-                <div className="flex items-center justify-between mb-6">
+                <div className="flex flex-col sm:flex-row gap-2 sm:items-center justify-between mb-6">
                   <div className="bg-white/60 backdrop-blur-sm rounded-xl p-3">
                     <div className="text-xs text-gray-600 mb-1">Total Rewards</div>
                     <div className="font-bold text-gray-900 flex items-center gap-1">
@@ -139,7 +139,7 @@ export function CampaignsPage() {
                 </p>
 
                 {/* Stats */}
-                <div className="flex items-center justify-between mb-6">
+                <div className="flex flex-col sm:flex-row gap-2 sm:items-center justify-between mb-6">
                   <div className="bg-white/60 backdrop-blur-sm rounded-xl p-3">
                     <div className="text-xs text-gray-600 mb-1">
                       Total Rewards

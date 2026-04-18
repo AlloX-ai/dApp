@@ -404,25 +404,27 @@ export function TradingCompetitionPage() {
 
         {/* Table */}
         <div className="overflow-x-auto">
-          <div className="min-w-[600px]">
+          <div className={hasLeaderboardRecords && "min-w-150"}>
             {/* Table Header */}
-            <div className="grid grid-cols-[80px_1fr_140px_140px_200px] gap-4 px-4 py-3 bg-gray-50/60 rounded-lg mb-2">
-              <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                Rank
+            {hasLeaderboardRecords && (
+              <div className="grid grid-cols-[80px_1fr_140px_140px_200px] gap-4 px-4 py-3 bg-gray-50/60 rounded-lg mb-2">
+                <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  Rank
+                </div>
+                <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  Wallet Address
+                </div>
+                <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider text-right">
+                  Portfolios
+                </div>
+                <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider text-right">
+                  Total Value
+                </div>
+                <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider text-right">
+                  Reward
+                </div>
               </div>
-              <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                Wallet Address
-              </div>
-              <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider text-right">
-                Portfolios
-              </div>
-              <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider text-right">
-                Total Value
-              </div>
-              <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider text-right">
-                Reward
-              </div>
-            </div>
+            )}
 
             {/* Table Rows */}
             <div className="space-y-1 p-1">
@@ -544,73 +546,75 @@ export function TradingCompetitionPage() {
               ? `Showing ${startIndex + 1}-${Math.min(startIndex + currentPageData.length, totalEntries)} of ${totalEntries}`
               : "No leaderboard entries to display"}
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handlePreviousPage}
-              disabled={currentPage === 1 || !hasLeaderboardRecords}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
-                currentPage === 1 || !hasLeaderboardRecords
-                  ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                  : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50"
-              }`}
-            >
-              <ChevronLeft size={16} />
-              Previous
-            </button>
+          {hasLeaderboardRecords && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handlePreviousPage}
+                disabled={currentPage === 1 || !hasLeaderboardRecords}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+                  currentPage === 1 || !hasLeaderboardRecords
+                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                    : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50"
+                }`}
+              >
+                <ChevronLeft size={16} />
+                Previous
+              </button>
 
-            <div className="flex items-center gap-1">
-              <div className="sm:hidden">
-                <button
-                  type="button"
-                  className="w-10 h-10 rounded-lg font-semibold bg-black text-white"
-                >
-                  {currentPage}
-                </button>
+              <div className="flex items-center gap-1">
+                <div className="sm:hidden">
+                  <button
+                    type="button"
+                    className="w-10 h-10 rounded-lg font-semibold bg-black text-white"
+                  >
+                    {currentPage}
+                  </button>
+                </div>
+
+                <div className="hidden sm:flex items-center gap-1">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => setCurrentPage(pageNum)}
+                        className={`w-10 h-10 rounded-lg font-semibold transition-all ${
+                          currentPage === pageNum
+                            ? "bg-black text-white"
+                            : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50"
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
-              <div className="hidden sm:flex items-center gap-1">
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  let pageNum;
-                  if (totalPages <= 5) {
-                    pageNum = i + 1;
-                  } else if (currentPage <= 3) {
-                    pageNum = i + 1;
-                  } else if (currentPage >= totalPages - 2) {
-                    pageNum = totalPages - 4 + i;
-                  } else {
-                    pageNum = currentPage - 2 + i;
-                  }
-
-                  return (
-                    <button
-                      key={pageNum}
-                      onClick={() => setCurrentPage(pageNum)}
-                      className={`w-10 h-10 rounded-lg font-semibold transition-all ${
-                        currentPage === pageNum
-                          ? "bg-black text-white"
-                          : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50"
-                      }`}
-                    >
-                      {pageNum}
-                    </button>
-                  );
-                })}
-              </div>
+              <button
+                onClick={handleNextPage}
+                disabled={currentPage === totalPages || !hasLeaderboardRecords}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+                  currentPage === totalPages || !hasLeaderboardRecords
+                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                    : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50"
+                }`}
+              >
+                Next
+                <ChevronRight size={16} />
+              </button>
             </div>
-
-            <button
-              onClick={handleNextPage}
-              disabled={currentPage === totalPages || !hasLeaderboardRecords}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
-                currentPage === totalPages || !hasLeaderboardRecords
-                  ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                  : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50"
-              }`}
-            >
-              Next
-              <ChevronRight size={16} />
-            </button>
-          </div>
+          )}
         </div>
       </div>
 
@@ -700,8 +704,8 @@ export function TradingCompetitionPage() {
                   <li className="flex gap-2">
                     <span className="text-purple-500 font-bold">•</span>
                     <span>
-                      Top 2000 participants share the 100,000 Gems ($500,000 USD)
-                      reward pool
+                      Top 2000 participants share the 100,000 Gems ($500,000
+                      USD) reward pool
                     </span>
                   </li>
                   <li className="flex gap-2">
