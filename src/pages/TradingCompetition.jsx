@@ -61,25 +61,17 @@ export function TradingCompetitionPage() {
     fetchUserCompetitionData,
   } = useTrading();
 
-  // Mock current user (outside top 100 for demo purposes)
-  const fallbackCurrentUserPosition = 150;
-  const fallbackCurrentUserData = {
-    position: fallbackCurrentUserPosition,
-    address: walletAddress || "0x7a8c...4f2e",
-    portfoliosCreated: 3,
-    totalValue: 5420,
-    gemReward: 0,
-  };
-
   const rawLeaderboardEntries = getLeaderboardEntries(leaderboard);
   const normalizedLeaderboard = rawLeaderboardEntries.map(
     normalizeLeaderboardEntry,
   );
   const hasLeaderboardRecords = normalizedLeaderboard.length > 0;
-  const currentUserData = userData ? userData : fallbackCurrentUserData;
-  const currentUserPosition = currentUserData.position;
-
-  const isUserInTopHundred = currentUserPosition <= 100;
+  const currentUserData = userData || null;
+  const userRank = currentUserData?.rank ?? null;
+  const hasUserRank = typeof userRank === "number";
+  const userRewardGems = currentUserData?.reward?.gems ?? 0;
+  const userRewardUsd =
+    currentUserData?.reward?.usdValue ?? userRewardGems * 5;
 
   // Pagination calculations
   const totalEntries =
@@ -125,15 +117,14 @@ export function TradingCompetitionPage() {
         if (walletAddress) {
           const userResult = await fetchUserCompetitionData({
             competitionId: activeCompetitionId,
-            address: walletAddress,
           });
           console.log(
-            "[TradingCompetition] /competition/:id/user/:address raw response",
+            "[TradingCompetition] /competition/:id/me raw response",
             userResult,
           );
         } else {
           console.log(
-            "[TradingCompetition] skipped /competition/:id/user/:address because no wallet address is available yet",
+            "[TradingCompetition] skipped /competition/:id/me because no wallet is connected yet",
           );
         }
       } catch (fetchError) {
@@ -217,7 +208,7 @@ export function TradingCompetitionPage() {
                       Your Rank
                     </span>
                     <div className="text-xl font-bold text-gray-900">
-                      #{currentUserData.rank}
+                      {hasUserRank ? `#${userRank}` : "Unranked"}
                     </div>
                   </div>
                 </div>
@@ -229,11 +220,9 @@ export function TradingCompetitionPage() {
                   Portfolios Created
                 </span>
                 <span className="text-lg font-bold text-gray-900">
-                  {currentUserData.portfolioCount}
+                  {currentUserData?.portfolioCount ?? 0}
                 </span>
               </div>
-
-              {/* Wallet */}
 
               {/* Volume */}
               <div className="flex items-center justify-between py-1.5 border-b border-blue-200">
@@ -241,7 +230,7 @@ export function TradingCompetitionPage() {
                   Total Volume
                 </span>
                 <span className="text-base font-bold text-gray-900">
-                  ${getFormattedNumber(currentUserData.totalValue, 0)}
+                  ${getFormattedNumber(currentUserData?.totalValue ?? 0, 3)}
                 </span>
               </div>
 
@@ -250,16 +239,16 @@ export function TradingCompetitionPage() {
                 <span className="text-xs text-gray-600 font-semibold">
                   Your Reward
                 </span>
-                {currentUserData?.reward?.gems > 0 ? (
+                {userRewardGems > 0 ? (
                   <div className="flex items-center gap-1">
                     <span className="text-base font-bold text-gray-900">
-                      ${getFormattedNumber(currentUserData.reward.gems * 5, 0)}
+                      ${getFormattedNumber(userRewardUsd, 0)}
                     </span>
                     <div className="flex items-center">
                       (
                       <Gem className="w-4 h-4 text-purple-600 pr-1" />
                       <span className="text-base font-bold text-gray-600">
-                        {getFormattedNumber(currentUserData.reward.gems, 0)}
+                        {getFormattedNumber(userRewardGems, 0)}
                       </span>
                       )
                     </div>
@@ -271,9 +260,13 @@ export function TradingCompetitionPage() {
                 )}
               </div>
             </div>
-          </div>
 
-          {!isUserInTopHundred && null}
+            {!hasUserRank && walletAddress && (
+              <div className="mt-3 text-center text-xs text-gray-600">
+                Create your first portfolio to join the leaderboard.
+              </div>
+            )}
+          </div>
 
           {/* Create Portfolio Button - Below */}
           <Link
@@ -412,7 +405,8 @@ export function TradingCompetitionPage() {
                   Rank
                 </div>
                 <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                  Wallet Address
+                  {/* Wallet Address */}
+                  User ID
                 </div>
                 <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider text-right">
                   Portfolios
@@ -431,8 +425,9 @@ export function TradingCompetitionPage() {
               {hasLeaderboardRecords ? (
                 currentPageData.map((entry) => {
                   const isCurrentUser =
-                    entry.address === currentUserData.address &&
-                    isUserInTopHundred;
+                    !!walletAddress &&
+                    typeof entry.address === "string" &&
+                    entry.address.toLowerCase() === walletAddress.toLowerCase();
                   const bgColor = isCurrentUser
                     ? "bg-gradient-to-r from-green-50 to-indigo-50 border-2 border-green-500"
                     : entry.position === 1
@@ -478,7 +473,7 @@ export function TradingCompetitionPage() {
                       {/* Wallet Address */}
                       <div className="flex items-center">
                         <div className="flex items-center gap-2">
-                          <Wallet className="w-4 h-4 text-gray-400" />
+                          {/* <Wallet className="w-4 h-4 text-gray-400" /> */}
                           <span className="font-mono text-sm text-gray-700">
                             {shortAddress(entry.address)}
                           </span>
