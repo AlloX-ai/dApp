@@ -160,7 +160,7 @@ export function PointsPage() {
       name: "Create Portfolio",
       points: "250",
       gems: "0",
-      description: "Earn for each portfolio you create",
+      description: "Earn for each on-chain portfolio you create",
       icon: PieChart,
       customIcon: null,
       comingSoon: false,

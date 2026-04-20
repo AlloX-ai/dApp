@@ -323,7 +323,7 @@ export function TradingCompetitionPage() {
                 <Trophy className="w-3 h-3 text-amber-600" />
               </div>
               <p className="text-xs text-gray-700">
-                <strong>Top 100</strong> share 100K Gems prize pool
+                <strong>Top 2000</strong> share 100K Gems prize pool
               </p>
             </div>
             <div className="flex items-center gap-2">
