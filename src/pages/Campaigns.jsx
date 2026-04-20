@@ -57,7 +57,7 @@ export function CampaignsPage() {
 
                 {/* Badge on Banner */}
                 <div className="absolute top-4 right-4 bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold shadow-lg">
-                  LIVE
+                  ACTIVE
                 </div>
 
                 {/* Icon on Banner */}
