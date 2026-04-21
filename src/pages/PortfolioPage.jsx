@@ -129,10 +129,12 @@ const EXECUTION_MODE_FILTER_OPTIONS = [
 ];
 
 const SORT_OPTIONS = [
-  { value: "date", label: "Sort by: Recent" },
-  { value: "name", label: "Sort by: Name" },
-  { value: "value", label: "Sort by: Value" },
-  { value: "pnl", label: "Sort by: Performance" },
+  { value: "date", label: "Recent" },
+  { value: "name", label: "Name" },
+  { value: "value", label: "Value" },
+  { value: "pnl", label: "Performance" },
+  { value: "active", label: "Active" },
+  { value: "closed", label: "Closed" },
 ];
 
 const isOnChainExecutionMode = (executionMode) =>
@@ -451,7 +453,15 @@ export function PortfolioPage() {
       ).toUpperCase();
       const matchesExecutionMode =
         filterExecutionMode === "ALL" || executionMode === filterExecutionMode;
-      return matchesSearch && matchesRisk && matchesExecutionMode;
+      const isClosed = isPortfolioClosed(portfolio);
+      const matchesPortfolioStatus =
+        sortBy === "active" ? !isClosed : sortBy === "closed" ? isClosed : true;
+      return (
+        matchesSearch &&
+        matchesRisk &&
+        matchesExecutionMode &&
+        matchesPortfolioStatus
+      );
     });
 
     const sorted = [...filtered].sort((a, b) => {
@@ -1359,54 +1369,49 @@ export function PortfolioPage() {
                           className="w-full pl-12 pr-4 py-3 glass-card text-sm focus:outline-none focus:ring-2 focus:ring-black/10"
                         />
                       </div>
-                      <div className="flex gap-3 items-center">
-                        <div className="flex items-center gap-2">
-                          {/* <Filter size={18} className="text-gray-600" /> */}
-                          <div className="relative">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setIsExecutionModeMenuOpen(false);
-                                setIsSortMenuOpen(false);
-                                setIsRiskMenuOpen((prev) => !prev);
-                              }}
-                              className="px-4 py-3 glass-card text-sm cursor-pointer inline-flex items-center gap-2"
-                            >
-                              {selectedRiskLabel}
-                              <ChevronDown
-                                size={16}
-                                className="text-gray-500"
-                              />
-                            </button>
-                            {isRiskMenuOpen && (
-                              <div className="absolute top-full bg-white border border-gray-200 rounded-xl p-2 min-w-[200px] z-20 animate-fade-in">
-                                <OutsideClickHandler
-                                  onOutsideClick={() =>
-                                    setIsRiskMenuOpen(false)
-                                  }
-                                >
-                                  {RISK_FILTER_OPTIONS.map((option) => (
-                                    <button
-                                      type="button"
-                                      key={option.value}
-                                      onClick={() => {
-                                        setFilterRisk(option.value);
-                                        setIsRiskMenuOpen(false);
-                                      }}
-                                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-colors ${
-                                        filterRisk === option.value
-                                          ? "bg-black text-white font-medium hover:bg-gray-800"
-                                          : "hover:bg-black/5 hover:shadow-sm"
-                                      }`}
-                                    >
-                                      <span>{option.label}</span>
-                                    </button>
-                                  ))}
-                                </OutsideClickHandler>
-                              </div>
-                            )}
-                          </div>
+                      <div className="grid grid-cols-2 sm:flex gap-3 items-center">
+                        {/* <div className="flex items-center gap-2"> */}
+                        {/* <Filter size={18} className="text-gray-600" /> */}
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsExecutionModeMenuOpen(false);
+                              setIsSortMenuOpen(false);
+                              setIsRiskMenuOpen((prev) => !prev);
+                            }}
+                            className="w-full px-4 py-3 glass-card text-sm cursor-pointer inline-flex items-center gap-2 justify-between"
+                          >
+                            {selectedRiskLabel}
+                            <ChevronDown size={16} className="text-gray-500" />
+                          </button>
+                          {isRiskMenuOpen && (
+                            <div className="absolute top-full bg-white border border-gray-200 rounded-xl p-2 min-w-[200px] z-20 animate-fade-in">
+                              <OutsideClickHandler
+                                onOutsideClick={() => setIsRiskMenuOpen(false)}
+                              >
+                                {RISK_FILTER_OPTIONS.map((option) => (
+                                  <button
+                                    type="button"
+                                    key={option.value}
+                                    onClick={() => {
+                                      setFilterRisk(option.value);
+                                      setIsRiskMenuOpen(false);
+                                    }}
+                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-colors ${
+                                      filterRisk === option.value
+                                        ? "bg-black text-white font-medium hover:bg-gray-800"
+                                        : "hover:bg-black/5 hover:shadow-sm"
+                                    }`}
+                                  >
+                                    <span>{option.label}</span>
+                                  </button>
+                                ))}
+                              </OutsideClickHandler>
+                            </div>
+                          )}
                         </div>
+                        {/* </div> */}
 
                         <div className="relative">
                           <button
@@ -1416,7 +1421,7 @@ export function PortfolioPage() {
                               setIsSortMenuOpen(false);
                               setIsExecutionModeMenuOpen((prev) => !prev);
                             }}
-                            className="px-4 py-3 glass-card text-sm cursor-pointer inline-flex items-center gap-2"
+                            className="w-full px-4 py-3 glass-card text-sm cursor-pointer inline-flex items-center gap-2 justify-between"
                           >
                             {selectedExecutionModeLabel}
                             <ChevronDown size={16} className="text-gray-500" />
@@ -1458,7 +1463,7 @@ export function PortfolioPage() {
                               setIsRiskMenuOpen(false);
                               setIsSortMenuOpen((prev) => !prev);
                             }}
-                            className="px-4 py-3 glass-card text-sm cursor-pointer inline-flex items-center gap-2"
+                            className="w-full px-4 py-3 glass-card text-sm cursor-pointer inline-flex items-center gap-2 justify-between"
                           >
                             {selectedSortLabel}
                             <ChevronDown size={16} className="text-gray-500" />
