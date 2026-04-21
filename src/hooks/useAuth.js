@@ -291,16 +291,28 @@ export const useAuth = () => {
 
     let signature;
 
+    const SIGN_TIMEOUT_MS = 5 * 60 * 1000;
+    const signTimeout = (promise) =>
+      Promise.race([
+        promise,
+        new Promise((_, reject) =>
+          setTimeout(
+            () => reject(new Error("Sign request timed out. Open your wallet app and try again.")),
+            SIGN_TIMEOUT_MS,
+          ),
+        ),
+      ]);
+
     if (walletTypeFromApi === "solana") {
       if (!signMessageSolana) throw new Error("Solana wallet not connected");
       const encodedMessage = new TextEncoder().encode(message);
-      const rawSig = await signMessageSolana(encodedMessage);
+      const rawSig = await signTimeout(signMessageSolana(encodedMessage));
       signature =
         typeof rawSig === "string"
           ? rawSig
           : bs58.encode(new Uint8Array(rawSig));
     } else {
-      signature = await signMessageAsync({ message });
+      signature = await signTimeout(signMessageAsync({ message }));
     }
 
     const verifyRes = await apiCall("/auth/verify", {
@@ -343,7 +355,16 @@ export const useAuth = () => {
   }, [token]);
 
   const ensureAuthenticated = useCallback(async () => {
-    if (token) return token;
+    // Read globalAuthState.token directly (not the React closure `token`) so we
+    // see the token immediately after it is saved — before React re-renders.
+    // This prevents the race window where a second call arrives after
+    // authenticate() resolves but before the React state update propagates,
+    // causing a duplicate sign request (visible on mobile with Binance/MetaMask).
+    const currentToken = globalAuthState.token || localStorage.getItem("authToken");
+    if (currentToken) {
+      if (currentToken !== globalAuthState.token) setGlobalToken(currentToken);
+      return currentToken;
+    }
     if (!address) throw new Error("Wallet not connected");
     // Reuse in-flight promise for the same address to prevent double sign
     if (globalAuthInFlight && globalAuthInFlightAddress === address) {
@@ -351,13 +372,13 @@ export const useAuth = () => {
     }
     globalAuthInFlightAddress = address;
     globalAuthInFlight = authenticate()
-      .then((res) => res?.token ?? token)
+      .then((res) => res?.token ?? globalAuthState.token)
       .finally(() => {
         globalAuthInFlight = null;
         globalAuthInFlightAddress = null;
       });
     return globalAuthInFlight;
-  }, [token, address, authenticate]);
+  }, [address, authenticate]);
 
   const logout = useCallback(async () => {
     await runPrivyLogoutBridge();

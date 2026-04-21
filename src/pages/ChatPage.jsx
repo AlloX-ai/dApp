@@ -1025,16 +1025,24 @@ export function ChatPage() {
           isExecuting: false,
           error: error?.message || "Execution failed. Please try again.",
         }));
-        dispatch(
-          addCurrentMessage({
-            id: Date.now() + 1,
-            type: "ai",
-            content:
-              error?.message ||
-              "Sorry, something went wrong with on-chain execution.",
-            timestamp: new Date(),
-          }),
-        );
+        const isChainError =
+          error?.message?.toLowerCase().includes("switch your wallet") ||
+          error?.message?.toLowerCase().includes("bnb chain") ||
+          error?.message?.toLowerCase().includes("chainid 56");
+        if (isChainError) {
+          toast.error(error.message);
+        } else {
+          dispatch(
+            addCurrentMessage({
+              id: Date.now() + 1,
+              type: "ai",
+              content:
+                error?.message ||
+                "Sorry, something went wrong with on-chain execution.",
+              timestamp: new Date(),
+            }),
+          );
+        }
       }
     },
     [

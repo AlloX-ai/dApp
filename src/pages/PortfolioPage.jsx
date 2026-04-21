@@ -35,6 +35,7 @@ import { apiCall } from "../utils/api";
 import { useAuth } from "../hooks/useAuth";
 import { PortfolioAlertSettings } from "../components/PortfolioAlertSettings";
 import {
+  checkTxStatus,
   createPrivyExecutionTxEnv,
   createWagmiExecutionTxEnv,
   ensurePermit2Approvals,
@@ -883,8 +884,29 @@ export function PortfolioPage() {
         return false;
       }
 
+      // Immediately check if the tx is already mined as reverted — catches the
+      // case where the user confirmed in the wallet, the tx failed on-chain,
+      // and they returned to the browser before the backend detects it.
+      const immediateOnChain = await checkTxStatus(txHash);
+      if (immediateOnChain === "reverted") {
+        addSellLog(`${symbol}: transaction failed on-chain.`);
+        return false;
+      }
+
       for (let i = 0; i < MAX_POLL_ATTEMPTS; i += 1) {
         await sleep(POLL_INTERVAL_MS);
+
+        // Every 3rd iteration, re-check on-chain receipt independently of the
+        // backend. A reverted tx emits no events so the backend may never
+        // update its status — this catches it within ~10 s regardless.
+        if (i % 3 === 0) {
+          const onChainStatus = await checkTxStatus(txHash);
+          if (onChainStatus === "reverted") {
+            addSellLog(`${symbol}: transaction failed on-chain.`);
+            return false;
+          }
+        }
+
         try {
           const statusData = await apiCall(
             `/execution/${order.executionOrderId}/status`,
@@ -984,6 +1006,19 @@ export function PortfolioPage() {
               [statusKey]: "confirmed",
             }));
             orderConfirmed = true;
+            // Persist this position as sold immediately.
+            // /sell/complete is idempotent and skips already-sold positions,
+            // so calling it per-order is safe. This ensures partial sells
+            // (e.g. 3/4 tokens confirmed) are reflected on reload even if the
+            // remaining orders fail or the user closes the modal.
+            try {
+              await apiCall(
+                `/portfolio/${sellTarget.portfolioId}/sell/complete`,
+                { method: "POST" },
+              );
+            } catch {
+              // Non-fatal — the final /sell/complete call below will catch up.
+            }
             break;
           }
 

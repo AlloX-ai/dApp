@@ -13,7 +13,6 @@ import {
 import {
   getAccount,
   getPublicClient,
-  waitForTransactionReceipt,
 } from "@wagmi/core";
 import {
   encodeFunctionData,
@@ -719,6 +718,260 @@ export type PurchasePrivyEvmSigner = {
   switchChain?: (chainId: number) => Promise<void>;
 };
 
+// ─── Mobile WalletConnect (Binance app) purchase helpers ────────────────────
+//
+// On mobile Chrome the browser goes to background while the user confirms in
+// the wallet app. The WalletConnect (or Binance W3W) relay can drop the
+// response, so `writeContractAsync` may NEVER resolve even though the tx was
+// broadcast and confirmed on-chain.
+//
+// Strategy: as soon as we kick off `writeContractAsync` we also start polling
+// BSC logs for a matching confirmed purchase from the user's address. Whichever
+// path delivers the txHash first wins. This means:
+//  - Fast WalletConnect path (wallet responds within ~10 s): use that hash.
+//  - Slow / broken path (Binance W3W deep-link drops the response): chain
+//    polling detects the confirmed tx within seconds and unblocks the UI.
+//
+// For the BUY step we intentionally do NOT await `waitForTransactionReceipt`
+// before returning — identical to the Privy path.  The backend's
+// `submitPurchaseWithRetry` confirms the tx on-chain with its own retries.
+// For the APPROVE step we do need to be sure the allowance is set before
+// proceeding, so we wait on a simple receipt poll after obtaining the hash.
+
+const OVERALL_TX_TIMEOUT_MS = 3 * 60_000;   // hard cap: give up after 3 min
+const CHAIN_POLL_DELAY_MS    = 5000;        // wait 5 s before scanning logs
+const CHAIN_POLL_INTERVAL_MS = 4_000;        // re-check every 4 s
+// Max block range per getLogs call; many public BSC RPCs reject > 500 blocks.
+const LOG_BLOCK_CHUNK = 200n;
+
+const MOBILE_TX_TIMEOUT_MSG =
+  "Wallet response timed out. If you confirmed the transaction in your wallet app, " +
+  "it may still have been sent — check your wallet history before trying again.";
+
+/**
+ * Poll contract logs for a confirmed transaction sent FROM `fromAddress` TO
+ * `contractAddress`, starting at `fromBlock`.  Resolves with the txHash as
+ * soon as one is found, or rejects after `stopAfterMs`.
+ */
+async function pollContractLogsForTx(
+  contractAddress: Address,
+  fromAddress: Address,
+  chainId: number,
+  fromBlock: bigint,
+  stopAfterMs: number,
+): Promise<`0x${string}`> {
+  const client = getPublicClient(wagmiClient, { chainId });
+  if (!client) {
+    return new Promise<`0x${string}`>((_, reject) =>
+      setTimeout(() => reject(new Error(MOBILE_TX_TIMEOUT_MSG)), stopAfterMs),
+    );
+  }
+
+  const stopAt = Date.now() + stopAfterMs;
+  let nextBlock = fromBlock;
+
+  while (Date.now() < stopAt) {
+    try {
+      const latestBlock = await client.getBlockNumber();
+      if (latestBlock >= nextBlock) {
+        // Scan in chunks to respect RPC block-range limits.
+        for (let lo = nextBlock; lo <= latestBlock; lo += LOG_BLOCK_CHUNK + 1n) {
+          const hi = lo + LOG_BLOCK_CHUNK > latestBlock ? latestBlock : lo + LOG_BLOCK_CHUNK;
+          try {
+            const logs = await client.getLogs({
+              address: contractAddress,
+              fromBlock: lo,
+              toBlock: hi,
+            });
+            for (const log of logs) {
+              if (!log.transactionHash) continue;
+              try {
+                const receipt = await client.getTransactionReceipt({
+                  hash: log.transactionHash,
+                });
+                if (
+                  receipt?.from?.toLowerCase() === fromAddress.toLowerCase() &&
+                  receipt?.to?.toLowerCase() === contractAddress.toLowerCase() &&
+                  receipt.status === "success"
+                ) {
+                  return log.transactionHash as `0x${string}`;
+                }
+              } catch {
+                // receipt not yet indexed — will retry next iteration
+              }
+            }
+          } catch {
+            // chunk fetch failed — skip and retry next poll cycle
+          }
+        }
+        nextBlock = latestBlock + 1n;
+      }
+    } catch {
+      // getBlockNumber failed — try again next cycle
+    }
+    await new Promise((r) => setTimeout(r, CHAIN_POLL_INTERVAL_MS));
+  }
+
+  throw new Error(MOBILE_TX_TIMEOUT_MSG);
+}
+
+/**
+ * Race `writeContractAsync` against on-chain log polling.
+ *
+ * - Polling starts after `CHAIN_POLL_DELAY_MS` so a fast WalletConnect
+ *   response wins without hitting the chain at all.
+ * - If user rejects the wallet prompt the rejection propagates immediately
+ *   (the poll promise is abandoned in the background).
+ * - If WalletConnect drops the response, the poll finds the confirmed tx
+ *   and resolves within seconds of the next BSC block.
+ */
+async function writeOrDetect(
+  writeFn: () => Promise<`0x${string}`>,
+  contractAddress: Address,
+  fromAddress: Address,
+  chainId: number,
+): Promise<`0x${string}`> {
+  // Capture start block BEFORE submitting so we don't miss an instant confirm.
+  let fromBlock = 0n;
+  try {
+    const client = getPublicClient(wagmiClient, { chainId });
+    if (client) fromBlock = await client.getBlockNumber();
+  } catch {
+    // non-fatal — polling will start from block 0 (less efficient but works)
+  }
+
+  // Start the wallet write. If user rejects, the error propagates below.
+  const writePromise = writeFn();
+
+  // Detect user-rejected / pre-submission errors quickly: give the write
+  // promise a 3 s head-start before launching the parallel poll.
+  let earlyRejectError: unknown = null;
+  let earlyResolved = false;
+  let earlyHash: `0x${string}` | undefined;
+  const earlyCheck = new Promise<void>((resolve, reject) => {
+    const t = setTimeout(() => resolve(), 3_000);
+    writePromise.then(
+      (h) => { clearTimeout(t); earlyResolved = true; earlyHash = h; resolve(); },
+      (e) => { clearTimeout(t); earlyRejectError = e; reject(e); },
+    );
+  });
+
+  try {
+    await earlyCheck;
+    if (earlyResolved && earlyHash !== undefined) {
+      return earlyHash;
+    }
+  } catch {
+    // User rejected or pre-flight error — stop here
+    throw earlyRejectError ?? new Error("Transaction rejected.");
+  }
+
+  // writeContractAsync hasn't resolved yet; launch the parallel log poll.
+  const pollPromise = (async (): Promise<`0x${string}`> => {
+    await new Promise((r) => setTimeout(r, CHAIN_POLL_DELAY_MS));
+    return pollContractLogsForTx(
+      contractAddress,
+      fromAddress,
+      chainId,
+      fromBlock,
+      OVERALL_TX_TIMEOUT_MS,
+    );
+  })();
+
+  const overallTimeout = new Promise<`0x${string}`>((_, reject) =>
+    setTimeout(() => reject(new Error(MOBILE_TX_TIMEOUT_MSG)), OVERALL_TX_TIMEOUT_MS),
+  );
+
+  // On mobile Chrome the user leaves the tab to confirm in the wallet app.
+  // visibilitychange fires the moment they switch back. At that point we scan
+  // recent blocks directly (not just logs) so a reverted transaction — which
+  // emits no events and is invisible to pollContractLogsForTx — is caught
+  // immediately instead of waiting for the 3-minute timeout.
+  let removeVisibilityListener = () => {};
+  const visibilityPromise = new Promise<`0x${string}`>((resolve, reject) => {
+    if (typeof document === "undefined") return;
+    const onVisible = async () => {
+      if (document.visibilityState !== "visible") return;
+      document.removeEventListener("visibilitychange", onVisible);
+      const client = getPublicClient(wagmiClient, { chainId });
+      if (!client) return;
+      // Brief grace period so a fast WalletConnect response can arrive first.
+      await new Promise((r) => setTimeout(r, 2500));
+      const from_ = fromAddress.toLowerCase();
+      const to_ = contractAddress.toLowerCase();
+      try {
+        const latest = await client.getBlockNumber();
+        const lo = latest > 25n ? latest - 25n : 0n;
+        const scanFrom = fromBlock > lo ? fromBlock : lo;
+        for (let bn = latest; bn >= scanFrom; bn -= 1n) {
+          let block: Awaited<ReturnType<typeof client.getBlock<true>>> | undefined;
+          try {
+            block = await client.getBlock({ blockNumber: bn, includeTransactions: true });
+          } catch { continue; }
+          if (!Array.isArray(block?.transactions)) continue;
+          for (const tx of block.transactions) {
+            if (
+              String((tx as { from?: string }).from ?? "").toLowerCase() === from_ &&
+              String((tx as { to?: string }).to ?? "").toLowerCase() === to_
+            ) {
+              try {
+                const receipt = await client.getTransactionReceipt({
+                  hash: (tx as { hash: `0x${string}` }).hash,
+                });
+                if (receipt?.status === "success") {
+                  resolve((tx as { hash: `0x${string}` }).hash);
+                  return;
+                }
+                if (receipt?.status === "reverted") {
+                  reject(new Error("Transaction failed on-chain. Please try again."));
+                  return;
+                }
+              } catch { /* receipt not indexed yet */ }
+            }
+          }
+        }
+      } catch { /* transient RPC error — let poll loop continue */ }
+    };
+    removeVisibilityListener = () =>
+      document.removeEventListener("visibilitychange", onVisible);
+    document.addEventListener("visibilitychange", onVisible);
+  });
+
+  try {
+    return await Promise.race([writePromise, pollPromise, overallTimeout, visibilityPromise]);
+  } finally {
+    removeVisibilityListener();
+  }
+}
+
+/**
+ * After we have a txHash (from writeOrDetect), wait for on-chain confirmation
+ * using direct RPC polling.  Used only for the APPROVE step where we must be
+ * sure the allowance is set before attempting the buy.
+ */
+async function waitForHashConfirmation(
+  hash: `0x${string}`,
+  chainId: number,
+  maxMs = 3 * 60_000,
+): Promise<void> {
+  const client = getPublicClient(wagmiClient, { chainId });
+  if (!client) return; // best-effort; proceed and let the buy fail if needed
+  const stopAt = Date.now() + maxMs;
+  while (Date.now() < stopAt) {
+    try {
+      const receipt = await client.getTransactionReceipt({ hash });
+      if (receipt?.status === "success") return;
+      if (receipt?.status === "reverted") throw new Error("Approval transaction reverted.");
+    } catch (e) {
+      const msg = String((e as { message?: string })?.message ?? "").toLowerCase();
+      if (!msg.includes("not found") && !msg.includes("unknown transaction")) throw e;
+    }
+    await new Promise((r) => setTimeout(r, 3_000));
+  }
+  // Timed out waiting for approval — proceed optimistically; the buy call will
+  // fail on-chain if the allowance isn't set, which is a recoverable error.
+}
+
 export async function purchaseEvmPackage(args: {
   chainKey: Exclude<MessageChainKey, "solana">;
   packageId: number;
@@ -777,20 +1030,24 @@ export async function purchaseEvmPackage(args: {
       // public client would poll forever. Backend confirmation reconciles the purchase.
       return { txHash: hash };
     }
-    const txHash = await args.writeContractAsync!({
-      address: contractAddress,
-      abi: BUY_MESSAGES_ABI,
-      functionName: "buyWithNative",
-      args: [BigInt(args.packageId)],
+    // Get the current user address for chain polling fallback.
+    const buyerAddress = getAccount(wagmiClient).address as Address | undefined;
+    if (!buyerAddress) throw new Error("Wallet not connected");
+
+    const txHash = await writeOrDetect(
+      () => args.writeContractAsync!({
+        address: contractAddress,
+        abi: BUY_MESSAGES_ABI,
+        functionName: "buyWithNative",
+        args: [BigInt(args.packageId)],
+        chainId,
+        value: nativePrice,
+      }),
+      contractAddress,
+      buyerAddress,
       chainId,
-      value: nativePrice,
-    });
-    // Pin the waiter to the purchase chain so wagmi doesn't default to a
-    // stale connected-chain id and watch the wrong network.
-    await waitForTransactionReceipt(wagmiClient, {
-      hash: txHash,
-      chainId: chainId as 1 | 56 | 8453 | 204,
-    });
+    );
+    // Don't await receipt — backend confirms via submitPurchaseWithRetry (same as Privy).
     return { txHash };
   }
 
@@ -843,17 +1100,20 @@ export async function purchaseEvmPackage(args: {
       await new Promise((r) => setTimeout(r, 3000));
       void approveHash; // hash logged above if needed
     } else {
-      const approveHash = await args.writeContractAsync!({
-        address: match.address,
-        abi: erc20Abi,
-        functionName: "approve",
-        args: [contractAddress, match.amount],
+      const approveHash = await writeOrDetect(
+        () => args.writeContractAsync!({
+          address: match.address,
+          abi: erc20Abi,
+          functionName: "approve",
+          args: [contractAddress, match.amount],
+          chainId,
+        }),
+        match.address,  // poll the token contract for Approval logs
+        walletAddress as Address,
         chainId,
-      });
-      await waitForTransactionReceipt(wagmiClient, {
-        hash: approveHash,
-        chainId: chainId as 1 | 56 | 8453 | 204,
-      });
+      );
+      // Must confirm approval before buying so the allowance is on-chain.
+      await waitForHashConfirmation(approveHash, chainId);
     }
   }
 
@@ -873,17 +1133,19 @@ export async function purchaseEvmPackage(args: {
     return { txHash: hash };
   }
 
-  const txHash = await args.writeContractAsync!({
-    address: contractAddress,
-    abi: BUY_MESSAGES_ABI,
-    functionName: "buyWithToken",
-    args: [match.address, BigInt(args.packageId)],
+  const txHash = await writeOrDetect(
+    () => args.writeContractAsync!({
+      address: contractAddress,
+      abi: BUY_MESSAGES_ABI,
+      functionName: "buyWithToken",
+      args: [match.address, BigInt(args.packageId)],
+      chainId,
+    }),
+    contractAddress,
+    walletAddress as Address,
     chainId,
-  });
-  await waitForTransactionReceipt(wagmiClient, {
-    hash: txHash,
-    chainId: chainId as 1 | 56 | 8453 | 204,
-  });
+  );
+  // Don't await receipt — backend confirms via submitPurchaseWithRetry (same as Privy).
   return { txHash };
 }
 
