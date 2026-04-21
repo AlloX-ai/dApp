@@ -103,11 +103,14 @@ function hasPrivyEmbeddedWallet(user) {
 function PrivyEnsureBnbChain() {
   const { user } = useAuth();
   const { wallets, ready } = useWallets();
+  const hasRun = useRef(false);
 
   useEffect(() => {
     if (!ready || user?.authProvider !== "privy") return;
+    if (hasRun.current) return;
     const embedded = getPrivyEmbedded(wallets);
     if (!embedded) return;
+    hasRun.current = true;
     let cancelled = false;
     (async () => {
       try {
