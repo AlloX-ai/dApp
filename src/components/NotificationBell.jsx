@@ -54,11 +54,15 @@ export function NotificationBell({ isConnected }) {
       const data = await notificationsApi.getNotifications({
         limit: 20,
         offset: 0,
+        // unreadOnly=true  → backend filters { read: false } → only unread
+        // unreadOnly=false → no filter             → all (read + unread)
         unreadOnly,
       });
-      setNotifications(
-        Array.isArray(data?.notifications) ? data.notifications : [],
-      );
+      const all = Array.isArray(data?.notifications) ? data.notifications : [];
+      // When showing the "read" tab, backend has no readOnly filter — it returns
+      // all. Filter client-side to keep only already-read notifications.
+      const filtered = unreadOnly ? all : all.filter((n) => n?.read === true);
+      setNotifications(filtered);
       if (unreadOnly) {
         setUnreadCount(Number(data?.unreadCount ?? 0));
       }

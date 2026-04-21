@@ -2,7 +2,10 @@ import { useCallback, useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import { useWriteContract, useSwitchChain, useAccount } from "wagmi";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { waitForTransactionReceipt as wagmiWaitForTransactionReceipt } from "@wagmi/core";
+import {
+  getPublicClient,
+  waitForTransactionReceipt as wagmiWaitForTransactionReceipt,
+} from "@wagmi/core";
 import { encodeFunctionData } from "viem";
 import { ethers } from "ethers";
 import { useWallets } from "@privy-io/react-auth";
@@ -39,6 +42,194 @@ const CHAIN_ID_TO_ADDRESS = {
 
 const SUPPORTED_EVM_CHAIN_IDS = [1, 56, 8453];
 export const SOLANA_CHAIN_ID = 101;
+const WALLET_SIGN_TIMEOUT_MS = 3 * 60 * 1000;
+const CHECKIN_RECEIPT_WAIT_TIMEOUT_MS = 12000;
+const CHECKIN_RECEIPT_POLL_INTERVAL_MS = 2500;
+const CHECKIN_RECEIPT_MAX_ATTEMPTS = 90;
+const CHECKIN_CHAIN_POLL_DELAY_MS = 5000;
+const CHECKIN_CHAIN_POLL_INTERVAL_MS = 3500;
+const CHECKIN_TX_DETECT_TIMEOUT_MS = 3 * 60 * 1000;
+const CHECKIN_LOG_BLOCK_CHUNK = 200n;
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const normalizeTxHash = (txResult) => {
+  if (typeof txResult === "string") return txResult;
+  if (txResult?.hash) return txResult.hash;
+  if (txResult?.transactionHash) return txResult.transactionHash;
+  return null;
+};
+
+const waitWithTimeout = (promise, timeoutMs, timeoutMessage) =>
+  Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs),
+    ),
+  ]);
+
+const pollContractLogsForCheckinTx = async ({
+  contractAddress,
+  fromAddress,
+  chainId,
+  fromBlock,
+  stopAfterMs = CHECKIN_TX_DETECT_TIMEOUT_MS,
+}) => {
+  const client = getPublicClient(wagmiClient, { chainId });
+  if (!client) throw new Error("Network unavailable");
+
+  const stopAt = Date.now() + stopAfterMs;
+  let nextBlock = fromBlock;
+  const from = String(fromAddress || "").toLowerCase();
+  const to = String(contractAddress || "").toLowerCase();
+
+  while (Date.now() < stopAt) {
+    try {
+      const latestBlock = await client.getBlockNumber();
+      if (latestBlock >= nextBlock) {
+        for (
+          let lo = nextBlock;
+          lo <= latestBlock;
+          lo += CHECKIN_LOG_BLOCK_CHUNK + 1n
+        ) {
+          const hi =
+            lo + CHECKIN_LOG_BLOCK_CHUNK > latestBlock
+              ? latestBlock
+              : lo + CHECKIN_LOG_BLOCK_CHUNK;
+          try {
+            const logs = await client.getLogs({
+              address: contractAddress,
+              fromBlock: lo,
+              toBlock: hi,
+            });
+            for (const log of logs) {
+              if (!log.transactionHash) continue;
+              try {
+                const receipt = await client.getTransactionReceipt({
+                  hash: log.transactionHash,
+                });
+                if (
+                  String(receipt?.from || "").toLowerCase() === from &&
+                  String(receipt?.to || "").toLowerCase() === to &&
+                  receipt.status === "success"
+                ) {
+                  return log.transactionHash;
+                }
+              } catch {
+                // Receipt not indexed yet.
+              }
+            }
+          } catch {
+            // Ignore transient RPC range failures.
+          }
+        }
+        nextBlock = latestBlock + 1n;
+      }
+    } catch {
+      // Ignore transient RPC failures and continue polling.
+    }
+    await sleep(CHECKIN_CHAIN_POLL_INTERVAL_MS);
+  }
+
+  throw new Error(
+    "Transaction sign request timed out. If you already approved in wallet, check history then retry.",
+  );
+};
+
+const waitForReceiptWithFallback = async ({
+  hash,
+  chainId,
+  timeoutMs = CHECKIN_RECEIPT_WAIT_TIMEOUT_MS,
+}) => {
+  if (!hash) throw new Error("Missing transaction hash");
+  try {
+    return await waitWithTimeout(
+      wagmiWaitForTransactionReceipt(wagmiClient, { hash, chainId }),
+      timeoutMs,
+      "Timed out waiting for transaction receipt.",
+    );
+  } catch (waitErr) {
+    const client = getPublicClient(wagmiClient, { chainId });
+    if (!client) throw waitErr;
+    for (let i = 0; i < CHECKIN_RECEIPT_MAX_ATTEMPTS; i += 1) {
+      try {
+        const receipt = await client.getTransactionReceipt({ hash });
+        if (receipt) return receipt;
+      } catch (pollErr) {
+        const msg = String(pollErr?.message || pollErr).toLowerCase();
+        if (!msg.includes("not found") && !msg.includes("unknown transaction")) {
+          throw pollErr;
+        }
+      }
+      await sleep(CHECKIN_RECEIPT_POLL_INTERVAL_MS);
+    }
+    throw waitErr;
+  }
+};
+
+const writeOrDetectCheckinTx = async ({
+  writeTx,
+  contractAddress,
+  fromAddress,
+  chainId,
+}) => {
+  let fromBlock = 0n;
+  try {
+    const client = getPublicClient(wagmiClient, { chainId });
+    if (client) fromBlock = await client.getBlockNumber();
+  } catch {
+    // Non-fatal; poller can still scan from block 0.
+  }
+
+  const writePromise = writeTx();
+  let earlyRejectError = null;
+  const earlyCheck = new Promise((resolve, reject) => {
+    const t = setTimeout(() => resolve("__poll__"), 3000);
+    writePromise.then(
+      (hash) => {
+        clearTimeout(t);
+        resolve(hash);
+      },
+      (err) => {
+        clearTimeout(t);
+        earlyRejectError = err;
+        reject(err);
+      },
+    );
+  });
+
+  try {
+    const earlyResult = await earlyCheck;
+    if (earlyResult !== "__poll__") return earlyResult;
+  } catch {
+    throw earlyRejectError ?? new Error("Transaction rejected.");
+  }
+
+  const pollPromise = (async () => {
+    await sleep(CHECKIN_CHAIN_POLL_DELAY_MS);
+    return pollContractLogsForCheckinTx({
+      contractAddress,
+      fromAddress,
+      chainId,
+      fromBlock,
+      stopAfterMs: CHECKIN_TX_DETECT_TIMEOUT_MS,
+    });
+  })();
+
+  const timeoutPromise = new Promise((_, reject) =>
+    setTimeout(
+      () =>
+        reject(
+          new Error(
+            "Transaction sign request timed out. If you already approved in wallet, check history then retry.",
+          ),
+        ),
+      CHECKIN_TX_DETECT_TIMEOUT_MS,
+    ),
+  );
+
+  return Promise.race([writePromise, pollPromise, timeoutPromise]);
+};
 
 export function useCheckin() {
   const walletType = useSelector((state) => state.wallet.walletType);
@@ -90,7 +281,11 @@ export function useCheckin() {
     const today = new Date().toISOString().split("T")[0];
     const message = `AlloX Daily Check-In\n${today}\n${walletAddress}`;
     const encoded = new TextEncoder().encode(message);
-    const signature = await signMessageSolana(encoded);
+    const signature = await waitWithTimeout(
+      signMessageSolana(encoded),
+      WALLET_SIGN_TIMEOUT_MS,
+      "Sign request timed out. Re-open your wallet and try again.",
+    );
     const signatureB58 = bs58.encode(new Uint8Array(signature));
     return apiCall("/checkin", {
       method: "POST",
@@ -138,19 +333,28 @@ export function useCheckin() {
           functionName: "checkIn",
           args: [],
         });
-        const txResponse = await signer.sendTransaction({
-          to: contractAddress,
-          data,
+        const txResponse = await waitWithTimeout(
+          signer.sendTransaction({
+            to: contractAddress,
+            data,
+          }),
+          CHECKIN_TX_DETECT_TIMEOUT_MS,
+          "Transaction sign request timed out. Re-open your wallet and try again.",
+        );
+        const txHash = normalizeTxHash(txResponse);
+        if (!txHash) {
+          throw new Error("Missing transaction hash from wallet.");
+        }
+        await waitForReceiptWithFallback({
+          hash: txHash,
+          chainId: effectiveChainId,
         });
-        const txHash = txResponse.hash;
-        await txResponse.wait(1);
 
         return apiCall("/checkin", {
           method: "POST",
           body: JSON.stringify({
             chain: apiChain,
-            txHash:
-              typeof txHash === "string" ? txHash : (txHash?.hash ?? txHash),
+            txHash,
           }),
         });
       }
@@ -171,40 +375,35 @@ export function useCheckin() {
         }
       }
 
-      const txHash = await writeContractAsync({
-        address: contractAddress,
-        abi: CHECKIN_ABI,
-        functionName: "checkIn",
+      const fromAddress = walletAddress;
+      if (!fromAddress) {
+        throw new Error("Wallet not connected");
+      }
+      const txHash = await writeOrDetectCheckinTx({
+        writeTx: () =>
+          writeContractAsync({
+            address: contractAddress,
+            abi: CHECKIN_ABI,
+            functionName: "checkIn",
+            chainId: effectiveChainId,
+          }),
+        contractAddress,
+        fromAddress,
         chainId: effectiveChainId,
       });
 
-      let receipt;
-      const maxRetries = 5;
-      for (let i = 0; i < maxRetries; i++) {
-        // Pin the receipt waiter to `effectiveChainId`. Without it, wagmi
-        // defaults to the currently-connected account's chain (or the first
-        // chain in config.chains when none is connected), which can differ
-        // from the chain the check-in tx was written on and leave us watching
-        // the wrong network forever.
-        receipt = await wagmiWaitForTransactionReceipt(wagmiClient, {
-          hash: txHash,
-          chainId: effectiveChainId,
-        }).catch(() => null);
-        if (receipt) break;
-        // wait 2 seconds before retry
-        await new Promise((res) => setTimeout(res, 2000));
-      }
+      await waitForReceiptWithFallback({
+        hash: txHash,
+        chainId: effectiveChainId,
+      });
 
-      if (receipt) {
-        return apiCall("/checkin", {
-          method: "POST",
-          body: JSON.stringify({
-            chain: apiChain,
-            txHash:
-              typeof txHash === "string" ? txHash : (txHash?.hash ?? txHash),
-          }),
-        });
-      }
+      return apiCall("/checkin", {
+        method: "POST",
+        body: JSON.stringify({
+          chain: apiChain,
+          txHash,
+        }),
+      });
     },
     [
       authUser?.authProvider,
@@ -214,6 +413,7 @@ export function useCheckin() {
       switchChainAsync,
       wallets,
       writeContractAsync,
+      walletAddress,
     ],
   );
 
