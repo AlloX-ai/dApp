@@ -369,7 +369,7 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="bg-black rounded-full px-2 sm:px-4 py-2 flex items-center gap-2 sm:gap-3 hover:bg-gray-800 transition-colors"
+        className="bg-black rounded-full px-2 py-1 flex items-center gap-2 sm:gap-3 hover:bg-gray-800 transition-colors"
       >
         <img src={selectedNetwork.icon} alt="" className="h-5 w-5 sm:h-6 sm:w-6" />
         {/* <span className="font-medium text-sm hidden md:block">{selectedNetwork?.name}</span> */}

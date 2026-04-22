@@ -248,7 +248,7 @@ export function WalletModal({
                       <img
                         src={wallet.icon}
                         alt=""
-                        className="h-8 w-8 object-contain"
+                        className="h-6 w-6 sm:h-8 sm:w-8 object-contain"
                       />
                     </div>
                     <div className="flex items-center gap-4 w-100 justify-between">
@@ -275,7 +275,7 @@ export function WalletModal({
                       <img
                         src={wallet.icon}
                         alt=""
-                        className="h-8 w-8 object-contain"
+                        className="h-6 w-6 sm:h-8 sm:w-8 object-contain"
                       />
                     </div>
                     <span className="text-xs">{wallet.name}</span>

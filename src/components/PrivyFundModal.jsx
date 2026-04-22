@@ -75,7 +75,15 @@ function fundAssetsForNetwork(networkKey) {
   ];
 }
 
-export function PrivyFundModal({ open, onClose, walletChainId, coinbase }) {
+export function PrivyFundModal({
+  open,
+  onClose,
+  onSwitchTab,
+  walletChainId,
+  coinbase,
+  embedded = false,
+  showJourneyTabs = true,
+}) {
   const [fundNetworkKey, setFundNetworkKey] = useState("56");
   const [fundAsset, setFundAsset] = useState("native");
   const [fundAmount, setFundAmount] = useState("0.01");
@@ -154,7 +162,8 @@ export function PrivyFundModal({ open, onClose, walletChainId, coinbase }) {
       } else {
         await fundWallet({ address: evmAddr, options: evmOptions });
       }
-      onClose();
+      // Keep the parent fund modal open so dismissing Privy's popup
+      // (e.g. pressing X) never closes this screen unexpectedly.
     } catch (e) {
       console.error(e);
       const msg = String(e?.message || e || "");
@@ -176,7 +185,251 @@ export function PrivyFundModal({ open, onClose, walletChainId, coinbase }) {
       ? selectedNet.nativeSymbol
       : selectedAssetRow.displayLabel;
 
-  if (!open) return null;
+  if (!open && !embedded) return null;
+
+  const content = (
+    <div className={embedded ? "px-1 py-1 space-y-4" : "px-5 py-4 space-y-4"}>
+      {showJourneyTabs && (
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            className="px-3 py-1.5 rounded-full text-sm bg-black text-white"
+          >
+            Add funds
+          </button>
+          <button
+            type="button"
+            onClick={() => onSwitchTab?.("withdraw")}
+            className="px-3 py-1.5 rounded-full text-sm bg-gray-100 text-gray-700 hover:bg-gray-200"
+          >
+            Withdraw funds
+          </button>
+        </div>
+      )}
+      <div className="flex gap-3 rounded-xl bg-amber-50 border border-amber-100 px-3 py-3 text-sm text-amber-950">
+        <Info
+          className="shrink-0 mt-0.5 text-amber-600"
+          size={18}
+          aria-hidden
+        />
+        <div className="space-y-2 text-amber-950/90">
+          <p>
+            You’ll continue in Privy’s secure flow (e.g. MoonPay) to buy
+            crypto with a card or other supported methods.
+          </p>
+          <p className="text-amber-900/85">
+            The amount is in the <strong>asset you receive</strong>—not the
+            fiat total (checkout shows that). <strong>BNB Chain</strong> is
+            BNB only. <strong>Ethereum</strong> and <strong>Base</strong>{" "}
+            support native ETH plus USDC and USDT.
+          </p>
+        </div>
+      </div>
+      <div className="flex items-center gap-3">
+        <div className="w-full">
+          <span
+            id="fund-chain-label"
+            className="block text-xs font-semibold text-gray-500 mb-1.5"
+          >
+            Network
+          </span>
+          <OutsideClickHandler
+            onOutsideClick={() => !fundSubmitting && setChainMenuOpen(false)}
+          >
+            <div className="relative">
+              <button
+                type="button"
+                id="fund-chain-trigger"
+                aria-labelledby="fund-chain-label"
+                aria-haspopup="listbox"
+                aria-expanded={chainMenuOpen}
+                disabled={fundSubmitting}
+                onClick={() => setChainMenuOpen((v) => !v)}
+                className="w-full bg-black rounded-xl px-2 sm:px-4 py-2 flex items-center justify-between gap-2 sm:gap-3 hover:bg-gray-800 transition-colors disabled:opacity-50"
+              >
+                <span className="flex items-center gap-2 sm:gap-3 min-w-0">
+                  <img
+                    src={selectedNet.icon}
+                    alt=""
+                    className="h-5 w-5 sm:h-6 sm:w-6 shrink-0"
+                  />
+                  <span className="font-medium text-sm text-white truncate">
+                    {selectedNet.label}
+                  </span>
+                </span>
+                <ChevronDown
+                  size={16}
+                  className={`shrink-0 text-white transition-transform ${chainMenuOpen ? "rotate-180" : ""}`}
+                />
+              </button>
+
+              {chainMenuOpen && (
+                <div
+                  className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-xl p-2 z-30 animate-fade-in shadow-lg max-h-[min(280px,45vh)] overflow-y-auto"
+                  role="listbox"
+                  aria-labelledby="fund-chain-label"
+                >
+                  {FUND_NETWORK_OPTIONS.map((o) => (
+                    <button
+                      key={o.key}
+                      type="button"
+                      role="option"
+                      aria-selected={fundNetworkKey === o.key}
+                      onClick={() => {
+                        setFundNetworkKey(o.key);
+                        setChainMenuOpen(false);
+                        const valid = new Set(
+                          fundAssetsForNetwork(o.key).map((r) => r.id),
+                        );
+                        setFundAsset((a) => (valid.has(a) ? a : "native"));
+                      }}
+                      className={`w-full flex hover:bg-black/5 hover:shadow-sm items-center gap-3 px-4 py-2 rounded-xl text-sm transition-colors ${
+                        fundNetworkKey === o.key
+                          ? "bg-black text-white font-medium hover:bg-gray-800"
+                          : "hover:bg-black/5"
+                      }`}
+                    >
+                      <img
+                        src={o.icon}
+                        alt=""
+                        className="h-5 w-5 sm:h-6 sm:w-6"
+                      />
+                      <span>{o.label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </OutsideClickHandler>
+        </div>
+
+        {showAssetPicker && (
+          <div className="w-full">
+            <span
+              id="fund-asset-label"
+              className="block text-xs font-semibold text-gray-500 mb-1.5"
+            >
+              Asset
+            </span>
+            <OutsideClickHandler
+              onOutsideClick={() => !fundSubmitting && setAssetMenuOpen(false)}
+            >
+              <div className="relative">
+                <button
+                  type="button"
+                  id="fund-asset-trigger"
+                  aria-labelledby="fund-asset-label"
+                  aria-haspopup="listbox"
+                  aria-expanded={assetMenuOpen}
+                  disabled={fundSubmitting}
+                  onClick={() => setAssetMenuOpen((v) => !v)}
+                  className="w-full bg-black rounded-xl px-2 sm:px-4 py-2 flex items-center justify-between gap-2 sm:gap-3 hover:bg-gray-800 transition-colors disabled:opacity-50"
+                >
+                  <span className="flex items-center gap-2 sm:gap-3 min-w-0">
+                    <img
+                      src={selectedAssetRow.icon}
+                      alt=""
+                      className="h-5 w-5 sm:h-6 sm:w-6 shrink-0"
+                    />
+                    <span className="font-medium text-sm text-white truncate">
+                      {selectedAssetRow.displayLabel}
+                    </span>
+                  </span>
+                  <ChevronDown
+                    size={16}
+                    className={`shrink-0 text-white transition-transform ${assetMenuOpen ? "rotate-180" : ""}`}
+                  />
+                </button>
+
+                {assetMenuOpen && (
+                  <div
+                    className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-xl p-2 z-30 animate-fade-in shadow-lg"
+                    role="listbox"
+                    aria-labelledby="fund-asset-label"
+                  >
+                    {assetRows.map((row) => (
+                      <button
+                        key={row.id}
+                        type="button"
+                        role="option"
+                        aria-selected={fundAsset === row.id}
+                        onClick={() => {
+                          setFundAsset(row.id);
+                          setAssetMenuOpen(false);
+                        }}
+                        className={`w-full flex hover:bg-black/5 hover:shadow-sm items-center gap-3 px-4 py-2 rounded-xl text-sm transition-colors ${
+                          fundAsset === row.id
+                            ? "bg-black text-white font-medium hover:bg-gray-800"
+                            : "hover:bg-black/5"
+                        }`}
+                      >
+                        <img
+                          src={row.icon}
+                          alt=""
+                          className="h-5 w-5 sm:h-6 sm:w-6"
+                        />
+                        <span>{row.displayLabel}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </OutsideClickHandler>
+          </div>
+        )}
+      </div>
+      <div>
+        <label
+          htmlFor="fund-amount"
+          className="block text-xs font-semibold text-gray-500 mb-1.5"
+        >
+          Amount ({amountUnitLabel})
+        </label>
+        <div className="bg-white border border-gray-200 rounded-xl">
+          <input
+            id="fund-amount"
+            type="text"
+            inputMode="decimal"
+            autoComplete="off"
+            value={fundAmount}
+            onChange={(e) => setFundAmount(e.target.value)}
+            placeholder="0.01"
+            disabled={fundSubmitting}
+            className="w-full px-4 py-2 rounded-xl text-sm font-medium text-gray-900 tabular-nums bg-transparent outline-none focus-visible:outline-0 privy-input disabled:opacity-50"
+          />
+        </div>
+      </div>
+      <div className="flex gap-2 pt-2 mb-6">
+        {!embedded && (
+          <button
+            type="button"
+            onClick={() => onClose()}
+            disabled={fundSubmitting}
+            className="flex-1 py-3 rounded-xl text-sm font-semibold border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          >
+            Cancel
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={handleConfirmFund}
+          disabled={fundSubmitting}
+          className="flex-1 py-3 rounded-xl text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 flex items-center justify-center gap-2"
+        >
+          {fundSubmitting ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Opening…
+            </>
+          ) : (
+            "Confirm & continue"
+          )}
+        </button>
+      </div>
+    </div>
+  );
+
+  if (embedded) return content;
 
   return (
     <div
@@ -207,230 +460,7 @@ export function PrivyFundModal({ open, onClose, walletChainId, coinbase }) {
           </button>
         </div>
 
-        <div className="px-5 py-4 space-y-4">
-          <div className="flex gap-3 rounded-xl bg-amber-50 border border-amber-100 px-3 py-3 text-sm text-amber-950">
-            <Info
-              className="shrink-0 mt-0.5 text-amber-600"
-              size={18}
-              aria-hidden
-            />
-            <div className="space-y-2 text-amber-950/90">
-              <p>
-                You’ll continue in Privy’s secure flow (e.g. MoonPay) to buy
-                crypto with a card or other supported methods.
-              </p>
-              <p className="text-amber-900/85">
-                The amount is in the <strong>asset you receive</strong>—not the
-                fiat total (checkout shows that). <strong>BNB Chain</strong> is
-                BNB only. <strong>Ethereum</strong> and <strong>Base</strong>{" "}
-                support native ETH plus USDC and USDT.
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="w-full">
-              <span
-                id="fund-chain-label"
-                className="block text-xs font-semibold text-gray-500 mb-1.5"
-              >
-                Network
-              </span>
-              <OutsideClickHandler
-                onOutsideClick={() =>
-                  !fundSubmitting && setChainMenuOpen(false)
-                }
-              >
-                <div className="relative">
-                  <button
-                    type="button"
-                    id="fund-chain-trigger"
-                    aria-labelledby="fund-chain-label"
-                    aria-haspopup="listbox"
-                    aria-expanded={chainMenuOpen}
-                    disabled={fundSubmitting}
-                    onClick={() => setChainMenuOpen((v) => !v)}
-                    className="w-full bg-black rounded-xl px-2 sm:px-4 py-2 flex items-center justify-between gap-2 sm:gap-3 hover:bg-gray-800 transition-colors disabled:opacity-50"
-                  >
-                    <span className="flex items-center gap-2 sm:gap-3 min-w-0">
-                      <img
-                        src={selectedNet.icon}
-                        alt=""
-                        className="h-5 w-5 sm:h-6 sm:w-6 shrink-0"
-                      />
-                      <span className="font-medium text-sm text-white truncate">
-                        {selectedNet.label}
-                      </span>
-                    </span>
-                    <ChevronDown
-                      size={16}
-                      className={`shrink-0 text-white transition-transform ${chainMenuOpen ? "rotate-180" : ""}`}
-                    />
-                  </button>
-
-                  {chainMenuOpen && (
-                    <div
-                      className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-xl p-2 z-30 animate-fade-in shadow-lg max-h-[min(280px,45vh)] overflow-y-auto"
-                      role="listbox"
-                      aria-labelledby="fund-chain-label"
-                    >
-                      {FUND_NETWORK_OPTIONS.map((o) => (
-                        <button
-                          key={o.key}
-                          type="button"
-                          role="option"
-                          aria-selected={fundNetworkKey === o.key}
-                          onClick={() => {
-                            setFundNetworkKey(o.key);
-                            setChainMenuOpen(false);
-                            const valid = new Set(
-                              fundAssetsForNetwork(o.key).map((r) => r.id),
-                            );
-                            setFundAsset((a) => (valid.has(a) ? a : "native"));
-                          }}
-                          className={`w-full flex hover:bg-black/5 hover:shadow-sm items-center gap-3 px-4 py-2 rounded-xl text-sm transition-colors ${
-                            fundNetworkKey === o.key
-                              ? "bg-black text-white font-medium hover:bg-gray-800"
-                              : "hover:bg-black/5"
-                          }`}
-                        >
-                          <img
-                            src={o.icon}
-                            alt=""
-                            className="h-5 w-5 sm:h-6 sm:w-6"
-                          />
-                          <span>{o.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </OutsideClickHandler>
-            </div>
-
-            {showAssetPicker && (
-              <div className="w-full">
-                <span
-                  id="fund-asset-label"
-                  className="block text-xs font-semibold text-gray-500 mb-1.5"
-                >
-                  Asset
-                </span>
-                <OutsideClickHandler
-                  onOutsideClick={() =>
-                    !fundSubmitting && setAssetMenuOpen(false)
-                  }
-                >
-                  <div className="relative">
-                    <button
-                      type="button"
-                      id="fund-asset-trigger"
-                      aria-labelledby="fund-asset-label"
-                      aria-haspopup="listbox"
-                      aria-expanded={assetMenuOpen}
-                      disabled={fundSubmitting}
-                      onClick={() => setAssetMenuOpen((v) => !v)}
-                      className="w-full bg-black rounded-xl px-2 sm:px-4 py-2 flex items-center justify-between gap-2 sm:gap-3 hover:bg-gray-800 transition-colors disabled:opacity-50"
-                    >
-                      <span className="flex items-center gap-2 sm:gap-3 min-w-0">
-                        <img
-                          src={selectedAssetRow.icon}
-                          alt=""
-                          className="h-5 w-5 sm:h-6 sm:w-6 shrink-0"
-                        />
-                        <span className="font-medium text-sm text-white truncate">
-                          {selectedAssetRow.displayLabel}
-                        </span>
-                      </span>
-                      <ChevronDown
-                        size={16}
-                        className={`shrink-0 text-white transition-transform ${assetMenuOpen ? "rotate-180" : ""}`}
-                      />
-                    </button>
-
-                    {assetMenuOpen && (
-                      <div
-                        className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-xl p-2 z-30 animate-fade-in shadow-lg"
-                        role="listbox"
-                        aria-labelledby="fund-asset-label"
-                      >
-                        {assetRows.map((row) => (
-                          <button
-                            key={row.id}
-                            type="button"
-                            role="option"
-                            aria-selected={fundAsset === row.id}
-                            onClick={() => {
-                              setFundAsset(row.id);
-                              setAssetMenuOpen(false);
-                            }}
-                            className={`w-full flex hover:bg-black/5 hover:shadow-sm items-center gap-3 px-4 py-2 rounded-xl text-sm transition-colors ${
-                              fundAsset === row.id
-                                ? "bg-black text-white font-medium hover:bg-gray-800"
-                                : "hover:bg-black/5"
-                            }`}
-                          >
-                            <img
-                              src={row.icon}
-                              alt=""
-                              className="h-5 w-5 sm:h-6 sm:w-6"
-                            />
-                            <span>{row.displayLabel}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </OutsideClickHandler>
-              </div>
-            )}
-          </div>
-          <div>
-            <label
-              htmlFor="fund-amount"
-              className="block text-xs font-semibold text-gray-500 mb-1.5"
-            >
-              Amount ({amountUnitLabel})
-            </label>
-            <div className="bg-white border border-gray-200 rounded-xl">
-              <input
-                id="fund-amount"
-                type="text"
-                inputMode="decimal"
-                autoComplete="off"
-                value={fundAmount}
-                onChange={(e) => setFundAmount(e.target.value)}
-                placeholder="0.01"
-                disabled={fundSubmitting}
-                className="w-full px-4 py-2 rounded-xl text-sm font-medium text-gray-900 tabular-nums bg-transparent outline-none focus-visible:outline-0 privy-input disabled:opacity-50"
-              />
-            </div>
-          </div>
-          <div className="flex gap-2 pt-2 mb-6">
-            <button
-              type="button"
-              onClick={() => onClose()}
-              disabled={fundSubmitting}
-              className="flex-1 py-3 rounded-xl text-sm font-semibold border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleConfirmFund}
-              disabled={fundSubmitting}
-              className="flex-1 py-3 rounded-xl text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {fundSubmitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Opening…
-                </>
-              ) : (
-                "Confirm & continue"
-              )}
-            </button>
-          </div>
-        </div>
+        {content}
       </div>
     </div>
   );
