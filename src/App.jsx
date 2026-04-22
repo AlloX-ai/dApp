@@ -50,7 +50,8 @@ import { completePrivyAuth } from "./hooks/useAuth";
 import { useCheckin } from "./hooks/useCheckin";
 import { CheckinModal } from "./components/CheckinModal";
 
-import { Toaster, toast } from "sonner";
+import { Toaster } from "sonner";
+import { toast } from "./utils/toast";
 import {
   setRateLimit,
   setCurrentMessages,
@@ -72,6 +73,8 @@ const MAINTENANCE_MODE = false;
 
 const SOLANA_MAINNET_CHAIN_ID = 101;
 const PREFERRED_CHAIN_STORAGE_KEY = "walletPreferredChainId";
+const PRIVY_VERIFY_BASE_COOLDOWN_MS = 5000;
+const PRIVY_VERIFY_MAX_COOLDOWN_MS = 120000;
 
 /** Avoid EVM (wagmi) and Solana (adapter) fighting for the same MetaMask session. */
 async function disconnectAllEvmWagmi() {
@@ -161,6 +164,8 @@ function LaunchAppLayout() {
   const { createWallet } = useCreateWallet();
   const [isPrivyVerifying, setIsPrivyVerifying] = useState(false);
   const privyVerifyAttemptedRef = useRef(false);
+  const privyVerifyFailuresRef = useRef(0);
+  const privyVerifyCooldownUntilRef = useRef(0);
 
   useEffect(() => {
     if (user?.authProvider !== "privy" || !user?.address) return;
@@ -244,6 +249,8 @@ function LaunchAppLayout() {
   useEffect(() => {
     if (!authenticated || token) return;
     if (!privyUser) return;
+    if (isPrivyVerifying) return;
+    if (Date.now() < privyVerifyCooldownUntilRef.current) return;
     if (privyVerifyAttemptedRef.current) return;
     privyVerifyAttemptedRef.current = true;
     setIsPrivyVerifying(true);
@@ -256,15 +263,24 @@ function LaunchAppLayout() {
         const t = await getAccessToken();
         if (!t) throw new Error("No Privy access token");
         await completePrivyAuth(t);
+        privyVerifyFailuresRef.current = 0;
+        privyVerifyCooldownUntilRef.current = 0;
       } catch (err) {
         console.error("Privy verify:", err);
+        privyVerifyFailuresRef.current += 1;
+        const exp = Math.max(0, privyVerifyFailuresRef.current - 1);
+        const backoffMs = Math.min(
+          PRIVY_VERIFY_MAX_COOLDOWN_MS,
+          PRIVY_VERIFY_BASE_COOLDOWN_MS * 2 ** exp,
+        );
+        privyVerifyCooldownUntilRef.current = Date.now() + backoffMs;
         privyVerifyAttemptedRef.current = false;
         toast.error(err?.message || "Sign-in failed. Please try again.");
       } finally {
         setIsPrivyVerifying(false);
       }
     })();
-  }, [authenticated, token, privyUser, createWallet, getAccessToken]);
+  }, [authenticated, token, privyUser, createWallet, getAccessToken, isPrivyVerifying]);
   const {
     status: checkinStatus,
     claim: claimCheckin,

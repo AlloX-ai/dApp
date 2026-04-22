@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { ChevronDown, Loader2 } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import OutsideClickHandler from "react-outside-click-handler";
-import { toast } from "sonner";
+import { toast } from "../utils/toast";
 import { setAddress, setChainId, setIsConnected, setWalletType } from "../redux/slices/walletSlice";
 import { connect, disconnect, getAccount } from "@wagmi/core";
 import { wagmiClient } from "../wagmiConnectors";

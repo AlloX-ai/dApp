@@ -20,6 +20,7 @@ export function embeddedOnChainId(embedded, numericChainId) {
 }
 
 export async function switchPrivyEmbeddedToChain(embedded, numericChainId) {
+  console.log("switchPrivyEmbeddedToChain", { numericChainId });
   if (!embedded?.switchChain) {
     throw new Error("Embedded wallet cannot switch networks.");
   }

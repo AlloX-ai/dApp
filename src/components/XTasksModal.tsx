@@ -15,7 +15,7 @@ import {
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useSocial } from "../hooks/useSocial";
-import { toast } from "sonner";
+import { toast } from "../utils/toast";
 import { useApiLimiter } from "../hooks/useApiLimiter";
 const TELEGRAM_CHANNEL_URL = "https://t.me/alloxai";
 const TELEGRAM_ANNOUNCEMENTS_URL = "https://t.me/alloxdotai";

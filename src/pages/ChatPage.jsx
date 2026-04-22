@@ -55,7 +55,7 @@ import { useAuth } from "../hooks/useAuth";
 import { NavLink, useLocation, useNavigate } from "react-router";
 import getFormattedNumber from "../hooks/get-formatted-number";
 import { CongratsModal } from "../components/CongratsModal";
-import { toast } from "sonner";
+import { toast } from "../utils/toast";
 import { getPublicClient } from "@wagmi/core";
 import { wagmiClient } from "../wagmiConnectors";
 import { bsc } from "wagmi/chains";

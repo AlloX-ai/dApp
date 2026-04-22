@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Check, ChevronDown, CircleHelp, Plus, Trash2, X } from "lucide-react";
 import OutsideClickHandler from "react-outside-click-handler";
-import { toast } from "sonner";
+import { toast } from "../utils/toast";
 import { notificationsApi } from "../utils/alertsApi";
 import { useAuth } from "../hooks/useAuth";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
