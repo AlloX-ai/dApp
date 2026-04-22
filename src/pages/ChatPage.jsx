@@ -3705,28 +3705,28 @@ export function ChatPage() {
 
       {(currentMessages.length > 0 || quickWizardOpen) && (
         <div
-          className={`py-8 px-6 max-w-250 mx-auto w-full ${isReadOnly ? "chat-padding-readonly" : "chat-padding"}`}
+          className={`py-5 px-3 sm:py-8 sm:px-6 max-w-250 mx-auto w-full ${isReadOnly ? "chat-padding-readonly" : "chat-padding"}`}
           ref={speechBoxRef}
         >
           <div className="flex items-start gap-8">
             <div className="flex-1 min-w-0 space-y-6">
               {quickWizardOpen && (
                 <ChatBubble type="ai">
-                  <div className="space-y-4">
-                    <div className="flex flex-col sm:flex-row items-start justify-between gap-3">
+                  <div className="space-y-3 sm:space-y-4">
+                    <div className="flex flex-col sm:flex-row items-start justify-between gap-2 sm:gap-3">
                       <div className="min-w-0">
-                        <h3 className="text-lg font-bold truncate">
+                        <h3 className="text-xl sm:text-lg font-bold leading-tight">
                           Quick Portfolio Builder
                         </h3>
-                        <div className="text-xs text-gray-600 mt-1">
+                        <div className="text-sm sm:text-xs text-gray-600 mt-1">
                           Fill the form and generate portfolio
                         </div>
                       </div>
-                      <div className="flex flex-col sm:flex-row items-center gap-2">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full sm:w-auto">
                         <a
                           href="https://skynet.certik.com/projects/allox"
                           target="_blank"
-                          className="flex items-center w-full gap-2"
+                          className="flex items-center gap-2"
                         >
                           <div className="text-black font-medium text-xs ">
                             Secured by
@@ -3739,7 +3739,7 @@ export function ChatPage() {
                         </a>
                         <button
                           onClick={() => setShowMoreInfoModal(true)}
-                          className="border border-gray-200 bg-white rounded-full px-3 py-2 hover:bg-gray-50 transition-colors flex items-center gap-2 text-xs whitespace-nowrap hover:bg-gray-200 transition-colors"
+                          className="border border-gray-200 bg-white rounded-full px-3 py-2 hover:bg-gray-50 transition-colors flex items-center gap-2 text-xs whitespace-nowrap hover:bg-gray-200 w-fit"
                         >
                           <HelpCircle size={14} className="text-blue-600" />
                           <span className="font-medium">More info</span>
@@ -3753,8 +3753,8 @@ export function ChatPage() {
                       </div>
                     )}
 
-                    <div className="space-y-4">
-                      <div className="rounded-2xl bg-white/70 border border-gray-200/60 p-4 shadow-sm">
+                    <div className="space-y-3 sm:space-y-4">
+                      <div className="rounded-2xl bg-white/70 border border-gray-200/60 p-3 sm:p-4 shadow-sm">
                         <div className="text-sm font-semibold text-gray-900 mb-2">
                           Which blockchain would you like to build on?
                         </div>
@@ -3799,8 +3799,8 @@ export function ChatPage() {
                                 disabled={quickIsGenerating || quickIsExecuting}
                                 className={
                                   selected
-                                    ? "flex items-center gap-2 px-4 py-2 bg-gray-900 text-white border border-gray-900 rounded-xl text-sm font-medium hover:bg-gray-800 shadow-sm"
-                                    : "flex items-center gap-2 px-4 py-2 bg-white/80 border border-gray-200 rounded-xl text-sm font-medium hover:bg-white hover:border-gray-300"
+                                    ? "w-full sm:w-auto justify-start flex items-center gap-2 px-3 py-2.5 bg-gray-900 text-white border border-gray-900 rounded-xl text-sm font-medium hover:bg-gray-800 shadow-sm"
+                                    : "w-full sm:w-auto justify-start flex items-center gap-2 px-3 py-2.5 bg-white/80 border border-gray-200 rounded-xl text-sm font-medium hover:bg-white hover:border-gray-300"
                                 }
                               >
                                 <span className="inline-flex items-center gap-2">
@@ -3817,7 +3817,7 @@ export function ChatPage() {
                         </div>
                       </div>
 
-                      <div className="rounded-2xl bg-white/70 border border-gray-200/60 p-4 shadow-sm">
+                      <div className="rounded-2xl bg-white/70 border border-gray-200/60 p-3 sm:p-4 shadow-sm">
                         <div className="text-sm font-semibold text-gray-900 mb-2">
                           What type of portfolio interests you?
                         </div>
@@ -3879,8 +3879,8 @@ export function ChatPage() {
                                 disabled={quickIsGenerating || quickIsExecuting}
                                 className={
                                   selected
-                                    ? "px-4 py-2 bg-gray-900 text-white border border-gray-900 rounded-xl text-sm font-medium hover:bg-gray-800 shadow-sm"
-                                    : "px-4 py-2 bg-white/80 border border-gray-200 rounded-xl text-sm font-medium hover:bg-white hover:border-gray-300"
+                                    ? "px-4 py-2.5 bg-gray-900 text-white border border-gray-900 rounded-xl text-sm font-medium hover:bg-gray-800 shadow-sm"
+                                    : "px-4 py-2.5 bg-white/80 border border-gray-200 rounded-xl text-sm font-medium hover:bg-white hover:border-gray-300"
                                 }
                               >
                                 <span className="inline-flex items-center gap-2">
@@ -3895,11 +3895,11 @@ export function ChatPage() {
                         </div>
                       </div>
 
-                      <div className="rounded-2xl bg-white/70 border border-gray-200/60 p-4 shadow-sm">
+                      <div className="rounded-2xl bg-white/70 border border-gray-200/60 p-3 sm:p-4 shadow-sm">
                         <div className="text-sm font-semibold text-gray-900 mb-2">
                           How much would you like to invest?
                         </div>
-                        <div className="flex flex-wrap gap-2 mb-3">
+                        <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 mb-3">
                           {[5, 100, 500].map((amt) => {
                             const selected = quickForm.amountUsd === amt;
                             return (
@@ -3916,8 +3916,8 @@ export function ChatPage() {
                                 disabled={quickIsGenerating || quickIsExecuting}
                                 className={
                                   selected
-                                    ? "px-4 py-2 bg-gray-900 text-white border border-gray-900 rounded-xl text-sm font-medium hover:bg-gray-800 shadow-sm"
-                                    : "px-4 py-2 bg-white/80 border border-gray-200 rounded-xl text-sm font-medium hover:bg-white hover:border-gray-300"
+                                    ? "px-4 py-2.5 bg-gray-900 text-white border border-gray-900 rounded-xl text-sm font-medium hover:bg-gray-800 shadow-sm"
+                                    : "px-4 py-2.5 bg-white/80 border border-gray-200 rounded-xl text-sm font-medium hover:bg-white hover:border-gray-300"
                                 }
                               >
                                 ${amt}
@@ -3935,8 +3935,8 @@ export function ChatPage() {
                             disabled={quickIsGenerating || quickIsExecuting}
                             className={
                               quickForm.amountUsd == null
-                                ? "px-4 py-2 bg-gray-900 text-white border border-gray-900 rounded-xl text-sm font-medium hover:bg-gray-800 shadow-sm"
-                                : "px-4 py-2 bg-white/80 border border-gray-200 rounded-xl text-sm font-medium hover:bg-white hover:border-gray-300"
+                                ? "px-4 py-2.5 bg-gray-900 text-white border border-gray-900 rounded-xl text-sm font-medium hover:bg-gray-800 shadow-sm"
+                                : "px-4 py-2.5 bg-white/80 border border-gray-200 rounded-xl text-sm font-medium hover:bg-white hover:border-gray-300"
                             }
                           >
                             Custom
@@ -3964,7 +3964,7 @@ export function ChatPage() {
                         />
                       </div>
 
-                      <div className="rounded-2xl bg-white/70 border border-gray-200/60 p-4 shadow-sm">
+                      <div className="rounded-2xl bg-white/70 border border-gray-200/60 p-3 sm:p-4 shadow-sm">
                         <div className="text-sm font-semibold text-gray-900 mb-2">
                           What's your risk tolerance?
                         </div>
@@ -4007,7 +4007,7 @@ export function ChatPage() {
                                   }))
                                 }
                                 disabled={quickIsGenerating || quickIsExecuting}
-                                className={` flex flex-col items-center px-4 py-2 rounded-xl border text-left transition-all ${
+                                className={` flex flex-col items-center px-4 py-3 rounded-xl border text-left transition-all ${
                                   selected ? opt.selected : opt.base
                                 }`}
                               >
@@ -4059,7 +4059,7 @@ export function ChatPage() {
                         </div>
                       </div> */}
 
-                      <div className="flex flex-col sm:flex-row gap-2 justify-end pt-2 items-center">
+                      <div className="flex flex-col sm:flex-row gap-2 justify-end pt-2 items-stretch sm:items-center">
                         {!quickCanGenerate && (
                           <div className="mr-auto text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 flex items-center h-fit">
                             Select {quickMissingSelections.join(", ")} to enable
@@ -4075,7 +4075,7 @@ export function ChatPage() {
                             !quickCanGenerate
                             // ||!quickForm.paymentToken
                           }
-                          className="px-6 py-3 bg-gray-900 text-white border border-gray-900 rounded-2xl text-sm font-semibold hover:bg-gray-800 disabled:opacity-60 disabled:cursor-not-allowed"
+                          className="w-full sm:w-auto px-6 py-3 bg-gray-900 text-white border border-gray-900 rounded-2xl text-sm font-semibold hover:bg-gray-800 disabled:opacity-60 disabled:cursor-not-allowed"
                         >
                           {quickIsGenerating ? "Generating..." : "Generate"}
                         </button>
