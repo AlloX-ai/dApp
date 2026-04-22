@@ -64,7 +64,7 @@ import { useSocial } from "./hooks/useSocial";
 import { CongratsModal } from "./components/CongratsModal";
 import { AIChatWidget } from "./components/AiChatWidget";
 import { CampaignsPage } from "./pages/Campaigns";
-import { PrivyFundModal } from "./components/PrivyFundModal";
+import { PrivyFundHubModal } from "./components/PrivyFundHubModal";
 import { MaintenancePage } from "./pages/MaintenancePage";
 import { TopPortfoliosPage } from "./pages/TopPortfoliosPage";
 import { WatchlistPage } from "./pages/WatchlistPage";
@@ -492,7 +492,7 @@ function LaunchAppLayout() {
         onOpenFundModal={() => setFundModalOpen(true)}
       />
 
-      <PrivyFundModal
+      <PrivyFundHubModal
         open={fundModalOpen}
         onClose={() => setFundModalOpen(false)}
         walletChainId={chainId}

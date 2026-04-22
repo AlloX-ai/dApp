@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router";
 import { useDispatch, useSelector } from "react-redux";
-import { openCheckinModal, setWalletModal } from "../redux/slices/walletSlice";
+import { openCheckinModal } from "../redux/slices/walletSlice";
 import {
   Wallet,
   Menu,
@@ -12,6 +12,7 @@ import {
   SendHorizontal,
   Coins,
   Gem,
+  Banknote,
 } from "lucide-react";
 import { NetworkSelector } from "./NetworkSelector";
 import { shortAddress } from "../hooks/shortAddress";
@@ -152,26 +153,32 @@ export function Header({
                 </div>
               )}
               {isConnected && authUser?.authProvider === "privy" && (
-                <button
-                  type="button"
-                  onClick={onOpenFundModal}
-                  className="md:hidden  flex items-center shrink-0 text-xs font-semibold px-3 py-2 rounded-full bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
-                >
-                  Add funds
-                </button>
+                <div className="md:hidden flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={onOpenFundModal}
+                    className="flex items-center gap-1.5 shrink-0 text-xs font-semibold px-3.5 py-2 rounded-full bg-linear-to-r from-emerald-600 to-teal-600 text-white hover:from-emerald-700 hover:to-teal-700 shadow-sm transition-all"
+                  >
+                    <Banknote className="h-5" />
+                    Fund
+                  </button>
+                </div>
               )}
               {isConnected && <NotificationBell isConnected={isConnected} />}
 
               {isConnected ? (
                 <div className="glass-card px-0 md:pr-4 flex items-center gap-3 transition-all duration-200 hover:shadow-md">
                   {authUser?.authProvider === "privy" && (
-                    <button
-                      type="button"
-                      onClick={onOpenFundModal}
-                      className="hidden md:inline-flex ml-2 text-xs font-semibold px-3 py-2 rounded-full bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
-                    >
-                      Add funds
-                    </button>
+                    <div className="hidden md:flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={onOpenFundModal}
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-1.5 rounded-full bg-linear-to-r from-emerald-600 to-teal-600 text-white hover:from-emerald-700 hover:to-teal-700 shadow-sm transition-all"
+                      >
+                        <Banknote className="h-5" />
+                        Fund
+                      </button>
+                    </div>
                   )}
                   {/* <div className="hidden md:flex"> */}
                   <NetworkSelector onDisconnectClick={onDisconnectClick} />
