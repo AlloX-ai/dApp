@@ -42,7 +42,7 @@ export function AIChatWidget() {
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 w-14 h-14 bg-black rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center z-50 hover:scale-110"
+        className="fixed bottom-20 sm:bottom-6 right-6 w-14 h-14 bg-black rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center z-50 hover:scale-110"
       >
         {/* <MessageCircle className="w-6 h-6 text-white" /> */}
         <img src="https://cdn.allox.ai/allox/alloxWhite.svg" alt="chat icon" className="h-6 w-6" />
@@ -72,7 +72,7 @@ export function AIChatWidget() {
       <div className="bg-black p-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
-           <img src="https://cdn.allox.ai/allox/alloxWhite.svg" alt="chat icon" className="h-5 w-5" />
+            <img src="https://cdn.allox.ai/allox/alloxWhite.svg" alt="chat icon" className="h-5 w-5" />
           </div>
           <div>
             <h3 className="font-bold text-white">AlloX Web3</h3>
@@ -103,11 +103,10 @@ export function AIChatWidget() {
             className={`flex ${message.type === "user" ? "justify-end" : "justify-start"}  ${isThinking && index === messages.length - 1 ? "hidden" : ""}`}
           >
             <div
-              className={`max-w-[80%] rounded-2xl px-4 py-2.5 ${
-                message.type === "user"
-                  ? "bg-black text-white"
-                  : "bg-white border border-gray-200 text-gray-900"
-              }`}
+              className={`max-w-[80%] rounded-2xl px-4 py-2.5 ${message.type === "user"
+                ? "bg-black text-white"
+                : "bg-white border border-gray-200 text-gray-900"
+                }`}
             >
               {message.type === "ai" ? (
                 <p
@@ -150,7 +149,7 @@ export function AIChatWidget() {
           </div>
         )}
 
-       
+
 
         <div ref={messagesEndRef} />
       </div>

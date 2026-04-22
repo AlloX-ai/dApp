@@ -76,19 +76,265 @@ const BSC_CHAIN_ID = 56;
 // Keep the initial wagmi watcher short so we fall through to the explicit
 // chain-scoped polling path quickly on mobile Privy (where the watcher can
 // otherwise stall on a wrong/disconnected chain).
-const RECEIPT_WAIT_TIMEOUT_MS = 30000;
+const RECEIPT_WAIT_TIMEOUT_MS = 10000;
 const RECEIPT_POLL_INTERVAL_MS = 2500;
 // Keep total polling window around 5 minutes (2.5s × 120).
 const RECEIPT_POLL_MAX_ATTEMPTS = 120;
 const POSITION_STATUS_POLL_INTERVAL_MS = 1500;
 const POSITION_STATUS_MAX_ATTEMPTS = 120;
 const MAX_SWAP_RETRIES = 3;
+const MOBILE_WALLET_SEND_TIMEOUT_MS = 5 * 60 * 1000;
+const CHAIN_TX_DETECT_DELAY_MS = 5000;
+const CHAIN_TX_DETECT_INTERVAL_MS = 4000;
 
 const normalizeTxHash = (txResult) => {
   if (typeof txResult === "string") return txResult;
   if (txResult?.hash) return txResult.hash;
   if (txResult?.transactionHash) return txResult.transactionHash;
   return null;
+};
+
+// Poll for a sent tx using nonce advancement instead of getLogs.
+//
+// getLogs on a busy DEX contract returns hundreds of events per cycle,
+// requiring a getTransactionReceipt call for each one. getTransactionCount is
+// a single cheap counter read. We only scan blocks when we know the nonce has
+// advanced (i.e., some tx from this address was confirmed), keeping RPC load
+// minimal in the common case where the wallet is still pending.
+//
+// signal.cancelled is set by sendWithChainFallback's finally block so this
+// loop stops immediately when the race resolves — it no longer runs 5 minutes
+// in the background after the wallet already responded.
+const pollForSentTx = async ({
+  to,
+  fromAddress,
+  chainId,
+  fromBlock,
+  nonceBefore,
+  signal,
+  stopAfterMs = MOBILE_WALLET_SEND_TIMEOUT_MS,
+}) => {
+  const client = getPublicClient(wagmiClient, { chainId });
+  if (!client) throw new Error("Network unavailable while detecting submitted transaction.");
+
+  const from = String(fromAddress || "").toLowerCase();
+  const toAddr = String(to || "").toLowerCase();
+  const stopAt = Date.now() + stopAfterMs;
+  let knownNonce = nonceBefore;
+
+  while (Date.now() < stopAt) {
+    if (signal.cancelled) return null;
+
+    try {
+      const currentNonce = await client.getTransactionCount({
+        address: fromAddress,
+        blockTag: "latest",
+      });
+
+      if (currentNonce > knownNonce) {
+        // At least one tx from this address was confirmed — scan recent blocks
+        // to find one going to our target contract. Limit to 50 blocks (~2.5 min
+        // on BSC) to keep the scan bounded even after a long wallet round-trip.
+        const latestBlock = await client.getBlockNumber();
+        const scanStart = fromBlock > 0n
+          ? fromBlock
+          : latestBlock > 50n ? latestBlock - 50n : 0n;
+
+        for (let bn = latestBlock; bn >= scanStart && !signal.cancelled; bn -= 1n) {
+          try {
+            const block = await client.getBlock({ blockNumber: bn, includeTransactions: true });
+            for (const tx of block?.transactions ?? []) {
+              if (
+                String(tx?.from ?? "").toLowerCase() === from &&
+                String(tx?.to ?? "").toLowerCase() === toAddr
+              ) {
+                try {
+                  const receipt = await client.getTransactionReceipt({ hash: tx.hash });
+                  if (receipt?.status === "success") return tx.hash;
+                  if (receipt?.status === "reverted")
+                    throw new Error("Transaction failed on-chain. Please try again.");
+                } catch (e) {
+                  if (String(e?.message).includes("failed on-chain")) throw e;
+                  // receipt not indexed yet — skip
+                }
+              }
+            }
+          } catch (e) {
+            if (String(e?.message).includes("failed on-chain")) throw e;
+            // block fetch failed — continue
+          }
+        }
+        // The confirmed tx wasn't ours (user had another tx pending).
+        // Update baseline and keep polling.
+        knownNonce = currentNonce;
+      }
+    } catch (e) {
+      if (String(e?.message).includes("failed on-chain")) throw e;
+      // transient RPC failure — retry next cycle
+    }
+
+    await sleep(CHAIN_TX_DETECT_INTERVAL_MS);
+  }
+
+  throw new Error("Transaction sign request timed out. Open your wallet app and try again.");
+};
+
+// Scan recent blocks (by tx list, not logs) to detect both confirmed and
+// reverted transactions. getLogs() only returns events from successful txs,
+// so a reverted tx would be invisible to the log poller — this catches it.
+const scanRecentBlocksForTx = async ({ client, from, to, fromBlock }) => {
+  const from_ = String(from || "").toLowerCase();
+  const to_ = String(to || "").toLowerCase();
+  try {
+    const latest = await client.getBlockNumber();
+    // BSC ~3 s/block: last 25 blocks ≈ 75 s, enough for any wallet round-trip.
+    const lo = latest > 25n ? latest - 25n : 0n;
+    const scanFrom = fromBlock > lo ? fromBlock : lo;
+    for (let bn = latest; bn >= scanFrom; bn -= 1n) {
+      let block;
+      try {
+        block = await client.getBlock({ blockNumber: bn, includeTransactions: true });
+      } catch {
+        continue;
+      }
+      if (!Array.isArray(block?.transactions)) continue;
+      for (const tx of block.transactions) {
+        if (
+          String(tx?.from || "").toLowerCase() === from_ &&
+          String(tx?.to || "").toLowerCase() === to_
+        ) {
+          try {
+            const receipt = await client.getTransactionReceipt({ hash: tx.hash });
+            if (receipt?.status === "success") return { hash: tx.hash, reverted: false };
+            if (receipt?.status === "reverted") return { hash: tx.hash, reverted: true };
+          } catch {
+            // receipt not yet indexed — treat as not found
+          }
+        }
+      }
+    }
+  } catch {
+    // transient RPC failure — caller will fall back to the poll loop
+  }
+  return null;
+};
+
+const sendWithChainFallback = async ({
+  sendTx,
+  to,
+  fromAddress,
+  chainId,
+  timeoutMs = MOBILE_WALLET_SEND_TIMEOUT_MS,
+}) => {
+  // Capture both block number and confirmed nonce before submission so the
+  // poller knows exactly where to start scanning and when the nonce advances.
+  let fromBlock = 0n;
+  let nonceBefore = 0;
+  try {
+    const client = getPublicClient(wagmiClient, { chainId });
+    if (client) {
+      [fromBlock, nonceBefore] = await Promise.all([
+        client.getBlockNumber(),
+        client.getTransactionCount({ address: fromAddress, blockTag: "latest" }),
+      ]);
+    }
+  } catch {
+    // Non-fatal; poller starts from block 0 / nonce 0.
+  }
+
+  const sendPromise = sendTx();
+
+  // Surface fast user rejections immediately before launching the poller.
+  let earlyRejectError = null;
+  let earlyResolved = false;
+  let earlyHash;
+  const earlyCheck = new Promise((resolve, reject) => {
+    const t = setTimeout(() => resolve(), 3000);
+    sendPromise.then(
+      (hash) => {
+        clearTimeout(t);
+        earlyResolved = true;
+        earlyHash = hash;
+        resolve();
+      },
+      (err) => {
+        clearTimeout(t);
+        earlyRejectError = err;
+        reject(err);
+      },
+    );
+  });
+
+  try {
+    await earlyCheck;
+    if (earlyResolved) return earlyHash;
+  } catch {
+    throw earlyRejectError ?? new Error("Transaction rejected.");
+  }
+
+  // Shared cancellation flag — set in finally so the poller stops the moment
+  // any race winner resolves instead of running 5 minutes in the background.
+  const signal = { cancelled: false };
+
+  const pollPromise = (async () => {
+    await sleep(CHAIN_TX_DETECT_DELAY_MS);
+    return pollForSentTx({
+      to,
+      fromAddress,
+      chainId,
+      fromBlock,
+      nonceBefore,
+      signal,
+      stopAfterMs: timeoutMs,
+    });
+  })();
+
+  const timeoutPromise = new Promise((_, reject) =>
+    setTimeout(
+      () =>
+        reject(
+          new Error(
+            "Transaction sign request timed out. Open your wallet app and try again.",
+          ),
+        ),
+      timeoutMs,
+    ),
+  );
+
+  // When the user returns to the browser tab from the wallet app,
+  // visibilitychange fires immediately. Scan recent blocks so a reverted tx
+  // — invisible to the nonce poller until the next cycle — is caught fast.
+  let removeVisibilityListener = () => {};
+  const visibilityPromise = new Promise((resolve, reject) => {
+    if (typeof document === "undefined") return;
+    const onVisible = async () => {
+      if (document.visibilityState !== "visible") return;
+      document.removeEventListener("visibilitychange", onVisible);
+      if (signal.cancelled) return;
+      const client = getPublicClient(wagmiClient, { chainId });
+      if (!client) return;
+      // Grace period: let WalletConnect deliver the response before hitting chain.
+      await sleep(2500);
+      if (signal.cancelled) return;
+      const found = await scanRecentBlocksForTx({ client, from: fromAddress, to, fromBlock });
+      if (!found) return;
+      if (found.reverted) {
+        reject(new Error("Transaction failed on-chain. Please try again."));
+      } else {
+        resolve(found.hash);
+      }
+    };
+    removeVisibilityListener = () =>
+      document.removeEventListener("visibilitychange", onVisible);
+    document.addEventListener("visibilitychange", onVisible);
+  });
+
+  try {
+    return await Promise.race([sendPromise, pollPromise, timeoutPromise, visibilityPromise]);
+  } finally {
+    signal.cancelled = true;
+    removeVisibilityListener();
+  }
 };
 
 const waitForReceiptWithFallback = async ({
@@ -145,6 +391,23 @@ const waitForReceiptWithFallback = async ({
 };
 
 /**
+ * Single direct getTransactionReceipt call — no retries, no timeout.
+ * Returns "success" | "reverted" | null (null = not yet mined or RPC error).
+ * Used by the sell-status poll loop to detect on-chain failures independently
+ * of the backend, so a reverted tx doesn't leave the UI spinning indefinitely.
+ */
+export const checkTxStatus = async (hash, chainId = BSC_CHAIN_ID) => {
+  const client = getPublicClient(wagmiClient, { chainId });
+  if (!client) return null;
+  try {
+    const receipt = await client.getTransactionReceipt({ hash });
+    return receipt?.status ?? null;
+  } catch {
+    return null;
+  }
+};
+
+/**
  * Default path: MetaMask / WalletConnect / etc. via wagmi.
  * @returns {{ userAddress: string, assertReady: () => void, sendTransaction: Function, waitForTransactionReceipt: Function }}
  */
@@ -166,13 +429,22 @@ export function createWagmiExecutionTxEnv() {
       }
     },
     sendTransaction: async ({ to, data, value, nonce }) => {
-      return wagmiSendTransaction(wagmiClient, {
-        account: userAddress,
-        chainId: BSC_CHAIN_ID,
+      // Mobile WalletConnect can drop callback responses while Chrome is in
+      // the background (Binance/MetaMask deep-link). Race wallet callback with
+      // chain log detection so execution can continue even if callback is lost.
+      return sendWithChainFallback({
         to,
-        data,
-        value: value ?? 0n,
-        ...(nonce !== undefined && { nonce: Number(nonce) }),
+        fromAddress: userAddress,
+        chainId: BSC_CHAIN_ID,
+        sendTx: () =>
+          wagmiSendTransaction(wagmiClient, {
+            account: userAddress,
+            chainId: BSC_CHAIN_ID,
+            to,
+            data,
+            value: value ?? 0n,
+            ...(nonce !== undefined && { nonce: Number(nonce) }),
+          }),
       });
     },
     waitForTransactionReceipt: async ({ hash }) =>

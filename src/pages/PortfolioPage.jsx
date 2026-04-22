@@ -35,6 +35,7 @@ import { apiCall } from "../utils/api";
 import { useAuth } from "../hooks/useAuth";
 import { PortfolioAlertSettings } from "../components/PortfolioAlertSettings";
 import {
+  checkTxStatus,
   createPrivyExecutionTxEnv,
   createWagmiExecutionTxEnv,
   ensurePermit2Approvals,
@@ -128,10 +129,12 @@ const EXECUTION_MODE_FILTER_OPTIONS = [
 ];
 
 const SORT_OPTIONS = [
-  { value: "date", label: "Sort by: Recent" },
-  { value: "name", label: "Sort by: Name" },
-  { value: "value", label: "Sort by: Value" },
-  { value: "pnl", label: "Sort by: Performance" },
+  { value: "date", label: "Recent" },
+  { value: "name", label: "Name" },
+  { value: "value", label: "Value" },
+  { value: "pnl", label: "Performance" },
+  { value: "active", label: "Active" },
+  { value: "closed", label: "Closed" },
 ];
 
 const isOnChainExecutionMode = (executionMode) =>
@@ -450,7 +453,15 @@ export function PortfolioPage() {
       ).toUpperCase();
       const matchesExecutionMode =
         filterExecutionMode === "ALL" || executionMode === filterExecutionMode;
-      return matchesSearch && matchesRisk && matchesExecutionMode;
+      const isClosed = isPortfolioClosed(portfolio);
+      const matchesPortfolioStatus =
+        sortBy === "active" ? !isClosed : sortBy === "closed" ? isClosed : true;
+      return (
+        matchesSearch &&
+        matchesRisk &&
+        matchesExecutionMode &&
+        matchesPortfolioStatus
+      );
     });
 
     const sorted = [...filtered].sort((a, b) => {
@@ -883,8 +894,29 @@ export function PortfolioPage() {
         return false;
       }
 
+      // Immediately check if the tx is already mined as reverted — catches the
+      // case where the user confirmed in the wallet, the tx failed on-chain,
+      // and they returned to the browser before the backend detects it.
+      const immediateOnChain = await checkTxStatus(txHash);
+      if (immediateOnChain === "reverted") {
+        addSellLog(`${symbol}: transaction failed on-chain.`);
+        return false;
+      }
+
       for (let i = 0; i < MAX_POLL_ATTEMPTS; i += 1) {
         await sleep(POLL_INTERVAL_MS);
+
+        // Every 3rd iteration, re-check on-chain receipt independently of the
+        // backend. A reverted tx emits no events so the backend may never
+        // update its status — this catches it within ~10 s regardless.
+        if (i % 3 === 0) {
+          const onChainStatus = await checkTxStatus(txHash);
+          if (onChainStatus === "reverted") {
+            addSellLog(`${symbol}: transaction failed on-chain.`);
+            return false;
+          }
+        }
+
         try {
           const statusData = await apiCall(
             `/execution/${order.executionOrderId}/status`,
@@ -972,11 +1004,15 @@ export function PortfolioPage() {
             [statusKey]: "executing",
           }));
 
-          const ok = await executeSingleOrder(
-            currentOrder,
-            txEnv,
-            slippageValue,
-          );
+          let ok = false;
+          try {
+            ok = await executeSingleOrder(currentOrder, txEnv, slippageValue);
+          } catch (orderErr) {
+            if (orderErr?.status === 401) throw orderErr;
+            addSellLog(
+              `${currentOrder?.symbol || "TOKEN"}: ${orderErr?.message || "error"}.`,
+            );
+          }
 
           if (ok) {
             setOrderStatusMap((prev) => ({
@@ -984,6 +1020,19 @@ export function PortfolioPage() {
               [statusKey]: "confirmed",
             }));
             orderConfirmed = true;
+            // Persist this position as sold immediately.
+            // /sell/complete is idempotent and skips already-sold positions,
+            // so calling it per-order is safe. This ensures partial sells
+            // (e.g. 3/4 tokens confirmed) are reflected on reload even if the
+            // remaining orders fail or the user closes the modal.
+            try {
+              await apiCall(
+                `/portfolio/${sellTarget.portfolioId}/sell/complete`,
+                { method: "POST" },
+              );
+            } catch {
+              // Non-fatal — the final /sell/complete call below will catch up.
+            }
             break;
           }
 
@@ -1324,54 +1373,49 @@ export function PortfolioPage() {
                           className="w-full pl-12 pr-4 py-3 glass-card text-sm focus:outline-none focus:ring-2 focus:ring-black/10"
                         />
                       </div>
-                      <div className="flex gap-3 items-center">
-                        <div className="flex items-center gap-2">
-                          {/* <Filter size={18} className="text-gray-600" /> */}
-                          <div className="relative">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setIsExecutionModeMenuOpen(false);
-                                setIsSortMenuOpen(false);
-                                setIsRiskMenuOpen((prev) => !prev);
-                              }}
-                              className="px-4 py-3 glass-card text-sm cursor-pointer inline-flex items-center gap-2"
-                            >
-                              {selectedRiskLabel}
-                              <ChevronDown
-                                size={16}
-                                className="text-gray-500"
-                              />
-                            </button>
-                            {isRiskMenuOpen && (
-                              <div className="absolute top-full bg-white border border-gray-200 rounded-xl p-2 min-w-[200px] z-20 animate-fade-in">
-                                <OutsideClickHandler
-                                  onOutsideClick={() =>
-                                    setIsRiskMenuOpen(false)
-                                  }
-                                >
-                                  {RISK_FILTER_OPTIONS.map((option) => (
-                                    <button
-                                      type="button"
-                                      key={option.value}
-                                      onClick={() => {
-                                        setFilterRisk(option.value);
-                                        setIsRiskMenuOpen(false);
-                                      }}
-                                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-colors ${
-                                        filterRisk === option.value
-                                          ? "bg-black text-white font-medium hover:bg-gray-800"
-                                          : "hover:bg-black/5 hover:shadow-sm"
-                                      }`}
-                                    >
-                                      <span>{option.label}</span>
-                                    </button>
-                                  ))}
-                                </OutsideClickHandler>
-                              </div>
-                            )}
-                          </div>
+                      <div className="grid grid-cols-2 sm:flex gap-3 items-center">
+                        {/* <div className="flex items-center gap-2"> */}
+                        {/* <Filter size={18} className="text-gray-600" /> */}
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsExecutionModeMenuOpen(false);
+                              setIsSortMenuOpen(false);
+                              setIsRiskMenuOpen((prev) => !prev);
+                            }}
+                            className="w-full px-4 py-3 glass-card text-sm cursor-pointer inline-flex items-center gap-2 justify-between"
+                          >
+                            {selectedRiskLabel}
+                            <ChevronDown size={16} className="text-gray-500" />
+                          </button>
+                          {isRiskMenuOpen && (
+                            <div className="absolute top-full bg-white border border-gray-200 rounded-xl p-2 min-w-[200px] z-20 animate-fade-in">
+                              <OutsideClickHandler
+                                onOutsideClick={() => setIsRiskMenuOpen(false)}
+                              >
+                                {RISK_FILTER_OPTIONS.map((option) => (
+                                  <button
+                                    type="button"
+                                    key={option.value}
+                                    onClick={() => {
+                                      setFilterRisk(option.value);
+                                      setIsRiskMenuOpen(false);
+                                    }}
+                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-colors ${
+                                      filterRisk === option.value
+                                        ? "bg-black text-white font-medium hover:bg-gray-800"
+                                        : "hover:bg-black/5 hover:shadow-sm"
+                                    }`}
+                                  >
+                                    <span>{option.label}</span>
+                                  </button>
+                                ))}
+                              </OutsideClickHandler>
+                            </div>
+                          )}
                         </div>
+                        {/* </div> */}
 
                         <div className="relative">
                           <button
@@ -1381,7 +1425,7 @@ export function PortfolioPage() {
                               setIsSortMenuOpen(false);
                               setIsExecutionModeMenuOpen((prev) => !prev);
                             }}
-                            className="px-4 py-3 glass-card text-sm cursor-pointer inline-flex items-center gap-2"
+                            className="w-full px-4 py-3 glass-card text-sm cursor-pointer inline-flex items-center gap-2 justify-between"
                           >
                             {selectedExecutionModeLabel}
                             <ChevronDown size={16} className="text-gray-500" />
@@ -1423,7 +1467,7 @@ export function PortfolioPage() {
                               setIsRiskMenuOpen(false);
                               setIsSortMenuOpen((prev) => !prev);
                             }}
-                            className="px-4 py-3 glass-card text-sm cursor-pointer inline-flex items-center gap-2"
+                            className="w-full px-4 py-3 glass-card text-sm cursor-pointer inline-flex items-center gap-2 justify-between"
                           >
                             {selectedSortLabel}
                             <ChevronDown size={16} className="text-gray-500" />

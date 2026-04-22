@@ -129,11 +129,7 @@ export function useTrading() {
 	);
 
 	const fetchUserCompetitionData = useCallback(
-		async ({ competitionId, address } = {}) => {
-			if (!address) {
-				throw new Error("Wallet address is required to fetch user data");
-			}
-
+		async ({ competitionId } = {}) => {
 			setLoadingState("userData", true);
 			setError(null);
 
@@ -143,7 +139,7 @@ export function useTrading() {
 					(await fetchActiveCompetition()).competitionId;
 
 				const data = await apiCall(
-					`/competition/${resolvedCompetitionId}/user/${address}`,
+					`/competition/${resolvedCompetitionId}/me`,
 				);
 
 				dispatch(setUserData(data));
@@ -159,7 +155,7 @@ export function useTrading() {
 	);
 
 	const fetchTradingData = useCallback(
-		async ({ competitionId, page = 1, limit = 10, address } = {}) => {
+		async ({ competitionId, page = 1, limit = 10, includeMe = false } = {}) => {
 			setLoadingState("tradingData", true);
 			setError(null);
 
@@ -174,8 +170,8 @@ export function useTrading() {
 						apiCall(
 							`/competition/${resolvedCompetitionId}/leaderboard?limit=${limit}&page=${page}`,
 						),
-						address
-							? apiCall(`/competition/${resolvedCompetitionId}/user/${address}`)
+						includeMe
+							? apiCall(`/competition/${resolvedCompetitionId}/me`)
 							: Promise.resolve(null),
 					]);
 

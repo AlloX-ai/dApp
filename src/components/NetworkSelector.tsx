@@ -49,9 +49,15 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
   const { connector } = useAccount();
   const { switchChainAsync } = useSwitchChain();
 
+  const embeddedWallet = getPrivyEmbedded(wallets);
+  const privySwitchWallet =
+    embeddedWallet ??
+    (wallets as any[])?.find((w) => w.walletClientType === "privy" && !!w.switchChain) ??
+    null;
   const isPrivySession =
     sessionSource === "privy" ||
-    walletType === "privy";
+    walletType === "privy" ||
+    !!privySwitchWallet;
   const errorNetwork: NetworkOption[] = [
     {
       name: "",
@@ -232,14 +238,13 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
   }
 
   const switchPrivyEVMChain = async (network: NetworkOption) => {
-    const embedded = getPrivyEmbedded(wallets);
-    if (!embedded) {
+    if (!privySwitchWallet?.switchChain) {
       toast.error("Embedded wallet not ready. Refresh the page or sign in again.");
       return;
     }
     try {
       setIsSwitching(true);
-      await switchPrivyEmbeddedToChain(embedded, network.chainId);
+      await switchPrivyEmbeddedToChain(privySwitchWallet, network.chainId);
       dispatch(setChainId(network.chainId));
       localStorage.removeItem(PREFERRED_CHAIN_STORAGE_KEY);
       setIsOpen(false);
