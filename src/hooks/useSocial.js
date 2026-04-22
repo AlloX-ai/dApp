@@ -18,7 +18,7 @@ import {
   setNewCount,
   setTelegramPoints,
 } from "../redux/slices/socialSlice";
-import { toast } from "sonner";
+import { toast } from "../utils/toast";
 import { setRateLimit } from "../redux/slices/chatSlice";
 
 const TELEGRAM_BOT_ID = "8677110292";

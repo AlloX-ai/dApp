@@ -5,7 +5,7 @@ const CONFETTI_POSITIONS = [...Array(8)].map(() => ({
 }));
 import { createPortal } from "react-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { toast } from "sonner";
+import { toast } from "../utils/toast";
 import {
   X,
   Gift,

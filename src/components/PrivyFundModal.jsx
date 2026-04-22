@@ -4,7 +4,7 @@ import { useFundWallet, useWallets } from "@privy-io/react-auth";
 import { bsc, base, mainnet } from "wagmi/chains";
 import { ChevronDown, Info, Loader2, X } from "lucide-react";
 import OutsideClickHandler from "react-outside-click-handler/build/OutsideClickHandler";
-import { toast } from "sonner";
+import { toast } from "../utils/toast";
 import { useAuth } from "../hooks/useAuth";
 import { getPrivyEmbedded } from "../utils/privyWalletUtils";
 

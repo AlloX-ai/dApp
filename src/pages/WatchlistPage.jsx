@@ -9,7 +9,7 @@ import {
   Wallet,
   X,
 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "../utils/toast";
 import { useDispatch } from "react-redux";
 import { useAuth } from "../hooks/useAuth";
 import { setWalletModal } from "../redux/slices/walletSlice";

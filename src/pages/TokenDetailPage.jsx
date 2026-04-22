@@ -13,7 +13,7 @@ import {
 import { apiCall } from "../utils/api";
 import { useAuth } from "../hooks/useAuth";
 import { watchlistApi } from "../utils/alertsApi";
-import { toast } from "sonner";
+import { toast } from "../utils/toast";
 
 const CHART_TIMEFRAMES = [
   { label: "24h", value: "24h", interval: "1h" },

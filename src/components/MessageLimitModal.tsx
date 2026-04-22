@@ -7,7 +7,7 @@ import {
   Loader2,
   HelpCircle,
 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "../utils/toast";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useSendTransaction, useWallets } from "@privy-io/react-auth";
 import { useAccount, useSwitchChain, useWriteContract } from "wagmi";

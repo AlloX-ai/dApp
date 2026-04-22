@@ -11,7 +11,7 @@ import {
   setSessionSource,
   setWalletType,
 } from "../redux/slices/walletSlice";
-import { toast } from "sonner";
+import { toast } from "../utils/toast";
 
 function hasPrivyEmbeddedWallet(user) {
   if (!user) return false;
