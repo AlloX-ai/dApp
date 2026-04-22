@@ -1004,11 +1004,15 @@ export function PortfolioPage() {
             [statusKey]: "executing",
           }));
 
-          const ok = await executeSingleOrder(
-            currentOrder,
-            txEnv,
-            slippageValue,
-          );
+          let ok = false;
+          try {
+            ok = await executeSingleOrder(currentOrder, txEnv, slippageValue);
+          } catch (orderErr) {
+            if (orderErr?.status === 401) throw orderErr;
+            addSellLog(
+              `${currentOrder?.symbol || "TOKEN"}: ${orderErr?.message || "error"}.`,
+            );
+          }
 
           if (ok) {
             setOrderStatusMap((prev) => ({
