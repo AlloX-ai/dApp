@@ -19,19 +19,30 @@ import {
   PlusCircle,
   Heart,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { useDispatch, useSelector } from "react-redux";
+import { setWalletModal } from "../redux/slices/walletSlice";
+
+import topPerformerBg from "../assets/provePortfolio/v2/topPerformer.webp";
+import portfolioSnapshotBg from "../assets/provePortfolio/v2/portfoliosnapshot.webp";
+import diamondHandsBg from "../assets/provePortfolio/v2/diamondhands.webp";
+import newPortfolioBg from "../assets/provePortfolio/v2/newportfolio.webp";
 
 export function ProveYourPortfolioCampaign() {
+  const dispatch = useDispatch();
+  const { isConnected: isWalletConnected } = useSelector(
+    (state) => state.wallet,
+  );
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [leaderboardOptIn, setLeaderboardOptIn] = useState(true);
-  const [isWalletConnected, setIsWalletConnected] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState({
     days: 3,
     hours: 14,
     minutes: 27,
     seconds: 45,
   });
+  const cardPreviewRef = useRef(null);
 
   // Mock user data
   const userStats = {
@@ -47,6 +58,40 @@ export function ProveYourPortfolioCampaign() {
       tokens: ["ETH", "BNB", "SOL", "AVAX", "MATIC"],
     },
   };
+
+  const cardTypeConfig = {
+    "top-performer": {
+      label: "Top Performer",
+      metricLabel: "This Week's Gain",
+      metricValue: userStats.topPerformer.gain,
+      detail: userStats.topPerformer.period,
+      backgroundImage: topPerformerBg,
+    },
+    "portfolio-snapshot": {
+      label: "Portfolio Snapshot",
+      metricLabel: "Total Portfolio Value",
+      metricValue: userStats.portfolioSnapshot.totalValue,
+      detail: "On-chain Portfolio",
+      backgroundImage: portfolioSnapshotBg,
+    },
+    "diamond-hands": {
+      label: "Diamond Hands",
+      metricLabel: "Longest Winning Hold",
+      metricValue: `${userStats.diamondHands.heldDays} days`,
+      detail: `${userStats.diamondHands.position} · ${userStats.diamondHands.gain} gain`,
+      backgroundImage: diamondHandsBg,
+    },
+    "new-portfolio": {
+      label: "New Portfolio",
+      metricLabel: "Investment Amount",
+      metricValue: userStats.newPortfolio.amount,
+      detail: userStats.newPortfolio.tokens.join(" · "),
+      backgroundImage: newPortfolioBg,
+    },
+  };
+  const activeCardConfig = selectedCategory
+    ? cardTypeConfig[selectedCategory]
+    : null;
 
   // Milestone tiers with user progress
   const milestoneTiers = [
@@ -207,16 +252,73 @@ export function ProveYourPortfolioCampaign() {
 
   const handleShareOnX = () => {
     const text = encodeURIComponent(
-      `Just proved my portfolio on @AlloX! 🚀\n\nCheck out my ${selectedCategory === "top-performer" ? "Top Performer" : selectedCategory === "portfolio-snapshot" ? "Portfolio Snapshot" : "Diamond Hands"} card.\n\n#ProveYourPortfolio #AlloX`,
+      `Just proved my portfolio on @AlloX! 🚀\n\nCheck out my ${activeCardConfig?.label || "portfolio"} card.\n\n#ProveYourPortfolio #AlloX`,
     );
     window.open(`https://twitter.com/intent/tweet?text=${text}`, "_blank");
   };
 
-  const handleDownloadCard = () => {
-    // In production, this would generate and download the actual card
-    alert(
-      "Card downloaded! (In production, this would download the generated card image)",
-    );
+  const handleDownloadCard = async () => {
+    if (!activeCardConfig) return;
+
+    try {
+      const canvas = document.createElement("canvas");
+      const exportSize = 1200;
+      canvas.width = exportSize;
+      canvas.height = exportSize;
+
+      const context = canvas.getContext("2d");
+      if (!context) return;
+
+      const backgroundImage = await new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = activeCardConfig.backgroundImage;
+      });
+
+      const radius = 48;
+      context.save();
+      context.beginPath();
+      context.moveTo(radius, 0);
+      context.lineTo(exportSize - radius, 0);
+      context.quadraticCurveTo(exportSize, 0, exportSize, radius);
+      context.lineTo(exportSize, exportSize - radius);
+      context.quadraticCurveTo(
+        exportSize,
+        exportSize,
+        exportSize - radius,
+        exportSize,
+      );
+      context.lineTo(radius, exportSize);
+      context.quadraticCurveTo(0, exportSize, 0, exportSize - radius);
+      context.lineTo(0, radius);
+      context.quadraticCurveTo(0, 0, radius, 0);
+      context.closePath();
+      context.clip();
+
+      context.drawImage(backgroundImage, 0, 0, exportSize, exportSize);
+
+      context.textAlign = "center";
+      context.fillStyle = "#ffffff";
+      context.font = "800 86px Inter, Arial, sans-serif";
+      context.fillText(activeCardConfig.metricValue, 600, 1050);
+
+      context.restore();
+
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+        const pngUrl = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = pngUrl;
+        link.download = `allox-${selectedCategory}-card.png`;
+        link.click();
+        URL.revokeObjectURL(pngUrl);
+      }, "image/png");
+    } catch (error) {
+      console.error("Failed to download card:", error);
+      alert("Could not download the card. Please try again.");
+    }
   };
 
   const handleShareBadge = (badgeId) => {
@@ -228,6 +330,11 @@ export function ProveYourPortfolioCampaign() {
     );
     window.open(`https://twitter.com/intent/tweet?text=${text}`, "_blank");
   };
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    document.title = "Prove Your Portfolio";
+  }, []);
 
   return (
     <div className="space-y-4">
@@ -259,24 +366,24 @@ export function ProveYourPortfolioCampaign() {
           <div className="flex flex-col items-end gap-4">
             {/* Prize Pool */}
             <div className="glass-card px-4 py-2 bg-gradient-to-r from-amber-500/20 to-orange-600/20 border-amber-500/40">
-            <div className="flex items-center gap-2">
-              <div>
-                <div className="text-xs text-gray-600 font-medium">
-                  Total Prize Pool
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-gray-900 font-bold">$500,000</span>
-                  <div className="flex items-center text-amber-600">
-                    ( <Gem className="w-5 h-5 text-amber-600 pr-1" />
-                    <div className="font-bold  text-xs sm:text-base text-amber-600">
-                      100,000
+              <div className="flex items-center gap-2">
+                <div>
+                  <div className="text-xs text-gray-600 font-medium">
+                    Total Prize Pool
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-900 font-bold">$500,000</span>
+                    <div className="flex items-center text-amber-600">
+                      ( <Gem className="w-5 h-5 text-amber-600 pr-1" />
+                      <div className="font-bold  text-xs sm:text-base text-amber-600">
+                        100,000
+                      </div>
+                      )
                     </div>
-                    )
                   </div>
                 </div>
               </div>
             </div>
-          </div>
 
             {/* Countdown Timer */}
             <div className="glass-card px-6 py-3 min-w-[280px]">
@@ -551,7 +658,7 @@ export function ProveYourPortfolioCampaign() {
                     card
                   </p>
                   <button
-                    onClick={() => setIsWalletConnected(true)}
+                    onClick={() => dispatch(setWalletModal(true))}
                     className="btn-primary py-3 px-6"
                   >
                     Connect Wallet
@@ -568,110 +675,28 @@ export function ProveYourPortfolioCampaign() {
               >
                 {/* Card Preview - Square Format */}
                 <div
-                  className={`aspect-square w-full max-w-[500px] mx-auto rounded-2xl p-8 relative overflow-hidden shadow-2xl mb-4 ${
-                    selectedCategory === "top-performer"
-                      ? "bg-gradient-to-br from-purple-900 via-indigo-900 to-violet-900"
-                      : selectedCategory === "portfolio-snapshot"
-                        ? "bg-gradient-to-br from-blue-900 via-cyan-900 to-teal-900"
-                        : selectedCategory === "diamond-hands"
-                          ? "bg-gradient-to-br from-amber-900 via-orange-900 to-yellow-900"
-                          : "bg-gradient-to-br from-green-900 via-emerald-900 to-lime-900"
-                  }`}
+                  ref={cardPreviewRef}
+                  className="aspect-square w-full max-w-[500px] mx-auto rounded-2xl p-8 relative overflow-hidden shadow-2xl mb-4"
                 >
-                  {/* Background Pattern */}
-                  <div className="absolute inset-0 opacity-10">
-                    <div
-                      className={`absolute top-0 right-0 w-96 h-96 rounded-full blur-3xl ${
-                        selectedCategory === "top-performer"
-                          ? "bg-purple-500"
-                          : selectedCategory === "portfolio-snapshot"
-                            ? "bg-blue-500"
-                            : selectedCategory === "diamond-hands"
-                              ? "bg-amber-500"
-                              : "bg-green-500"
-                      }`}
-                    ></div>
-                    <div
-                      className={`absolute bottom-0 left-0 w-96 h-96 rounded-full blur-3xl ${
-                        selectedCategory === "top-performer"
-                          ? "bg-indigo-500"
-                          : selectedCategory === "portfolio-snapshot"
-                            ? "bg-cyan-500"
-                            : selectedCategory === "diamond-hands"
-                              ? "bg-orange-500"
-                              : "bg-emerald-500"
-                      }`}
-                    ></div>
-                  </div>
-
-                  {/* Grid Pattern Overlay */}
-                  <div
-                    className="absolute inset-0 opacity-5"
-                    style={{
-                      backgroundImage:
-                        "linear-gradient(rgba(255,255,255,.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.1) 1px, transparent 1px)",
-                      backgroundSize: "30px 30px",
-                    }}
-                  ></div>
+                  {/* Category Background Image */}
+                  <img
+                    src={activeCardConfig?.backgroundImage}
+                    alt={activeCardConfig?.label}
+                    className="absolute inset-0 w-full h-full"
+                  />
 
                   {/* Content */}
-                  <div className="relative h-full flex flex-col justify-between">
-                    {/* Header */}
-                    <div className="flex items-start justify-between">
-                      <div className="text-white font-bold text-2xl">AlloX</div>
-                      <div className="px-3 py-1.5 bg-white/10 backdrop-blur-md rounded-full text-white text-xs font-bold border border-white/20">
-                        {selectedCategory === "top-performer"
-                          ? "Top Performer"
-                          : selectedCategory === "portfolio-snapshot"
-                            ? "Portfolio Snapshot"
-                            : selectedCategory === "diamond-hands"
-                              ? "Diamond Hands"
-                              : "New Portfolio"}
+                  <div className="relative h-full flex items-end justify-center">
+                    <div className="text-center">
+                      {/* <div className="text-white/85 text-[11px] mb-1 uppercase tracking-[0.2em] font-semibold">
+                        {activeCardConfig?.metricLabel}
+                      </div> */}
+                      <div className="text-5xl font-extrabold text-white leading-tight">
+                        {activeCardConfig?.metricValue}
                       </div>
-                    </div>
-
-                    {/* Main Content - Centered */}
-                    <div className="flex flex-col items-center justify-center text-center">
-                      <div className="text-white/70 text-sm mb-3 uppercase tracking-widest font-semibold">
-                        {selectedCategory === "top-performer"
-                          ? "This Week's Gain"
-                          : selectedCategory === "portfolio-snapshot"
-                            ? "Total Portfolio Value"
-                            : selectedCategory === "diamond-hands"
-                              ? "Longest Winning Hold"
-                              : "Investment Amount"}
-                      </div>
-                      <div className="text-7xl font-bold text-white mb-3 tracking-tight">
-                        {selectedCategory === "top-performer"
-                          ? userStats.topPerformer.gain
-                          : selectedCategory === "portfolio-snapshot"
-                            ? userStats.portfolioSnapshot.totalValue
-                            : selectedCategory === "diamond-hands"
-                              ? `${userStats.diamondHands.heldDays} days`
-                              : userStats.newPortfolio.amount}
-                      </div>
-                      <div className="text-white/60 text-base">
-                        {selectedCategory === "top-performer" &&
-                          userStats.topPerformer.period}
-                        {selectedCategory === "portfolio-snapshot" &&
-                          "On-chain Portfolio"}
-                        {selectedCategory === "diamond-hands" &&
-                          `${userStats.diamondHands.position} · ${userStats.diamondHands.gain} gain`}
-                        {selectedCategory === "new-portfolio" &&
-                          userStats.newPortfolio.tokens.join(" · ")}
-                      </div>
-                    </div>
-
-                    {/* Footer */}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="text-white/60 text-sm font-semibold">
-                          #ProveYourPortfolio
-                        </span>
-                      </div>
-                      <div className="text-white/60 text-sm font-mono">
-                        0x7a8c...4f2e
-                      </div>
+                      {/* <div className="text-white/75 text-[11px] mt-1 uppercase tracking-wider">
+                        {activeCardConfig?.detail}
+                      </div> */}
                     </div>
                   </div>
                 </div>
