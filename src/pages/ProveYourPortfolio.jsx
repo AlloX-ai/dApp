@@ -18,6 +18,11 @@ import {
   X as XIcon,
   PlusCircle,
   Heart,
+  HandCoins,
+  Rocket,
+  Flame,
+  Target,
+  Star,
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
@@ -127,42 +132,42 @@ export function ProveYourPortfolioCampaign() {
       name: "First $10K",
       description: "Reached $10K portfolio value",
       unlocked: true,
-      icon: "💰",
+      Icon: HandCoins,
     },
     {
       id: "2",
       name: "10x Token",
       description: "Achieved 10x on any token",
       unlocked: true,
-      icon: "🚀",
+      Icon: Rocket,
     },
     {
       id: "3",
       name: "30-Day Streak",
       description: "Active for 30 consecutive days",
       unlocked: false,
-      icon: "🔥",
+      Icon: Flame,
     },
     {
       id: "4",
       name: "Diamond Hands",
       description: "Held winner 90+ days",
       unlocked: true,
-      icon: "💎",
+      Icon: Gem,
     },
     {
       id: "5",
       name: "Portfolio Master",
       description: "Created 10+ portfolios",
       unlocked: false,
-      icon: "🎯",
+      Icon: Target,
     },
     {
       id: "6",
       name: "Early Adopter",
       description: "Joined in first month",
       unlocked: true,
-      icon: "⭐",
+      Icon: Star,
     },
   ];
 
@@ -432,33 +437,33 @@ export function ProveYourPortfolioCampaign() {
       </div>
 
       {/* Card Generator Section */}
-      <div className="grid lg:grid-cols-2 gap-6">
+      <div className="grid lg:grid-cols-2 gap-5 xl:gap-6 items-stretch">
         {/* Left: Category Selector */}
-        <div>
-          <h2 className="text-xl font-bold text-gray-900 mb-4">
+        <div className="glass-card rounded-2xl p-4 sm:p-5 lg:min-h-[430px] h-full">
+          <h2 className="text-lg font-bold text-gray-900 mb-3">
             Choose Your Card Type
           </h2>
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {/* Top Performer */}
             <motion.button
               onClick={() => setSelectedCategory("top-performer")}
-              className={`w-full text-left p-5 rounded-xl border-2 transition-all ${
+              className={`w-full text-left p-4 rounded-xl border-2 transition-all ${
                 selectedCategory === "top-performer"
                   ? "border-purple-500 bg-gradient-to-br from-purple-50 to-indigo-50 shadow-lg"
                   : "border-gray-200 bg-white/40 hover:border-gray-300 hover:shadow-md"
               }`}
               whileTap={{ scale: 0.98 }}
             >
-              <div className="flex items-start gap-4">
+              <div className="flex items-start gap-3">
                 <div
-                  className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                  className={`w-10 h-10 rounded-lg flex items-center justify-center ${
                     selectedCategory === "top-performer"
                       ? "bg-purple-500"
                       : "bg-gray-100"
                   }`}
                 >
                   <TrendingUp
-                    className={`w-6 h-6 ${selectedCategory === "top-performer" ? "text-white" : "text-gray-600"}`}
+                    className={`w-5 h-5 ${selectedCategory === "top-performer" ? "text-white" : "text-gray-600"}`}
                   />
                 </div>
                 <div className="flex-1">
@@ -472,12 +477,15 @@ export function ProveYourPortfolioCampaign() {
                     Show off your best % gain this week
                   </p>
                   {selectedCategory === "top-performer" && (
-                    <div className="mt-3 pt-3 border-t border-purple-200">
+                    <div className="mt-2 pt-2 border-t border-purple-200">
                       <div className="text-xs text-gray-600 mb-1">
                         Your stat:
                       </div>
                       <div className="text-lg font-bold text-purple-600">
                         {userStats.topPerformer.gain}
+                      </div>
+                      <div className="text-xs text-gray-600 mt-1">
+                        This week's gain
                       </div>
                     </div>
                   )}
@@ -488,23 +496,23 @@ export function ProveYourPortfolioCampaign() {
             {/* Portfolio Snapshot */}
             <motion.button
               onClick={() => setSelectedCategory("portfolio-snapshot")}
-              className={`w-full text-left p-5 rounded-xl border-2 transition-all ${
+              className={`w-full text-left p-4 rounded-xl border-2 transition-all ${
                 selectedCategory === "portfolio-snapshot"
                   ? "border-blue-500 bg-gradient-to-br from-blue-50 to-cyan-50 shadow-lg"
                   : "border-gray-200 bg-white/40 hover:border-gray-300 hover:shadow-md"
               }`}
               whileTap={{ scale: 0.98 }}
             >
-              <div className="flex items-start gap-4">
+              <div className="flex items-start gap-3">
                 <div
-                  className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                  className={`w-10 h-10 rounded-lg flex items-center justify-center ${
                     selectedCategory === "portfolio-snapshot"
                       ? "bg-blue-500"
                       : "bg-gray-100"
                   }`}
                 >
                   <Wallet
-                    className={`w-6 h-6 ${selectedCategory === "portfolio-snapshot" ? "text-white" : "text-gray-600"}`}
+                    className={`w-5 h-5 ${selectedCategory === "portfolio-snapshot" ? "text-white" : "text-gray-600"}`}
                   />
                 </div>
                 <div className="flex-1">
@@ -518,7 +526,7 @@ export function ProveYourPortfolioCampaign() {
                   </div>
                   <p className="text-sm text-gray-600">Total value</p>
                   {selectedCategory === "portfolio-snapshot" && (
-                    <div className="mt-3 pt-3 border-t border-blue-200">
+                    <div className="mt-2 pt-2 border-t border-blue-200">
                       <div className="text-xs text-gray-600 mb-1">
                         Your portfolio:
                       </div>
@@ -538,23 +546,23 @@ export function ProveYourPortfolioCampaign() {
             {/* Diamond Hands */}
             <motion.button
               onClick={() => setSelectedCategory("diamond-hands")}
-              className={`w-full text-left p-5 rounded-xl border-2 transition-all ${
+              className={`w-full text-left p-4 rounded-xl border-2 transition-all ${
                 selectedCategory === "diamond-hands"
                   ? "border-amber-500 bg-gradient-to-br from-amber-50 to-yellow-50 shadow-lg"
                   : "border-gray-200 bg-white/40 hover:border-gray-300 hover:shadow-md"
               }`}
               whileTap={{ scale: 0.98 }}
             >
-              <div className="flex items-start gap-4">
+              <div className="flex items-start gap-3">
                 <div
-                  className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                  className={`w-10 h-10 rounded-lg flex items-center justify-center ${
                     selectedCategory === "diamond-hands"
                       ? "bg-amber-500"
                       : "bg-gray-100"
                   }`}
                 >
                   <Gem
-                    className={`w-6 h-6 ${selectedCategory === "diamond-hands" ? "text-white" : "text-gray-600"}`}
+                    className={`w-5 h-5 ${selectedCategory === "diamond-hands" ? "text-white" : "text-gray-600"}`}
                   />
                 </div>
                 <div className="flex-1">
@@ -568,7 +576,7 @@ export function ProveYourPortfolioCampaign() {
                     Longest held winning position
                   </p>
                   {selectedCategory === "diamond-hands" && (
-                    <div className="mt-3 pt-3 border-t border-amber-200">
+                    <div className="mt-2 pt-2 border-t border-amber-200">
                       <div className="text-xs text-gray-600 mb-1">
                         Your best hold:
                       </div>
@@ -588,23 +596,23 @@ export function ProveYourPortfolioCampaign() {
             {/* New Portfolio */}
             <motion.button
               onClick={() => setSelectedCategory("new-portfolio")}
-              className={`w-full text-left p-5 rounded-xl border-2 transition-all ${
+              className={`w-full text-left p-4 rounded-xl border-2 transition-all ${
                 selectedCategory === "new-portfolio"
                   ? "border-green-500 bg-gradient-to-br from-green-50 to-emerald-50 shadow-lg"
                   : "border-gray-200 bg-white/40 hover:border-gray-300 hover:shadow-md"
               }`}
               whileTap={{ scale: 0.98 }}
             >
-              <div className="flex items-start gap-4">
+              <div className="flex items-start gap-3">
                 <div
-                  className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                  className={`w-10 h-10 rounded-lg flex items-center justify-center ${
                     selectedCategory === "new-portfolio"
                       ? "bg-green-500"
                       : "bg-gray-100"
                   }`}
                 >
                   <PlusCircle
-                    className={`w-6 h-6 ${selectedCategory === "new-portfolio" ? "text-white" : "text-gray-600"}`}
+                    className={`w-5 h-5 ${selectedCategory === "new-portfolio" ? "text-white" : "text-gray-600"}`}
                   />
                 </div>
                 <div className="flex-1">
@@ -618,7 +626,7 @@ export function ProveYourPortfolioCampaign() {
                     Start with a new portfolio
                   </p>
                   {selectedCategory === "new-portfolio" && (
-                    <div className="mt-3 pt-3 border-t border-green-200">
+                    <div className="mt-2 pt-2 border-t border-green-200">
                       <div className="text-xs text-gray-600 mb-1">
                         Your new portfolio:
                       </div>
@@ -637,8 +645,8 @@ export function ProveYourPortfolioCampaign() {
         </div>
 
         {/* Right: Card Preview */}
-        <div>
-          <h2 className="text-xl font-bold text-gray-900 mb-4">
+        <div className="glass-card rounded-2xl p-4 sm:p-5 lg:min-h-[430px] h-full flex flex-col">
+          <h2 className="text-lg font-bold text-gray-900 mb-3">
             Your Card Preview
           </h2>
           <AnimatePresence mode="wait">
@@ -646,7 +654,7 @@ export function ProveYourPortfolioCampaign() {
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="aspect-square w-full max-w-[500px] mx-auto glass-card rounded-2xl flex flex-col items-center justify-center p-8"
+                className="h-full w-full max-w-[380px] mx-auto glass-card rounded-2xl flex flex-col items-center justify-center p-6"
               >
                 <div className="text-center">
                   <Wallet className="w-16 h-16 mx-auto mb-4 text-gray-400" />
@@ -676,7 +684,7 @@ export function ProveYourPortfolioCampaign() {
                 {/* Card Preview - Square Format */}
                 <div
                   ref={cardPreviewRef}
-                  className="aspect-square w-full max-w-[500px] mx-auto rounded-2xl p-8 relative overflow-hidden shadow-2xl mb-4"
+                  className="aspect-square w-full max-w-[380px] mx-auto rounded-2xl p-6 relative overflow-hidden shadow-xl mb-3"
                 >
                   {/* Category Background Image */}
                   <img
@@ -691,7 +699,7 @@ export function ProveYourPortfolioCampaign() {
                       {/* <div className="text-white/85 text-[11px] mb-1 uppercase tracking-[0.2em] font-semibold">
                         {activeCardConfig?.metricLabel}
                       </div> */}
-                      <div className="text-5xl font-extrabold text-white leading-tight">
+                      <div className="text-4xl sm:text-5xl font-extrabold text-white leading-tight">
                         {activeCardConfig?.metricValue}
                       </div>
                       {/* <div className="text-white/75 text-[11px] mt-1 uppercase tracking-wider">
@@ -702,17 +710,17 @@ export function ProveYourPortfolioCampaign() {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex gap-3 max-w-[500px] mx-auto">
+                <div className="flex gap-2.5 max-w-[380px] mx-auto">
                   <button
                     onClick={handleShareOnX}
-                    className="flex-1 btn-primary py-3 flex items-center justify-center gap-2"
+                    className="flex-1 w-full btn-primary py-2.5 flex items-center justify-center gap-2"
                   >
                     <Share2 className="w-4 h-4" />
                     Share on X
                   </button>
                   <button
                     onClick={handleDownloadCard}
-                    className="px-6 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-xl text-gray-700 font-semibold hover:bg-white/80 transition-all flex items-center gap-2"
+                    className="flex-1 w-full px-5 py-2.5 bg-white/60 justify-center backdrop-blur-sm border border-gray-200 rounded-xl text-gray-700 font-semibold hover:bg-white/80 transition-all flex items-center gap-2"
                   >
                     <Download className="w-4 h-4" />
                     Download
@@ -723,7 +731,7 @@ export function ProveYourPortfolioCampaign() {
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="aspect-square w-full max-w-[500px] mx-auto glass-card rounded-2xl flex items-center justify-center"
+                className="h-full w-full max-w-[380px] mx-auto glass-card rounded-2xl flex flex-col items-center justify-center p-6"
               >
                 <div className="text-center text-gray-500">
                   <Sparkles className="w-12 h-12 mx-auto mb-3 text-gray-400" />
@@ -820,7 +828,7 @@ export function ProveYourPortfolioCampaign() {
       {/* Leaderboard Teaser + Milestone Unlocks */}
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Leaderboard Teaser */}
-        <div className="glass-card p-6">
+        <div className="glass-card p-6 min-w-0">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
               <Trophy className="w-6 h-6 text-amber-600" />
@@ -894,7 +902,7 @@ export function ProveYourPortfolioCampaign() {
         </div>
 
         {/* Milestone Unlocks */}
-        <div className="glass-card p-6">
+        <div className="glass-card p-6 min-w-0 overflow-hidden">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
               <Award className="w-6 h-6 text-purple-600" />
@@ -905,20 +913,24 @@ export function ProveYourPortfolioCampaign() {
             </div>
           </div>
 
-          {/* Horizontal Scroll */}
-          <div className="overflow-x-auto -mx-6 px-6">
-            <div className="flex gap-3 pb-2">
+          {/* Responsive badges row:
+              - < lg: horizontal scroll (nowrap)
+              - lg+: wrapped grid-like rows */}
+          <div className="w-full max-w-full overflow-x-auto lg:overflow-visible">
+            <div className="flex flex-nowrap lg:flex-wrap gap-3 pb-2 lg:pb-0 min-w-max lg:min-w-0 lg:w-full">
               {badges.map((badge) => (
                 <div
                   key={badge.id}
-                  className={`flex-shrink-0 w-[160px] p-4 rounded-xl border-2 transition-all ${
+                  className={`flex-shrink-0 w-[160px] lg:w-[160px] p-4 rounded-xl transition-all ${
                     badge.unlocked
-                      ? "border-purple-500 bg-gradient-to-br from-purple-50 to-indigo-50"
-                      : "border-gray-200 bg-gray-50 opacity-60"
+                      ? "bg-gradient-to-br from-purple-50 to-indigo-50"
+                      : "bg-gray-50 opacity-60"
                   }`}
                 >
                   <div className="text-center">
-                    <div className="text-3xl mb-2">{badge.icon}</div>
+                    <div className="mb-2 flex justify-center">
+                      <badge.Icon className="w-8 h-8 text-gray-900" />
+                    </div>
                     <div className="font-bold text-sm text-gray-900 mb-1">
                       {badge.name}
                     </div>
@@ -929,7 +941,7 @@ export function ProveYourPortfolioCampaign() {
                     {badge.unlocked ? (
                       <button
                         onClick={() => handleShareBadge(badge.id)}
-                        className="w-full py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1"
+                        className="w-full py-1.5 bg-black hover:bg-gray-800 text-white text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1"
                       >
                         <Share2 className="w-3 h-3" />
                         Share
