@@ -8,6 +8,7 @@ import {
 import { encodeFunctionData } from "viem";
 import { apiCall } from "./api";
 import { wagmiClient } from "../wagmiConnectors";
+import { chainIdFor, normalizeChain } from "../config/chains";
 const EXECUTION_API_BASE = "/execution";
 
 const PERMIT2_ADDRESS = "0x31c2F6fcFf4F8759b3Bd5Bf0e1084A055615c768";
@@ -72,7 +73,6 @@ const PERMIT2_ABI = [
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const BSC_CHAIN_ID = 56;
 // Keep the initial wagmi watcher short so we fall through to the explicit
 // chain-scoped polling path quickly on mobile Privy (where the watcher can
 // otherwise stall on a wrong/disconnected chain).
@@ -86,6 +86,45 @@ const MAX_SWAP_RETRIES = 3;
 const MOBILE_WALLET_SEND_TIMEOUT_MS = 5 * 60 * 1000;
 const CHAIN_TX_DETECT_DELAY_MS = 5000;
 const CHAIN_TX_DETECT_INTERVAL_MS = 4000;
+
+const normalizeExecutionChain = (chain) => normalizeChain(chain);
+
+const RATE_LIMIT_MAX_BACKOFF_MS = 15000;
+const BACKOFF_JITTER_MIN = 0.85;
+const BACKOFF_JITTER_MAX = 1.15;
+
+const isRateLimitedError = (error) => {
+  if (!error) return false;
+  if (error?.status === 429 || error?.code === 429) return true;
+  const msg = String(error?.message || error).toLowerCase();
+  return (
+    msg.includes("429") ||
+    msg.includes("too many requests") ||
+    msg.includes("rate limit") ||
+    msg.includes("limit exceeded")
+  );
+};
+
+const withJitter = (ms) => {
+  const jitter =
+    BACKOFF_JITTER_MIN +
+    Math.random() * (BACKOFF_JITTER_MAX - BACKOFF_JITTER_MIN);
+  return Math.max(250, Math.round(ms * jitter));
+};
+
+const getBackoffDelayMs = ({
+  attempt,
+  baseMs,
+  maxMs,
+  error,
+  rateLimitedBaseMs = 10000,
+}) => {
+  const exponential = Math.min(maxMs, Math.round(baseMs * 1.4 ** attempt));
+  const rateLimited = isRateLimitedError(error)
+    ? Math.max(exponential, rateLimitedBaseMs)
+    : exponential;
+  return withJitter(Math.min(RATE_LIMIT_MAX_BACKOFF_MS, rateLimited));
+};
 
 const normalizeTxHash = (txResult) => {
   if (typeof txResult === "string") return txResult;
@@ -121,6 +160,8 @@ const pollForSentTx = async ({
   const toAddr = String(to || "").toLowerCase();
   const stopAt = Date.now() + stopAfterMs;
   let knownNonce = nonceBefore;
+  let pollAttempt = 0;
+  let lastPollError = null;
 
   while (Date.now() < stopAt) {
     if (signal.cancelled) return null;
@@ -168,12 +209,22 @@ const pollForSentTx = async ({
         // Update baseline and keep polling.
         knownNonce = currentNonce;
       }
+      lastPollError = null;
     } catch (e) {
       if (String(e?.message).includes("failed on-chain")) throw e;
-      // transient RPC failure — retry next cycle
+      // Transient RPC failure (including 429) — retry with adaptive backoff.
+      lastPollError = e;
     }
 
-    await sleep(CHAIN_TX_DETECT_INTERVAL_MS);
+    const nextDelay = getBackoffDelayMs({
+      attempt: pollAttempt,
+      baseMs: CHAIN_TX_DETECT_INTERVAL_MS,
+      maxMs: 12000,
+      error: lastPollError,
+      rateLimitedBaseMs: 12000,
+    });
+    pollAttempt += 1;
+    await sleep(nextDelay);
   }
 
   throw new Error("Transaction sign request timed out. Open your wallet app and try again.");
@@ -339,9 +390,10 @@ const sendWithChainFallback = async ({
 
 const waitForReceiptWithFallback = async ({
   hash,
-  chainId = BSC_CHAIN_ID,
+  chain = "BSC",
   timeoutMs = RECEIPT_WAIT_TIMEOUT_MS,
 }) => {
+  const chainId = chainIdFor(normalizeExecutionChain(chain));
   if (!hash) throw new Error("Missing transaction hash");
 
   // Prefer wagmi's receipt waiter first (handles replacements/reorgs), but
@@ -374,17 +426,27 @@ const waitForReceiptWithFallback = async ({
     if (!client) throw waitErr;
 
     for (let i = 0; i < RECEIPT_POLL_MAX_ATTEMPTS; i += 1) {
+      let lastPollErr = null;
       try {
         const receipt = await client.getTransactionReceipt({ hash });
         if (receipt) return receipt;
-      } catch (pollErr) {
-        const msg = String(pollErr?.message || pollErr).toLowerCase();
+      } catch (err) {
+        const msg = String(err?.message || err).toLowerCase();
         // Keep polling while receipt is not indexed yet.
         if (!msg.includes("not found") && !msg.includes("unknown transaction")) {
-          throw pollErr;
+          throw err;
         }
+        lastPollErr = err;
       }
-      await sleep(RECEIPT_POLL_INTERVAL_MS);
+      await sleep(
+        getBackoffDelayMs({
+          attempt: i,
+          baseMs: RECEIPT_POLL_INTERVAL_MS,
+          maxMs: 10000,
+          error: lastPollErr,
+          rateLimitedBaseMs: 12000,
+        }),
+      );
     }
     throw waitErr;
   }
@@ -396,7 +458,8 @@ const waitForReceiptWithFallback = async ({
  * Used by the sell-status poll loop to detect on-chain failures independently
  * of the backend, so a reverted tx doesn't leave the UI spinning indefinitely.
  */
-export const checkTxStatus = async (hash, chainId = BSC_CHAIN_ID) => {
+export const checkTxStatus = async (hash, chain = "BSC") => {
+  const chainId = chainIdFor(normalizeExecutionChain(chain));
   const client = getPublicClient(wagmiClient, { chainId });
   if (!client) return null;
   try {
@@ -411,7 +474,9 @@ export const checkTxStatus = async (hash, chainId = BSC_CHAIN_ID) => {
  * Default path: MetaMask / WalletConnect / etc. via wagmi.
  * @returns {{ userAddress: string, assertReady: () => void, sendTransaction: Function, waitForTransactionReceipt: Function }}
  */
-export function createWagmiExecutionTxEnv() {
+export function createWagmiExecutionTxEnv(chain = "BSC") {
+  const normalizedChain = normalizeExecutionChain(chain);
+  const executionChainId = chainIdFor(normalizedChain);
   const accountState = getAccount(wagmiClient);
   const userAddress = accountState?.address;
   return {
@@ -422,9 +487,9 @@ export function createWagmiExecutionTxEnv() {
           "Wallet not connected. Connect your wallet (including WalletConnect/QR) and try again.",
         );
       }
-      if (Number(accountState?.chainId) !== BSC_CHAIN_ID) {
+      if (Number(accountState?.chainId) !== executionChainId) {
         throw new Error(
-          "Please switch your wallet to BNB Chain (chainId 56) before executing on-chain.",
+          `Please switch your wallet to ${normalizedChain === "BASE" ? "Base" : "BNB Chain"} before executing on-chain.`,
         );
       }
     },
@@ -435,11 +500,11 @@ export function createWagmiExecutionTxEnv() {
       return sendWithChainFallback({
         to,
         fromAddress: userAddress,
-        chainId: BSC_CHAIN_ID,
+        chainId: executionChainId,
         sendTx: () =>
           wagmiSendTransaction(wagmiClient, {
             account: userAddress,
-            chainId: BSC_CHAIN_ID,
+            chainId: executionChainId,
             to,
             data,
             value: value ?? 0n,
@@ -448,7 +513,7 @@ export function createWagmiExecutionTxEnv() {
       });
     },
     waitForTransactionReceipt: async ({ hash }) =>
-      waitForReceiptWithFallback({ hash, chainId: BSC_CHAIN_ID }),
+      waitForReceiptWithFallback({ hash, chain: normalizedChain }),
   };
 }
 
@@ -457,7 +522,13 @@ export function createWagmiExecutionTxEnv() {
  * @param {string} userAddress checksummed or lowercase 0x address
  * @param {Function} privySendTransaction from useSendTransaction()
  */
-export function createPrivyExecutionTxEnv(userAddress, privySendTransaction) {
+export function createPrivyExecutionTxEnv(
+  userAddress,
+  privySendTransaction,
+  chain = "BSC",
+) {
+  const normalizedChain = normalizeExecutionChain(chain);
+  const executionChainId = chainIdFor(normalizedChain);
   return {
     userAddress,
     assertReady() {
@@ -472,7 +543,7 @@ export function createPrivyExecutionTxEnv(userAddress, privySendTransaction) {
         to,
         data,
         value: value ?? 0n,
-        chainId: BSC_CHAIN_ID,
+        chainId: executionChainId,
       };
       if (nonce !== undefined) input.nonce = nonce;
       const txResult = await privySendTransaction(input);
@@ -483,7 +554,7 @@ export function createPrivyExecutionTxEnv(userAddress, privySendTransaction) {
       return hash;
     },
     waitForTransactionReceipt: async ({ hash }) =>
-      waitForReceiptWithFallback({ hash, chainId: BSC_CHAIN_ID }),
+      waitForReceiptWithFallback({ hash, chain: normalizedChain }),
   };
 }
 
@@ -591,6 +662,7 @@ async function executeApprovalSteps({ approvalSteps, update, txEnv }) {
 }
 
 export async function ensurePermit2Approvals({
+  chain = "BSC",
   permit2Approval,
   fromTokenAddress,
   userAddress,
@@ -607,7 +679,7 @@ export async function ensurePermit2Approvals({
     );
   }
 
-  const chainId = BSC_CHAIN_ID;
+  const chainId = chainIdFor(normalizeExecutionChain(chain));
   const now = BigInt(Math.floor(Date.now() / 1000));
 
   // Approval 1: ERC20 approve token -> Permit2
@@ -683,6 +755,7 @@ export async function ensurePermit2Approvals({
 }
 
 export async function ensureStandardApproval({
+  chain = "BSC",
   approvalContract,
   tokenAddress,
   userAddress,
@@ -697,7 +770,7 @@ export async function ensureStandardApproval({
   }
   if (requiredAmount <= 0n) return;
 
-  const chainId = BSC_CHAIN_ID;
+  const chainId = chainIdFor(normalizeExecutionChain(chain));
 
   const erc20Allowance = await wagmiReadContract(wagmiClient, {
     address: tokenAddress,
@@ -733,7 +806,13 @@ export async function executePortfolioOnChain(
   execution,
   { onUpdate, onPrompt, txEnv: txEnvOption } = {},
 ) {
-  const { chain, sourceToken, positions, portfolioData } = execution;
+  const incomingChain = String(execution?.chain || "").toUpperCase();
+  if (incomingChain !== "BSC" && incomingChain !== "BASE") {
+    throw new Error("On-chain execution supports BSC and BASE only.");
+  }
+  const normalizedChain = normalizeExecutionChain(incomingChain);
+  const { sourceToken, positions, portfolioData } = execution;
+  const chain = normalizedChain;
   const initialPrepareSlippage = resolveInitialPrepareSlippage(execution);
 
   const jwt = localStorage.getItem("authToken");
@@ -741,7 +820,7 @@ export async function executePortfolioOnChain(
     throw new Error("You must be logged in before executing a portfolio.");
   }
 
-  const txEnv = txEnvOption ?? createWagmiExecutionTxEnv();
+  const txEnv = txEnvOption ?? createWagmiExecutionTxEnv(chain);
   txEnv.assertReady();
   const userAddress = txEnv.userAddress;
 
@@ -964,6 +1043,7 @@ export async function executePortfolioOnChain(
               });
 
               await ensurePermit2Approvals({
+                chain,
                 permit2Approval: p2,
                 fromTokenAddress,
                 userAddress,
@@ -1002,6 +1082,7 @@ export async function executePortfolioOnChain(
               });
 
               await ensureStandardApproval({
+                chain,
                 approvalContract,
                 tokenAddress: fromTokenAddress,
                 userAddress,
@@ -1197,16 +1278,30 @@ export async function executePortfolioOnChain(
           // Poll for CONFIRMED/FAILED
           let status = "TX_SUBMITTED";
           let attempts = 0;
+          let lastStatusError = null;
 
           while (
             !["CONFIRMED", "FAILED"].includes(status) &&
             attempts < POSITION_STATUS_MAX_ATTEMPTS
           ) {
-            await sleep(POSITION_STATUS_POLL_INTERVAL_MS);
-            const statusData = await apiCall(
-              `${EXECUTION_API_BASE}/${pos.executionOrderId}/status`,
+            await sleep(
+              getBackoffDelayMs({
+                attempt: attempts,
+                baseMs: POSITION_STATUS_POLL_INTERVAL_MS,
+                maxMs: 10000,
+                error: lastStatusError,
+                rateLimitedBaseMs: 12000,
+              }),
             );
-            status = statusData.status;
+            try {
+              const statusData = await apiCall(
+                `${EXECUTION_API_BASE}/${pos.executionOrderId}/status`,
+              );
+              status = statusData.status;
+              lastStatusError = null;
+            } catch (statusErr) {
+              lastStatusError = statusErr;
+            }
             attempts += 1;
 
             update("POSITION_STATUS", {

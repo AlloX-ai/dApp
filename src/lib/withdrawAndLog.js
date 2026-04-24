@@ -1,6 +1,6 @@
 import { encodeFunctionData, parseEther, parseUnits, toHex } from "viem";
 import { apiCall } from "../utils/api";
-import { BSC_CHAIN_ID } from "../config/withdrawTokens";
+import { chainIdFor, normalizeChain } from "../config/chains";
 
 const ERC20_ABI = [
   {
@@ -18,11 +18,14 @@ const ERC20_ABI = [
 export async function withdrawAndLog({
   sendTransaction,
   walletAddress,
+  chain = "BSC",
   token,
   toAddress,
   amount,
   priceUsd,
 }) {
+  const normalizedChain = normalizeChain(chain);
+  const chainId = chainIdFor(normalizedChain);
   if (typeof sendTransaction !== "function") {
     throw new Error("Privy sendTransaction is not available.");
   }
@@ -32,7 +35,7 @@ export async function withdrawAndLog({
       {
         to: toAddress,
         value: toHex(parseEther(amount)),
-        chainId: BSC_CHAIN_ID,
+        chainId,
       },
       walletAddress ? { address: walletAddress } : undefined,
     );
@@ -49,7 +52,7 @@ export async function withdrawAndLog({
         to: token.address,
         data,
         value: "0x0",
-        chainId: BSC_CHAIN_ID,
+        chainId,
       },
       walletAddress ? { address: walletAddress } : undefined,
     );
@@ -72,7 +75,7 @@ export async function withdrawAndLog({
         },
         amount,
         amountUsd: Number(amount) * Number(priceUsd || 0),
-        chain: "BSC",
+        chain: normalizedChain,
       }),
     });
   } catch (err) {
