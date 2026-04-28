@@ -55,7 +55,7 @@ export function PointsPage() {
   const { status: gemsStatus } = useGemsStatus();
   const portfolioTierName = gemsStatus?.currentTier?.name || "Bronze";
   const portfolioTierStyle = getTierStyle(portfolioTierName);
-  console.log(gemsStatus);
+  // console.log(gemsStatus);
   // local state kept for backward compatibility but UI now uses Redux newCount
   // const [newTasksCount, setNewTasksCount] = useState(4);
   // const [expandedFaq, setExpandedFaq] = useState(null);
