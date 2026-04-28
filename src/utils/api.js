@@ -1,5 +1,5 @@
-const API_URL = "https://api.allox.ai";
-const WS_URL = "wss://api.allox.ai/ws";
+const API_URL = "https://api2.allox.ai";
+const WS_URL = "wss://api2.allox.ai/ws";
 
 // Dispatched whenever api.js updates the auth token (e.g. after refresh).
 // useAuth listens to this so React state stays in sync with the live token.
