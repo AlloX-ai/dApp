@@ -41,6 +41,7 @@ import {
   ensurePermit2Approvals,
   ensureStandardApproval,
 } from "../utils/execution";
+import { chainIdFor, normalizeChain } from "../config/chains";
 import { PortfolioInfoModal } from "../components/PortfolioInfoModal";
 import { useGemsStatus } from "../hooks/useGemsStatus";
 import { getTierStyle } from "../utils/gemsTier";
@@ -101,6 +102,22 @@ const POLL_INTERVAL_MS = 3500;
 const MAX_POLL_ATTEMPTS = 60;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const isRateLimitedError = (error) => {
+  if (!error) return false;
+  if (error?.status === 429 || error?.code === 429) return true;
+  const msg = String(error?.message || error).toLowerCase();
+  return (
+    msg.includes("429") ||
+    msg.includes("too many requests") ||
+    msg.includes("rate limit")
+  );
+};
+const sellPollDelayMs = (attempt, error) => {
+  const base = Math.min(12000, Math.round(POLL_INTERVAL_MS * 1.3 ** attempt));
+  const boosted = isRateLimitedError(error) ? Math.max(base, 12000) : base;
+  const jitter = 0.85 + Math.random() * 0.3;
+  return Math.round(boosted * jitter);
+};
 
 const archivePortfolio = async (portfolioId) => {
   await apiCall(`/portfolio/${portfolioId}`, {
@@ -701,7 +718,7 @@ export function PortfolioPage() {
   }, []);
 
   const executeSingleOrder = useCallback(
-    async (order, txEnv, slippageValue) => {
+    async (order, txEnv, slippageValue, executionChain) => {
       const symbol = order?.symbol || "TOKEN";
 
       const describeWalletError = (err) => {
@@ -834,6 +851,7 @@ export function PortfolioPage() {
               return false;
             }
             await ensurePermit2Approvals({
+              chain: executionChain,
               permit2Approval: {
                 permit2Address: p2.permit2Address || PERMIT2_ADDRESS,
                 spender: p2.spender,
@@ -846,6 +864,7 @@ export function PortfolioPage() {
             });
           } else if (prepare.approvalType === "standard") {
             await ensureStandardApproval({
+              chain: executionChain,
               approvalContract: prepare.approvalContract,
               tokenAddress: fromTokenAddress,
               userAddress: txEnv.userAddress,
@@ -897,20 +916,21 @@ export function PortfolioPage() {
       // Immediately check if the tx is already mined as reverted — catches the
       // case where the user confirmed in the wallet, the tx failed on-chain,
       // and they returned to the browser before the backend detects it.
-      const immediateOnChain = await checkTxStatus(txHash);
+      const immediateOnChain = await checkTxStatus(txHash, executionChain);
       if (immediateOnChain === "reverted") {
         addSellLog(`${symbol}: transaction failed on-chain.`);
         return false;
       }
 
+      let lastStatusError = null;
       for (let i = 0; i < MAX_POLL_ATTEMPTS; i += 1) {
-        await sleep(POLL_INTERVAL_MS);
+        await sleep(sellPollDelayMs(i, lastStatusError));
 
-        // Every 3rd iteration, re-check on-chain receipt independently of the
-        // backend. A reverted tx emits no events so the backend may never
-        // update its status — this catches it within ~10 s regardless.
-        if (i % 3 === 0) {
-          const onChainStatus = await checkTxStatus(txHash);
+        // Re-check on-chain receipt at a lower cadence to reduce Base RPC load.
+        // A reverted tx emits no events so backend status may lag; this still
+        // catches hard failures without hammering RPC endpoints.
+        if (i > 1 && i % 5 === 0) {
+          const onChainStatus = await checkTxStatus(txHash, executionChain);
           if (onChainStatus === "reverted") {
             addSellLog(`${symbol}: transaction failed on-chain.`);
             return false;
@@ -922,6 +942,7 @@ export function PortfolioPage() {
             `/execution/${order.executionOrderId}/status`,
           );
           const status = statusData?.status;
+          lastStatusError = null;
           if (status === "CONFIRMED") {
             addSellLog(`${symbol}: confirmed.`);
             return true;
@@ -930,7 +951,8 @@ export function PortfolioPage() {
             addSellLog(`${symbol}: failed on-chain.`);
             return false;
           }
-        } catch {
+        } catch (statusErr) {
+          lastStatusError = statusErr;
           // transient status error — keep polling
         }
       }
@@ -955,6 +977,8 @@ export function PortfolioPage() {
 
     try {
       await ensureAuthenticated();
+      const executionChain = normalizeChain(sellQuote?.chain || sellTarget?.chain);
+      const executionChainId = chainIdFor(executionChain);
       let txEnv;
       // Detect Privy across all signals so a Privy session that lost
       // `authProvider` after /auth/me refresh still uses the embedded wallet
@@ -972,21 +996,22 @@ export function PortfolioPage() {
           );
         }
         const chainId = embedded.chainId;
-        const onBsc =
-          chainId === "eip155:56" ||
+        const onExecutionChain =
+          chainId === `eip155:${executionChainId}` ||
           (typeof chainId === "string" &&
             chainId.startsWith("0x") &&
-            parseInt(chainId, 16) === 56) ||
-          Number(chainId) === 56;
-        if (!onBsc) {
-          await embedded.switchChain(56);
+            parseInt(chainId, 16) === executionChainId) ||
+          Number(chainId) === executionChainId;
+        if (!onExecutionChain) {
+          await embedded.switchChain(executionChainId);
         }
         txEnv = createPrivyExecutionTxEnv(
           embedded.address,
           privySendTransaction,
+          executionChain,
         );
       } else {
-        txEnv = createWagmiExecutionTxEnv();
+        txEnv = createWagmiExecutionTxEnv(executionChain);
       }
       txEnv.assertReady();
 
@@ -1006,7 +1031,12 @@ export function PortfolioPage() {
 
           let ok = false;
           try {
-            ok = await executeSingleOrder(currentOrder, txEnv, slippageValue);
+            ok = await executeSingleOrder(
+              currentOrder,
+              txEnv,
+              slippageValue,
+              executionChain,
+            );
           } catch (orderErr) {
             if (orderErr?.status === 401) throw orderErr;
             addSellLog(
@@ -1133,6 +1163,7 @@ export function PortfolioPage() {
     logout,
     privySendTransaction,
     quoteSell,
+    sellQuote?.chain,
     sellQuote?.orders,
     sellSlippage,
     sellTarget,
@@ -1187,8 +1218,10 @@ export function PortfolioPage() {
   const sellFailedQuotes = Array.isArray(sellQuote?.failed)
     ? sellQuote.failed
     : [];
-  const sellEstimatedUsdtTotal = sellQuoteOrders.reduce(
-    (sum, order) => sum + Number(order?.estimatedUsdtOut || 0),
+  const sellOutputToken = sellQuote?.toToken || "USDT";
+  const sellEstimatedOutTotal = sellQuoteOrders.reduce(
+    (sum, order) =>
+      sum + Number(order?.estimatedToTokenOut ?? order?.estimatedUsdtOut ?? 0),
     0,
   );
   const highPriceImpactOrders = sellQuoteOrders.filter(
@@ -2587,9 +2620,9 @@ export function PortfolioPage() {
                       </span>
                     </div>
                     <div>
-                      <span className="text-gray-500">Est. USDT out:</span>{" "}
+                      <span className="text-gray-500">Est. {sellOutputToken} out:</span>{" "}
                       <span className="font-semibold">
-                        {sellEstimatedUsdtTotal.toFixed(4)}
+                        {sellEstimatedOutTotal.toFixed(4)}
                       </span>
                     </div>
                   </div>
@@ -2635,8 +2668,8 @@ export function PortfolioPage() {
                             <div className="flex items-center gap-2">
                               <span className="text-gray-700">
                                 ~
-                                {Number(order.estimatedUsdtOut || 0).toFixed(4)}{" "}
-                                USDT
+                                {Number(order.estimatedToTokenOut ?? order.estimatedUsdtOut ?? 0).toFixed(4)}{" "}
+                                {sellOutputToken}
                               </span>
                               {orderStatus === "executing" && (
                                 <Loader2

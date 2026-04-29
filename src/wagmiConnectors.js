@@ -1,4 +1,4 @@
-import { createConfig, http } from "wagmi";
+import { createConfig, fallback, http } from "wagmi";
 import {
   mainnet,
   opBNB,
@@ -14,6 +14,11 @@ import {
 import { getWagmiConnectorV2 } from "@binance/w3w-wagmi-connector-v2";
 
 const binanceConnector = getWagmiConnectorV2();
+const BASE_RPC_ENDPOINTS = [
+  "https://mainnet.base.org",
+  "https://base.publicnode.com",
+  "https://base-rpc.publicnode.com",
+];
 
 export const wagmiClient = createConfig({
   chains: [
@@ -36,6 +41,6 @@ export const wagmiClient = createConfig({
     [bsc.id]: http(),
     [mainnet.id]: http(),
     [opBNB.id]: http(),
-    [base.id]: http(),
+    [base.id]: fallback(BASE_RPC_ENDPOINTS.map((url) => http(url))),
   },
 });

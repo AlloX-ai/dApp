@@ -5,7 +5,7 @@ const JOURNEY_INFO = [
     {
         question: "Which blockchain would you like to build on?",
         answer:
-            "BNB Chain is the only option with on-chain execution, which means real swaps with real tokens and real value. Ethereum, Base, and Solana currently run as paper trading only, so they simulate portfolio performance without sending live transactions.",
+            "BNB Chain and BASE are the only options with on-chain execution, which means real swaps with real tokens and real value. Ethereum, and Solana currently run as paper trading only, so they simulate portfolio performance without sending live transactions.",
     },
     {
         question: "What type of portfolio interests you?",
