@@ -7,7 +7,7 @@ export const CHAINS = {
   BSC: {
     id: "BSC",
     chainId: CHAIN_IDS.BSC,
-    label: "BNB Smart Chain",
+    label: "BNB Chain",
     shortLabel: "BSC",
     logo: "https://cdn.allox.ai/allox/networks/bnbIcon.svg",
     explorer: "https://bscscan.com/tx/",

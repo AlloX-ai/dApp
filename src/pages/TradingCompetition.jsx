@@ -70,8 +70,7 @@ export function TradingCompetitionPage() {
   const userRank = currentUserData?.rank ?? null;
   const hasUserRank = typeof userRank === "number";
   const userRewardGems = currentUserData?.reward?.gems ?? 0;
-  const userRewardUsd =
-    currentUserData?.reward?.usdValue ?? userRewardGems * 5;
+  const userRewardUsd = currentUserData?.reward?.usdValue ?? userRewardGems * 5;
 
   // Pagination calculations
   const totalEntries =
@@ -307,7 +306,7 @@ export function TradingCompetitionPage() {
                 <BarChart3 className="w-3 h-3 text-blue-600" />
               </div>
               <p className="text-xs text-gray-700">
-                <strong>Create portfolios</strong> on BNB Chain
+                <strong>Create portfolios</strong> on BNB Chain or BASE
               </p>
             </div>
 
@@ -511,7 +510,7 @@ export function TradingCompetitionPage() {
                               {" "}
                               (
                               <Gem className="w-4 h-4 text-purple-600 mr-1" />
-                              {entry.gemReward?.gems.toLocaleString()})
+                              {entry.gemReward?.gems?.toLocaleString()})
                             </div>
                           </span>
                         </div>
@@ -661,7 +660,7 @@ export function TradingCompetitionPage() {
                     <span className="text-amber-500 font-bold">•</span>
                     <span>
                       Participants must have a valid wallet connected to BNB
-                      Chain
+                      Chain or BASE
                     </span>
                   </li>
 
@@ -692,8 +691,8 @@ export function TradingCompetitionPage() {
                   <li className="flex gap-2">
                     <span className="text-purple-500 font-bold">•</span>
                     <span>
-                      Only portfolios created on BNB Chain count toward your
-                      ranking
+                      Only portfolios created on BNB Chain or BASE count toward
+                      your ranking
                     </span>
                   </li>
                   <li className="flex gap-2">

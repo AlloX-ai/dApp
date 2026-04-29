@@ -44,7 +44,7 @@ const CHECKIN_CHAINS = [
     chainHex: "0x38",
     name: "BNB Chain",
     icon: "https://cdn.allox.ai/allox/networks/bnbIcon.svg",
-    chainName: "BNB Smart Chain",
+    chainName: "BNB Chain",
     rpcUrls: ["https://bsc-dataseed.binance.org"],
     blockExplorerUrls: ["https://bscscan.com"],
     nativeCurrency: { name: "BNB", symbol: "BNB", decimals: 18 },

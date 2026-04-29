@@ -224,7 +224,9 @@ export function ChatPage() {
   const [isNarrativesModalOpen, setIsNarrativesModalOpen] = useState(false);
   const [showRecentPortfoliosPanel, setShowRecentPortfoliosPanel] =
     useState(true);
-  const [isBalancesCollapsed, setIsBalancesCollapsed] = useState(false);
+  const [isBalancesCollapsed, setIsBalancesCollapsed] = useState(
+    () => window.innerWidth < 1024,
+  );
   const queryClient = useQueryClient();
   const [onchainBlocked, setOnchainBlocked] = useState(null);
   const [refreshOnchainLoading, setRefreshOnchainLoading] = useState(false);
@@ -770,13 +772,16 @@ export function ChatPage() {
       isConnected &&
       !isReadOnly &&
       !!walletAddress &&
-      (walletChainId === chainIdFor("BSC") || walletChainId === chainIdFor("BASE")),
+      (walletChainId === chainIdFor("BSC") ||
+        walletChainId === chainIdFor("BASE")),
     staleTime: 20_000,
     queryFn: async () => {
       const chain = walletChainId === chainIdFor("BASE") ? "BASE" : "BSC";
       const chainCfg = CHAINS[chain];
       const nativeSymbol = chainCfg.nativeSymbol;
-      const publicClient = getPublicClient(wagmiClient, { chainId: chainCfg.chainId });
+      const publicClient = getPublicClient(wagmiClient, {
+        chainId: chainCfg.chainId,
+      });
       if (!publicClient) {
         throw new Error(`${chainCfg.shortLabel} RPC provider unavailable.`);
       }
@@ -838,8 +843,108 @@ export function ChatPage() {
   const chainBalances = chainBalancesQuery.data ?? {
     chain: walletChainId === chainIdFor("BASE") ? "BASE" : "BSC",
     chainLabel:
-      walletChainId === chainIdFor("BASE") ? CHAINS.BASE.label : CHAINS.BSC.label,
+      walletChainId === chainIdFor("BASE")
+        ? CHAINS.BASE.label
+        : CHAINS.BSC.label,
     rows: [],
+  };
+  const showChainBalancesPanel =
+    walletChainId === chainIdFor("BSC") || walletChainId === chainIdFor("BASE");
+
+  const renderChainBalancesContent = (compact = false) => {
+    if (!isConnected) {
+      return (
+        <div className="text-xs text-gray-600">
+          Connect your wallet to view balances.
+        </div>
+      );
+    }
+
+    if (
+      walletChainId !== chainIdFor("BSC") &&
+      walletChainId !== chainIdFor("BASE")
+    ) {
+      return (
+        <div className="text-xs text-gray-600">
+          Switch to BNB Chain or Base to view balances.
+        </div>
+      );
+    }
+
+    if (chainBalancesQuery.error) {
+      return (
+        <div className="text-xs text-red-600">
+          {chainBalancesQuery.error?.message || "Failed to load balances."}
+        </div>
+      );
+    }
+
+    if (compact) {
+      return (
+        <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+          {chainBalances.rows.map((row) => (
+            <div
+              key={row.label}
+              className="min-w-[132px] shrink-0 rounded-2xl border border-gray-200/60 bg-white/70 px-3 py-2.5"
+            >
+              <div className="flex items-center gap-2">
+                <img src={row.icon} className="h-4 w-4 shrink-0" alt="" />
+                <span className="truncate text-xs font-semibold text-gray-800">
+                  {row.label}
+                </span>
+              </div>
+              {row.value != null && row.usdPrice != null && (
+                <div className="mt-2 text-[11px] text-green-600 tabular-nums">
+                  {`$${(
+                    Number(row.value) * Number(row.usdPrice)
+                  ).toLocaleString(undefined, {
+                    maximumFractionDigits: 2,
+                  })}`}
+                </div>
+              )}
+              <div className="mt-1 text-sm font-semibold text-gray-900 tabular-nums">
+                {row.value == null
+                  ? "—"
+                  : Number(row.value).toLocaleString(undefined, {
+                      maximumFractionDigits: 4,
+                    })}
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-2">
+        {chainBalances.rows.map((row) => (
+          <div
+            key={row.label}
+            className="flex items-center justify-between text-xs bg-white/60 border border-gray-200/60 rounded-xl px-3 py-2"
+          >
+            <div className="font-semibold text-gray-800 flex items-center gap-2">
+              <img src={row.icon} className="w-4 h-4" alt="" /> {row.label}
+            </div>
+            <div className="text-gray-900 tabular-nums">
+              {row.value != null && row.usdPrice != null && (
+                <div className="text-xs text-green-600 text-right">
+                  {`$${(
+                    Number(row.value) * Number(row.usdPrice)
+                  ).toLocaleString(undefined, {
+                    maximumFractionDigits: 2,
+                  })}`}
+                </div>
+              )}
+              {row.value == null
+                ? "—"
+                : Number(row.value).toLocaleString(undefined, {
+                    maximumFractionDigits: 6,
+                  })}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
   };
 
   const handleExecutionUpdate = useCallback((update) => {
@@ -3070,6 +3175,71 @@ export function ChatPage() {
 
   return (
     <div className="flex-1 flex flex-col">
+      {isConnected && !isReadOnly && showChainBalancesPanel && (
+        <>
+          <div
+            className={
+              isBalancesCollapsed ? "h-15 lg:hidden" : "h-15 lg:hidden"
+            }
+          />
+          <div className="fixed top-20 left-0 right-0 z-30 px-3 sm:px-6 lg:hidden">
+            <div className="mx-auto w-full max-w-250">
+              <div className="glass-card border border-gray-200/50 bg-white/85 p-3 shadow-md backdrop-blur-lg">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className="truncate text-sm font-bold text-gray-900">
+                      {chainBalances.chainLabel} balances
+                    </h3>
+                    {!isBalancesCollapsed && chainBalances.rows.length > 0 && (
+                      <p className="mt-1 text-[11px] text-gray-500">
+                        Swipe to view all tokens
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1">
+                    {!isBalancesCollapsed && (
+                      <button
+                        type="button"
+                        onClick={() => void chainBalancesQuery.refetch()}
+                        disabled={
+                          !isConnected ||
+                          isReadOnly ||
+                          !showChainBalancesPanel ||
+                          chainBalancesQuery.isFetching
+                        }
+                        className="rounded-full p-1.5 text-gray-500 hover:bg-black/5 hover:text-green-600 disabled:opacity-50"
+                        aria-label="Refresh balances"
+                      >
+                        <RefreshCcw className="h-4 w-4" />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setIsBalancesCollapsed((p) => !p)}
+                      className="rounded-full p-1.5 text-gray-500 hover:bg-black/5 hover:text-gray-700"
+                      aria-label={
+                        isBalancesCollapsed
+                          ? "Expand balances"
+                          : "Collapse balances"
+                      }
+                    >
+                      {isBalancesCollapsed ? (
+                        <ChevronDown className="h-4 w-4" />
+                      ) : (
+                        <ChevronUp className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {!isBalancesCollapsed && (
+                  <div className="mt-3">{renderChainBalancesContent(true)}</div>
+                )}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
       <div className="flex-1 flex flex-col overflow-y-auto">
         {currentMessages.length === 0 && !quickWizardOpen && (
           <div className="h-full flex items-center justify-center px-6">
@@ -3116,6 +3286,7 @@ export function ChatPage() {
           </div>
         )}
       </div>
+
       {isConnected && !isReadOnly && (
         <aside className="w-60 shrink-0 hidden lg:block fixed right-7">
           <div className="sticky top-24">
@@ -3223,8 +3394,7 @@ export function ChatPage() {
                 </motion.div>
               )}
             </AnimatePresence>
-            {(walletChainId === chainIdFor("BSC") ||
-              walletChainId === chainIdFor("BASE")) && (
+            {showChainBalancesPanel && (
               <div className="mt-3 glass-card p-4 border border-gray-200/50 bg-white/40">
                 <div className="flex items-center justify-between gap-2">
                   <h3 className="text-sm font-bold text-gray-900">
@@ -3270,51 +3440,7 @@ export function ChatPage() {
                 {!isBalancesCollapsed && (
                   <>
                     <div className="mb-3" />
-                    {!isConnected ? (
-                      <div className="text-xs text-gray-600">
-                        Connect your wallet to view balances.
-                      </div>
-                    ) : walletChainId !== chainIdFor("BSC") &&
-                      walletChainId !== chainIdFor("BASE") ? (
-                      <div className="text-xs text-gray-600">
-                        Switch to BNB Chain or Base to view balances.
-                      </div>
-                    ) : chainBalancesQuery.error ? (
-                      <div className="text-xs text-red-600">
-                        {chainBalancesQuery.error?.message ||
-                          "Failed to load balances."}
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        {chainBalances.rows.map((row) => (
-                          <div
-                            key={row.label}
-                            className="flex items-center justify-between text-xs bg-white/60 border border-gray-200/60 rounded-xl px-3 py-2"
-                          >
-                            <div className="font-semibold text-gray-800 flex items-center gap-2">
-                              <img src={row.icon} className="w-4 h-4" alt="" />{" "}
-                              {row.label}
-                            </div>
-                            <div className="text-gray-900 tabular-nums">
-                              {row.value != null && row.usdPrice != null && (
-                                <div className="text-xs text-green-600 text-right">
-                                  {`$${(
-                                    Number(row.value) * Number(row.usdPrice)
-                                  ).toLocaleString(undefined, {
-                                    maximumFractionDigits: 2,
-                                  })}`}
-                                </div>
-                              )}
-                              {row.value == null
-                                ? "—"
-                                : Number(row.value).toLocaleString(undefined, {
-                                    maximumFractionDigits: 6,
-                                  })}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                    {renderChainBalancesContent()}
                   </>
                 )}
               </div>
@@ -3632,7 +3758,7 @@ export function ChatPage() {
               Congratulations!
             </h3>
             <p className="text-gray-600 mb-1">
-              You claimed your Season 2 points.
+              You claimed your Season 3 points.
             </p>
             {/* <p className="text-sm text-gray-500">Start chatting to use them.</p> */}
           </div>
@@ -3768,17 +3894,18 @@ export function ChatPage() {
                               icon: "https://cdn.allox.ai/allox/networks/bnbIcon.svg",
                             },
                             {
+                              value: "BASE",
+                              label: "Base (on-chain)",
+                              badge: "BASE",
+                              icon: "https://cdn.allox.ai/allox/networks/base.svg",
+                            },
+                            {
                               value: "ETH",
                               label: "Ethereum",
                               badge: "ETH",
                               icon: "https://cdn.allox.ai/allox/networks/eth.svg",
                             },
-                            {
-                              value: "BASE",
-                              label: "Base",
-                              badge: "BASE",
-                              icon: "https://cdn.allox.ai/allox/networks/base.svg",
-                            },
+
                             {
                               value: "SOL",
                               label: "Solana",

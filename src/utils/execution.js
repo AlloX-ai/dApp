@@ -7,6 +7,7 @@ import {
 } from "@wagmi/core";
 import { encodeFunctionData } from "viem";
 import { apiCall } from "./api";
+import { toast } from "./toast";
 import { wagmiClient } from "../wagmiConnectors";
 import { chainIdFor, normalizeChain } from "../config/chains";
 const EXECUTION_API_BASE = "/execution";
@@ -86,6 +87,8 @@ const MAX_SWAP_RETRIES = 3;
 const MOBILE_WALLET_SEND_TIMEOUT_MS = 5 * 60 * 1000;
 const CHAIN_TX_DETECT_DELAY_MS = 5000;
 const CHAIN_TX_DETECT_INTERVAL_MS = 4000;
+const IOS_WALLET_HANDOFF_TOAST_ID = "ios-wallet-handoff";
+const IOS_WALLET_HANDOFF_STORAGE_KEY = "allox:iosWalletHandoff";
 
 const normalizeExecutionChain = (chain) => normalizeChain(chain);
 
@@ -131,6 +134,52 @@ const normalizeTxHash = (txResult) => {
   if (txResult?.hash) return txResult.hash;
   if (txResult?.transactionHash) return txResult.transactionHash;
   return null;
+};
+
+const isIosBrowser = () => {
+  if (typeof navigator === "undefined") return false;
+  const ua = String(navigator.userAgent || "").toLowerCase();
+  const platform = String(navigator.platform || "").toLowerCase();
+  return (
+    /iphone|ipad|ipod/.test(ua) ||
+    (/mac/.test(platform) && typeof navigator.maxTouchPoints === "number" && navigator.maxTouchPoints > 1)
+  );
+};
+
+const persistIosWalletHandoff = (payload) => {
+  if (typeof sessionStorage === "undefined") return;
+  try {
+    sessionStorage.setItem(
+      IOS_WALLET_HANDOFF_STORAGE_KEY,
+      JSON.stringify({
+        ...payload,
+        startedAt: Date.now(),
+      }),
+    );
+  } catch {
+    // Best effort only.
+  }
+};
+
+const clearIosWalletHandoff = () => {
+  if (typeof sessionStorage === "undefined") return;
+  try {
+    sessionStorage.removeItem(IOS_WALLET_HANDOFF_STORAGE_KEY);
+  } catch {
+    // Best effort only.
+  }
+};
+
+const showIosWalletHandoffToast = (state = "initial") => {
+  if (!isIosBrowser()) return;
+  const message =
+    state === "resume"
+      ? "Returned from wallet. Keep Chrome open for 3-4 seconds so AlloX can resume the request, then switch back if Binance Wallet needs to reopen."
+      : "On iPhone/iPad, if Binance Wallet opens and the request appears stuck, return to Chrome for 3-4 seconds, then switch back to Binance Wallet.";
+  toast.info(message, {
+    id: IOS_WALLET_HANDOFF_TOAST_ID,
+    duration: 9000,
+  });
 };
 
 // Poll for a sent tx using nonce advancement instead of getLogs.
@@ -293,6 +342,15 @@ const sendWithChainFallback = async ({
     // Non-fatal; poller starts from block 0 / nonce 0.
   }
 
+  persistIosWalletHandoff({
+    to,
+    fromAddress,
+    chainId,
+    fromBlock: fromBlock.toString(),
+    nonceBefore,
+  });
+  showIosWalletHandoffToast("initial");
+
   const sendPromise = sendTx();
 
   // Surface fast user rejections immediately before launching the poller.
@@ -356,16 +414,16 @@ const sendWithChainFallback = async ({
   // visibilitychange fires immediately. Scan recent blocks so a reverted tx
   // — invisible to the nonce poller until the next cycle — is caught fast.
   let removeVisibilityListener = () => {};
+  let removeFocusListener = () => {};
+  let removePageShowListener = () => {};
   const visibilityPromise = new Promise((resolve, reject) => {
-    if (typeof document === "undefined") return;
-    const onVisible = async () => {
-      if (document.visibilityState !== "visible") return;
-      document.removeEventListener("visibilitychange", onVisible);
+    const tryRecover = async () => {
       if (signal.cancelled) return;
       const client = getPublicClient(wagmiClient, { chainId });
       if (!client) return;
-      // Grace period: let WalletConnect deliver the response before hitting chain.
-      await sleep(2500);
+      showIosWalletHandoffToast("resume");
+      // Grace period: let the browser/wallet deep-link settle before hitting chain.
+      await sleep(3500);
       if (signal.cancelled) return;
       const found = await scanRecentBlocksForTx({ client, from: fromAddress, to, fromBlock });
       if (!found) return;
@@ -375,9 +433,29 @@ const sendWithChainFallback = async ({
         resolve(found.hash);
       }
     };
-    removeVisibilityListener = () =>
-      document.removeEventListener("visibilitychange", onVisible);
-    document.addEventListener("visibilitychange", onVisible);
+
+    if (typeof document !== "undefined") {
+      const onVisibilityChange = async () => {
+        if (document.visibilityState !== "visible") return;
+        await tryRecover();
+      };
+      removeVisibilityListener = () =>
+        document.removeEventListener("visibilitychange", onVisibilityChange);
+      document.addEventListener("visibilitychange", onVisibilityChange);
+    }
+
+    if (typeof window !== "undefined") {
+      const onFocus = async () => {
+        await tryRecover();
+      };
+      const onPageShow = async () => {
+        await tryRecover();
+      };
+      removeFocusListener = () => window.removeEventListener("focus", onFocus);
+      removePageShowListener = () => window.removeEventListener("pageshow", onPageShow);
+      window.addEventListener("focus", onFocus);
+      window.addEventListener("pageshow", onPageShow);
+    }
   });
 
   try {
@@ -385,6 +463,9 @@ const sendWithChainFallback = async ({
   } finally {
     signal.cancelled = true;
     removeVisibilityListener();
+    removeFocusListener();
+    removePageShowListener();
+    clearIosWalletHandoff();
   }
 };
 

@@ -11,6 +11,7 @@ import {
 } from "../utils/api";
 import { setWalletType } from "../redux/slices/walletSlice";
 import { runPrivyLogoutBridge } from "../auth/privyLogoutBridge";
+import { toast } from "../utils/toast";
 
 // Simple in-module singleton so all `useAuth` hook instances
 // share the same `user` and `token` state instead of each
@@ -277,73 +278,100 @@ export const useAuth = () => {
       throw new Error("Wallet not connected");
     }
 
-    const nonceRes = await apiCall(`/auth/nonce/${address}`);
-    const message = nonceRes.message;
-    const rawWalletType = nonceRes.walletType ?? walletType;
-    const walletTypeFromApi =
-      rawWalletType === "phantom" || rawWalletType === "solana"
-        ? "solana"
-        : rawWalletType || "evm";
+    const toastId = "wallet-auth-details";
 
-    if (!message) {
-      throw new Error("Missing nonce message");
-    }
+    try {
+      toast.loading("Preparing wallet verification...", { id: toastId });
+      const nonceRes = await apiCall(`/auth/nonce/${address}`);
+      const message = nonceRes.message;
+      const rawWalletType = nonceRes.walletType ?? walletType;
+      const walletTypeFromApi =
+        rawWalletType === "phantom" || rawWalletType === "solana"
+          ? "solana"
+          : rawWalletType || "evm";
 
-    let signature;
+      if (!message) {
+        throw new Error("Missing nonce message");
+      }
 
-    const SIGN_TIMEOUT_MS = 5 * 60 * 1000;
-    const signTimeout = (promise) =>
-      Promise.race([
-        promise,
-        new Promise((_, reject) =>
-          setTimeout(
-            () => reject(new Error("Sign request timed out. Open your wallet app and try again.")),
-            SIGN_TIMEOUT_MS,
+      let signature;
+
+      const SIGN_TIMEOUT_MS = 5 * 60 * 1000;
+      const signTimeout = (promise) =>
+        Promise.race([
+          promise,
+          new Promise((_, reject) =>
+            setTimeout(
+              () =>
+                reject(
+                  new Error(
+                    "Sign request timed out. Open your wallet app and try again.",
+                  ),
+                ),
+              SIGN_TIMEOUT_MS,
+            ),
           ),
-        ),
-      ]);
+        ]);
 
-    if (walletTypeFromApi === "solana") {
-      if (!signMessageSolana) throw new Error("Solana wallet not connected");
-      const encodedMessage = new TextEncoder().encode(message);
-      const rawSig = await signTimeout(signMessageSolana(encodedMessage));
-      signature =
-        typeof rawSig === "string"
-          ? rawSig
-          : bs58.encode(new Uint8Array(rawSig));
-    } else {
-      signature = await signTimeout(signMessageAsync({ message }));
-    }
+      toast.loading(
+        walletTypeFromApi === "solana"
+          ? "Please approve the signature in your Solana wallet."
+          : "Please approve the signature in your wallet app.",
+        { id: toastId },
+      );
 
-    const verifyRes = await apiCall("/auth/verify", {
-      method: "POST",
-      body: JSON.stringify({ address, signature }),
-    });
+      if (walletTypeFromApi === "solana") {
+        if (!signMessageSolana) throw new Error("Solana wallet not connected");
+        const encodedMessage = new TextEncoder().encode(message);
+        const rawSig = await signTimeout(signMessageSolana(encodedMessage));
+        signature =
+          typeof rawSig === "string"
+            ? rawSig
+            : bs58.encode(new Uint8Array(rawSig));
+      } else {
+        signature = await signTimeout(signMessageAsync({ message }));
+      }
 
-    if (!verifyRes.token) {
-      throw new Error("Missing auth token");
-    }
-
-    // Always persist user with walletType and address so session restore and guards work after navigate
-    setGlobalToken(verifyRes.token);
-    // Wallet-based login — clear any stale Privy marker a previous session
-    // might have left behind in localStorage.
-    writeStoredAuthProvider(null);
-    if (verifyRes.user) {
-      setUser({
-        ...verifyRes.user,
-        walletType: walletTypeFromApi,
-        address: verifyRes.user.address ?? address,
+      toast.loading("Signature received. Verifying with AlloX...", {
+        id: toastId,
       });
-    } else {
-      setUser({ walletType: walletTypeFromApi, address });
-    }
 
-    if (walletTypeFromApi) {
-      dispatch(setWalletType(walletTypeFromApi));
-    }
+      const verifyRes = await apiCall("/auth/verify", {
+        method: "POST",
+        body: JSON.stringify({ address, signature }),
+      });
 
-    return { token: verifyRes.token, user: verifyRes.user };
+      if (!verifyRes.token) {
+        throw new Error("Missing auth token");
+      }
+
+      // Always persist user with walletType and address so session restore and guards work after navigate
+      setGlobalToken(verifyRes.token);
+      // Wallet-based login — clear any stale Privy marker a previous session
+      // might have left behind in localStorage.
+      writeStoredAuthProvider(null);
+      if (verifyRes.user) {
+        setUser({
+          ...verifyRes.user,
+          walletType: walletTypeFromApi,
+          address: verifyRes.user.address ?? address,
+        });
+      } else {
+        setUser({ walletType: walletTypeFromApi, address });
+      }
+
+      if (walletTypeFromApi) {
+        dispatch(setWalletType(walletTypeFromApi));
+      }
+
+      toast.success("Wallet connected and verified.", { id: toastId });
+      return { token: verifyRes.token, user: verifyRes.user };
+    } catch (error) {
+      const message =
+        error?.message || error?.data?.error || "Wallet verification failed";
+      toast.error(message, { id: toastId });
+      throw error;
+    }
   }, [address, walletType, signMessageAsync, signMessageSolana, setUser, dispatch]);
 
   const claimSeason1 = useCallback(async () => {
