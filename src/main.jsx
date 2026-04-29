@@ -55,7 +55,7 @@ createRoot(document.getElementById("root")).render(
               <PrivyProvider
                 appId="cmniv3xps000i0cjvdfj9ys06"
                 config={{
-                  loginMethods: ["email", "google"],
+                  loginMethods: ["email", "apple", "google"],
                   appearance: { theme: "dark" },
                   // Align embedded wallet + fundWallet with BNB first; must match chains you use in the app
                   supportedChains: [bsc, mainnet, base],
