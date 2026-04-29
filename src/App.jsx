@@ -137,6 +137,7 @@ function LaunchAppLayout() {
   const prevAddressRef = useRef(undefined);
   const prevWalletTypeRef = useRef(undefined);
   const authTriggeredRef = useRef(false);
+  const walletAuthInFlightRef = useRef(false);
   const { connector } = getAccount(wagmiClient);
   const {
     wallets: solanaWallets,
@@ -163,9 +164,87 @@ function LaunchAppLayout() {
   } = usePrivy();
   const { createWallet } = useCreateWallet();
   const [isPrivyVerifying, setIsPrivyVerifying] = useState(false);
+  const [isWalletAuthPending, setIsWalletAuthPending] = useState(false);
   const privyVerifyAttemptedRef = useRef(false);
   const privyVerifyFailuresRef = useRef(0);
   const privyVerifyCooldownUntilRef = useRef(0);
+
+  const attemptWalletAuthentication = useCallback(
+    async ({
+      source = "auto",
+      showLoadingToast = true,
+      keepModalOpenOnError = true,
+    } = {}) => {
+      if (!isConnected || !address) return null;
+      if (token) {
+        dispatch(setWalletModal(false));
+        return token;
+      }
+      if (walletType === "privy" || user?.authProvider === "privy") return null;
+      if (walletAuthInFlightRef.current) return null;
+
+      walletAuthInFlightRef.current = true;
+      setIsWalletAuthPending(true);
+      const isBinanceWallet = walletType === "binance";
+      const toastId = "wallet-auth-flow";
+
+      if (showLoadingToast) {
+        toast.loading(
+          isBinanceWallet
+            ? "Waiting for Binance Wallet approval. Return to Chrome after approving the signature."
+            : "Waiting for wallet signature...",
+          { id: toastId },
+        );
+      }
+
+      try {
+        const nextToken = await ensureAuthenticated();
+        if (!nextToken) {
+          throw new Error("Wallet verification did not complete.");
+        }
+        dispatch(setWalletModal(false));
+        toast.success("Wallet verified successfully.", { id: toastId });
+        return nextToken;
+      } catch (err) {
+        const message =
+          err?.message ||
+          (source === "resume"
+            ? "Wallet verification did not resume. Please tap 'Sign to continue'."
+            : "Wallet verification failed. Please try again.");
+        if (keepModalOpenOnError) {
+          dispatch(setWalletModal(true));
+        }
+        toast.error(message, { id: toastId });
+        throw err;
+      } finally {
+        walletAuthInFlightRef.current = false;
+        setIsWalletAuthPending(false);
+      }
+    },
+    [
+      isConnected,
+      address,
+      token,
+      walletType,
+      user?.authProvider,
+      ensureAuthenticated,
+      dispatch,
+    ],
+  );
+
+  const syncCurrentEvmAccount = useCallback(() => {
+    const account = getAccount(wagmiClient);
+    if (store.getState().wallet.walletType === "solana") return account;
+    if (account.status === "connected" && account.address) {
+      dispatch(setAddress(account.address));
+      dispatch(setIsConnected(true));
+      dispatch(setSessionSource("wallet"));
+      if (account.chainId) {
+        dispatch(setChainId(account.chainId));
+      }
+    }
+    return account;
+  }, [dispatch]);
 
   useEffect(() => {
     if (user?.authProvider !== "privy" || !user?.address) return;
@@ -213,8 +292,7 @@ function LaunchAppLayout() {
     if (walletType === "privy" || user?.authProvider === "privy") return;
     if (authTriggeredRef.current) return;
     authTriggeredRef.current = true;
-    ensureAuthenticated()
-      .then(() => dispatch(setWalletModal(false)))
+    attemptWalletAuthentication({ source: "auto" })
       .catch(() => {
         authTriggeredRef.current = false;
       });
@@ -224,9 +302,53 @@ function LaunchAppLayout() {
     address,
     walletType,
     user?.authProvider,
-    ensureAuthenticated,
+    attemptWalletAuthentication,
     dispatch,
   ]);
+
+  useEffect(() => {
+    const handleResume = () => {
+      if (document.visibilityState && document.visibilityState !== "visible") return;
+
+      window.setTimeout(() => {
+        const account = syncCurrentEvmAccount();
+        const currentToken = localStorage.getItem("authToken");
+        const currentWallet = store.getState().wallet;
+        const shouldRetryAuth =
+          !currentToken &&
+          currentWallet.isConnected &&
+          !!currentWallet.address &&
+          currentWallet.walletType !== "privy" &&
+          currentWallet.walletType !== "solana";
+
+        if (
+          shouldRetryAuth &&
+          (currentWallet.walletModal || currentWallet.walletType === "binance")
+        ) {
+          attemptWalletAuthentication({
+            source: "resume",
+            showLoadingToast: currentWallet.walletType === "binance",
+          }).catch(() => {});
+        } else if (
+          account.status === "connected" &&
+          account.address &&
+          currentWallet.walletModal &&
+          currentToken
+        ) {
+          dispatch(setWalletModal(false));
+        }
+      }, 350);
+    };
+
+    window.addEventListener("focus", handleResume);
+    window.addEventListener("pageshow", handleResume);
+    document.addEventListener("visibilitychange", handleResume);
+    return () => {
+      window.removeEventListener("focus", handleResume);
+      window.removeEventListener("pageshow", handleResume);
+      document.removeEventListener("visibilitychange", handleResume);
+    };
+  }, [attemptWalletAuthentication, dispatch, syncCurrentEvmAccount]);
 
   useEffect(() => {
     if (!authenticated) {
@@ -443,6 +565,12 @@ function LaunchAppLayout() {
     if (connector && connector.name !== "WalletConnect") {
       const isBinance =
         option.walletType === "binance" || option.name === "Binance Wallet";
+      if (isBinance) {
+        toast.info(
+          "Continue in Binance Wallet. After connecting or signing, return to Chrome and we'll resume verification.",
+          { id: "binance-wallet-handoff" },
+        );
+      }
       connect(wagmiClient, { connector })
         .then(() => {
           dispatch(setWalletType(isBinance ? "binance" : "evm"));
@@ -510,8 +638,19 @@ function LaunchAppLayout() {
         isOpen={walletModal}
         onClose={() => setWalletModalOpen(false)}
         onConnect={handleWalletConnect}
-        isSigning={isPrivyVerifying}
-        signingMessage="Setting up your wallet..."
+        onSign={() =>
+          attemptWalletAuthentication({
+            source: "manual",
+            showLoadingToast: true,
+            keepModalOpenOnError: true,
+          }).catch(() => {})
+        }
+        isSigning={isPrivyVerifying || isWalletAuthPending}
+        signingMessage={
+          isPrivyVerifying
+            ? "Setting up your wallet..."
+            : "Waiting for wallet approval..."
+        }
         onPrivySignIn={() => login()}
         privyReady={privyReady}
       />

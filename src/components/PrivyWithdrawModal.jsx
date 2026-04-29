@@ -3,18 +3,16 @@ import { ExternalLink, Loader2, X } from "lucide-react";
 import { useExportWallet, useSendTransaction, useWallets } from "@privy-io/react-auth";
 import { useSelector } from "react-redux";
 import { getPublicClient } from "@wagmi/core";
-import { bsc } from "wagmi/chains";
 import { erc20Abi, formatEther, formatUnits } from "viem";
 import { toast } from "../utils/toast";
 import {
-  BSC_CHAIN_ID,
-  MIN_BNB_GAS_BUFFER,
-  WITHDRAW_TOKENS,
+  getWithdrawTokens,
 } from "../config/withdrawTokens";
 import { withdrawAndLog } from "../lib/withdrawAndLog";
 import { getPrivyEmbedded } from "../utils/privyWalletUtils";
 import { apiCall, getApiUrl } from "../utils/api";
 import { wagmiClient } from "../wagmiConnectors";
+import { CHAINS, chainIdFor, explorerLink, normalizeChain } from "../config/chains";
 
 const PENDING_POLL_MS = 10000;
 
@@ -40,13 +38,20 @@ export function PrivyWithdrawModal({
     [privyWallet?.address, reduxWalletAddress],
   );
   const [tab, setTab] = useState("send");
-  const [selectedTokenSymbol, setSelectedTokenSymbol] = useState("USDT");
+  const [selectedChain, setSelectedChain] = useState("BSC");
+  const chainTokens = useMemo(
+    () => getWithdrawTokens(selectedChain),
+    [selectedChain],
+  );
+  const [selectedTokenSymbol, setSelectedTokenSymbol] = useState(
+    chainTokens[0]?.symbol || "BNB",
+  );
   const selectedToken = useMemo(
-    () => WITHDRAW_TOKENS.find((t) => t.symbol === selectedTokenSymbol) ?? WITHDRAW_TOKENS[0],
-    [selectedTokenSymbol],
+    () => chainTokens.find((t) => t.symbol === selectedTokenSymbol) ?? chainTokens[0],
+    [chainTokens, selectedTokenSymbol],
   );
   const [balances, setBalances] = useState({});
-  const [bnbPriceUsd, setBnbPriceUsd] = useState(0);
+  const [nativePriceUsd, setNativePriceUsd] = useState(0);
   const [toAddress, setToAddress] = useState("");
   const [amount, setAmount] = useState("");
   const [confirmRecipient, setConfirmRecipient] = useState(false);
@@ -60,13 +65,15 @@ export function PrivyWithdrawModal({
   const amountUsd = useMemo(() => {
     const n = Number(amount || 0);
     if (!Number.isFinite(n) || n <= 0) return 0;
-    return n * (selectedToken.symbol === "BNB" ? bnbPriceUsd : 1);
-  }, [amount, selectedToken.symbol, bnbPriceUsd]);
+    return n * (selectedToken?.isNative ? nativePriceUsd : 1);
+  }, [amount, selectedToken?.isNative, nativePriceUsd]);
 
-  const bnbBalance = Number(balances.BNB || 0);
-  const selectedBalance = Number(balances[selectedToken.symbol] || 0);
-  const minRequiredBnbForGas = MIN_BNB_GAS_BUFFER;
-  const hasEnoughGas = bnbBalance > minRequiredBnbForGas;
+  const nativeSymbol = CHAINS[normalizeChain(selectedChain)].nativeSymbol;
+  const nativeToken = chainTokens.find((t) => t.symbol === nativeSymbol);
+  const nativeBalance = Number(balances[nativeSymbol] || 0);
+  const selectedBalance = Number(balances[selectedToken?.symbol] || 0);
+  const minRequiredNativeGas = nativeToken?.minGasBuffer || 0;
+  const hasEnoughGas = nativeBalance > minRequiredNativeGas;
   const requiresRecipientCheck = amountUsd > 500;
 
   const loadBalances = useCallback(async () => {
@@ -75,43 +82,43 @@ export function PrivyWithdrawModal({
     }
     setIsLoadingBalances(true);
     try {
-      const publicClient = getPublicClient(wagmiClient, { chainId: bsc.id });
-      if (!publicClient) throw new Error("BSC RPC provider unavailable.");
-      const bnbWei = await publicClient.getBalance({ address: balanceAddress });
-
-      const [usdtRaw, usdcRaw] = await Promise.all(
-        WITHDRAW_TOKENS.filter((t) => !!t.address).map((token) =>
-          publicClient.readContract({
+      const chainId = chainIdFor(selectedChain);
+      const publicClient = getPublicClient(wagmiClient, { chainId });
+      if (!publicClient) throw new Error("RPC provider unavailable.");
+      const nativeWei = await publicClient.getBalance({ address: balanceAddress });
+      const mapped = await Promise.all(
+        chainTokens.map(async (token) => {
+          if (!token.address) {
+            return [token.symbol, String(Number(formatEther(nativeWei)))];
+          }
+          const raw = await publicClient.readContract({
             address: token.address,
             abi: erc20Abi,
             functionName: "balanceOf",
             args: [balanceAddress],
-          }),
-        ),
+          });
+          return [token.symbol, String(Number(formatUnits(raw, token.decimals)))];
+        }),
       );
-
-      setBalances({
-        BNB: String(Number(formatEther(bnbWei))),
-        USDT: String(Number(formatUnits(usdtRaw, 18))),
-        USDC: String(Number(formatUnits(usdcRaw, 18))),
-      });
+      setBalances(Object.fromEntries(mapped));
     } catch (e) {
       console.error(e);
       toast.error("Failed to load withdrawable balances.");
     } finally {
       setIsLoadingBalances(false);
     }
-  }, [balanceAddress]);
+  }, [balanceAddress, chainTokens, selectedChain]);
 
-  const loadBnbPrice = async () => {
+  const loadNativePrice = useCallback(async () => {
     try {
-      const res = await fetch(`${getApiUrl()}/tokens/BNB/chart?timeframe=1h`);
+      const symbol = CHAINS[normalizeChain(selectedChain)].nativeSymbol;
+      const res = await fetch(`${getApiUrl()}/tokens/${symbol}/chart?timeframe=1h`);
       const data = await res.json();
-      setBnbPriceUsd(Number(data?.currentPrice || 0));
+      setNativePriceUsd(Number(data?.currentPrice || 0));
     } catch {
-      setBnbPriceUsd(0);
+      setNativePriceUsd(0);
     }
-  };
+  }, [selectedChain]);
 
   const loadHistory = useCallback(async () => {
     setIsLoadingHistory(true);
@@ -133,10 +140,23 @@ export function PrivyWithdrawModal({
     setAmount("");
     setToAddress("");
     setConfirmRecipient(false);
-    loadBalances();
-    loadBnbPrice();
+    setSelectedChain("BSC");
+    setSelectedTokenSymbol(getWithdrawTokens("BSC")[0]?.symbol || "BNB");
     loadHistory();
-  }, [open, privyWallet?.address, balanceAddress, loadBalances, loadHistory]);
+  }, [open, loadHistory]);
+
+  useEffect(() => {
+    if (!open) return;
+    loadBalances();
+    loadNativePrice();
+  }, [open, privyWallet?.address, balanceAddress, selectedChain, loadBalances, loadNativePrice]);
+
+  useEffect(() => {
+    setSelectedTokenSymbol((prev) => {
+      const exists = chainTokens.some((token) => token.symbol === prev);
+      return exists ? prev : chainTokens[0]?.symbol || prev;
+    });
+  }, [chainTokens]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -180,7 +200,7 @@ export function PrivyWithdrawModal({
   };
 
   const handleMax = () => {
-    const max = Math.max(0, selectedBalance - selectedToken.minGasBuffer);
+    const max = Math.max(0, selectedBalance - (selectedToken?.minGasBuffer || 0));
     setAmount(max.toString());
   };
 
@@ -196,10 +216,10 @@ export function PrivyWithdrawModal({
       return false;
     }
     if (!hasEnoughGas) {
-      setError("You need some BNB for gas fees");
+      setError(`You need some ${nativeSymbol} for gas fees`);
       return false;
     }
-    const maxAllowed = selectedBalance - selectedToken.minGasBuffer;
+    const maxAllowed = selectedBalance - (selectedToken?.minGasBuffer || 0);
     if (amountNum > maxAllowed) {
       setError("Insufficient balance for this withdrawal");
       return false;
@@ -222,10 +242,11 @@ export function PrivyWithdrawModal({
       const { txHash } = await withdrawAndLog({
         sendTransaction: privySendTransaction,
         walletAddress: privyWallet?.address,
+        chain: selectedChain,
         token: selectedToken,
         toAddress,
         amount,
-        priceUsd: selectedToken.symbol === "BNB" ? bnbPriceUsd : 1,
+        priceUsd: selectedToken?.isNative ? nativePriceUsd : 1,
       });
       setLastTxHash(txHash);
       toast.success("Withdrawal sent.");
@@ -297,11 +318,30 @@ export function PrivyWithdrawModal({
       {tab === "send" ? (
         <>
           <div className="text-sm text-gray-600 bg-gray-50 rounded-xl p-3 border border-gray-100">
-            Withdrawable tokens on BSC only: <strong>BNB</strong>, <strong>USDT</strong>,{" "}
-            <strong>USDC</strong>. Other assets must be sold first.
+            Withdrawable tokens: <strong>BNB, USDT, USDC</strong> on BSC and{" "}
+            <strong>ETH, USDC</strong> on Base. Other assets must be sold first.
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {["BSC", "BASE"].map((chain) => (
+              <button
+                key={chain}
+                type="button"
+                onClick={() => {
+                  setSelectedChain(chain);
+                  setAmount("");
+                }}
+                className={`rounded-xl border px-3 py-2 text-sm font-semibold ${
+                  selectedChain === chain
+                    ? "border-black bg-black text-white"
+                    : "border-gray-200 hover:bg-gray-50"
+                }`}
+              >
+                {CHAINS[chain].label}
+              </button>
+            ))}
           </div>
           <div className="grid grid-cols-3 gap-2">
-            {WITHDRAW_TOKENS.map((token) => (
+            {chainTokens.map((token) => (
               <button
                 key={token.symbol}
                 type="button"
@@ -323,7 +363,7 @@ export function PrivyWithdrawModal({
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">
-              Recipient address (BSC)
+              Recipient address ({CHAINS[normalizeChain(selectedChain)].shortLabel})
             </label>
             <input
               value={toAddress}
@@ -354,7 +394,9 @@ export function PrivyWithdrawModal({
             </div>
             <div className="text-xs text-gray-500 mt-1">
               Balance: {selectedBalance.toFixed(6)} {selectedToken.symbol}
-              {selectedToken.symbol === "BNB" ? ` · Keep ${MIN_BNB_GAS_BUFFER} BNB for gas` : ""}
+              {(selectedToken?.minGasBuffer || 0) > 0
+                ? ` · Keep ${selectedToken.minGasBuffer} ${selectedToken.symbol} for gas`
+                : ""}
             </div>
           </div>
           {!!amountUsd && (
@@ -372,7 +414,7 @@ export function PrivyWithdrawModal({
           )}
           {!hasEnoughGas && (
             <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
-              Not enough BNB for gas (need more than {MIN_BNB_GAS_BUFFER} BNB).
+              Not enough {nativeSymbol} for gas (need more than {minRequiredNativeGas} {nativeSymbol}).
             </div>
           )}
           {error && <div className="text-sm text-red-600">{error}</div>}
@@ -428,7 +470,7 @@ export function PrivyWithdrawModal({
                         {item.status}
                       </div>
                       <a
-                        href={`https://bscscan.com/tx/${item.txHash}`}
+                        href={explorerLink(item.chain || selectedChain, item.txHash)}
                         target="_blank"
                         rel="noreferrer"
                         className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline mt-1"
@@ -445,7 +487,7 @@ export function PrivyWithdrawModal({
             <div className="text-xs text-gray-500 pt-2">
               Latest tx:{" "}
               <a
-                href={`https://bscscan.com/tx/${lastTxHash}`}
+                href={explorerLink(selectedChain, lastTxHash)}
                 target="_blank"
                 rel="noreferrer"
                 className="text-blue-600 hover:underline"
