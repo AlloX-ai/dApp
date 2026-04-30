@@ -25,7 +25,7 @@ import Countdown from "react-countdown";
 import { useDispatch, useSelector } from "react-redux";
 import { useAuth } from "../hooks/useAuth";
 import { setWalletModal } from "../redux/slices/walletSlice";
-import { api2Call } from "../utils/api";
+import { api2Call, apiCall } from "../utils/api";
 import { toast } from "../utils/toast";
 
 import topPerformerBg from "../assets/provePortfolio/v2/topPerformer.webp";
