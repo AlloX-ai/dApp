@@ -58,11 +58,17 @@ import { CongratsModal } from "../components/CongratsModal";
 import { toast } from "../utils/toast";
 import { getPublicClient } from "@wagmi/core";
 import { wagmiClient } from "../wagmiConnectors";
-import { bsc } from "wagmi/chains";
 import { erc20Abi, formatEther, formatUnits } from "viem";
 import { AnimatePresence, motion } from "motion/react";
 import ChatMoreInfoModal from "../components/ChatMoreInfoModal";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  CHAINS,
+  chainIdFor,
+  explorerLink,
+  normalizeChain,
+  sourceTokensFor,
+} from "../config/chains";
 
 function formatResetAt(resetAt) {
   if (resetAt == null || resetAt === "") return "";
@@ -218,7 +224,9 @@ export function ChatPage() {
   const [isNarrativesModalOpen, setIsNarrativesModalOpen] = useState(false);
   const [showRecentPortfoliosPanel, setShowRecentPortfoliosPanel] =
     useState(true);
-  const [isBalancesCollapsed, setIsBalancesCollapsed] = useState(false);
+  const [isBalancesCollapsed, setIsBalancesCollapsed] = useState(
+    () => window.innerWidth < 1024,
+  );
   const queryClient = useQueryClient();
   const [onchainBlocked, setOnchainBlocked] = useState(null);
   const [refreshOnchainLoading, setRefreshOnchainLoading] = useState(false);
@@ -417,7 +425,10 @@ export function ChatPage() {
         return {
           previewMeta: {
             chain: quickForm.chain,
-            executionMode: quickForm.chain === "BSC" ? "ON_CHAIN" : "PAPER",
+            executionMode:
+              quickForm.chain === "BSC" || quickForm.chain === "BASE"
+                ? "ON_CHAIN"
+                : "PAPER",
           },
           basket,
         };
@@ -755,84 +766,185 @@ export function ChatPage() {
     : [];
   const recentPortfoliosLoading = recentPortfoliosQuery.isLoading;
 
-  const bscBalancesQuery = useQuery({
-    queryKey: ["bscBalances", walletAddress],
+  const chainBalancesQuery = useQuery({
+    queryKey: ["chainBalances", walletAddress, walletChainId],
     enabled:
-      isConnected && !isReadOnly && walletChainId === 56 && !!walletAddress,
+      isConnected &&
+      !isReadOnly &&
+      !!walletAddress &&
+      (walletChainId === chainIdFor("BSC") ||
+        walletChainId === chainIdFor("BASE")),
     staleTime: 20_000,
     queryFn: async () => {
-      const USDT_BSC = "0x55d398326f99059fF775485246999027B3197955";
-      const USDC_BSC = "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d";
-
-      const publicClient = getPublicClient(wagmiClient, { chainId: bsc.id });
+      const chain = walletChainId === chainIdFor("BASE") ? "BASE" : "BSC";
+      const chainCfg = CHAINS[chain];
+      const nativeSymbol = chainCfg.nativeSymbol;
+      const publicClient = getPublicClient(wagmiClient, {
+        chainId: chainCfg.chainId,
+      });
       if (!publicClient) {
-        throw new Error("BSC RPC provider unavailable.");
+        throw new Error(`${chainCfg.shortLabel} RPC provider unavailable.`);
       }
 
-      const bnbWei = await publicClient.getBalance({
+      const nativeWei = await publicClient.getBalance({
         address: walletAddress,
       });
 
-      const [usdtRaw, usdtDec, usdcRaw, usdcDec] = await Promise.all([
-        publicClient.readContract({
-          address: USDT_BSC,
-          abi: erc20Abi,
-          functionName: "balanceOf",
-          args: [walletAddress],
-        }),
-        publicClient.readContract({
-          address: USDT_BSC,
-          abi: erc20Abi,
-          functionName: "decimals",
-        }),
-        publicClient.readContract({
-          address: USDC_BSC,
-          abi: erc20Abi,
-          functionName: "balanceOf",
-          args: [walletAddress],
-        }),
-        publicClient.readContract({
-          address: USDC_BSC,
-          abi: erc20Abi,
-          functionName: "decimals",
-        }),
-      ]);
+      const chainTokens = sourceTokensFor(chain);
+      const tokenRows = await Promise.all(
+        chainTokens
+          .filter((token) => token.address)
+          .map(async (token) => {
+            const raw = await publicClient.readContract({
+              address: token.address,
+              abi: erc20Abi,
+              functionName: "balanceOf",
+              args: [walletAddress],
+            });
+            return {
+              label: token.symbol,
+              value: Number(formatUnits(raw, token.decimals)),
+              usdPrice: 1,
+              icon: token.logo,
+            };
+          }),
+      );
 
-      let prices = { bnbUsd: null, usdtUsd: 1, usdcUsd: 1 };
+      let nativeUsd = null;
       try {
+        const nativeCoinId = chain === "BASE" ? "ethereum" : "binancecoin";
         const priceRes = await fetch(
-          "https://api.coingecko.com/api/v3/simple/price?ids=binancecoin,tether,usd-coin&vs_currencies=usd",
+          `https://api.coingecko.com/api/v3/simple/price?ids=${nativeCoinId}&vs_currencies=usd`,
         );
         if (priceRes.ok) {
           const priceData = await priceRes.json();
-          prices = {
-            bnbUsd: Number(priceData?.binancecoin?.usd ?? 0) || null,
-            usdtUsd: Number(priceData?.tether?.usd ?? 1) || 1,
-            usdcUsd: Number(priceData?.["usd-coin"]?.usd ?? 1) || 1,
-          };
+          nativeUsd = Number(priceData?.[nativeCoinId]?.usd ?? 0) || null;
         }
       } catch {
         // Keep stable fallback prices and continue showing balances.
       }
 
       return {
-        bnb: Number(formatEther(bnbWei)),
-        usdt: Number(formatUnits(usdtRaw, usdtDec)),
-        usdc: Number(formatUnits(usdcRaw, usdcDec)),
-        bnbUsd: prices.bnbUsd,
-        usdtUsd: prices.usdtUsd,
-        usdcUsd: prices.usdcUsd,
+        chain,
+        chainLabel: chainCfg.label,
+        rows: [
+          {
+            label: nativeSymbol,
+            value: Number(formatEther(nativeWei)),
+            usdPrice: nativeUsd,
+            icon: chainCfg.logo,
+          },
+          ...tokenRows,
+        ],
       };
     },
   });
 
-  const bscBalances = bscBalancesQuery.data ?? {
-    bnb: null,
-    usdt: null,
-    usdc: null,
-    bnbUsd: null,
-    usdtUsd: 1,
-    usdcUsd: 1,
+  const chainBalances = chainBalancesQuery.data ?? {
+    chain: walletChainId === chainIdFor("BASE") ? "BASE" : "BSC",
+    chainLabel:
+      walletChainId === chainIdFor("BASE")
+        ? CHAINS.BASE.label
+        : CHAINS.BSC.label,
+    rows: [],
+  };
+  const showChainBalancesPanel =
+    walletChainId === chainIdFor("BSC") || walletChainId === chainIdFor("BASE");
+
+  const renderChainBalancesContent = (compact = false) => {
+    if (!isConnected) {
+      return (
+        <div className="text-xs text-gray-600">
+          Connect your wallet to view balances.
+        </div>
+      );
+    }
+
+    if (
+      walletChainId !== chainIdFor("BSC") &&
+      walletChainId !== chainIdFor("BASE")
+    ) {
+      return (
+        <div className="text-xs text-gray-600">
+          Switch to BNB Chain or Base to view balances.
+        </div>
+      );
+    }
+
+    if (chainBalancesQuery.error) {
+      return (
+        <div className="text-xs text-red-600">
+          {chainBalancesQuery.error?.message || "Failed to load balances."}
+        </div>
+      );
+    }
+
+    if (compact) {
+      return (
+        <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+          {chainBalances.rows.map((row) => (
+            <div
+              key={row.label}
+              className="min-w-[132px] shrink-0 rounded-2xl border border-gray-200/60 bg-white/70 px-3 py-2.5"
+            >
+              <div className="flex items-center gap-2">
+                <img src={row.icon} className="h-4 w-4 shrink-0" alt="" />
+                <span className="truncate text-xs font-semibold text-gray-800">
+                  {row.label}
+                </span>
+              </div>
+              {row.value != null && row.usdPrice != null && (
+                <div className="mt-2 text-[11px] text-green-600 tabular-nums">
+                  {`$${(
+                    Number(row.value) * Number(row.usdPrice)
+                  ).toLocaleString(undefined, {
+                    maximumFractionDigits: 2,
+                  })}`}
+                </div>
+              )}
+              <div className="mt-1 text-sm font-semibold text-gray-900 tabular-nums">
+                {row.value == null
+                  ? "—"
+                  : Number(row.value).toLocaleString(undefined, {
+                      maximumFractionDigits: 4,
+                    })}
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-2">
+        {chainBalances.rows.map((row) => (
+          <div
+            key={row.label}
+            className="flex items-center justify-between text-xs bg-white/60 border border-gray-200/60 rounded-xl px-3 py-2"
+          >
+            <div className="font-semibold text-gray-800 flex items-center gap-2">
+              <img src={row.icon} className="w-4 h-4" alt="" /> {row.label}
+            </div>
+            <div className="text-gray-900 tabular-nums">
+              {row.value != null && row.usdPrice != null && (
+                <div className="text-xs text-green-600 text-right">
+                  {`$${(
+                    Number(row.value) * Number(row.usdPrice)
+                  ).toLocaleString(undefined, {
+                    maximumFractionDigits: 2,
+                  })}`}
+                </div>
+              )}
+              {row.value == null
+                ? "—"
+                : Number(row.value).toLocaleString(undefined, {
+                    maximumFractionDigits: 6,
+                  })}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
   };
 
   const handleExecutionUpdate = useCallback((update) => {
@@ -967,6 +1079,8 @@ export function ChatPage() {
           walletType === "privy";
 
         let privyTxEnv;
+        const executionChain = normalizeChain(execution?.chain);
+        const executionChainId = chainIdFor(executionChain);
         if (isPrivyExecutionSession) {
           const embedded = getEmbeddedConnectedWallet(wallets);
           if (!embedded) {
@@ -975,18 +1089,19 @@ export function ChatPage() {
             );
           }
           const cid = embedded.chainId;
-          const onBsc =
-            cid === "eip155:56" ||
+          const onExecutionChain =
+            cid === `eip155:${executionChainId}` ||
             (typeof cid === "string" &&
               cid.startsWith("0x") &&
-              parseInt(cid, 16) === 56) ||
-            Number(cid) === 56;
-          if (!onBsc) {
-            await embedded.switchChain(56);
+              parseInt(cid, 16) === executionChainId) ||
+            Number(cid) === executionChainId;
+          if (!onExecutionChain) {
+            await embedded.switchChain(executionChainId);
           }
           privyTxEnv = createPrivyExecutionTxEnv(
             embedded.address,
             privySendTransaction,
+            executionChain,
           );
         }
 
@@ -1028,7 +1143,9 @@ export function ChatPage() {
         const isChainError =
           error?.message?.toLowerCase().includes("switch your wallet") ||
           error?.message?.toLowerCase().includes("bnb chain") ||
-          error?.message?.toLowerCase().includes("chainid 56");
+          error?.message?.toLowerCase().includes("base") ||
+          error?.message?.toLowerCase().includes("chainid 56") ||
+          error?.message?.toLowerCase().includes("chainid 8453");
         if (isChainError) {
           toast.error(error.message);
         } else {
@@ -1063,7 +1180,7 @@ export function ChatPage() {
     () => ({
       BSC: "BNB Chain (On-Chain Execution)",
       ETH: "Ethereum (Paper Trading)",
-      BASE: "Base (Paper Trading)",
+      BASE: "Base (On-Chain Execution)",
     }),
     [],
   );
@@ -1117,9 +1234,12 @@ export function ChatPage() {
         );
         return;
       }
-      if (quickForm.chain === "BSC" && walletChainId !== 56) {
+      if (
+        (quickForm.chain === "BSC" && walletChainId !== chainIdFor("BSC")) ||
+        (quickForm.chain === "BASE" && walletChainId !== chainIdFor("BASE"))
+      ) {
         toast.error(
-          "Please switch your wallet to BNB Chain before continuing.",
+          `Please switch your wallet to ${quickForm.chain === "BASE" ? "Base" : "BNB Chain"} before continuing.`,
         );
         return;
       }
@@ -1614,10 +1734,13 @@ export function ChatPage() {
           ? (option?.value ?? option?.label)
           : (option?.value ?? option?.label ?? option?.action);
       if (!message) return;
-      // Block selecting BNB Chain (BSC) unless wallet is on BSC mainnet
-      if (String(message).toUpperCase() === "BSC" && walletChainId !== 56) {
+      const normalizedMessage = String(message).toUpperCase();
+      if (
+        (normalizedMessage === "BSC" && walletChainId !== chainIdFor("BSC")) ||
+        (normalizedMessage === "BASE" && walletChainId !== chainIdFor("BASE"))
+      ) {
         toast.error(
-          "Please switch your wallet to BNB Chain before continuing.",
+          `Please switch your wallet to ${normalizedMessage === "BASE" ? "Base" : "BNB Chain"} before continuing.`,
         );
         return;
       }
@@ -1861,7 +1984,7 @@ export function ChatPage() {
     const summary = portfolio.summary || null;
 
     const getTxLink = (txHash) =>
-      txHash ? `https://bscscan.com/tx/${txHash}` : null;
+      txHash ? explorerLink(portfolio.chain, txHash) : null;
 
     return (
       <div className="mt-3 border border-gray-200 bg-white/80 shadow-sm p-4 rounded-2xl space-y-3">
@@ -3052,6 +3175,71 @@ export function ChatPage() {
 
   return (
     <div className="flex-1 flex flex-col">
+      {isConnected && !isReadOnly && showChainBalancesPanel && (
+        <>
+          <div
+            className={
+              isBalancesCollapsed ? "h-15 lg:hidden" : "h-15 lg:hidden"
+            }
+          />
+          <div className="fixed top-20 left-0 right-0 z-30 px-3 sm:px-6 lg:hidden">
+            <div className="mx-auto w-full max-w-250">
+              <div className="glass-card border border-gray-200/50 bg-white/85 p-3 shadow-md backdrop-blur-lg">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className="truncate text-sm font-bold text-gray-900">
+                      {chainBalances.chainLabel} balances
+                    </h3>
+                    {!isBalancesCollapsed && chainBalances.rows.length > 0 && (
+                      <p className="mt-1 text-[11px] text-gray-500">
+                        Swipe to view all tokens
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1">
+                    {!isBalancesCollapsed && (
+                      <button
+                        type="button"
+                        onClick={() => void chainBalancesQuery.refetch()}
+                        disabled={
+                          !isConnected ||
+                          isReadOnly ||
+                          !showChainBalancesPanel ||
+                          chainBalancesQuery.isFetching
+                        }
+                        className="rounded-full p-1.5 text-gray-500 hover:bg-black/5 hover:text-green-600 disabled:opacity-50"
+                        aria-label="Refresh balances"
+                      >
+                        <RefreshCcw className="h-4 w-4" />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setIsBalancesCollapsed((p) => !p)}
+                      className="rounded-full p-1.5 text-gray-500 hover:bg-black/5 hover:text-gray-700"
+                      aria-label={
+                        isBalancesCollapsed
+                          ? "Expand balances"
+                          : "Collapse balances"
+                      }
+                    >
+                      {isBalancesCollapsed ? (
+                        <ChevronDown className="h-4 w-4" />
+                      ) : (
+                        <ChevronUp className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {!isBalancesCollapsed && (
+                  <div className="mt-3">{renderChainBalancesContent(true)}</div>
+                )}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
       <div className="flex-1 flex flex-col overflow-y-auto">
         {currentMessages.length === 0 && !quickWizardOpen && (
           <div className="h-full flex items-center justify-center px-6">
@@ -3098,6 +3286,7 @@ export function ChatPage() {
           </div>
         )}
       </div>
+
       {isConnected && !isReadOnly && (
         <aside className="w-60 shrink-0 hidden lg:block fixed right-7">
           <div className="sticky top-24">
@@ -3205,11 +3394,11 @@ export function ChatPage() {
                 </motion.div>
               )}
             </AnimatePresence>
-            {walletChainId === 56 && (
+            {showChainBalancesPanel && (
               <div className="mt-3 glass-card p-4 border border-gray-200/50 bg-white/40">
                 <div className="flex items-center justify-between gap-2">
                   <h3 className="text-sm font-bold text-gray-900">
-                    BNB Chain balances
+                    {chainBalances.chainLabel} balances
                   </h3>
                   <div className="flex items-center gap-1">
                     <button
@@ -3231,12 +3420,13 @@ export function ChatPage() {
                     {!isBalancesCollapsed && (
                       <button
                         type="button"
-                        onClick={() => void bscBalancesQuery.refetch()}
+                        onClick={() => void chainBalancesQuery.refetch()}
                         disabled={
                           !isConnected ||
                           isReadOnly ||
-                          walletChainId !== 56 ||
-                          bscBalancesQuery.isFetching
+                          (walletChainId !== chainIdFor("BSC") &&
+                            walletChainId !== chainIdFor("BASE")) ||
+                          chainBalancesQuery.isFetching
                         }
                         className="text-xs text-gray-500 hover:text-green-600 disabled:opacity-50"
                         aria-label="Refresh balances"
@@ -3250,70 +3440,7 @@ export function ChatPage() {
                 {!isBalancesCollapsed && (
                   <>
                     <div className="mb-3" />
-                    {!isConnected ? (
-                      <div className="text-xs text-gray-600">
-                        Connect your wallet to view balances.
-                      </div>
-                    ) : walletChainId !== 56 ? (
-                      <div className="text-xs text-gray-600">
-                        Switch to BNB Chain to view BNB, USDT, and USDC
-                        balances.
-                      </div>
-                    ) : bscBalancesQuery.error ? (
-                      <div className="text-xs text-red-600">
-                        {bscBalancesQuery.error?.message ||
-                          "Failed to load balances."}
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        {[
-                          {
-                            label: "BNB",
-                            value: bscBalances.bnb,
-                            usdPrice: bscBalances.bnbUsd,
-                            icon: "https://cdn.allox.ai/allox/networks/bnbIcon.svg",
-                          },
-                          {
-                            label: "USDT",
-                            value: bscBalances.usdt,
-                            usdPrice: bscBalances.usdtUsd,
-                            icon: "https://cdn.allox.ai/allox/tokens/usdt.svg",
-                          },
-                          {
-                            label: "USDC",
-                            value: bscBalances.usdc,
-                            usdPrice: bscBalances.usdcUsd,
-                            icon: "https://cdn.allox.ai/allox/tokens/usdc.svg",
-                          },
-                        ].map((row) => (
-                          <div
-                            key={row.label}
-                            className="flex items-center justify-between text-xs bg-white/60 border border-gray-200/60 rounded-xl px-3 py-2"
-                          >
-                            <div className="font-semibold text-gray-800 flex items-center gap-2">
-                              <img src={row.icon} className="w-4 h-4" alt="" />{" "}
-                              {row.label}
-                            </div>
-                            <div className="text-gray-900 tabular-nums">
-                              {row.value != null && row.usdPrice != null && (
-                                <div className="text-xs text-green-600 text-right">
-                                  {`$${(
-                                    Number(row.value) * Number(row.usdPrice)
-                                  ).toLocaleString(undefined, {
-                                    maximumFractionDigits: 2,
-                                  })}`}
-                                </div>
-                              )}
-                              {row.value == null
-                                ? "—"
-                                : Number(row.value).toLocaleString(undefined, {
-                                    maximumFractionDigits: 6,
-                                  })}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                    {renderChainBalancesContent()}
                   </>
                 )}
               </div>
@@ -3631,7 +3758,7 @@ export function ChatPage() {
               Congratulations!
             </h3>
             <p className="text-gray-600 mb-1">
-              You claimed your Season 2 points.
+              You claimed your Season 3 points.
             </p>
             {/* <p className="text-sm text-gray-500">Start chatting to use them.</p> */}
           </div>
@@ -3767,17 +3894,18 @@ export function ChatPage() {
                               icon: "https://cdn.allox.ai/allox/networks/bnbIcon.svg",
                             },
                             {
+                              value: "BASE",
+                              label: "Base (on-chain)",
+                              badge: "BASE",
+                              icon: "https://cdn.allox.ai/allox/networks/base.svg",
+                            },
+                            {
                               value: "ETH",
                               label: "Ethereum",
                               badge: "ETH",
                               icon: "https://cdn.allox.ai/allox/networks/eth.svg",
                             },
-                            {
-                              value: "BASE",
-                              label: "Base",
-                              badge: "BASE",
-                              icon: "https://cdn.allox.ai/allox/networks/base.svg",
-                            },
+
                             {
                               value: "SOL",
                               label: "Solana",

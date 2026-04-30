@@ -87,7 +87,7 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
       icon: 'https://cdn.allox.ai/allox/networks/bnbIcon.svg',
       chainId: 56,
       chainHex: '0x38',
-      chainName: 'BNB Smart Chain',
+      chainName: 'BNB Chain',
       rpcUrls: ['https://bsc-dataseed.binance.org'],
       blockExplorerUrls: ['https://bscscan.com'],
       nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 },
