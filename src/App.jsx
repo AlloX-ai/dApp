@@ -175,6 +175,9 @@ function LaunchAppLayout() {
       showLoadingToast = true,
       keepModalOpenOnError = true,
     } = {}) => {
+      // Privy sessions authenticate through `completePrivyAuth` and do not
+      // expose a wagmi connector for `signMessageAsync`.
+      if (authenticated) return null;
       if (!isConnected || !address) return null;
       if (token) {
         dispatch(setWalletModal(false));
@@ -222,6 +225,7 @@ function LaunchAppLayout() {
       }
     },
     [
+      authenticated,
       isConnected,
       address,
       token,
@@ -285,6 +289,7 @@ function LaunchAppLayout() {
       authTriggeredRef.current = false;
       return;
     }
+    if (authenticated) return;
     if (token) {
       dispatch(setWalletModal(false));
       return;
@@ -301,6 +306,7 @@ function LaunchAppLayout() {
     token,
     address,
     walletType,
+    authenticated,
     user?.authProvider,
     attemptWalletAuthentication,
     dispatch,
@@ -316,6 +322,7 @@ function LaunchAppLayout() {
         const currentWallet = store.getState().wallet;
         const shouldRetryAuth =
           !currentToken &&
+          !authenticated &&
           currentWallet.isConnected &&
           !!currentWallet.address &&
           currentWallet.walletType !== "privy" &&
@@ -348,7 +355,7 @@ function LaunchAppLayout() {
       window.removeEventListener("pageshow", handleResume);
       document.removeEventListener("visibilitychange", handleResume);
     };
-  }, [attemptWalletAuthentication, dispatch, syncCurrentEvmAccount]);
+  }, [attemptWalletAuthentication, authenticated, dispatch, syncCurrentEvmAccount]);
 
   useEffect(() => {
     if (!authenticated) {

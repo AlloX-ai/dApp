@@ -393,6 +393,9 @@ export const useAuth = () => {
       if (currentToken !== globalAuthState.token) setGlobalToken(currentToken);
       return currentToken;
     }
+    if (walletType === "privy" || globalAuthState.user?.authProvider === "privy") {
+      throw new Error("Privy session is still syncing. Please wait a moment and retry.");
+    }
     if (!address) throw new Error("Wallet not connected");
     // Reuse in-flight promise for the same address to prevent double sign
     if (globalAuthInFlight && globalAuthInFlightAddress === address) {
