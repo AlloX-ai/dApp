@@ -25,7 +25,7 @@ import Countdown from "react-countdown";
 import { useDispatch, useSelector } from "react-redux";
 import { useAuth } from "../hooks/useAuth";
 import { setWalletModal } from "../redux/slices/walletSlice";
-import { api2Call } from "../utils/api";
+import { api2Call, apiCall } from "../utils/api";
 import { toast } from "../utils/toast";
 
 import topPerformerBg from "../assets/provePortfolio/v2/topPerformer.webp";
@@ -332,7 +332,7 @@ export function ProveYourPortfolioCampaign() {
   }, []);
 
   const fetchTwitterStatus = useCallback(async () => {
-    const data = await api2Call("/twitter/status");
+    const data = await apiCall("/twitter/status");
     setTwitterStatus(data);
     return data;
   }, []);
@@ -382,9 +382,9 @@ export function ProveYourPortfolioCampaign() {
       await ensureAuthenticated();
       let payload;
       try {
-        payload = await api2Call("/twitter/auth-url");
+        payload = await apiCall("/twitter/auth-url");
       } catch {
-        payload = await api2Call("/twitter/auth");
+        payload = await apiCall("/twitter/auth");
       }
       const authUrl = payload?.authUrl || payload?.url;
       if (!authUrl) {
