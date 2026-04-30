@@ -1,5 +1,7 @@
-const API_URL = "https://api2.allox.ai";
-const WS_URL = "wss://api2.allox.ai/ws";
+const API_URL = "https://api.allox.ai";
+const API2_URL = "https://api2.allox.ai";
+
+const WS_URL = "wss://api.allox.ai/ws";
 
 // Dispatched whenever api.js updates the auth token (e.g. after refresh).
 // useAuth listens to this so React state stays in sync with the live token.
@@ -221,5 +223,80 @@ export const apiCall = async (endpoint, options = {}, apiType) => {
   return data;
 };
 
+export const api2Call = async (endpoint, options = {}) => {
+  const { returnRawResponse = false, ...fetchOptions } = options;
+
+  // Keep auth/refresh behavior aligned with apiCall.
+  await maybeProactiveRefresh(endpoint);
+
+  const doFetch = () =>
+    fetch(`${API2_URL}${endpoint}`, {
+      ...fetchOptions,
+      headers: {
+        "Content-Type": "application/json",
+        ...getAuthHeaders(),
+        ...fetchOptions.headers,
+      },
+    });
+
+  let response = await doFetch();
+
+  if (
+    response.status === 401 &&
+    !isAuthEndpoint(endpoint) &&
+    getAuthToken()
+  ) {
+    let shouldRetry = false;
+    try {
+      const preview = response.clone();
+      let payload = {};
+      try {
+        payload = await preview.json();
+      } catch {
+        payload = {};
+      }
+      if (isExpiredTokenPayload(payload)) {
+        const newToken = await refreshAuthToken();
+        shouldRetry = !!newToken;
+      }
+    } catch (e) {
+      console.error("Auth refresh check failed:", e);
+    }
+    if (shouldRetry) {
+      response = await doFetch();
+    }
+  }
+
+  if (returnRawResponse) {
+    if (!response.ok) {
+      throw {
+        status: response.status,
+        message: `Request failed (${response.status})`,
+        data: null,
+      };
+    }
+    return response;
+  }
+
+  let data = {};
+  try {
+    data = await response.json();
+  } catch (error) {
+    data = {};
+    console.log(error);
+  }
+
+  if (!response.ok) {
+    throw {
+      status: response.status,
+      message: data.error || data.message || "Request failed",
+      data,
+    };
+  }
+
+  return data;
+};
+
 export const getApiUrl = () => API_URL;
+export const getApi2Url = () => API2_URL;
 export const getWsUrl = () => WS_URL;

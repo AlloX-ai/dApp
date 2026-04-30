@@ -25,7 +25,7 @@ import Countdown from "react-countdown";
 import { useDispatch, useSelector } from "react-redux";
 import { useAuth } from "../hooks/useAuth";
 import { setWalletModal } from "../redux/slices/walletSlice";
-import { apiCall } from "../utils/api";
+import { api2Call } from "../utils/api";
 import { toast } from "../utils/toast";
 
 import topPerformerBg from "../assets/provePortfolio/v2/topPerformer.webp";
@@ -298,7 +298,7 @@ export function ProveYourPortfolioCampaign() {
   const loadCompetition = useCallback(async () => {
     setLoading((prev) => ({ ...prev, competition: true }));
     try {
-      const payload = await apiCall("/competition/active");
+      const payload = await api2Call("/competition/active");
       const nextCompetitionId = resolveCompetitionId(payload);
       if (!nextCompetitionId) {
         throw new Error("No active Prove Your Portfolio competition found.");
@@ -320,7 +320,7 @@ export function ProveYourPortfolioCampaign() {
     if (!cid) return null;
     setLoading((prev) => ({ ...prev, participants: true }));
     try {
-      const data = await apiCall(`/prove/${cid}/participants?limit=50&page=1`);
+      const data = await api2Call(`/prove/${cid}/participants?limit=50&page=1`);
       setParticipantsData(data);
       return data;
     } catch (error) {
@@ -332,7 +332,7 @@ export function ProveYourPortfolioCampaign() {
   }, []);
 
   const fetchTwitterStatus = useCallback(async () => {
-    const data = await apiCall("/twitter/status");
+    const data = await api2Call("/twitter/status");
     setTwitterStatus(data);
     return data;
   }, []);
@@ -347,9 +347,9 @@ export function ProveYourPortfolioCampaign() {
       try {
         const [statsRes, progressRes, badgesRes, twitterRes] =
           await Promise.all([
-            apiCall(`/prove/${cid}/my-card-stats`),
-            apiCall(`/prove/${cid}/my-progress`),
-            apiCall("/prove/badges"),
+            api2Call(`/prove/${cid}/my-card-stats`),
+            api2Call(`/prove/${cid}/my-progress`),
+            api2Call("/prove/badges"),
             fetchTwitterStatus(),
           ]);
 
@@ -382,9 +382,9 @@ export function ProveYourPortfolioCampaign() {
       await ensureAuthenticated();
       let payload;
       try {
-        payload = await apiCall("/twitter/auth-url");
+        payload = await api2Call("/twitter/auth-url");
       } catch {
-        payload = await apiCall("/twitter/auth");
+        payload = await api2Call("/twitter/auth");
       }
       const authUrl = payload?.authUrl || payload?.url;
       if (!authUrl) {
@@ -661,7 +661,7 @@ export function ProveYourPortfolioCampaign() {
       try {
         await ensureSharePrerequisites();
 
-        const response = await apiCall(`/prove/${competitionId}/share`, {
+        const response = await api2Call(`/prove/${competitionId}/share`, {
           method: "POST",
           body: JSON.stringify({
             cardType: activeCardConfig.apiType,
@@ -677,7 +677,7 @@ export function ProveYourPortfolioCampaign() {
         });
         setTweetUrl("");
 
-        const progressPromise = apiCall(`/prove/${competitionId}/my-progress`)
+        const progressPromise = api2Call(`/prove/${competitionId}/my-progress`)
           .then((data) => {
             setProgressData(data);
             return data;
@@ -687,7 +687,7 @@ export function ProveYourPortfolioCampaign() {
         const participantsPromise = fetchParticipants(competitionId);
         const badgePromise =
           Array.isArray(response?.newBadges) && response.newBadges.length > 0
-            ? apiCall("/prove/badges")
+            ? api2Call("/prove/badges")
                 .then((data) => {
                   setBadgesData(data);
                   return data;
@@ -707,7 +707,7 @@ export function ProveYourPortfolioCampaign() {
         }
 
         if (error?.status === 409) {
-          apiCall(`/prove/${competitionId}/my-progress`)
+          api2Call(`/prove/${competitionId}/my-progress`)
             .then((data) => setProgressData(data))
             .catch(() => {});
         }
