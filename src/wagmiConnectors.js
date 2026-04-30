@@ -1,10 +1,5 @@
 import { createConfig, fallback, http } from "wagmi";
-import {
-  mainnet,
-  opBNB,
-  bsc,
-  base,
-} from "wagmi/chains";
+import { mainnet, opBNB, bsc, base } from "wagmi/chains";
 import {
   metaMask,
   coinbaseWallet,
@@ -20,17 +15,15 @@ const BASE_RPC_ENDPOINTS = [
   "https://base-rpc.publicnode.com",
 ];
 
+const ETHEREUM_RPC_ENDPOINTS = [
+  "https://mainnet.infura.io/v3/7698640038364a678705d3fdd84704f4",
+];
 export const wagmiClient = createConfig({
-  chains: [
-    mainnet,
-    opBNB,
-    bsc,
-    base,
-  ],
+  chains: [mainnet, opBNB, bsc, base],
   // autoConnect: true,
   connectors: [
     walletConnect({
-      projectId: "a465b6d7661ba54df9ca6c4757bce009"
+      projectId: "a465b6d7661ba54df9ca6c4757bce009",
     }),
     injected(),
     binanceConnector(),
@@ -39,7 +32,7 @@ export const wagmiClient = createConfig({
   ],
   transports: {
     [bsc.id]: http(),
-    [mainnet.id]: http(),
+    [mainnet.id]: fallback(ETHEREUM_RPC_ENDPOINTS.map((url) => http(url))),
     [opBNB.id]: http(),
     [base.id]: fallback(BASE_RPC_ENDPOINTS.map((url) => http(url))),
   },
