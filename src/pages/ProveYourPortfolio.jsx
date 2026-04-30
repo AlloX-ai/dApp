@@ -332,7 +332,7 @@ export function ProveYourPortfolioCampaign() {
   }, []);
 
   const fetchTwitterStatus = useCallback(async () => {
-    const data = await api2Call("/twitter/status");
+    const data = await apiCall("/twitter/status");
     setTwitterStatus(data);
     return data;
   }, []);
@@ -382,9 +382,9 @@ export function ProveYourPortfolioCampaign() {
       await ensureAuthenticated();
       let payload;
       try {
-        payload = await api2Call("/twitter/auth-url");
+        payload = await apiCall("/twitter/auth-url");
       } catch {
-        payload = await api2Call("/twitter/auth");
+        payload = await apiCall("/twitter/auth");
       }
       const authUrl = payload?.authUrl || payload?.url;
       if (!authUrl) {
