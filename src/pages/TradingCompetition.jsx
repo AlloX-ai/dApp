@@ -145,6 +145,12 @@ export function TradingCompetitionPage() {
     walletAddress,
   ]);
 
+    useEffect(() => {
+      window.scrollTo(0, 0);
+      document.title = "Allocation Race";
+    }, []);
+  
+
   return (
     <div className="space-y-4">
       {/* Title & Reward Pool Banner */}
