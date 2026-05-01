@@ -37,7 +37,7 @@ export function Season1() {
     },
     {
       number: 3,
-      status: "Live",
+      status: "Ended",
       reward: 24000,
       timeline: "Apr 01 - May 01",
       active: true,
