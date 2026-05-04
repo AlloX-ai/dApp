@@ -16,6 +16,17 @@ const initialLoadingState = {
 	tradingData: false,
 };
 
+/** Active `/competition/active` can return multiple campaigns; trading uses this one only. */
+const TRADING_LEADERBOARD_COMPETITION_NAME = "The Allocation Race";
+
+const pickAllocationRaceCompetition = (competitions) => {
+	if (!Array.isArray(competitions)) return null;
+	return (
+		competitions.find((c) => c?.name === TRADING_LEADERBOARD_COMPETITION_NAME) ??
+		null
+	);
+};
+
 const getCompetitionId = (payload) => {
 	if (!payload) return null;
 
@@ -23,17 +34,19 @@ const getCompetitionId = (payload) => {
 	if (payload.id) return payload.id;
 	if (payload._id) return payload._id;
 
-	if (Array.isArray(payload)) {
-		const firstCompetition = payload[0];
-		return firstCompetition?.id ?? firstCompetition?._id ?? null;
+	if (Array.isArray(payload.competitions)) {
+		const picked = pickAllocationRaceCompetition(payload.competitions);
+		return picked?._id ?? picked?.id ?? null;
 	}
 
-	if (Array.isArray(payload.competitions)) {
-		const firstCompetition = payload.competitions[0];
-		return firstCompetition?.id ?? firstCompetition?._id ?? null;
+	if (Array.isArray(payload)) {
+		const picked = pickAllocationRaceCompetition(payload);
+		return picked?._id ?? picked?.id ?? null;
 	}
 
 	if (Array.isArray(payload.data)) {
+		const picked = pickAllocationRaceCompetition(payload.data);
+		if (picked) return picked._id ?? picked.id ?? null;
 		const firstCompetition = payload.data[0];
 		return firstCompetition?.id ?? firstCompetition?._id ?? null;
 	}
@@ -62,6 +75,7 @@ export function useTrading() {
 		try {
 			const data = await apiCall("/competition/active");
 			const competitionId = getCompetitionId(data);
+			const picked = pickAllocationRaceCompetition(data?.competitions);
 
 			if (!competitionId) {
 				throw new Error("No active competition found");
@@ -69,7 +83,10 @@ export function useTrading() {
 
 			return {
 				competitionId,
-				data,
+				data:
+					picked != null
+						? { ...data, competitions: [picked] }
+						: data,
 			};
 		} catch (err) {
 			setError(err?.message || "Failed to fetch active competition");
