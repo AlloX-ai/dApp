@@ -4,7 +4,7 @@ import { useSelector } from "react-redux";
 import { season1_winners } from "../constants/addresses";
 import getFormattedNumber from "../hooks/get-formatted-number";
 import { CongratsModal } from "../components/CongratsModal";
-import { findSeason2RewardForWallet } from "../constants/rewards";
+import { findSeason2RewardForWallet, findSeason3RewardForWallet } from "../constants/rewards";
 
 export function Season1() {
   const [showTooltip, setShowTooltip] = useState(false);
@@ -19,6 +19,7 @@ export function Season1() {
   }, [address]);
 
   const user = useMemo(() => findSeason2RewardForWallet(address), [address]);
+  const user3 = useMemo(() => findSeason3RewardForWallet(address), [address]);
 
   const seasons = [
     {
@@ -40,7 +41,7 @@ export function Season1() {
       status: "Ended",
       reward: 24000,
       timeline: "Apr 01 - May 01",
-      active: true,
+      active: false,
     },
   ];
 
@@ -112,12 +113,35 @@ export function Season1() {
                 season.active ? "ring-2 ring-black" : ""
               }`}
             >
-              {season.number === 2 && user && user.gems > 0 && (
+              {/* {season.number === 2 && user && user.gems > 0 && (
                 <span className="px-2 py-0.5 bg-green-500 text-white text-xs sm:text-sm  2xl:text-lg font-bold rounded-full absolute top-0 bottom-0 my-auto h-fit right-2">
                   YOU WIN
                 </span>
               )}
               {season.number === 2 && user && user.gems > 0 && (
+                <div className="absolute -bottom-0 left-1/2 -translate-x-1/2">
+                  <button
+                    onClick={() => setShowModal(true)}
+                    className="px-4 py-1.5 bg-white/95 backdrop-blur-sm text-gray-900 rounded-t-4xl text-sm font-semibold hover:bg-white hover:shadow-[0_-5px_18px_rgba(0,0,0,0.25)] transition-all border-t border-l border-r border-gray-200 flex items-center gap-1.5"
+                  >
+                    <svg
+                      className="w-3 h-3"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                    >
+                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                    </svg>
+                    Share
+                  </button>
+                </div>
+              )} */}
+
+              {season.number === 3 && user3 && user3.gems > 0 && (
+                <span className="px-2 py-0.5 bg-green-500 text-white text-xs sm:text-sm  2xl:text-lg font-bold rounded-full absolute top-0 bottom-0 my-auto h-fit right-2">
+                  YOU WON
+                </span>
+              )}
+              {season.number === 3 && user3 && user3.gems > 0 && (
                 <div className="absolute -bottom-0 left-1/2 -translate-x-1/2">
                   <button
                     onClick={() => setShowModal(true)}
@@ -243,6 +267,24 @@ export function Season1() {
                           <Gem size={12} className="text-purple-600" />
                           {user ? getFormattedNumber(user.gems, 0) : 0} ($
                           {user ? getFormattedNumber(user.gems * 5, 0) : 0})
+                        </div>
+                      </div>
+                    </div>
+                    {/* {winner && winner.reward > 0 && */}
+
+                    {/* } */}
+                  </div>
+                ) : season.number === 3 ? (
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex flex-col">
+                        <div className="text-xs text-gray-600">Rewards</div>
+                        <div
+                          className={`text-sm font-medium text-gray-500 flex items-center gap-1`}
+                        >
+                          <Gem size={12} className="text-purple-600" />
+                          {user3 ? getFormattedNumber(user3.gems, 0) : 0} ($
+                          {user3 ? getFormattedNumber(user3.gems * 5, 0) : 0})
                         </div>
                       </div>
                     </div>

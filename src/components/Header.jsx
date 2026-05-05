@@ -25,7 +25,10 @@ import {
 } from "../constants/navigation";
 import { PortfolioNavGroup } from "./PortfolioNavGroup";
 import OutsideClickHandler from "react-outside-click-handler";
-import { findSeason2RewardForWallet } from "../constants/rewards";
+import {
+  findSeason2RewardForWallet,
+  findSeason3RewardForWallet,
+} from "../constants/rewards";
 import { MessageLimitModal } from "./MessageLimitModal";
 import { useAuth } from "../hooks/useAuth";
 import {
@@ -56,6 +59,7 @@ export function Header({
   const [messageLimitModalOpen, setMessageLimitModalOpen] = useState(false);
 
   const user = useMemo(() => findSeason2RewardForWallet(coinbase), [coinbase]);
+  const user3 = useMemo(() => findSeason3RewardForWallet(coinbase), [coinbase]);
   const { checkedInToday } = useCheckin();
   const { user: authUser, isAuthenticated } = useAuth();
 
@@ -123,13 +127,18 @@ export function Header({
                       {totalPoints.toLocaleString()}
                     </span>
                   </div>
-                  {(messagesRemaining != null || user) && (
+                  {(messagesRemaining != null || user || user3) && (
                     <div className="border-l border-gray-200/60 pl-3 flex items-center gap-2">
                       <Gem className="size-4 text-purple-600" />
                       <span className="text-xs sm:text-sm font-semibold tabular-nums flex">
-                        {user ? user.gems : 0}
+                        {(user ? Number(user.gems) : 0) +
+                          (user3 ? Number(user3.gems) : 0)}
+
                         <span className="text-xs sm:text-sm font-semibold tabular-nums text-[#4A5565]">
-                          (${user ? user.gems * 5 : 0})
+                          ($
+                          {(user ? Number(user.gems) : 0)* 5 +
+                            (user3 ? Number(user3.gems) : 0) * 5}
+                          )
                         </span>
                       </span>
                     </div>
@@ -343,7 +352,8 @@ export function Header({
                                 <div className="flex items-center gap-2">
                                   <Gem className="size-4 text-purple-600" />
                                   <span className="text-xs font-semibold tabular-nums">
-                                    {user ? user.gems : 0}
+                                {(user ? Number(user.gems) : 0) +
+                          (user3 ? Number(user3.gems) : 0)}
                                   </span>
                                 </div>
                               </div>
