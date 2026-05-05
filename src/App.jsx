@@ -269,7 +269,8 @@ function LaunchAppLayout() {
     prevWalletTypeRef.current = walletType;
 
     // Account switch: had a real address before and it changed
-    const addrSwitch = prevAddr && address && prevAddr.toLowerCase() !== address.toLowerCase();
+    const addrSwitch =
+      prevAddr && address && prevAddr.toLowerCase() !== address.toLowerCase();
     // Wallet type switch: had a real type before and it changed (e.g. evm → solana)
     const typeSwitch = prevType && walletType && prevType !== walletType;
 
@@ -297,10 +298,9 @@ function LaunchAppLayout() {
     if (walletType === "privy" || user?.authProvider === "privy") return;
     if (authTriggeredRef.current) return;
     authTriggeredRef.current = true;
-    attemptWalletAuthentication({ source: "auto" })
-      .catch(() => {
-        authTriggeredRef.current = false;
-      });
+    attemptWalletAuthentication({ source: "auto" }).catch(() => {
+      authTriggeredRef.current = false;
+    });
   }, [
     isConnected,
     token,
@@ -314,7 +314,8 @@ function LaunchAppLayout() {
 
   useEffect(() => {
     const handleResume = () => {
-      if (document.visibilityState && document.visibilityState !== "visible") return;
+      if (document.visibilityState && document.visibilityState !== "visible")
+        return;
 
       window.setTimeout(() => {
         const account = syncCurrentEvmAccount();
@@ -355,7 +356,12 @@ function LaunchAppLayout() {
       window.removeEventListener("pageshow", handleResume);
       document.removeEventListener("visibilitychange", handleResume);
     };
-  }, [attemptWalletAuthentication, authenticated, dispatch, syncCurrentEvmAccount]);
+  }, [
+    attemptWalletAuthentication,
+    authenticated,
+    dispatch,
+    syncCurrentEvmAccount,
+  ]);
 
   useEffect(() => {
     if (!authenticated) {
@@ -409,7 +415,14 @@ function LaunchAppLayout() {
         setIsPrivyVerifying(false);
       }
     })();
-  }, [authenticated, token, privyUser, createWallet, getAccessToken, isPrivyVerifying]);
+  }, [
+    authenticated,
+    token,
+    privyUser,
+    createWallet,
+    getAccessToken,
+    isPrivyVerifying,
+  ]);
   const {
     status: checkinStatus,
     claim: claimCheckin,
@@ -532,7 +545,12 @@ function LaunchAppLayout() {
 
   const handleWalletConnect = async (option) => {
     // Solana wallets (MetaMask via Wallet Standard, Phantom) – Redux is synced by WalletSync when adapter connects
-    if (option.isSolana || option.walletType === "solana" || option.walletType === "phantom" || option.isPhantom) {
+    if (
+      option.isSolana ||
+      option.walletType === "solana" ||
+      option.walletType === "phantom" ||
+      option.isPhantom
+    ) {
       const isPhantom = option.isPhantom || option.walletType === "phantom";
       const searchName = isPhantom ? "phantom" : "metamask";
       const solanaWallet = solanaWallets.find((w) =>
@@ -553,7 +571,9 @@ function LaunchAppLayout() {
         dispatch(setSessionSource("wallet"));
       } catch (err) {
         console.error("Solana wallet connection error:", err);
-        toast.error("Failed to connect " + option.name + " for Solana. Please try again.");
+        toast.error(
+          "Failed to connect " + option.name + " for Solana. Please try again.",
+        );
       }
       return;
     }
@@ -690,7 +710,12 @@ function BetaAccessLayout() {
   };
 
   const handleWalletConnect = async (option) => {
-    if (option.isSolana || option.walletType === "solana" || option.walletType === "phantom" || option.isPhantom) {
+    if (
+      option.isSolana ||
+      option.walletType === "solana" ||
+      option.walletType === "phantom" ||
+      option.isPhantom
+    ) {
       const isPhantom = option.isPhantom || option.walletType === "phantom";
       const searchName = isPhantom ? "phantom" : "metamask";
       const solanaWallet = solanaWallets.find((w) =>
@@ -712,7 +737,9 @@ function BetaAccessLayout() {
         dispatch(setSessionSource("wallet"));
       } catch (err) {
         console.error("Solana wallet connection error:", err);
-        toast.error("Failed to connect " + option.name + " for Solana. Please try again.");
+        toast.error(
+          "Failed to connect " + option.name + " for Solana. Please try again.",
+        );
       }
       return;
     }
@@ -811,7 +838,9 @@ function WalletSync() {
       dispatch(setAddress(address));
       dispatch(setIsConnected(true));
       const connectedChainId = Number(connected?.chainId);
-      dispatch(setChainId(Number.isFinite(connectedChainId) ? connectedChainId : 56));
+      dispatch(
+        setChainId(Number.isFinite(connectedChainId) ? connectedChainId : 56),
+      );
     }
   }, [
     authenticated,
@@ -1031,23 +1060,14 @@ function App() {
   const { address } = useSelector((state) => state.wallet);
   const { isAuthenticated } = useAuth();
 
-  // const [showModal, setShowModal] = useState(false);
-  // const lastShown = localStorage.getItem("chatDate");
-  // const count = parseInt(localStorage.getItem("chatCount") || "0", 10);
-  // useEffect(() => {
-  //   const today = new Date().toDateString();
-  //   // App only decides visibility; storage updates happen in CongratsModal after open.
-  //   setShowModal(lastShown !== today && count < 3);
-  // }, [lastShown, count]);
-  
-  // const [showModal, setShowModal] = useState(false);
-  // const lastShown = localStorage.getItem("chatDate");
-  // const count = parseInt(localStorage.getItem("chatCount") || "0", 10);
-  // useEffect(() => {
-  //   const today = new Date().toDateString();
-  //   // App only decides visibility; storage updates happen in CongratsModal after open.
-  //   setShowModal(lastShown !== today && count < 3);
-  // }, [lastShown, count]);
+  const [showModal, setShowModal] = useState(false);
+  const lastShown = localStorage.getItem("chatDate");
+  const count = parseInt(localStorage.getItem("chatCount") || "0", 10);
+  useEffect(() => {
+    const today = new Date().toDateString();
+    // App only decides visibility; storage updates happen in CongratsModal after open.
+    setShowModal(lastShown !== today && count < 3 && isAuthenticated);
+  }, [lastShown, count, isAuthenticated]);
 
   if (MAINTENANCE_MODE) {
     return (
@@ -1078,7 +1098,7 @@ function App() {
           <Route path="/referrals" element={<ReferralsPage />} />
         </Route>
       </Routes>
-      {/* {showModal && (
+      {showModal && (
         <CongratsModal
           isOpen={showModal}
           onClose={() => {
@@ -1086,7 +1106,7 @@ function App() {
           }}
           address={address}
         />
-      )} */}
+      )}
       {isAuthenticated && <AIChatWidget />}
     </>
   );

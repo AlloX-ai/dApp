@@ -1,6 +1,6 @@
 import { X, Trophy, Gem, Share2, Sparkles, PartyPopper } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { findSeason2RewardForWallet } from "../constants/rewards";
+import { findSeason2RewardForWallet, findSeason3RewardForWallet } from "../constants/rewards";
 import { useEffect, useMemo } from "react";
 
 interface CongratsModalProps {
@@ -26,8 +26,13 @@ export function CongratsModal({
     [address],
   );
 
+  const user3 = useMemo(
+    () => findSeason3RewardForWallet(address),
+    [address],
+  );
+
   useEffect(() => {
-    if (!isOpen || !user) return;
+    if (!isOpen || (!user && !user3)) return;
 
     const today = new Date().toDateString();
     const lastShown = localStorage.getItem("chatDate");
@@ -40,11 +45,11 @@ export function CongratsModal({
       localStorage.setItem("chatCount", String(count + 1));
       localStorage.setItem("chatDate", today);
     }
-  }, [isOpen, user]);
+  }, [isOpen, user, user3]);
 
 
 
-  if (!user) {
+  if (!user && !user3) {
     return null; // Don't render the modal if the user is not in the rewards list
   }
 
@@ -120,7 +125,7 @@ export function CongratsModal({
                 transition={{ delay: 0.4 }}
                 className="text-lg text-gray-700 mb-6"
               >
-                You are a winner of Spring Series S2
+                You are a winner of Spring Series S3
               </motion.p>
 
               {/* Rewards Display */}
@@ -136,9 +141,11 @@ export function CongratsModal({
                 <div className="flex items-center justify-center gap-2">
                   <Gem className="w-6 h-6 text-purple-600" />
                   <span className="text-3xl font-bold text-gray-900">
-                    {user.gems}
+                    {(user3 ? Number(user3.gems) : 0)}
                   </span>
-                  <span className="text-xl text-gray-600">(${user.gems * 5})</span>
+                  <span className="text-xl text-gray-600">
+                    (${ user3 ? Number(user3.gems) * 5 : 0})
+                  </span>
                 </div>
               </motion.div>
 
