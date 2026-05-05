@@ -31,13 +31,14 @@ import {
 import OutsideClickHandler from "react-outside-click-handler/build/OutsideClickHandler";
 import { setWalletModal } from "../redux/slices/walletSlice";
 import getFormattedNumber from "../hooks/get-formatted-number";
-import { apiCall } from "../utils/api";
+import { api2Call, apiCall } from "../utils/api";
 import { useAuth } from "../hooks/useAuth";
 import { PortfolioAlertSettings } from "../components/PortfolioAlertSettings";
 import {
   checkTxStatus,
   createPrivyExecutionTxEnv,
   createWagmiExecutionTxEnv,
+  ensurePermit2BaseApproval,
   ensurePermit2Approvals,
   ensureStandardApproval,
 } from "../utils/execution";
@@ -52,6 +53,7 @@ const PERMIT2_ADDRESS = "0x31c2F6fcFf4F8759b3Bd5Bf0e1084A055615c768";
 const APPROVAL_INDEX_LAG_MS = 3000;
 const PREPARE_RETRY_DELAY_MS = 2500;
 const MAX_POST_APPROVAL_PREPARE_RETRIES = 4;
+const PERMIT2_BATCH_PROVIDERS = new Set(["PANCAKESWAP", "UNISWAP"]);
 
 // Maps raw errors (wagmi connector hiccups, user-rejected sign prompts, etc.)
 // to friendly copy so the UI never surfaces internal strings like
@@ -118,6 +120,10 @@ const sellPollDelayMs = (attempt, error) => {
   const jitter = 0.85 + Math.random() * 0.3;
   return Math.round(boosted * jitter);
 };
+const normalizeOrderProvider = (provider) =>
+  String(provider || "").trim().toUpperCase();
+const isPermit2BatchProvider = (provider) =>
+  PERMIT2_BATCH_PROVIDERS.has(normalizeOrderProvider(provider));
 
 const archivePortfolio = async (portfolioId) => {
   await apiCall(`/portfolio/${portfolioId}`, {
@@ -717,8 +723,131 @@ export function PortfolioPage() {
     return txHash;
   }, []);
 
+  const signSellPermitTypedData = useCallback(
+    async ({ typedData, userAddress, isPrivySession, embeddedWallet }) => {
+      if (!typedData) {
+        throw new Error("Permit batch response is missing typedData.");
+      }
+
+      const payload = JSON.stringify(typedData);
+      if (isPrivySession) {
+        if (!embeddedWallet?.getEthereumProvider) {
+          throw new Error("Embedded wallet provider is not available.");
+        }
+        const privyProvider = await embeddedWallet.getEthereumProvider();
+        return privyProvider.request({
+          method: "eth_signTypedData_v4",
+          params: [userAddress, payload],
+        });
+      }
+
+      const injectedProvider =
+        typeof window !== "undefined" ? window.ethereum : null;
+      if (!injectedProvider?.request) {
+        throw new Error("Wallet does not support typed-data signing.");
+      }
+      return injectedProvider.request({
+        method: "eth_signTypedData_v4",
+        params: [userAddress, payload],
+      });
+    },
+    [],
+  );
+
+  const buildSellPermitBatchSignatures = useCallback(
+    async ({
+      orders,
+      chain,
+      userAddress,
+      isPrivySession,
+      embeddedWallet,
+      txEnv,
+    }) => {
+      const grouped = {};
+      const tokenTotals = new Map();
+      for (const order of orders || []) {
+        const provider = normalizeOrderProvider(
+          order?.swapProvider ?? order?.provider,
+        );
+        if (!isPermit2BatchProvider(provider)) continue;
+        const token = String(order?.fromTokenAddress || "").trim();
+        const amountWei = String(order?.fromAmount || "").trim();
+        if (!token || !amountWei) continue;
+        if (!grouped[provider]) grouped[provider] = [];
+        grouped[provider].push({ token, amountWei });
+        try {
+          const existing = tokenTotals.get(token) || 0n;
+          tokenTotals.set(token, existing + BigInt(amountWei));
+        } catch {
+          // Ignore malformed amounts; backend will still validate on prepare.
+        }
+      }
+
+      const providers = Object.keys(grouped);
+      if (!providers.length) return {};
+
+      if (tokenTotals.size > 0) {
+        addSellLog("Checking one-time token approvals to Permit2...");
+        for (const [tokenAddress, requiredAmount] of tokenTotals.entries()) {
+          const approvedNow = await ensurePermit2BaseApproval({
+            chain,
+            fromTokenAddress: tokenAddress,
+            userAddress,
+            requiredAmount,
+            txEnv,
+            update: () => {},
+            permit2Address: PERMIT2_ADDRESS,
+          });
+          if (approvedNow) {
+            addSellLog(
+              `Approved ${tokenAddress.slice(0, 8)}... for Permit2 (one-time).`,
+            );
+          }
+        }
+      }
+
+      addSellLog(
+        `Preparing Permit2 signature${providers.length > 1 ? "s" : ""} (${providers.join(", ")})...`,
+      );
+
+      const signaturesByProvider = {};
+      for (const provider of providers) {
+        const res = await api2Call("/execution/permit-batch", {
+          method: "POST",
+          body: JSON.stringify({
+            chain,
+            provider,
+            items: grouped[provider],
+          }),
+        });
+        const signature = await signSellPermitTypedData({
+          typedData: res?.typedData,
+          userAddress,
+          isPrivySession,
+          embeddedWallet,
+        });
+        signaturesByProvider[provider] = {
+          permitBatch: res?.permitBatch,
+          permitBatchSignature: signature,
+        };
+        addSellLog(
+          `${provider}: Permit2 batch signed for ${grouped[provider].length} order(s).`,
+        );
+      }
+
+      return signaturesByProvider;
+    },
+    [addSellLog, signSellPermitTypedData],
+  );
+
   const executeSingleOrder = useCallback(
-    async (order, txEnv, slippageValue, executionChain) => {
+    async (
+      order,
+      txEnv,
+      slippageValue,
+      executionChain,
+      permitBatchSignaturesByProvider,
+    ) => {
       const symbol = order?.symbol || "TOKEN";
 
       const describeWalletError = (err) => {
@@ -743,11 +872,21 @@ export function PortfolioPage() {
         return err?.message || "wallet error";
       };
 
-      const callPrepare = () =>
-        apiCall(`/execution/${order.executionOrderId}/prepare`, {
+      const callPrepare = () => {
+        const provider = normalizeOrderProvider(order?.provider ?? order.swapProvider);
+        const body = { slippage: slippageValue };
+        if (isPermit2BatchProvider(provider)) {
+          const signedBatch = permitBatchSignaturesByProvider?.[provider];
+          if (signedBatch?.permitBatch && signedBatch?.permitBatchSignature) {
+            body.permitBatch = signedBatch.permitBatch;
+            body.permitBatchSignature = signedBatch.permitBatchSignature;
+          }
+        }
+        return apiCall(`/execution/${order.executionOrderId}/prepare`, {
           method: "POST",
-          body: JSON.stringify({ slippage: slippageValue }),
+          body: JSON.stringify(body),
         });
+      };
 
       // After approvals, the backend may still see the allowance as missing
       // for a second or two while it indexes the approval tx. Retry /prepare
@@ -980,6 +1119,7 @@ export function PortfolioPage() {
       const executionChain = normalizeChain(sellQuote?.chain || sellTarget?.chain);
       const executionChainId = chainIdFor(executionChain);
       let txEnv;
+      let embeddedWallet = null;
       // Detect Privy across all signals so a Privy session that lost
       // `authProvider` after /auth/me refresh still uses the embedded wallet
       // path instead of falling through to wagmi (which would throw
@@ -989,13 +1129,13 @@ export function PortfolioPage() {
         sessionSource === "privy" ||
         walletType === "privy";
       if (isPrivySession) {
-        const embedded = getEmbeddedConnectedWallet(wallets);
-        if (!embedded) {
+        embeddedWallet = getEmbeddedConnectedWallet(wallets);
+        if (!embeddedWallet) {
           throw new Error(
             "Embedded wallet not found. Refresh the page or sign in again.",
           );
         }
-        const chainId = embedded.chainId;
+        const chainId = embeddedWallet.chainId;
         const onExecutionChain =
           chainId === `eip155:${executionChainId}` ||
           (typeof chainId === "string" &&
@@ -1003,10 +1143,10 @@ export function PortfolioPage() {
             parseInt(chainId, 16) === executionChainId) ||
           Number(chainId) === executionChainId;
         if (!onExecutionChain) {
-          await embedded.switchChain(executionChainId);
+          await embeddedWallet.switchChain(executionChainId);
         }
         txEnv = createPrivyExecutionTxEnv(
-          embedded.address,
+          embeddedWallet.address,
           privySendTransaction,
           executionChain,
         );
@@ -1014,6 +1154,16 @@ export function PortfolioPage() {
         txEnv = createWagmiExecutionTxEnv(executionChain);
       }
       txEnv.assertReady();
+
+      const permitBatchSignaturesByProvider =
+        await buildSellPermitBatchSignatures({
+          orders: sellQuote.orders,
+          chain: executionChain,
+          userAddress: txEnv.userAddress,
+          isPrivySession,
+          embeddedWallet,
+          txEnv,
+        });
 
       let confirmed = 0;
       for (const initialOrder of sellQuote.orders) {
@@ -1036,6 +1186,7 @@ export function PortfolioPage() {
               txEnv,
               slippageValue,
               executionChain,
+              permitBatchSignaturesByProvider,
             );
           } catch (orderErr) {
             if (orderErr?.status === 401) throw orderErr;
@@ -1158,6 +1309,7 @@ export function PortfolioPage() {
     closeSellModal,
     ensureAuthenticated,
     executeSingleOrder,
+    buildSellPermitBatchSignatures,
     handlePortfolioSelect,
     loadPortfolios,
     logout,

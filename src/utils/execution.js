@@ -9,7 +9,7 @@ import { encodeFunctionData } from "viem";
 import { apiCall } from "./api";
 import { toast } from "./toast";
 import { wagmiClient } from "../wagmiConnectors";
-import { chainIdFor, normalizeChain } from "../config/chains";
+import { CHAINS, chainIdFor, normalizeChain } from "../config/chains";
 const EXECUTION_API_BASE = "/execution";
 
 const PERMIT2_ADDRESS = "0x31c2F6fcFf4F8759b3Bd5Bf0e1084A055615c768";
@@ -142,7 +142,9 @@ const isIosBrowser = () => {
   const platform = String(navigator.platform || "").toLowerCase();
   return (
     /iphone|ipad|ipod/.test(ua) ||
-    (/mac/.test(platform) && typeof navigator.maxTouchPoints === "number" && navigator.maxTouchPoints > 1)
+    (/mac/.test(platform) &&
+      typeof navigator.maxTouchPoints === "number" &&
+      navigator.maxTouchPoints > 1)
   );
 };
 
@@ -203,7 +205,10 @@ const pollForSentTx = async ({
   stopAfterMs = MOBILE_WALLET_SEND_TIMEOUT_MS,
 }) => {
   const client = getPublicClient(wagmiClient, { chainId });
-  if (!client) throw new Error("Network unavailable while detecting submitted transaction.");
+  if (!client)
+    throw new Error(
+      "Network unavailable while detecting submitted transaction.",
+    );
 
   const from = String(fromAddress || "").toLowerCase();
   const toAddr = String(to || "").toLowerCase();
@@ -226,23 +231,37 @@ const pollForSentTx = async ({
         // to find one going to our target contract. Limit to 50 blocks (~2.5 min
         // on BSC) to keep the scan bounded even after a long wallet round-trip.
         const latestBlock = await client.getBlockNumber();
-        const scanStart = fromBlock > 0n
-          ? fromBlock
-          : latestBlock > 50n ? latestBlock - 50n : 0n;
+        const scanStart =
+          fromBlock > 0n
+            ? fromBlock
+            : latestBlock > 50n
+              ? latestBlock - 50n
+              : 0n;
 
-        for (let bn = latestBlock; bn >= scanStart && !signal.cancelled; bn -= 1n) {
+        for (
+          let bn = latestBlock;
+          bn >= scanStart && !signal.cancelled;
+          bn -= 1n
+        ) {
           try {
-            const block = await client.getBlock({ blockNumber: bn, includeTransactions: true });
+            const block = await client.getBlock({
+              blockNumber: bn,
+              includeTransactions: true,
+            });
             for (const tx of block?.transactions ?? []) {
               if (
                 String(tx?.from ?? "").toLowerCase() === from &&
                 String(tx?.to ?? "").toLowerCase() === toAddr
               ) {
                 try {
-                  const receipt = await client.getTransactionReceipt({ hash: tx.hash });
+                  const receipt = await client.getTransactionReceipt({
+                    hash: tx.hash,
+                  });
                   if (receipt?.status === "success") return tx.hash;
                   if (receipt?.status === "reverted")
-                    throw new Error("Transaction failed on-chain. Please try again.");
+                    throw new Error(
+                      "Transaction failed on-chain. Please try again.",
+                    );
                 } catch (e) {
                   if (String(e?.message).includes("failed on-chain")) throw e;
                   // receipt not indexed yet — skip
@@ -276,7 +295,9 @@ const pollForSentTx = async ({
     await sleep(nextDelay);
   }
 
-  throw new Error("Transaction sign request timed out. Open your wallet app and try again.");
+  throw new Error(
+    "Transaction sign request timed out. Open your wallet app and try again.",
+  );
 };
 
 // Scan recent blocks (by tx list, not logs) to detect both confirmed and
@@ -293,7 +314,10 @@ const scanRecentBlocksForTx = async ({ client, from, to, fromBlock }) => {
     for (let bn = latest; bn >= scanFrom; bn -= 1n) {
       let block;
       try {
-        block = await client.getBlock({ blockNumber: bn, includeTransactions: true });
+        block = await client.getBlock({
+          blockNumber: bn,
+          includeTransactions: true,
+        });
       } catch {
         continue;
       }
@@ -304,9 +328,13 @@ const scanRecentBlocksForTx = async ({ client, from, to, fromBlock }) => {
           String(tx?.to || "").toLowerCase() === to_
         ) {
           try {
-            const receipt = await client.getTransactionReceipt({ hash: tx.hash });
-            if (receipt?.status === "success") return { hash: tx.hash, reverted: false };
-            if (receipt?.status === "reverted") return { hash: tx.hash, reverted: true };
+            const receipt = await client.getTransactionReceipt({
+              hash: tx.hash,
+            });
+            if (receipt?.status === "success")
+              return { hash: tx.hash, reverted: false };
+            if (receipt?.status === "reverted")
+              return { hash: tx.hash, reverted: true };
           } catch {
             // receipt not yet indexed — treat as not found
           }
@@ -335,7 +363,10 @@ const sendWithChainFallback = async ({
     if (client) {
       [fromBlock, nonceBefore] = await Promise.all([
         client.getBlockNumber(),
-        client.getTransactionCount({ address: fromAddress, blockTag: "latest" }),
+        client.getTransactionCount({
+          address: fromAddress,
+          blockTag: "latest",
+        }),
       ]);
     }
   } catch {
@@ -353,6 +384,24 @@ const sendWithChainFallback = async ({
 
   const sendPromise = sendTx();
 
+  const isRecoverableWalletSendError = (error) => {
+    if (!error || isUserRejectedTx(error)) return false;
+    const msg = String(error?.message || error).toLowerCase();
+    const details = String(error?.details || "").toLowerCase();
+    const causeMsg = String(error?.cause?.message || "").toLowerCase();
+    return (
+      msg.includes("sdk_action_failed") ||
+      details.includes("sdk_action_failed") ||
+      causeMsg.includes("sdk_action_failed") ||
+      msg.includes("wallet request failed") ||
+      msg.includes("failed to send") ||
+      msg.includes("send transaction failed") ||
+      msg.includes("connector") ||
+      msg.includes("timeout") ||
+      msg.includes("disconnected")
+    );
+  };
+
   // Surface fast user rejections immediately before launching the poller.
   let earlyRejectError = null;
   let earlyResolved = false;
@@ -368,6 +417,12 @@ const sendWithChainFallback = async ({
       },
       (err) => {
         clearTimeout(t);
+        if (isRecoverableWalletSendError(err)) {
+          // Keep fallback detection running. Some mobile/SDK connectors
+          // reject callbacks even when the tx was broadcast successfully.
+          resolve();
+          return;
+        }
         earlyRejectError = err;
         reject(err);
       },
@@ -398,6 +453,14 @@ const sendWithChainFallback = async ({
     });
   })();
 
+  const sendRacePromise = sendPromise.catch((err) => {
+    if (isRecoverableWalletSendError(err)) {
+      // Ignore callback-level errors and rely on chain detection/timeout.
+      return new Promise(() => {});
+    }
+    throw err;
+  });
+
   const timeoutPromise = new Promise((_, reject) =>
     setTimeout(
       () =>
@@ -425,7 +488,12 @@ const sendWithChainFallback = async ({
       // Grace period: let the browser/wallet deep-link settle before hitting chain.
       await sleep(3500);
       if (signal.cancelled) return;
-      const found = await scanRecentBlocksForTx({ client, from: fromAddress, to, fromBlock });
+      const found = await scanRecentBlocksForTx({
+        client,
+        from: fromAddress,
+        to,
+        fromBlock,
+      });
       if (!found) return;
       if (found.reverted) {
         reject(new Error("Transaction failed on-chain. Please try again."));
@@ -452,14 +520,20 @@ const sendWithChainFallback = async ({
         await tryRecover();
       };
       removeFocusListener = () => window.removeEventListener("focus", onFocus);
-      removePageShowListener = () => window.removeEventListener("pageshow", onPageShow);
+      removePageShowListener = () =>
+        window.removeEventListener("pageshow", onPageShow);
       window.addEventListener("focus", onFocus);
       window.addEventListener("pageshow", onPageShow);
     }
   });
 
   try {
-    return await Promise.race([sendPromise, pollPromise, timeoutPromise, visibilityPromise]);
+    return await Promise.race([
+      sendRacePromise,
+      pollPromise,
+      timeoutPromise,
+      visibilityPromise,
+    ]);
   } finally {
     signal.cancelled = true;
     removeVisibilityListener();
@@ -514,7 +588,10 @@ const waitForReceiptWithFallback = async ({
       } catch (err) {
         const msg = String(err?.message || err).toLowerCase();
         // Keep polling while receipt is not indexed yet.
-        if (!msg.includes("not found") && !msg.includes("unknown transaction")) {
+        if (
+          !msg.includes("not found") &&
+          !msg.includes("unknown transaction")
+        ) {
           throw err;
         }
         lastPollErr = err;
@@ -569,8 +646,9 @@ export function createWagmiExecutionTxEnv(chain = "BSC") {
         );
       }
       if (Number(accountState?.chainId) !== executionChainId) {
+        const targetLabel = CHAINS[normalizedChain]?.label || normalizedChain;
         throw new Error(
-          `Please switch your wallet to ${normalizedChain === "BASE" ? "Base" : "BNB Chain"} before executing on-chain.`,
+          `Please switch your wallet to ${targetLabel} before executing on-chain.`,
         );
       }
     },
@@ -764,34 +842,15 @@ export async function ensurePermit2Approvals({
   const now = BigInt(Math.floor(Date.now() / 1000));
 
   // Approval 1: ERC20 approve token -> Permit2
-  const erc20Allowance = await wagmiReadContract(wagmiClient, {
-    address: fromTokenAddress,
-    abi: ERC20_ABI,
-    functionName: "allowance",
-    args: [userAddress, permit2Address],
-    chainId,
+  await ensurePermit2BaseApproval({
+    chain,
+    fromTokenAddress,
+    userAddress,
+    requiredAmount,
+    txEnv,
+    update,
+    permit2Address,
   });
-
-  if (parseBigInt(erc20Allowance) < requiredAmount) {
-    const approveData = encodeFunctionData({
-      abi: ERC20_ABI,
-      functionName: "approve",
-      args: [permit2Address, MAX_UINT256],
-    });
-
-    const txHash = await txEnv.sendTransaction({
-      to: fromTokenAddress,
-      data: approveData,
-      value: 0n,
-    });
-
-    await txEnv.waitForTransactionReceipt({ hash: txHash });
-    update("APPROVAL_PROGRESS", {
-      target: permit2Address,
-      txHash,
-      type: "ERC20_TO_PERMIT2",
-    });
-  }
 
   // Approval 2: Permit2 approve token -> Universal Router
   const permit2AllowanceRaw = await wagmiReadContract(wagmiClient, {
@@ -833,6 +892,53 @@ export async function ensurePermit2Approvals({
       type: "PERMIT2_TO_ROUTER",
     });
   }
+}
+
+export async function ensurePermit2BaseApproval({
+  chain = "BSC",
+  fromTokenAddress,
+  userAddress,
+  requiredAmount,
+  txEnv,
+  update = () => {},
+  permit2Address = PERMIT2_ADDRESS,
+}) {
+  if (!fromTokenAddress || !userAddress) {
+    throw new Error(
+      "Permit2 base approval requires fromTokenAddress and userAddress.",
+    );
+  }
+
+  const chainId = chainIdFor(normalizeExecutionChain(chain));
+  const erc20Allowance = await wagmiReadContract(wagmiClient, {
+    address: fromTokenAddress,
+    abi: ERC20_ABI,
+    functionName: "allowance",
+    args: [userAddress, permit2Address],
+    chainId,
+  });
+
+  if (parseBigInt(erc20Allowance) >= requiredAmount) return false;
+
+  const approveData = encodeFunctionData({
+    abi: ERC20_ABI,
+    functionName: "approve",
+    args: [permit2Address, MAX_UINT256],
+  });
+
+  const txHash = await txEnv.sendTransaction({
+    to: fromTokenAddress,
+    data: approveData,
+    value: 0n,
+  });
+
+  await txEnv.waitForTransactionReceipt({ hash: txHash });
+  update("APPROVAL_PROGRESS", {
+    target: permit2Address,
+    txHash,
+    type: "ERC20_TO_PERMIT2",
+  });
+  return true;
 }
 
 export async function ensureStandardApproval({
@@ -1110,10 +1216,7 @@ export async function executePortfolioOnChain(
               String(routerAddress || "").toLowerCase(),
             ].join(":");
 
-            if (
-              fromTokenAddress &&
-              !ensuredApprovalKeys.has(approvalKey)
-            ) {
+            if (fromTokenAddress && !ensuredApprovalKeys.has(approvalKey)) {
               update("APPROVAL_START", {
                 fromTokenAddress,
                 sourceToken,
@@ -1349,12 +1452,15 @@ export async function executePortfolioOnChain(
         try {
           // 3) Submit tx hash immediately, then poll backend status.
           // This avoids extra client-side waiting before the next token.
-          await apiCall(`${EXECUTION_API_BASE}/${pos.executionOrderId}/submit`, {
-            method: "POST",
-            body: JSON.stringify({
-              txHash,
-            }),
-          });
+          await apiCall(
+            `${EXECUTION_API_BASE}/${pos.executionOrderId}/submit`,
+            {
+              method: "POST",
+              body: JSON.stringify({
+                txHash,
+              }),
+            },
+          );
 
           // Poll for CONFIRMED/FAILED
           let status = "TX_SUBMITTED";
