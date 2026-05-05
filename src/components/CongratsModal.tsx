@@ -21,18 +21,13 @@ export function CongratsModal({
   };
 
 
-  const user = useMemo(
-    () => findSeason2RewardForWallet(address),
-    [address],
-  );
-
   const user3 = useMemo(
     () => findSeason3RewardForWallet(address),
     [address],
   );
 
   useEffect(() => {
-    if (!isOpen || (!user && !user3)) return;
+    if (!isOpen || (!user3)) return;
 
     const today = new Date().toDateString();
     const lastShown = localStorage.getItem("chatDate");
@@ -45,11 +40,11 @@ export function CongratsModal({
       localStorage.setItem("chatCount", String(count + 1));
       localStorage.setItem("chatDate", today);
     }
-  }, [isOpen, user, user3]);
+  }, [isOpen, user3]);
 
 
 
-  if (!user && !user3) {
+  if (!user3) {
     return null; // Don't render the modal if the user is not in the rewards list
   }
 
