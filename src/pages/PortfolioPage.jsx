@@ -104,6 +104,15 @@ const POLL_INTERVAL_MS = 3500;
 const MAX_POLL_ATTEMPTS = 60;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const parseOptionalGasLimit = (value) => {
+  if (value == null || value === "") return undefined;
+  try {
+    const gas = BigInt(value);
+    return gas > 0n ? gas : undefined;
+  } catch {
+    return undefined;
+  }
+};
 const isRateLimitedError = (error) => {
   if (!error) return false;
   if (error?.status === 429 || error?.code === 429) return true;
@@ -756,7 +765,15 @@ export function PortfolioPage() {
       throw new Error(`Unsupported approval method: ${method}`);
     }
 
-    const txHash = await txEnv.sendTransaction({ to, data, value: 0n });
+    const gas = parseOptionalGasLimit(
+      approvalStep?.tx?.gas ?? approvalStep?.tx?.gasLimit,
+    );
+    const txHash = await txEnv.sendTransaction({
+      to,
+      data,
+      value: 0n,
+      ...(gas !== undefined && { gas }),
+    });
     await txEnv.waitForTransactionReceipt({ hash: txHash });
     return txHash;
   }, []);
@@ -1118,6 +1135,7 @@ export function PortfolioPage() {
       addSellLog(`${symbol}: waiting for wallet confirmation...`);
       let txHash;
       try {
+        const gas = parseOptionalGasLimit(txData?.gas ?? txData?.gasLimit);
         txHash = await txEnv.sendTransaction({
           to: txData.to,
           data: txData.data,
@@ -1128,6 +1146,7 @@ export function PortfolioPage() {
           ...(txData.nonce != null && txData.nonce !== ""
             ? { nonce: Number(txData.nonce) }
             : {}),
+          ...(gas !== undefined && { gas }),
         });
       } catch (walletErr) {
         addSellLog(`${symbol}: ${describeWalletError(walletErr)}.`);

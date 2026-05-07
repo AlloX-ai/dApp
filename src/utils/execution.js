@@ -661,7 +661,7 @@ export function createWagmiExecutionTxEnv(chain = "BSC") {
         );
       }
     },
-    sendTransaction: async ({ to, data, value, nonce }) => {
+    sendTransaction: async ({ to, data, value, nonce, gas }) => {
       // Mobile WalletConnect can drop callback responses while Chrome is in
       // the background (Binance/MetaMask deep-link). Race wallet callback with
       // chain log detection so execution can continue even if callback is lost.
@@ -677,6 +677,7 @@ export function createWagmiExecutionTxEnv(chain = "BSC") {
             data,
             value: value ?? 0n,
             ...(nonce !== undefined && { nonce: Number(nonce) }),
+            ...(gas !== undefined && { gas }),
           }),
       });
     },
@@ -706,7 +707,7 @@ export function createPrivyExecutionTxEnv(
         );
       }
     },
-    sendTransaction: async ({ to, data, value, nonce }) => {
+    sendTransaction: async ({ to, data, value, nonce, gas }) => {
       const input = {
         to,
         data,
@@ -714,6 +715,10 @@ export function createPrivyExecutionTxEnv(
         chainId: executionChainId,
       };
       if (nonce !== undefined) input.nonce = nonce;
+      if (gas !== undefined) {
+        input.gas = gas;
+        input.gasLimit = gas;
+      }
       const txResult = await privySendTransaction(input);
       const hash = normalizeTxHash(txResult);
       if (!hash) {
@@ -769,6 +774,16 @@ const parseBigInt = (value, fallback = 0n) => {
   }
 };
 
+const parseOptionalGasLimit = (value) => {
+  if (value == null || value === "") return undefined;
+  try {
+    const gas = BigInt(value);
+    return gas > 0n ? gas : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
 const parsePositiveNumber = (value, fallback) => {
   const n = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(n) || n <= 0) return fallback;
@@ -815,10 +830,14 @@ async function executeApprovalSteps({ approvalSteps, update, txEnv }) {
     if (!to) throw new Error("Missing approval transaction target");
 
     const data = buildApprovalStepCalldata(approvalStep);
+    const gas = parseOptionalGasLimit(
+      approvalStep?.tx?.gas ?? approvalStep?.tx?.gasLimit,
+    );
     const txHash = await txEnv.sendTransaction({
       to,
       data,
       value: 0n,
+      ...(gas !== undefined && { gas }),
     });
     await txEnv.waitForTransactionReceipt({ hash: txHash });
     update("APPROVAL_PROGRESS", {
@@ -1312,12 +1331,14 @@ export async function executePortfolioOnChain(
             txData && txData.value != null && txData.value !== ""
               ? BigInt(txData.value)
               : 0n;
+          const gas = parseOptionalGasLimit(txData?.gas ?? txData?.gasLimit);
 
           txHash = await txEnv.sendTransaction({
             to: txData.to,
             data: txData.data,
             value,
             ...(nonce !== undefined && { nonce: Number(nonce) }),
+            ...(gas !== undefined && { gas }),
           });
         } catch (err) {
           console.error(err);
