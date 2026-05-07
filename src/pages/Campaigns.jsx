@@ -15,6 +15,7 @@ import tcBanner from "../assets/tcBanner.png";
 import springSeries from "../assets/springSeries.png";
 import pypBanner from "../assets/pypBanner.png";
 import { ProveYourPortfolioCampaign } from "./ProveYourPortfolio";
+import { ProvePortfolio } from "./ProvePortfolio";
 
 export function CampaignsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -110,7 +111,7 @@ export function CampaignsPage() {
 
             <button
               onClick={() => {
-                // setSearchParams({ campaign: "prove-your-portfolio" });
+                setSearchParams({ campaign: "prove-your-portfolio" });
               }}
               className="glass-card overflow-hidden text-left hover:shadow-2xl transition-all duration-300 group relative"
             >
@@ -135,13 +136,13 @@ export function CampaignsPage() {
               {/* Content */}
               <div className="p-8">
                 {/* Title */}
-                 <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">
                   Prove Your Portfolio
                 </h3>
                 <p className="text-gray-600 mb-6">
                   Showcase your portfolio and earn rewards based on its
                   performance
-                </p> 
+                </p>
 
                 {/* Stats */}
                 <div className="flex flex-col sm:flex-row gap-2 sm:items-center justify-between mb-6">
@@ -163,14 +164,14 @@ export function CampaignsPage() {
                   </div>
                 </div>
 
-                 <div className="flex items-center justify-end gap-2 ">
+                <div className="flex items-center justify-end gap-2 ">
                   <span className="text-sm font-semibold text-amber-600 group-hover:text-amber-700">
                     Coming Soon
                   </span>
                   {/* <ChevronRight className="w-5 h-5 text-amber-600 group-hover:translate-x-1 transition-transform" /> */}
                 </div>
               </div>
-            </button> 
+            </button>
 
             {/* Season 1 Campaign Card */}
             <button
@@ -191,7 +192,7 @@ export function CampaignsPage() {
 
                 {/* Badge on Banner */}
                 <div className="absolute top-4 right-4 bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-xs font-bold shadow-lg">
-                  ENDED 
+                  ENDED
                 </div>
 
                 {/* Icon on Banner */}
@@ -256,7 +257,7 @@ export function CampaignsPage() {
           {activeTab === "trading" ? (
             <TradingCompetitionPage />
           ) : activeTab === "prove-portfolio" ? (
-            <ProveYourPortfolioCampaign />
+            <ProvePortfolio />
           ) : (
             <Season1 />
           )}
