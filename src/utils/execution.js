@@ -580,18 +580,27 @@ const waitForReceiptWithFallback = async ({
     const client = getPublicClient(wagmiClient, { chainId });
     if (!client) throw waitErr;
 
+    const isTransientReceiptLookupError = (error) => {
+      const msg = String(error?.message || error).toLowerCase();
+      return (
+        msg.includes("not found") ||
+        msg.includes("unknown transaction") ||
+        msg.includes("could not be found") ||
+        msg.includes("not be processed on a block yet") ||
+        msg.includes("not processed on a block yet") ||
+        msg.includes("not been mined") ||
+        msg.includes("receipt with hash")
+      );
+    };
+
     for (let i = 0; i < RECEIPT_POLL_MAX_ATTEMPTS; i += 1) {
       let lastPollErr = null;
       try {
         const receipt = await client.getTransactionReceipt({ hash });
         if (receipt) return receipt;
       } catch (err) {
-        const msg = String(err?.message || err).toLowerCase();
         // Keep polling while receipt is not indexed yet.
-        if (
-          !msg.includes("not found") &&
-          !msg.includes("unknown transaction")
-        ) {
+        if (!isTransientReceiptLookupError(err)) {
           throw err;
         }
         lastPollErr = err;
@@ -994,8 +1003,8 @@ export async function executePortfolioOnChain(
   { onUpdate, onPrompt, txEnv: txEnvOption } = {},
 ) {
   const incomingChain = String(execution?.chain || "").toUpperCase();
-  if (incomingChain !== "BSC" && incomingChain !== "BASE") {
-    throw new Error("On-chain execution supports BSC and BASE only.");
+  if (incomingChain !== "BSC" && incomingChain !== "BASE"&& incomingChain !== "ETH") {
+    throw new Error("On-chain execution supports BSC, BASE, and ETH only.");
   }
   const normalizedChain = normalizeExecutionChain(incomingChain);
   const { sourceToken, positions, portfolioData } = execution;

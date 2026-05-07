@@ -68,6 +68,19 @@ const waitWithTimeout = (promise, timeoutMs, timeoutMessage) =>
     ),
   ]);
 
+const isTransientReceiptLookupError = (error) => {
+  const msg = String(error?.message || error).toLowerCase();
+  return (
+    msg.includes("not found") ||
+    msg.includes("unknown transaction") ||
+    msg.includes("could not be found") ||
+    msg.includes("not be processed on a block yet") ||
+    msg.includes("not processed on a block yet") ||
+    msg.includes("not been mined") ||
+    msg.includes("receipt with hash")
+  );
+};
+
 const pollContractLogsForCheckinTx = async ({
   contractAddress,
   fromAddress,
@@ -156,8 +169,7 @@ const waitForReceiptWithFallback = async ({
         const receipt = await client.getTransactionReceipt({ hash });
         if (receipt) return receipt;
       } catch (pollErr) {
-        const msg = String(pollErr?.message || pollErr).toLowerCase();
-        if (!msg.includes("not found") && !msg.includes("unknown transaction")) {
+        if (!isTransientReceiptLookupError(pollErr)) {
           throw pollErr;
         }
       }

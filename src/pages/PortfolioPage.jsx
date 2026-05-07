@@ -31,7 +31,7 @@ import {
 import OutsideClickHandler from "react-outside-click-handler/build/OutsideClickHandler";
 import { setWalletModal } from "../redux/slices/walletSlice";
 import getFormattedNumber from "../hooks/get-formatted-number";
-import { api2Call, apiCall } from "../utils/api";
+import { apiCall } from "../utils/api";
 import { useAuth } from "../hooks/useAuth";
 import { PortfolioAlertSettings } from "../components/PortfolioAlertSettings";
 import {
@@ -121,9 +121,39 @@ const sellPollDelayMs = (attempt, error) => {
   return Math.round(boosted * jitter);
 };
 const normalizeOrderProvider = (provider) =>
-  String(provider || "").trim().toUpperCase();
+  String(provider || "")
+    .trim()
+    .toUpperCase();
+const canonicalizeOrderProvider = (provider) => {
+  const normalized = normalizeOrderProvider(provider);
+  if (!normalized) return "";
+  if (normalized.includes("PANCAKE")) return "PANCAKESWAP";
+  if (normalized.includes("UNISWAP")) return "UNISWAP";
+  if (normalized.includes("BRIDGERS")) return "BRIDGERS";
+  return normalized;
+};
 const isPermit2BatchProvider = (provider) =>
-  PERMIT2_BATCH_PROVIDERS.has(normalizeOrderProvider(provider));
+  PERMIT2_BATCH_PROVIDERS.has(canonicalizeOrderProvider(provider));
+const pickOrderProvider = (order) =>
+  canonicalizeOrderProvider(
+    order?.swapProvider ?? order?.provider ?? order?.routeProvider,
+  );
+const pickOrderTokenAddress = (order) =>
+  String(
+    order?.fromTokenAddress ??
+      order?.tokenAddress ??
+      order?.fromToken?.address ??
+      order?.token?.address ??
+      "",
+  ).trim();
+const pickOrderAmountWei = (order) =>
+  String(
+    order?.fromAmount ??
+      order?.fromAmountWei ??
+      order?.amountWei ??
+      order?.amountInWei ??
+      "",
+  ).trim();
 
 const archivePortfolio = async (portfolioId) => {
   await apiCall(`/portfolio/${portfolioId}`, {
@@ -263,6 +293,12 @@ export function PortfolioPage() {
   const [isSellExecuting, setIsSellExecuting] = useState(false);
   const [sellExecutionError, setSellExecutionError] = useState("");
   const [sellExecutionLogs, setSellExecutionLogs] = useState([]);
+  const [sellProgress, setSellProgress] = useState({
+    stage: "idle",
+    current: 0,
+    total: 0,
+    label: "",
+  });
   // Per-order execution status: executionOrderId -> 'executing'|'confirmed'|'failed'
   const [orderStatusMap, setOrderStatusMap] = useState({});
   // Retry prompt state: pauses execution until user decides
@@ -630,6 +666,7 @@ export function PortfolioPage() {
     setSellQuoteError("");
     setSellExecutionError("");
     setSellExecutionLogs([]);
+    setSellProgress({ stage: "idle", current: 0, total: 0, label: "" });
     setSellRequiredSlippage(null);
     setOrderStatusMap({});
     setRetryPrompt(null);
@@ -649,6 +686,7 @@ export function PortfolioPage() {
       setSellQuoteError("");
       setSellExecutionError("");
       setSellRequiredSlippage(null);
+      setSellProgress({ stage: "idle", current: 0, total: 0, label: "" });
       try {
         await ensureAuthenticated();
         const nextSlippage = Number(sellSlippage);
@@ -762,33 +800,67 @@ export function PortfolioPage() {
       isPrivySession,
       embeddedWallet,
       txEnv,
+      enablePermitBatch,
     }) => {
-      const grouped = {};
+      if (!enablePermitBatch) {
+        addSellLog("Token sell mode: skipping Permit2 batch.");
+        return {};
+      }
+      const byProvider = {};
       const tokenTotals = new Map();
+      let permit2CandidateCount = 0;
       for (const order of orders || []) {
-        const provider = normalizeOrderProvider(
-          order?.swapProvider ?? order?.provider,
-        );
+        const provider = pickOrderProvider(order);
         if (!isPermit2BatchProvider(provider)) continue;
-        const token = String(order?.fromTokenAddress || "").trim();
-        const amountWei = String(order?.fromAmount || "").trim();
-        if (!token || !amountWei) continue;
-        if (!grouped[provider]) grouped[provider] = [];
-        grouped[provider].push({ token, amountWei });
+        permit2CandidateCount += 1;
+        const token = pickOrderTokenAddress(order);
+        const amountWei = pickOrderAmountWei(order);
+        if (!token || !amountWei) {
+          addSellLog(
+            `Skipping ${order?.symbol || "order"} for Permit2 batch: missing token or amount in quote payload.`,
+          );
+          continue;
+        }
+        if (!byProvider[provider]) byProvider[provider] = [];
+        byProvider[provider].push({
+          token,
+          amountWei,
+        });
         try {
-          const existing = tokenTotals.get(token) || 0n;
-          tokenTotals.set(token, existing + BigInt(amountWei));
+          const tokenKey = token.toLowerCase();
+          const existing = tokenTotals.get(tokenKey) || 0n;
+          tokenTotals.set(tokenKey, existing + BigInt(amountWei));
         } catch {
           // Ignore malformed amounts; backend will still validate on prepare.
         }
       }
-
-      const providers = Object.keys(grouped);
-      if (!providers.length) return {};
+      const providers = Object.keys(byProvider);
+      if (!providers.length) {
+        addSellLog(
+          permit2CandidateCount > 0
+            ? "Permit2 providers detected, but quote payload lacks batchable token/amount fields. Falling back to per-order approvals."
+            : "No Permit2 providers in this quote. Skipping batch permit.",
+        );
+        return {};
+      }
 
       if (tokenTotals.size > 0) {
+        setSellProgress({
+          stage: "approvals",
+          current: 0,
+          total: tokenTotals.size,
+          label: "Checking one-time token approvals to Permit2...",
+        });
         addSellLog("Checking one-time token approvals to Permit2...");
+        let approvalIdx = 0;
         for (const [tokenAddress, requiredAmount] of tokenTotals.entries()) {
+          approvalIdx += 1;
+          setSellProgress({
+            stage: "approvals",
+            current: approvalIdx,
+            total: tokenTotals.size,
+            label: `Approving token ${approvalIdx}/${tokenTotals.size} for Permit2...`,
+          });
           const approvedNow = await ensurePermit2BaseApproval({
             chain,
             fromTokenAddress: tokenAddress,
@@ -809,17 +881,36 @@ export function PortfolioPage() {
       addSellLog(
         `Preparing Permit2 signature${providers.length > 1 ? "s" : ""} (${providers.join(", ")})...`,
       );
+      addSellLog(
+        `Provider groups: ${providers.map((p) => `${p}:${byProvider[p].length}`).join(", ")}`,
+      );
 
       const signaturesByProvider = {};
+      let providerIdx = 0;
       for (const provider of providers) {
-        const res = await api2Call("/execution/permit-batch", {
+        providerIdx += 1;
+        setSellProgress({
+          stage: "signatures",
+          current: providerIdx,
+          total: providers.length,
+          label: `Preparing signature ${providerIdx}/${providers.length} (${provider})...`,
+        });
+        const items = byProvider[provider].map((o) => ({
+          token: o.token,
+          amountWei: o.amountWei,
+        }));
+        addSellLog(
+          `${provider}: requesting /execution/permit-batch for ${items.length} token(s)...`,
+        );
+        const res = await apiCall("/execution/permit-batch", {
           method: "POST",
           body: JSON.stringify({
             chain,
             provider,
-            items: grouped[provider],
+            items,
           }),
         });
+        addSellLog(`${provider}: /execution/permit-batch ready, requesting signature...`);
         const signature = await signSellPermitTypedData({
           typedData: res?.typedData,
           userAddress,
@@ -831,7 +922,7 @@ export function PortfolioPage() {
           permitBatchSignature: signature,
         };
         addSellLog(
-          `${provider}: Permit2 batch signed for ${grouped[provider].length} order(s).`,
+          `${provider}: Permit2 batch signed for ${items.length} order(s).`,
         );
       }
 
@@ -873,13 +964,17 @@ export function PortfolioPage() {
       };
 
       const callPrepare = () => {
-        const provider = normalizeOrderProvider(order?.provider ?? order.swapProvider);
+        const provider = pickOrderProvider(order);
         const body = { slippage: slippageValue };
         if (isPermit2BatchProvider(provider)) {
           const signedBatch = permitBatchSignaturesByProvider?.[provider];
           if (signedBatch?.permitBatch && signedBatch?.permitBatchSignature) {
             body.permitBatch = signedBatch.permitBatch;
             body.permitBatchSignature = signedBatch.permitBatchSignature;
+          } else {
+            addSellLog(
+              `${symbol}: no Permit2 batch signature found for provider ${provider}; prepare will use fallback approval flow.`,
+            );
           }
         }
         return apiCall(`/execution/${order.executionOrderId}/prepare`, {
@@ -1110,13 +1205,16 @@ export function PortfolioPage() {
     setSellExecutionError("");
     setSellRequiredSlippage(null);
     setSellExecutionLogs([]);
+    setSellProgress({ stage: "starting", current: 0, total: 0, label: "Starting sell flow..." });
     setOrderStatusMap({});
     setRetryPrompt(null);
     const slippageValue = Number(sellSlippage) > 0 ? Number(sellSlippage) : 1;
 
     try {
       await ensureAuthenticated();
-      const executionChain = normalizeChain(sellQuote?.chain || sellTarget?.chain);
+      const executionChain = normalizeChain(
+        sellQuote?.chain || sellTarget?.chain,
+      );
       const executionChainId = chainIdFor(executionChain);
       let txEnv;
       let embeddedWallet = null;
@@ -1155,6 +1253,14 @@ export function PortfolioPage() {
       }
       txEnv.assertReady();
 
+      const shouldUsePermitBatch =
+        !sellTarget?.symbol &&
+        (sellTarget?.type === "portfolio" ||
+          (Array.isArray(sellQuote?.orders) && sellQuote.orders.length > 1));
+      addSellLog(
+        `Sell mode: ${shouldUsePermitBatch ? "portfolio" : "single-token"} (${sellQuote.orders.length} order(s)).`,
+      );
+
       const permitBatchSignaturesByProvider =
         await buildSellPermitBatchSignatures({
           orders: sellQuote.orders,
@@ -1163,10 +1269,11 @@ export function PortfolioPage() {
           isPrivySession,
           embeddedWallet,
           txEnv,
+          enablePermitBatch: shouldUsePermitBatch,
         });
 
       let confirmed = 0;
-      for (const initialOrder of sellQuote.orders) {
+      for (const [orderIndex, initialOrder] of sellQuote.orders.entries()) {
         let currentOrder = initialOrder;
         let orderConfirmed = false;
         // statusKey stays tied to the row rendered from sellQuote.orders so
@@ -1178,6 +1285,12 @@ export function PortfolioPage() {
             ...prev,
             [statusKey]: "executing",
           }));
+          setSellProgress({
+            stage: "swaps",
+            current: orderIndex + 1,
+            total: sellQuote.orders.length,
+            label: `Executing swap ${orderIndex + 1}/${sellQuote.orders.length} (${currentOrder?.symbol || "TOKEN"})...`,
+          });
 
           let ok = false;
           try {
@@ -1285,6 +1398,12 @@ export function PortfolioPage() {
       addSellLog(
         `Completed. ${confirmed}/${sellQuote.orders.length} order(s) confirmed.`,
       );
+      setSellProgress({
+        stage: "complete",
+        current: confirmed,
+        total: sellQuote.orders.length,
+        label: `Completed ${confirmed}/${sellQuote.orders.length} orders.`,
+      });
       await loadPortfolios();
       await handlePortfolioSelect(sellTarget.portfolioId);
       if (confirmed > 0) {
@@ -1295,9 +1414,11 @@ export function PortfolioPage() {
         logout();
         return;
       }
-      setSellExecutionError(error?.message || "Sell execution failed.");
-      // Auto re-quote so user can retry with fresh execution order IDs
-      quoteSell(sellTarget);
+      const message = error?.message || "Sell execution failed.";
+      setSellExecutionError(message);
+      addSellLog(`Sell flow stopped: ${message}`);
+      // Do not auto re-quote here; it hides the root cause and makes the
+      // confirm action appear to call quote only.
     } finally {
       setIsSellExecuting(false);
       setRetryPrompt(null);
@@ -2772,7 +2893,9 @@ export function PortfolioPage() {
                       </span>
                     </div>
                     <div>
-                      <span className="text-gray-500">Est. {sellOutputToken} out:</span>{" "}
+                      <span className="text-gray-500">
+                        Est. {sellOutputToken} out:
+                      </span>{" "}
                       <span className="font-semibold">
                         {sellEstimatedOutTotal.toFixed(4)}
                       </span>
@@ -2820,7 +2943,11 @@ export function PortfolioPage() {
                             <div className="flex items-center gap-2">
                               <span className="text-gray-700">
                                 ~
-                                {Number(order.estimatedToTokenOut ?? order.estimatedUsdtOut ?? 0).toFixed(4)}{" "}
+                                {Number(
+                                  order.estimatedToTokenOut ??
+                                    order.estimatedUsdtOut ??
+                                    0,
+                                ).toFixed(4)}{" "}
                                 {sellOutputToken}
                               </span>
                               {orderStatus === "executing" && (
@@ -2892,6 +3019,32 @@ export function PortfolioPage() {
             {sellExecutionError ? (
               <div className="mt-4 text-sm text-red-600">
                 {sellExecutionError}
+              </div>
+            ) : null}
+            {isSellExecuting && sellProgress.label ? (
+              <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
+                <div className="flex items-center gap-2 text-xs text-emerald-800 font-medium">
+                  <Loader2 size={13} className="animate-spin shrink-0" />
+                  <span>{sellProgress.label}</span>
+                </div>
+                {sellProgress.total > 0 ? (
+                  <div className="mt-2 h-1.5 rounded-full bg-emerald-100 overflow-hidden">
+                    <div
+                      className="h-full bg-emerald-500 transition-all"
+                      style={{
+                        width: `${Math.max(
+                          8,
+                          Math.min(
+                            100,
+                            Math.round(
+                              (sellProgress.current / sellProgress.total) * 100,
+                            ),
+                          ),
+                        )}%`,
+                      }}
+                    />
+                  </div>
+                ) : null}
               </div>
             ) : null}
             {sellExecutionLogs.length > 0 ? (
