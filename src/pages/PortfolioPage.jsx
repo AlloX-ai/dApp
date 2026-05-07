@@ -38,8 +38,6 @@ import {
   checkTxStatus,
   createPrivyExecutionTxEnv,
   createWagmiExecutionTxEnv,
-  ensurePermit2BaseApproval,
-  ensurePermit2Approvals,
   ensureStandardApproval,
 } from "../utils/execution";
 import { chainIdFor, normalizeChain } from "../config/chains";
@@ -47,7 +45,6 @@ import { PortfolioInfoModal } from "../components/PortfolioInfoModal";
 import { useGemsStatus } from "../hooks/useGemsStatus";
 import { getTierStyle } from "../utils/gemsTier";
 
-const PERMIT2_ADDRESS = "0x31c2F6fcFf4F8759b3Bd5Bf0e1084A055615c768";
 // Small grace period after on-chain approvals before we ask the backend to
 // re-prepare the swap — gives its allowance indexer a moment to catch up.
 const APPROVAL_INDEX_LAG_MS = 3000;
@@ -102,6 +99,7 @@ const PERMIT2_ABI = [
 
 const POLL_INTERVAL_MS = 3500;
 const MAX_POLL_ATTEMPTS = 60;
+const STALE_TX_SUBMITTED_TIMEOUT_MS = 120000;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const parseOptionalGasLimit = (value) => {
@@ -816,7 +814,6 @@ export function PortfolioPage() {
       userAddress,
       isPrivySession,
       embeddedWallet,
-      txEnv,
       enablePermitBatch,
     }) => {
       if (!enablePermitBatch) {
@@ -824,7 +821,6 @@ export function PortfolioPage() {
         return {};
       }
       const byProvider = {};
-      const tokenTotals = new Map();
       let permit2CandidateCount = 0;
       for (const order of orders || []) {
         const provider = pickOrderProvider(order);
@@ -843,13 +839,6 @@ export function PortfolioPage() {
           token,
           amountWei,
         });
-        try {
-          const tokenKey = token.toLowerCase();
-          const existing = tokenTotals.get(tokenKey) || 0n;
-          tokenTotals.set(tokenKey, existing + BigInt(amountWei));
-        } catch {
-          // Ignore malformed amounts; backend will still validate on prepare.
-        }
       }
       const providers = Object.keys(byProvider);
       if (!providers.length) {
@@ -859,40 +848,6 @@ export function PortfolioPage() {
             : "No Permit2 providers in this quote. Skipping batch permit.",
         );
         return {};
-      }
-
-      if (tokenTotals.size > 0) {
-        setSellProgress({
-          stage: "approvals",
-          current: 0,
-          total: tokenTotals.size,
-          label: "Checking one-time token approvals to Permit2...",
-        });
-        addSellLog("Checking one-time token approvals to Permit2...");
-        let approvalIdx = 0;
-        for (const [tokenAddress, requiredAmount] of tokenTotals.entries()) {
-          approvalIdx += 1;
-          setSellProgress({
-            stage: "approvals",
-            current: approvalIdx,
-            total: tokenTotals.size,
-            label: `Approving token ${approvalIdx}/${tokenTotals.size} for Permit2...`,
-          });
-          const approvedNow = await ensurePermit2BaseApproval({
-            chain,
-            fromTokenAddress: tokenAddress,
-            userAddress,
-            requiredAmount,
-            txEnv,
-            update: () => {},
-            permit2Address: PERMIT2_ADDRESS,
-          });
-          if (approvedNow) {
-            addSellLog(
-              `Approved ${tokenAddress.slice(0, 8)}... for Permit2 (one-time).`,
-            );
-          }
-        }
       }
 
       addSellLog(
@@ -955,6 +910,7 @@ export function PortfolioPage() {
       slippageValue,
       executionChain,
       permitBatchSignaturesByProvider,
+      includePermitBatch,
     ) => {
       const symbol = order?.symbol || "TOKEN";
 
@@ -983,7 +939,7 @@ export function PortfolioPage() {
       const callPrepare = () => {
         const provider = pickOrderProvider(order);
         const body = { slippage: slippageValue };
-        if (isPermit2BatchProvider(provider)) {
+        if (includePermitBatch && isPermit2BatchProvider(provider)) {
           const signedBatch = permitBatchSignaturesByProvider?.[provider];
           if (signedBatch?.permitBatch && signedBatch?.permitBatchSignature) {
             body.permitBatch = signedBatch.permitBatch;
@@ -1094,25 +1050,8 @@ export function PortfolioPage() {
 
         try {
           if (prepare.approvalType === "permit2") {
-            const p2 = prepare.permit2Approval;
-            if (!p2?.spender) {
-              addSellLog(
-                `${symbol}: missing permit2 spender in prepare response.`,
-              );
-              return false;
-            }
-            await ensurePermit2Approvals({
-              chain: executionChain,
-              permit2Approval: {
-                permit2Address: p2.permit2Address || PERMIT2_ADDRESS,
-                spender: p2.spender,
-              },
-              fromTokenAddress,
-              userAddress: txEnv.userAddress,
-              requiredAmount,
-              update: () => {},
-              txEnv,
-            });
+            // On 200 /prepare responses, approvalType:"permit2" identifies the
+            // swap route and does not imply an extra approval transaction.
           } else if (prepare.approvalType === "standard") {
             await ensureStandardApproval({
               chain: executionChain,
@@ -1204,6 +1143,21 @@ export function PortfolioPage() {
             addSellLog(`${symbol}: failed on-chain.`);
             return false;
           }
+          if (status === "TX_SUBMITTED") {
+            const submittedAtMs = Date.parse(String(statusData?.submittedAt || ""));
+            const isStaleSubmitted =
+              Number.isFinite(submittedAtMs) &&
+              Date.now() - submittedAtMs > STALE_TX_SUBMITTED_TIMEOUT_MS;
+            if (isStaleSubmitted) {
+              const onChainStatus = await checkTxStatus(txHash, executionChain);
+              if (onChainStatus == null) {
+                addSellLog(
+                  `${symbol}: tx still not visible on-chain after submit timeout; moving on.`,
+                );
+                return false;
+              }
+            }
+          }
         } catch (statusErr) {
           lastStatusError = statusErr;
           // transient status error — keep polling
@@ -1217,6 +1171,53 @@ export function PortfolioPage() {
   );
 
   const MAX_ORDER_ATTEMPTS = 3;
+
+  const executeRequiredErc20Approvals = useCallback(
+    async (requiredApprovals, txEnv) => {
+      const approvals = Array.isArray(requiredApprovals) ? requiredApprovals : [];
+      if (!approvals.length) return;
+      setSellProgress({
+        stage: "approvals",
+        current: 0,
+        total: approvals.length,
+        label: "Confirming required ERC20 approvals...",
+      });
+      addSellLog(
+        `Quote requires ${approvals.length} one-time ERC20 approval(s) to Permit2.`,
+      );
+      for (const [index, entry] of approvals.entries()) {
+        const symbol = entry?.symbol || "TOKEN";
+        const approvalTx = entry?.approvalTx;
+        if (!approvalTx?.to || !approvalTx?.data) {
+          throw new Error(
+            `${symbol}: quote is missing approvalTx details for requiredErc20Approvals.`,
+          );
+        }
+        setSellProgress({
+          stage: "approvals",
+          current: index + 1,
+          total: approvals.length,
+          label: `Approving ${symbol} (${index + 1}/${approvals.length})...`,
+        });
+        addSellLog(`${symbol}: waiting for one-time ERC20 approval...`);
+        const gas = parseOptionalGasLimit(
+          approvalTx?.gas ?? approvalTx?.gasLimit,
+        );
+        const txHash = await txEnv.sendTransaction({
+          to: approvalTx.to,
+          data: approvalTx.data,
+          value:
+            approvalTx?.value != null && approvalTx.value !== ""
+              ? BigInt(approvalTx.value)
+              : 0n,
+          ...(gas !== undefined && { gas }),
+        });
+        await txEnv.waitForTransactionReceipt({ hash: txHash });
+        addSellLog(`${symbol}: one-time ERC20 approval confirmed.`);
+      }
+    },
+    [addSellLog],
+  );
 
   const confirmSell = useCallback(async () => {
     if (!sellTarget?.portfolioId || !sellQuote?.orders?.length) return;
@@ -1272,14 +1273,15 @@ export function PortfolioPage() {
       }
       txEnv.assertReady();
 
-      const shouldUsePermitBatch =
-        !sellTarget?.symbol &&
-        (sellTarget?.type === "portfolio" ||
-          (Array.isArray(sellQuote?.orders) && sellQuote.orders.length > 1));
+      const shouldUsePermitBatch = true;
       addSellLog(
-        `Sell mode: ${shouldUsePermitBatch ? "portfolio" : "single-token"} (${sellQuote.orders.length} order(s)).`,
+        `Sell mode: permit-batch + swaps (${sellQuote.orders.length} order(s)).`,
       );
 
+      await executeRequiredErc20Approvals(
+        sellQuote?.requiredErc20Approvals,
+        txEnv,
+      );
       const permitBatchSignaturesByProvider =
         await buildSellPermitBatchSignatures({
           orders: sellQuote.orders,
@@ -1287,9 +1289,9 @@ export function PortfolioPage() {
           userAddress: txEnv.userAddress,
           isPrivySession,
           embeddedWallet,
-          txEnv,
           enablePermitBatch: shouldUsePermitBatch,
         });
+      let includePermitBatch = shouldUsePermitBatch;
 
       let confirmed = 0;
       for (const [orderIndex, initialOrder] of sellQuote.orders.entries()) {
@@ -1319,6 +1321,7 @@ export function PortfolioPage() {
               slippageValue,
               executionChain,
               permitBatchSignaturesByProvider,
+              includePermitBatch,
             );
           } catch (orderErr) {
             if (orderErr?.status === 401) throw orderErr;
@@ -1333,6 +1336,12 @@ export function PortfolioPage() {
               [statusKey]: "confirmed",
             }));
             orderConfirmed = true;
+            if (includePermitBatch) {
+              includePermitBatch = false;
+              addSellLog(
+                "First swap confirmed. Subsequent /prepare calls omit permitBatch signature.",
+              );
+            }
             // Persist this position as sold immediately.
             // /sell/complete is idempotent and skips already-sold positions,
             // so calling it per-order is safe. This ensures partial sells
@@ -1449,6 +1458,7 @@ export function PortfolioPage() {
     closeSellModal,
     ensureAuthenticated,
     executeSingleOrder,
+    executeRequiredErc20Approvals,
     buildSellPermitBatchSignatures,
     handlePortfolioSelect,
     loadPortfolios,

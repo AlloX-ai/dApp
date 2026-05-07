@@ -848,6 +848,51 @@ async function executeApprovalSteps({ approvalSteps, update, txEnv }) {
   }
 }
 
+async function executeRequiredErc20Approvals({
+  approvals,
+  txEnv,
+  update,
+}) {
+  const required = Array.isArray(approvals) ? approvals : [];
+  if (!required.length) return;
+
+  update("APPROVAL_START", {
+    approvalType: "erc20_to_permit2",
+    count: required.length,
+  });
+
+  for (const [index, entry] of required.entries()) {
+    const approvalTx = entry?.approvalTx;
+    if (!approvalTx?.to || !approvalTx?.data) {
+      throw new Error("Quote requiredErc20Approvals entry is missing approvalTx.");
+    }
+    const gas = parseOptionalGasLimit(approvalTx?.gas ?? approvalTx?.gasLimit);
+    const txHash = await txEnv.sendTransaction({
+      to: approvalTx.to,
+      data: approvalTx.data,
+      value:
+        approvalTx?.value != null && approvalTx.value !== ""
+          ? BigInt(approvalTx.value)
+          : 0n,
+      ...(gas !== undefined && { gas }),
+    });
+    await txEnv.waitForTransactionReceipt({ hash: txHash });
+    update("APPROVAL_PROGRESS", {
+      txHash,
+      index: index + 1,
+      total: required.length,
+      target: entry?.token || approvalTx.to,
+      symbol: entry?.symbol,
+      type: "ERC20_TO_PERMIT2",
+    });
+  }
+
+  update("APPROVAL_COMPLETE", {
+    approvalType: "erc20_to_permit2",
+    count: required.length,
+  });
+}
+
 export async function ensurePermit2Approvals({
   chain = "BSC",
   permit2Approval,
@@ -1076,6 +1121,12 @@ export async function executePortfolioOnChain(
     summary: quoteData.summary,
   });
 
+  await executeRequiredErc20Approvals({
+    approvals: quoteData?.requiredErc20Approvals,
+    txEnv,
+    update,
+  });
+
   if (failedTokens.length > 0 && typeof onPrompt === "function") {
     const decision = await onPrompt({
       type: "QUOTE_FAILED_TOKENS",
@@ -1229,47 +1280,8 @@ export async function executePortfolioOnChain(
         // Ensure approvals using /prepare payload (authoritative approvalType).
         if (prepData?.approvalNeeded) {
           if (prepData.approvalType === "permit2") {
-            const p2 = prepData.permit2Approval;
-            if (!p2?.spender) {
-              throw new Error(
-                "Prepare response is missing permit2Approval for approvalType permit2.",
-              );
-            }
-            const permit2Address = p2.permit2Address || PERMIT2_ADDRESS;
-            const routerAddress = p2.spender;
-            const approvalKey = [
-              String(userAddress).toLowerCase(),
-              String(fromTokenAddress || "").toLowerCase(),
-              String(permit2Address || "").toLowerCase(),
-              String(routerAddress || "").toLowerCase(),
-            ].join(":");
-
-            if (fromTokenAddress && !ensuredApprovalKeys.has(approvalKey)) {
-              update("APPROVAL_START", {
-                fromTokenAddress,
-                sourceToken,
-                approvalType: "permit2",
-                permit2Address,
-                routerAddress,
-                executionOrderId: pos.executionOrderId,
-              });
-
-              await ensurePermit2Approvals({
-                chain,
-                permit2Approval: p2,
-                fromTokenAddress,
-                userAddress,
-                requiredAmount,
-                update,
-                txEnv,
-              });
-
-              ensuredApprovalKeys.add(approvalKey);
-              update("APPROVAL_COMPLETE", {
-                executionOrderId: pos.executionOrderId,
-                approvalType: "permit2",
-              });
-            }
+            // On 200 /prepare responses, approvalType:"permit2" indicates the
+            // swap route type. It does not require an extra approval tx here.
           } else if (prepData.approvalType === "standard") {
             const approvalContract = prepData.approvalContract;
             if (!approvalContract) {
