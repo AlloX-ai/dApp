@@ -164,84 +164,63 @@ function LinkField({
   );
 }
 
-function PortfolioRow({ entry, isSelected, onSelect, onTaskSubmit }) {
+function PortfolioRow({
+  entry,
+  isSelected,
+  onSelect,
+  onTaskSubmit,
+}) {
   const [expanded, setExpanded] = useState(isSelected);
   const tier = getRewardTier(entry.amountInvested);
   const allDone = entry.task1Completed && entry.task2Completed;
   const completionPct = (entry.totalEarned / entry.maxReward) * 100;
 
   // keep expanded in sync when selected from outside
-  useEffect(() => {
-    if (isSelected) setExpanded(true);
-  }, [isSelected]);
+  useEffect(() => { if (isSelected) setExpanded(true); }, [isSelected]);
 
   return (
     <motion.div
       layout
       onClick={onSelect}
-      className={`rounded-2xl border-2 transition-all cursor-pointer ${
+      className={`rounded-2xl border transition-all cursor-pointer ${
         isSelected
-          ? "border-purple-400/60 bg-purple-50/40 shadow-md"
-          : "border-transparent bg-white/30 hover:bg-white/50 hover:border-gray-200"
+          ? 'border-purple-400 bg-purple-50/40 shadow-md'
+          : 'border-gray-300 bg-white/30 hover:bg-white/50 hover:border-gray-400'
       }`}
     >
       {/* Summary row */}
-      <div className="flex items-center gap-3 px-4 py-3.5">
+      <div className="flex items-center gap-4 px-4 py-3.5">
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-semibold text-gray-900 text-sm">
-              {entry.portfolioName}
-            </span>
-            {entry.cardType === "positive-performer" && entry.growth && (
-              <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 text-[11px] font-bold rounded-full">
-                +{entry.growth}%
-              </span>
-            )}
-            {allDone && (
-              <span className="px-1.5 py-0.5 bg-green-100 text-green-700 text-[11px] font-bold rounded-full flex items-center gap-0.5">
-                <CheckCircle2 className="w-2.5 h-2.5" /> Done
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-2 mt-0.5">
-            <span className="text-[11px] text-gray-400">{entry.date}</span>
-            <span className="text-gray-200">·</span>
-            <span className="text-[11px] text-gray-400">
-              ${entry.amountInvested.toLocaleString()}
-            </span>
-            <span className="text-gray-200">·</span>
-            <span
-              className={`text-[11px] font-semibold ${entry.cardType === "positive-performer" ? "text-emerald-600" : "text-purple-600"}`}
-            >
-              {entry.cardType === "positive-performer"
-                ? "Performer"
-                : "New Portfolio"}
-            </span>
-          </div>
+          <div className="font-semibold text-gray-900 text-sm">Total Invested: ${entry.amountInvested.toLocaleString()}</div>
+          <div className="text-xs text-gray-500 mt-0.5">{entry.date}</div>
         </div>
 
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <div className="text-right">
-            <div className="text-[11px] text-gray-400">Earned</div>
-            <div className="text-sm font-bold text-gray-900">
-              ${entry.totalEarned}
-              <span className="text-gray-300 font-normal text-xs">
-                /{entry.maxReward}
-              </span>
-            </div>
-          </div>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setExpanded((v) => !v);
-            }}
-            className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-all"
-          >
-            {expanded ? (
-              <ChevronUp className="w-3.5 h-3.5 text-gray-400" />
+        <div className="flex items-center gap-3 flex-shrink-0">
+          <div className="text-center">
+            {entry.task1Completed ? (
+              <CheckCircle2 className="w-5 h-5 text-green-500 mx-auto mb-0.5" />
             ) : (
-              <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
+              <div className="w-5 h-5 rounded-full border-2 border-gray-300 mx-auto mb-0.5" />
             )}
+            <div className="text-[10px] text-gray-600">Task 1</div>
+            <div className="text-[10px] font-semibold text-[#101828]">${tier.task1}</div>
+          </div>
+
+          <div className="text-center">
+            {entry.task2Completed ? (
+              <CheckCircle2 className="w-5 h-5 text-green-500 mx-auto mb-0.5" />
+            ) : (
+              <div className="w-5 h-5 rounded-full border-2 border-gray-300 mx-auto mb-0.5" />
+            )}
+            <div className="text-[10px] text-gray-600">Task 2</div>
+            <div className="text-[10px] font-semibold text-[#101828]">${tier.task2}</div>
+          </div>
+
+          <button
+            onClick={e => { e.stopPropagation(); setExpanded(v => !v); }}
+            className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-all ml-2"
+          >
+            {expanded ? <ChevronUp className="w-3.5 h-3.5 text-gray-400" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-400" />}
           </button>
         </div>
       </div>
@@ -251,71 +230,57 @@ function PortfolioRow({ entry, isSelected, onSelect, onTaskSubmit }) {
         {expanded && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
+            animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div
-              className="px-4 pb-4 space-y-2 border-t border-gray-100/80 pt-3"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Reward progress */}
-              <div className="flex items-center gap-3 mb-3">
-                <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                  <motion.div
-                    className="h-full bg-gradient-to-r from-purple-500 to-indigo-400 rounded-full"
-                    initial={{ width: 0 }}
-                    animate={{ width: `${completionPct}%` }}
-                    transition={{ duration: 0.5 }}
-                  />
-                </div>
-                <span className="text-xs text-gray-400 tabular-nums w-8 text-right">
-                  {Math.round(completionPct)}%
-                </span>
+            <div className="px-4 pb-4 space-y-3 border-t border-gray-100/80 pt-3" onClick={e => e.stopPropagation()}>
+              {/* Description */}
+              <div className="px-3 py-2 bg-blue-50/50 border border-blue-100 rounded-lg">
+                <p className="text-xs text-gray-700">
+                  Share on X with a card generated and submit the links. The links will be checked each week.
+                </p>
               </div>
 
-              <LinkField
-                taskNum={1}
-                label="Share your new portfolio card"
-                hint="Post your new portfolio card on X and submit the link"
-                reward={tier.task1}
-                completed={entry.task1Completed}
-                savedLink={entry.task1Link}
-                onSubmit={(link) => onTaskSubmit(1, link)}
-              />
-
-              {(entry.growth ?? 0) >= 10 ? (
+              {/* Tasks */}
+              <div className="space-y-2">
                 <LinkField
-                  taskNum={2}
-                  label="Share your positive performer portfolio"
-                  hint="Your portfolio is up — post it on X and submit the link"
-                  reward={tier.task2}
-                  completed={entry.task2Completed}
-                  savedLink={entry.task2Link}
-                  onSubmit={(link) => onTaskSubmit(2, link)}
+                  taskNum={1}
+                  label="Share your new portfolio card"
+                  hint="Post your new portfolio card on X and submit the link"
+                  reward={tier.task1}
+                  completed={entry.task1Completed}
+                  savedLink={entry.task1Link}
+                  onSubmit={link => onTaskSubmit(1, link)}
                 />
-              ) : (
-                <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50/40 px-4 py-3 flex items-center gap-3">
-                  <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-                    <Lock className="w-3 h-3 text-gray-400" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-semibold text-gray-400">
-                      Share your positive performer portfolio
+
+                {(entry.growth ?? 0) >= 5 ? (
+                  <LinkField
+                    taskNum={2}
+                    label="Share your positive performer portfolio"
+                    hint="Your portfolio is up +5% or more — post it on X and submit the link"
+                    reward={tier.task2}
+                    completed={entry.task2Completed}
+                    savedLink={entry.task2Link}
+                    onSubmit={link => onTaskSubmit(2, link)}
+                  />
+                ) : (
+                  <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50/40 px-4 py-3 flex items-center gap-3">
+                    <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                      <Lock className="w-3 h-3 text-gray-400" />
                     </div>
-                    <div className="text-xs text-gray-400 mt-0.5">
-                      Available when your portfolio reaches +10% growth
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-semibold text-gray-400">Share your positive performer portfolio</div>
+                      <div className="text-xs text-gray-400 mt-0.5">Available when your portfolio reaches +5% growth or more</div>
+                    </div>
+                    <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white border border-gray-100">
+                      <Gem className="w-3 h-3 text-gray-300" />
+                      <span className="text-xs font-bold text-gray-300">${tier.task2}</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white border border-gray-100">
-                    <Gem className="w-3 h-3 text-gray-300" />
-                    <span className="text-xs font-bold text-gray-300">
-                      ${tier.task2}
-                    </span>
-                  </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </motion.div>
         )}
