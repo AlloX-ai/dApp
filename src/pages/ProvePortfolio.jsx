@@ -3,27 +3,22 @@ import {
   Gem,
   Clock,
   Share2,
-  Download,
   CheckCircle2,
-  Lock,
   TrendingUp,
   Wallet,
-  Award,
-  Sparkles,
-  ExternalLink,
-  PlusCircle,
-  HandCoins,
-  Rocket,
-  Flame,
-  Target,
-  Star,
-  Link as LinkIcon,
-  Calendar,
-  DollarSign,
   Users,
-  ChevronUp,
-  Link2,
+  Sparkles,
+  PlusCircle,
   ChevronDown,
+  ChevronUp,
+  DollarSign,
+  Calendar,
+  Lock,
+  Download,
+  Link2,
+  Send,
+  X as XIcon,
+  Info,
 } from "lucide-react";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
@@ -452,7 +447,6 @@ function CardPreview({ entry }) {
 
 export function ProvePortfolio() {
   const initialPortfolios = [];
-
   const demoPortfolios = [
     {
       id: "1",
@@ -526,85 +520,12 @@ export function ProvePortfolio() {
     },
   ];
 
-  const leaderboard = [
-    {
-      rank: 1,
-      username: "CryptoWhale",
-      portfolios: 7,
-      totalEarned: 680,
-      weeklyEarned: 250,
-    },
-    {
-      rank: 2,
-      username: "0x7a8c...4f2e",
-      portfolios: 6,
-      totalEarned: 540,
-      weeklyEarned: 200,
-    },
-    {
-      rank: 3,
-      username: "DiamondTrader",
-      portfolios: 5,
-      totalEarned: 450,
-      weeklyEarned: 150,
-    },
-    {
-      rank: 4,
-      username: "DeFiMaster",
-      portfolios: 4,
-      totalEarned: 380,
-      weeklyEarned: 100,
-    },
-    {
-      rank: 5,
-      username: "0x9b3f...1a2c",
-      portfolios: 3,
-      totalEarned: 240,
-      weeklyEarned: 100,
-    },
-  ];
-
   const [portfolios, setPortfolios] = useState(initialPortfolios);
   const [selectedId, setSelectedId] = useState(
     initialPortfolios[0]?.id ?? null,
   );
   const [leaderboardOptIn, setLeaderboardOptIn] = useState(true);
   const [isWalletConnected, setIsWalletConnected] = useState(true);
-
-  const [timeRemaining, setTimeRemaining] = useState({
-    days: 3,
-    hours: 14,
-    minutes: 27,
-    seconds: 45,
-  });
-  const [prizePoolRemaining, setPrizePoolRemaining] = useState(38420);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setTimeRemaining((prev) => {
-        let { days, hours, minutes, seconds } = prev;
-        if (seconds > 0) seconds--;
-        else if (minutes > 0) {
-          minutes--;
-          seconds = 59;
-        } else if (hours > 0) {
-          hours--;
-          minutes = 59;
-          seconds = 59;
-        } else if (days > 0) {
-          days--;
-          hours = 23;
-          minutes = 59;
-          seconds = 59;
-        }
-        return { days, hours, minutes, seconds };
-      });
-      setPrizePoolRemaining((prev) =>
-        Math.max(0, prev - Math.floor(Math.random() * 3)),
-      );
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
 
   const handleTaskSubmit = (id, task, link) => {
     setPortfolios((prev) =>
@@ -641,130 +562,187 @@ export function ProvePortfolio() {
     <div className="space-y-4">
       {/* Hero */}
       <div className="glass-card p-8 bg-gradient-to-br from-purple-500/10 via-indigo-500/5 to-blue-500/10 border-purple-300/30">
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+        <div className="flex items-start justify-between gap-6">
           <div className="flex-1">
-            <div className="flex items-center gap-2 mb-2">
-              <Sparkles className="w-5 h-5 text-purple-600" />
-              <span className="text-xs font-bold text-purple-600 uppercase tracking-widest">
-                Weekly Campaign
-              </span>
-            </div>
             <h1 className="text-4xl font-bold text-gray-900 mb-2">
               Prove Your Portfolio
             </h1>
-            <p className="text-gray-600 max-w-xl text-sm leading-relaxed">
+            <p className="text-gray-600 max-w-2xl text-sm leading-relaxed mb-6">
               Create portfolios, share your cards on X, and earn rewards. One
-              portfolio per daywith two tasks per portfolio.
+              portfolio per day with two tasks per portfolio.
             </p>
-            <div className="flex items-center gap-3 mt-4 flex-wrap">
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-white/60 border border-gray-200 rounded-lg">
-                <Lock className="w-3.5 h-3.5 text-amber-600" />
-                <span className="text-xs font-semibold text-gray-700">
-                  On-chain only
-                </span>
-              </div>
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-white/60 border border-gray-200 rounded-lg">
-                <Calendar className="w-3.5 h-3.5 text-blue-600" />
-                <span className="text-xs font-semibold text-gray-700">
-                  1 portfolio / day
-                </span>
-              </div>
-            </div>
+
+            {/* Create Portfolio Button */}
+            <button
+              onClick={() => {
+                if (portfolios.length === 0) {
+                  setPortfolios(demoPortfolios);
+                  setSelectedId(demoPortfolios[0].id);
+                }
+              }}
+              className="btn-primary px-6 py-3 flex items-center gap-2"
+            >
+              <PlusCircle className="w-4 h-4" />
+              Create Your Portfolio
+            </button>
           </div>
 
-          <div className="flex flex-col sm:flex-row lg:flex-col xl:flex-row gap-4">
-            <div className="glass-card  px-6 py-4  bg-gradient-to-br from-purple-500/8 to-indigo-500/5 border-purple-200/40">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
-                    Your Total Earned
-                  </div>
-                  <div className="text-3xl font-bold text-gray-900">
-                    ${totalUserEarned}
-                  </div>
-                  <div className="text-xs text-gray-500 mt-1">
-                    {completedTasks} tasks completed this week
-                  </div>
-                </div>
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center">
-                  <Trophy className="w-6 h-6 text-white" />
-                </div>
+          {/* Stats on right */}
+          <div className="flex flex-col gap-3">
+            <div className="glass-card px-4 py-3 bg-gradient-to-br from-amber-400/15 to-orange-400/10 border-amber-300/40 min-w-[180px]">
+              <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">
+                Total Pool
+              </div>
+              <div className="flex items-center gap-1.5">
+                <DollarSign className="w-4 h-4 text-amber-600" />
+                <span className="text-lg font-bold text-gray-900 tabular-nums">
+                  50,000
+                </span>
               </div>
             </div>
 
-            {/* Prize pool */}
-            <div className="glass-card px-6 py-4 bg-gradient-to-br from-amber-400/15 to-orange-400/10 border-amber-300/40 min-w-[200px]">
-              <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
-                Remaining Pool
+            <div className="glass-card px-4 py-3 bg-gradient-to-br from-purple-500/8 to-indigo-500/5 border-purple-200/40 min-w-[180px]">
+              <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">
+                Your Total Earned
               </div>
-              <div className="flex items-center gap-2">
-                <DollarSign className="w-5 h-5 text-amber-600" />
-                <motion.span
-                  key={prizePoolRemaining}
-                  initial={{ opacity: 0.5, y: -3 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="text-2xl font-bold text-gray-900 tabular-nums"
-                >
-                  {prizePoolRemaining.toLocaleString()}
-                </motion.span>
-              </div>
-              <div className="mt-2 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-amber-400 to-orange-400 rounded-full transition-all duration-1000"
-                  style={{ width: `${(prizePoolRemaining / 50000) * 100}%` }}
-                />
-              </div>
-              <div className="text-[10px] text-gray-400 mt-1">
-                of $50,000 total
+              <div className="flex items-center gap-1.5">
+                <Trophy className="w-4 h-4 text-purple-600" />
+                <span className="text-lg font-bold text-gray-900 tabular-nums">
+                  ${totalUserEarned}
+                </span>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Stats + reward tiers */}
-      <div className="grid lg:grid-cols-3 gap-4">
-        {/* <div className="glass-card p-5 bg-gradient-to-br from-purple-500/8 to-indigo-500/5 border-purple-200/40">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
-                Your Total Earned
+      {/* How It Works & Reward Structure */}
+      <div className="grid lg:grid-cols-2 gap-6">
+        {/* How It Works */}
+        <div className="glass-card p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <h2 className="text-lg font-bold text-gray-900">How It Works</h2>
+            <div className="group relative">
+              <Info className="w-4 h-4 text-gray-400 cursor-help" />
+              <div className="hidden group-hover:block absolute left-0 top-6 z-10 w-64 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-xl">
+                <div className="font-semibold mb-1">Campaign Rules:</div>
+                <ul className="space-y-1 list-disc list-inside">
+                  <li>One on-chain portfolio per day</li>
+                  <li>Task 1 unlocks when you create a portfolio</li>
+                  <li>Task 2 unlocks at +5% performance</li>
+                  <li>If you sell the portfolio, Task 2 becomes unavailable</li>
+                </ul>
               </div>
-              <div className="text-3xl font-bold text-gray-900">
-                ${totalUserEarned}
-              </div>
-              <div className="text-xs text-gray-500 mt-1">
-                {completedTasks} tasks completed this week
-              </div>
-            </div>
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center">
-              <Trophy className="w-6 h-6 text-white" />
             </div>
           </div>
-        </div> */}
+          <div className="space-y-4">
+            <div className="flex gap-3">
+              <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
+                <span className="text-sm font-bold text-purple-600">1</span>
+              </div>
+              <div>
+                <div className="font-semibold text-gray-900 text-sm">
+                  Create one on-chain portfolio per day
+                </div>
+                <div className="text-xs text-gray-500 mt-0.5">
+                  Minimum $100 investment. Your new portfolio card will be
+                  generated automatically.
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
+                <span className="text-sm font-bold text-purple-600">2</span>
+              </div>
+              <div>
+                <div className="font-semibold text-gray-900 text-sm">
+                  Task 1: Share your new portfolio card
+                </div>
+                <div className="text-xs text-gray-500 mt-0.5">
+                  Post the card on X and submit the link for guaranteed rewards.
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
+                <span className="text-sm font-bold text-purple-600">3</span>
+              </div>
+              <div>
+                <div className="font-semibold text-gray-900 text-sm">
+                  Task 2: Share performance card
+                </div>
+                <div className="text-xs text-gray-500 mt-0.5">
+                  If your portfolio performs +5% or more, Task 2 activates.
+                  Note: Selling disables this task.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
 
-        <div className="glass-card p-5 lg:col-span-2">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-bold text-gray-800">
-              Reward Thresholds
-            </span>
-            <span className="text-xs text-gray-400">Per portfolio</span>
-          </div>
-          <div className="grid grid-cols-4 gap-2">
-            {REWARD_TIERS.map((tier) => (
-              <div
-                key={tier.amount}
-                className="text-center p-3 rounded-xl bg-gray-50 border border-gray-100"
-              >
-                <div className="text-xs font-bold text-gray-400 mb-1">
-                  ${tier.amount.toLocaleString()}
-                </div>
-                <div className="text-lg font-bold text-purple-600">
-                  ${tier.maxReward}
-                </div>
-                <div className="text-[10px] text-gray-400 mt-1">max reward</div>
+        {/* Reward Structure */}
+        <div className="glass-card p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <h2 className="text-lg font-bold text-gray-900">
+              Reward Structure
+            </h2>
+            <div className="group relative">
+              <Info className="w-4 h-4 text-gray-400 cursor-help" />
+              <div className="hidden group-hover:block absolute left-0 top-6 z-10 w-72 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-xl">
+                <div className="font-semibold mb-1">Tier Rules:</div>
+                <ul className="space-y-1 list-disc list-inside">
+                  <li>Minimum portfolio amount: $100</li>
+                  <li>Portfolios under $100 won't be shown</li>
+                  <li>
+                    Amounts within a range get the same rewards (e.g., $100-$499
+                    all earn $10 total)
+                  </li>
+                  <li>Same applies to all tier ranges</li>
+                </ul>
               </div>
-            ))}
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="text-left text-xs font-bold text-gray-500 uppercase tracking-wider pb-3 pr-3">
+                    Investment
+                  </th>
+                  <th className="text-right text-xs font-bold text-gray-500 uppercase tracking-wider pb-3 px-3">
+                    Task 1<br />
+                    (Guaranteed)
+                  </th>
+                  <th className="text-right text-xs font-bold text-gray-500 uppercase tracking-wider pb-3 px-3">
+                    Task 2<br />
+                    (Performance)
+                  </th>
+                  <th className="text-right text-xs font-bold text-gray-500 uppercase tracking-wider pb-3 pl-3">
+                    Total
+                    <br />
+                    Rewards
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {REWARD_TIERS.map((tier) => (
+                  <tr key={tier.amount}>
+                    <td className="py-3 text-sm font-semibold text-gray-900 pr-3">
+                      ${tier.amount.toLocaleString()}
+                    </td>
+                    <td className="py-3 text-right text-sm font-semibold text-green-600 px-3">
+                      ${tier.task1}
+                    </td>
+                    <td className="py-3 text-right text-sm font-semibold text-blue-600 px-3">
+                      ${tier.task2}
+                    </td>
+                    <td className="py-3 text-right text-sm font-bold text-purple-600 pl-3">
+                      ${tier.maxReward}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -814,16 +792,6 @@ export function ProvePortfolio() {
                   Create your first portfolio to start earning rewards. Share
                   your card on X and complete both tasks each day.
                 </p>
-                <button
-                  onClick={() => {
-                    setPortfolios(demoPortfolios);
-                    setSelectedId(demoPortfolios[0].id);
-                  }}
-                  className="btn-primary px-6 py-2.5 flex items-center gap-2 text-sm"
-                >
-                  <PlusCircle className="w-4 h-4" />
-                  Create Your Portfolio
-                </button>
               </div>
             ) : (
               <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2 scrollbar-thin scrollbar-thumb-gray-200 scrollbar-track-transparent max-h-[500px]">
@@ -866,6 +834,8 @@ export function ProvePortfolio() {
           </div>
         </div>
       )}
+
+      {/* Leaderboard */}
     </div>
   );
 }
