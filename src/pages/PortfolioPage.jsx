@@ -20,7 +20,7 @@ import {
   X,
 } from "lucide-react";
 import { AnimatePresence } from "motion/react";
-import { encodeFunctionData } from "viem";
+import { encodeFunctionData, hashTypedData } from "viem";
 import { useDispatch, useSelector } from "react-redux";
 import { NavLink, useLocation, useNavigate } from "react-router";
 import {
@@ -780,6 +780,20 @@ export function PortfolioPage() {
     async ({ typedData, userAddress, isPrivySession, embeddedWallet }) => {
       if (!typedData) {
         throw new Error("Permit batch response is missing typedData.");
+      }
+
+      // Debug guard: compute exactly what hash the FE is about to sign.
+      // Never mutate server-provided typedData before signing.
+      try {
+        const hashFE = hashTypedData({
+          domain: typedData.domain,
+          types: typedData.types,
+          primaryType: typedData.primaryType,
+          message: typedData.message,
+        });
+        console.log("FE will sign hash:", hashFE);
+      } catch (hashErr) {
+        console.warn("Unable to hash permit typedData on FE:", hashErr);
       }
 
       const payload = JSON.stringify(typedData);
