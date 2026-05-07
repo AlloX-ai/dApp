@@ -673,6 +673,25 @@ export function ProvePortfolio() {
           </div>
 
           <div className="flex flex-col sm:flex-row lg:flex-col xl:flex-row gap-4">
+            <div className="glass-card  px-6 py-4  bg-gradient-to-br from-purple-500/8 to-indigo-500/5 border-purple-200/40">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
+                    Your Total Earned
+                  </div>
+                  <div className="text-3xl font-bold text-gray-900">
+                    ${totalUserEarned}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {completedTasks} tasks completed this week
+                  </div>
+                </div>
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center">
+                  <Trophy className="w-6 h-6 text-white" />
+                </div>
+              </div>
+            </div>
+
             {/* Prize pool */}
             <div className="glass-card px-6 py-4 bg-gradient-to-br from-amber-400/15 to-orange-400/10 border-amber-300/40 min-w-[200px]">
               <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
@@ -699,45 +718,13 @@ export function ProvePortfolio() {
                 of $50,000 total
               </div>
             </div>
-
-            {/* Countdown */}
-            <div className="glass-card px-6 py-4 min-w-[220px]">
-              <div className="flex items-center gap-1.5 mb-3">
-                <Clock className="w-3.5 h-3.5 text-gray-500" />
-                <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-                  WEEK 1 Ends in
-                </span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                {[
-                  { v: timeRemaining.days, l: "D" },
-                  { v: timeRemaining.hours, l: "H" },
-                  { v: timeRemaining.minutes, l: "M" },
-                  { v: timeRemaining.seconds, l: "S" },
-                ].map(({ v, l }, i) => (
-                  <div key={l} className="flex items-center gap-1.5">
-                    {i > 0 && (
-                      <span className="text-gray-300 font-bold">:</span>
-                    )}
-                    <div className="text-center">
-                      <div className="text-xl font-bold text-gray-900 tabular-nums w-8 text-center">
-                        {String(v).padStart(2, "0")}
-                      </div>
-                      <div className="text-[10px] text-gray-400 uppercase">
-                        {l}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
         </div>
       </div>
 
       {/* Stats + reward tiers */}
       <div className="grid lg:grid-cols-3 gap-4">
-        <div className="glass-card p-5 bg-gradient-to-br from-purple-500/8 to-indigo-500/5 border-purple-200/40">
+        {/* <div className="glass-card p-5 bg-gradient-to-br from-purple-500/8 to-indigo-500/5 border-purple-200/40">
           <div className="flex items-center justify-between">
             <div>
               <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
@@ -754,7 +741,7 @@ export function ProvePortfolio() {
               <Trophy className="w-6 h-6 text-white" />
             </div>
           </div>
-        </div>
+        </div> */}
 
         <div className="glass-card p-5 lg:col-span-2">
           <div className="flex items-center justify-between mb-3">
@@ -879,80 +866,6 @@ export function ProvePortfolio() {
           </div>
         </div>
       )}
-
-      {/* Leaderboard */}
-      <div className="glass-card p-6">
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-            <Trophy className="w-5 h-5 text-amber-500" />
-            Top Earners This Week
-          </h2>
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-gray-500 flex items-center gap-1.5">
-              <Users className="w-3.5 h-3.5" />
-              Show me on leaderboard
-            </span>
-            <button
-              onClick={() => setLeaderboardOptIn((v) => !v)}
-              className={`relative w-10 h-5 rounded-full transition-all ${leaderboardOptIn ? "bg-purple-600" : "bg-gray-300"}`}
-            >
-              <motion.div
-                className="absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm"
-                animate={{ left: leaderboardOptIn ? "22px" : "2px" }}
-                transition={{ type: "spring", stiffness: 500, damping: 30 }}
-              />
-            </button>
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          {leaderboard.map((entry) => (
-            <div
-              key={entry.rank}
-              className={`flex items-center gap-4 p-3 rounded-xl ${
-                entry.rank === 1
-                  ? "bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200"
-                  : entry.rank <= 3
-                    ? "bg-gray-50 border border-gray-100"
-                    : "bg-white/30 border border-gray-50"
-              }`}
-            >
-              <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${
-                  entry.rank === 1
-                    ? "bg-amber-500 text-white"
-                    : entry.rank === 2
-                      ? "bg-gray-400 text-white"
-                      : entry.rank === 3
-                        ? "bg-orange-400 text-white"
-                        : "bg-gray-100 text-gray-600"
-                }`}
-              >
-                {entry.rank}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="font-semibold text-gray-900 text-sm">
-                  {entry.username}
-                </div>
-                <div className="text-xs text-gray-500">
-                  {entry.portfolios} portfolios
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="text-sm font-bold text-gray-900">
-                  ${entry.weeklyEarned}{" "}
-                  <span className="text-xs text-gray-400 font-normal">
-                    this week
-                  </span>
-                </div>
-                <div className="text-xs text-gray-400">
-                  ${entry.totalEarned} total
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }
