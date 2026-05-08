@@ -64,6 +64,7 @@ import ChatMoreInfoModal from "../components/ChatMoreInfoModal";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CHAINS,
+  CHAIN_LIST,
   chainIdFor,
   explorerLink,
   normalizeChain,
@@ -425,10 +426,11 @@ export function ChatPage() {
         return {
           previewMeta: {
             chain: quickForm.chain,
-            executionMode:
-              quickForm.chain === "BSC" || quickForm.chain === "BASE"
-                ? "ON_CHAIN"
-                : "PAPER",
+            executionMode: ["BSC", "ETH", "BASE"].includes(
+              normalizeChain(quickForm.chain),
+            )
+              ? "ON_CHAIN"
+              : "PAPER",
           },
           basket,
         };
@@ -766,17 +768,33 @@ export function ChatPage() {
     : [];
   const recentPortfoliosLoading = recentPortfoliosQuery.isLoading;
 
+  const SUPPORTED_ONCHAIN_CHAIN_IDS = useMemo(
+    () => CHAIN_LIST.map((chain) => chain.chainId),
+    [],
+  );
+
+  const CHAIN_NATIVE_COINGECKO_IDS = useMemo(
+    () => ({
+      BSC: "binancecoin",
+      ETH: "ethereum",
+      BASE: "ethereum",
+    }),
+    [],
+  );
+
   const chainBalancesQuery = useQuery({
     queryKey: ["chainBalances", walletAddress, walletChainId],
     enabled:
       isConnected &&
       !isReadOnly &&
       !!walletAddress &&
-      (walletChainId === chainIdFor("BSC") ||
-        walletChainId === chainIdFor("BASE")),
+      SUPPORTED_ONCHAIN_CHAIN_IDS.includes(Number(walletChainId)),
     staleTime: 20_000,
     queryFn: async () => {
-      const chain = walletChainId === chainIdFor("BASE") ? "BASE" : "BSC";
+      const chain =
+        CHAIN_LIST.find(
+          (candidate) => candidate.chainId === Number(walletChainId),
+        )?.id || "BSC";
       const chainCfg = CHAINS[chain];
       const nativeSymbol = chainCfg.nativeSymbol;
       const publicClient = getPublicClient(wagmiClient, {
@@ -812,7 +830,7 @@ export function ChatPage() {
 
       let nativeUsd = null;
       try {
-        const nativeCoinId = chain === "BASE" ? "ethereum" : "binancecoin";
+        const nativeCoinId = CHAIN_NATIVE_COINGECKO_IDS[chain];
         const priceRes = await fetch(
           `https://api.coingecko.com/api/v3/simple/price?ids=${nativeCoinId}&vs_currencies=usd`,
         );
@@ -840,16 +858,17 @@ export function ChatPage() {
     },
   });
 
+  const defaultBalanceChain =
+    CHAIN_LIST.find((candidate) => candidate.chainId === Number(walletChainId))
+      ?.id || "BSC";
   const chainBalances = chainBalancesQuery.data ?? {
-    chain: walletChainId === chainIdFor("BASE") ? "BASE" : "BSC",
-    chainLabel:
-      walletChainId === chainIdFor("BASE")
-        ? CHAINS.BASE.label
-        : CHAINS.BSC.label,
+    chain: defaultBalanceChain,
+    chainLabel: CHAINS[defaultBalanceChain]?.label || CHAINS.BSC.label,
     rows: [],
   };
-  const showChainBalancesPanel =
-    walletChainId === chainIdFor("BSC") || walletChainId === chainIdFor("BASE");
+  const showChainBalancesPanel = SUPPORTED_ONCHAIN_CHAIN_IDS.includes(
+    Number(walletChainId),
+  );
 
   const renderChainBalancesContent = (compact = false) => {
     if (!isConnected) {
@@ -860,13 +879,10 @@ export function ChatPage() {
       );
     }
 
-    if (
-      walletChainId !== chainIdFor("BSC") &&
-      walletChainId !== chainIdFor("BASE")
-    ) {
+    if (!SUPPORTED_ONCHAIN_CHAIN_IDS.includes(Number(walletChainId))) {
       return (
         <div className="text-xs text-gray-600">
-          Switch to BNB Chain or Base to view balances.
+          Switch to BNB Chain, Ethereum, or Base to view balances.
         </div>
       );
     }
@@ -1179,7 +1195,7 @@ export function ChatPage() {
   const QUICK_CHAIN_LABELS = useMemo(
     () => ({
       BSC: "BNB Chain (On-Chain Execution)",
-      ETH: "Ethereum (Paper Trading)",
+      ETH: "Ethereum (On-Chain Execution)",
       BASE: "Base (On-Chain Execution)",
     }),
     [],
@@ -1234,12 +1250,11 @@ export function ChatPage() {
         );
         return;
       }
-      if (
-        (quickForm.chain === "BSC" && walletChainId !== chainIdFor("BSC")) ||
-        (quickForm.chain === "BASE" && walletChainId !== chainIdFor("BASE"))
-      ) {
+      if (walletChainId !== chainIdFor(normalizeChain(quickForm.chain))) {
+        const targetChainLabel =
+          CHAINS[normalizeChain(quickForm.chain)]?.label || quickForm.chain;
         toast.error(
-          `Please switch your wallet to ${quickForm.chain === "BASE" ? "Base" : "BNB Chain"} before continuing.`,
+          `Please switch your wallet to ${targetChainLabel} before continuing.`,
         );
         return;
       }
@@ -1736,11 +1751,13 @@ export function ChatPage() {
       if (!message) return;
       const normalizedMessage = String(message).toUpperCase();
       if (
-        (normalizedMessage === "BSC" && walletChainId !== chainIdFor("BSC")) ||
-        (normalizedMessage === "BASE" && walletChainId !== chainIdFor("BASE"))
+        ["BSC", "ETH", "BASE"].includes(normalizedMessage) &&
+        walletChainId !== chainIdFor(normalizeChain(normalizedMessage))
       ) {
+        const targetChainLabel =
+          CHAINS[normalizeChain(normalizedMessage)]?.label || normalizedMessage;
         toast.error(
-          `Please switch your wallet to ${normalizedMessage === "BASE" ? "Base" : "BNB Chain"} before continuing.`,
+          `Please switch your wallet to ${targetChainLabel} before continuing.`,
         );
         return;
       }
@@ -3424,8 +3441,9 @@ export function ChatPage() {
                         disabled={
                           !isConnected ||
                           isReadOnly ||
-                          (walletChainId !== chainIdFor("BSC") &&
-                            walletChainId !== chainIdFor("BASE")) ||
+                          !SUPPORTED_ONCHAIN_CHAIN_IDS.includes(
+                            Number(walletChainId),
+                          ) ||
                           chainBalancesQuery.isFetching
                         }
                         className="text-xs text-gray-500 hover:text-green-600 disabled:opacity-50"
@@ -3893,19 +3911,19 @@ export function ChatPage() {
                               badge: "BSC",
                               icon: "https://cdn.allox.ai/allox/networks/bnbIcon.svg",
                             },
+
+                            {
+                              value: "ETH",
+                              label: "Ethereum (on-chain)",
+                              badge: "ETH",
+                              icon: "https://cdn.allox.ai/allox/networks/eth.svg",
+                            },
                             {
                               value: "BASE",
                               label: "Base (on-chain)",
                               badge: "BASE",
                               icon: "https://cdn.allox.ai/allox/networks/base.svg",
                             },
-                            {
-                              value: "ETH",
-                              label: "Ethereum",
-                              badge: "ETH",
-                              icon: "https://cdn.allox.ai/allox/networks/eth.svg",
-                            },
-
                             {
                               value: "SOL",
                               label: "Solana",

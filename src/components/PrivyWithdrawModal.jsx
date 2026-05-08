@@ -319,10 +319,11 @@ export function PrivyWithdrawModal({
         <>
           <div className="text-sm text-gray-600 bg-gray-50 rounded-xl p-3 border border-gray-100">
             Withdrawable tokens: <strong>BNB, USDT, USDC</strong> on BSC and{" "}
+            <strong>ETH, USDC, USDT</strong> on Ethereum and{" "}
             <strong>ETH, USDC</strong> on Base. Other assets must be sold first.
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            {["BSC", "BASE"].map((chain) => (
+          <div className="grid grid-cols-3 gap-2">
+            {["BSC", "ETH", "BASE"].map((chain) => (
               <button
                 key={chain}
                 type="button"
