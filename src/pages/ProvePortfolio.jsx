@@ -19,6 +19,8 @@ import {
   Send,
   X as XIcon,
   Info,
+  FileText,
+  Award,
 } from "lucide-react";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
@@ -48,6 +50,125 @@ function getRewardTier(amount) {
   return tier;
 }
 
+
+
+function MoreDetailsModal({ isOpen, onClose }) {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        onClick={e => e.stopPropagation()}
+        className="glass-card p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto"
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-xl font-bold text-gray-900">Campaign Details</h3>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-all">
+            <XIcon className="w-5 h-5 text-gray-400" />
+          </button>
+        </div>
+
+        <div className="space-y-6">
+          {/* How it Works */}
+          <div>
+            <h4 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
+              <Award className="w-4 h-4 text-purple-600" />
+              How It Works
+            </h4>
+            <ul className="space-y-2 text-sm text-gray-700">
+              <li className="flex gap-2">
+                <span className="text-purple-600 font-bold">•</span>
+                <span>Users can create <strong>one on-chain portfolio per day</strong> with a minimum investment of <strong>$100</strong>.</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="text-purple-600 font-bold">•</span>
+                <span><strong>Task 1:</strong> Share your new portfolio card on X (Twitter) and submit the link to earn guaranteed rewards.</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="text-purple-600 font-bold">•</span>
+                <span><strong>Task 2:</strong> If your portfolio grows by <strong>5% or more</strong>, this task activates. Share your positive performer card on X and submit the link to earn additional rewards.</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="text-purple-600 font-bold">•</span>
+                <span><strong>Important:</strong> If you sell your portfolio, you will no longer be able to use it in the campaign.</span>
+              </li>
+            </ul>
+          </div>
+
+          {/* Verification Process */}
+          <div>
+            <h4 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
+              <Clock className="w-4 h-4 text-amber-600" />
+              Verification Process
+            </h4>
+            <ul className="space-y-2 text-sm text-gray-700">
+              <li className="flex gap-2">
+                <span className="text-amber-600 font-bold">•</span>
+                <span>When you submit a link for any task, it enters a <strong>verification process</strong>.</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="text-amber-600 font-bold">•</span>
+                <span>Upon submission, <strong>rewards are allocated to your account</strong>, but they must be <strong>verified and approved</strong> by our team before being finalized.</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="text-amber-600 font-bold">•</span>
+                <span>Our team will review your submission to ensure it meets campaign requirements.</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="text-amber-600 font-bold">•</span>
+                <span>Once verified and approved, the rewards are <strong>confirmed and finalized</strong> in your account.</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="text-amber-600 font-bold">•</span>
+                <span>You can track the status of each task: Pending, In Verification, Approved, or Rejected.</span>
+              </li>
+            </ul>
+          </div>
+
+          {/* Terms & Conditions */}
+          <div>
+            <h4 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
+              <FileText className="w-4 h-4 text-gray-600" />
+              Terms & Conditions
+            </h4>
+            <ul className="space-y-2 text-xs text-gray-600">
+              <li className="flex gap-2">
+                <span className="text-gray-400 font-bold">•</span>
+                <span>AlloX reserves the right to modify, suspend, or terminate the campaign at any time without prior notice.</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="text-gray-400 font-bold">•</span>
+                <span>Submissions that violate campaign rules, contain fraudulent activity, or use automated bots will be disqualified.</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="text-gray-400 font-bold">•</span>
+                <span>Rewards are subject to verification and approval by our team. Incomplete or invalid submissions will not be rewarded.</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="text-gray-400 font-bold">•</span>
+                <span>By participating, you agree to comply with all campaign rules and AlloX's terms of service.</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="text-gray-400 font-bold">•</span>
+                <span>AlloX is not responsible for technical issues, network errors, or user errors that may affect participation.</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <button onClick={onClose} className="btn-primary w-full mt-6">Got it</button>
+      </motion.div>
+    </div>
+  );
+}
+
+
+
+
+
 /* ── Inline link submission field ── */
 function LinkField({
   taskNum,
@@ -73,7 +194,7 @@ function LinkField({
     <div
       className={`rounded-xl border transition-colors ${completed ? "border-green-200 bg-green-50/50" : "border-gray-200 bg-white/40"}`}
     >
-      <div className="flex items-center justify-between gap-3 px-4 py-3">
+      <div className="flex flex-col lg:flex-row items-center justify-between gap-3 px-4 py-3">
         <div className="flex items-center gap-3 flex-1 min-w-0">
           <div
             className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold ${
@@ -164,19 +285,16 @@ function LinkField({
   );
 }
 
-function PortfolioRow({
-  entry,
-  isSelected,
-  onSelect,
-  onTaskSubmit,
-}) {
+function PortfolioRow({ entry, isSelected, onSelect, onTaskSubmit }) {
   const [expanded, setExpanded] = useState(isSelected);
   const tier = getRewardTier(entry.amountInvested);
   const allDone = entry.task1Completed && entry.task2Completed;
   const completionPct = (entry.totalEarned / entry.maxReward) * 100;
 
   // keep expanded in sync when selected from outside
-  useEffect(() => { if (isSelected) setExpanded(true); }, [isSelected]);
+  useEffect(() => {
+    if (isSelected) setExpanded(true);
+  }, [isSelected]);
 
   return (
     <motion.div
@@ -184,14 +302,16 @@ function PortfolioRow({
       onClick={onSelect}
       className={`rounded-2xl border transition-all cursor-pointer ${
         isSelected
-          ? 'border-purple-400 bg-purple-50/40 shadow-md'
-          : 'border-gray-300 bg-white/30 hover:bg-white/50 hover:border-gray-400'
+          ? "border-purple-400 bg-purple-50/40 shadow-md"
+          : "border-gray-300 bg-white/30 hover:bg-white/50 hover:border-gray-400"
       }`}
     >
       {/* Summary row */}
       <div className="flex items-center gap-4 px-4 py-3.5">
         <div className="flex-1 min-w-0">
-          <div className="font-semibold text-gray-900 text-sm">Total Invested: ${entry.amountInvested.toLocaleString()}</div>
+          <div className="font-semibold text-gray-900 text-sm">
+            Total Invested: ${entry.amountInvested.toLocaleString()}
+          </div>
           <div className="text-xs text-gray-500 mt-0.5">{entry.date}</div>
         </div>
 
@@ -203,7 +323,9 @@ function PortfolioRow({
               <div className="w-5 h-5 rounded-full border-2 border-gray-300 mx-auto mb-0.5" />
             )}
             <div className="text-[10px] text-gray-600">Task 1</div>
-            <div className="text-[10px] font-semibold text-[#101828]">${tier.task1}</div>
+            <div className="text-[10px] font-semibold text-[#101828]">
+              ${tier.task1}
+            </div>
           </div>
 
           <div className="text-center">
@@ -213,14 +335,23 @@ function PortfolioRow({
               <div className="w-5 h-5 rounded-full border-2 border-gray-300 mx-auto mb-0.5" />
             )}
             <div className="text-[10px] text-gray-600">Task 2</div>
-            <div className="text-[10px] font-semibold text-[#101828]">${tier.task2}</div>
+            <div className="text-[10px] font-semibold text-[#101828]">
+              ${tier.task2}
+            </div>
           </div>
 
           <button
-            onClick={e => { e.stopPropagation(); setExpanded(v => !v); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              setExpanded((v) => !v);
+            }}
             className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-all ml-2"
           >
-            {expanded ? <ChevronUp className="w-3.5 h-3.5 text-gray-400" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-400" />}
+            {expanded ? (
+              <ChevronUp className="w-3.5 h-3.5 text-gray-400" />
+            ) : (
+              <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
+            )}
           </button>
         </div>
       </div>
@@ -230,16 +361,20 @@ function PortfolioRow({
         {expanded && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
+            animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="px-4 pb-4 space-y-3 border-t border-gray-100/80 pt-3" onClick={e => e.stopPropagation()}>
+            <div
+              className="px-4 pb-4 space-y-3 border-t border-gray-100/80 pt-3"
+              onClick={(e) => e.stopPropagation()}
+            >
               {/* Description */}
               <div className="px-3 py-2 bg-blue-50/50 border border-blue-100 rounded-lg">
                 <p className="text-xs text-gray-700">
-                  Share on X with a card generated and submit the links. The links will be checked each week.
+                  Share on X with a card generated and submit the links. The
+                  links will be checked each week.
                 </p>
               </div>
 
@@ -252,7 +387,7 @@ function PortfolioRow({
                   reward={tier.task1}
                   completed={entry.task1Completed}
                   savedLink={entry.task1Link}
-                  onSubmit={link => onTaskSubmit(1, link)}
+                  onSubmit={(link) => onTaskSubmit(1, link)}
                 />
 
                 {(entry.growth ?? 0) >= 5 ? (
@@ -263,7 +398,7 @@ function PortfolioRow({
                     reward={tier.task2}
                     completed={entry.task2Completed}
                     savedLink={entry.task2Link}
-                    onSubmit={link => onTaskSubmit(2, link)}
+                    onSubmit={(link) => onTaskSubmit(2, link)}
                   />
                 ) : (
                   <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50/40 px-4 py-3 flex items-center gap-3">
@@ -271,12 +406,18 @@ function PortfolioRow({
                       <Lock className="w-3 h-3 text-gray-400" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold text-gray-400">Share your positive performer portfolio</div>
-                      <div className="text-xs text-gray-400 mt-0.5">Available when your portfolio reaches +5% growth or more</div>
+                      <div className="text-sm font-semibold text-gray-400">
+                        Share your positive performer portfolio
+                      </div>
+                      <div className="text-xs text-gray-400 mt-0.5">
+                        Available when your portfolio reaches +5% growth or more
+                      </div>
                     </div>
                     <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white border border-gray-100">
                       <Gem className="w-3 h-3 text-gray-300" />
-                      <span className="text-xs font-bold text-gray-300">${tier.task2}</span>
+                      <span className="text-xs font-bold text-gray-300">
+                        ${tier.task2}
+                      </span>
                     </div>
                   </div>
                 )}
@@ -396,12 +537,12 @@ function CardPreview({ entry }) {
       <div className="flex gap-2 mt-3">
         <button
           onClick={handleShare}
-          className="flex-1 btn-primary py-3 flex items-center justify-center gap-2 text-sm"
+          className="flex-1 btn-primary py-3 flex items-center justify-center gap-2 text-sm w-1/2"
         >
           <Share2 className="w-4 h-4" />
           Share on X
         </button>
-        <button className="px-5 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-xl text-gray-700 font-semibold hover:bg-white/80 transition-all flex items-center gap-2 text-sm">
+        <button className="px-5 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-xl text-gray-700 font-semibold hover:bg-white/80 transition-all flex items-center justify-center gap-2 text-sm w-1/2">
           <Download className="w-4 h-4" />
           Save
         </button>
@@ -491,6 +632,30 @@ export function ProvePortfolio() {
   );
   const [leaderboardOptIn, setLeaderboardOptIn] = useState(true);
   const [isWalletConnected, setIsWalletConnected] = useState(true);
+    const [showMoreDetails, setShowMoreDetails] = useState(false);
+
+
+     const [timeUntilNext, setTimeUntilNext] = useState({ hours: 18, minutes: 32, seconds: 15 });
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeUntilNext(prev => {
+        let { hours, minutes, seconds } = prev;
+        if (seconds > 0) {
+          seconds--;
+        } else if (minutes > 0) {
+          minutes--;
+          seconds = 59;
+        } else if (hours > 0) {
+          hours--;
+          minutes = 59;
+          seconds = 59;
+        }
+        return { hours, minutes, seconds };
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const handleTaskSubmit = (id, task, link) => {
     setPortfolios((prev) =>
@@ -514,6 +679,19 @@ export function ProvePortfolio() {
     );
   };
 
+
+    const dailyPortfolio = portfolios.length > 0
+    ? portfolios.reduce((highest, current) => {
+        const highestValue = highest.currentValue || highest.amountInvested;
+        const currentValue = current.currentValue || current.amountInvested;
+        return currentValue > highestValue ? current : highest;
+      })
+    : null;
+
+
+     const submissions = portfolios.filter(p => p.task1Link || p.task2Link);
+
+
   const totalUserEarned = portfolios.reduce((s, e) => s + e.totalEarned, 0);
   const completedTasks = portfolios.reduce(
     (s, e) => s + (e.task1Completed ? 1 : 0) + (e.task2Completed ? 1 : 0),
@@ -527,7 +705,7 @@ export function ProvePortfolio() {
     <div className="space-y-4">
       {/* Hero */}
       <div className="glass-card p-8 bg-gradient-to-br from-purple-500/10 via-indigo-500/5 to-blue-500/10 border-purple-300/30">
-        <div className="flex items-start justify-between gap-6">
+        <div className="flex flex-col md:flex-row items-start justify-between gap-6">
           <div className="flex-1">
             <h1 className="text-4xl font-bold text-gray-900 mb-2">
               Prove Your Portfolio
@@ -538,43 +716,35 @@ export function ProvePortfolio() {
             </p>
 
             {/* Create Portfolio Button */}
-            <button
-              onClick={() => {
-                if (portfolios.length === 0) {
-                  setPortfolios(demoPortfolios);
-                  setSelectedId(demoPortfolios[0].id);
-                }
-              }}
-              className="btn-primary px-6 py-3 flex items-center gap-2"
-            >
-              <PlusCircle className="w-4 h-4" />
-              Create Your Portfolio
-            </button>
+           
+
+            <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">
+              Your Total Earned
+            </div>
+            <div className="flex items-center gap-1.5">
+              {/* <Trophy className="w-4 h-4 text-purple-600" /> */}
+              <span className="text-lg font-bold text-gray-900 tabular-nums">
+                ${totalUserEarned}
+              </span>
+            </div>
           </div>
 
           {/* Stats on right */}
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3 h-full items-center my-auto">
             <div className="glass-card px-4 py-3 bg-gradient-to-br from-amber-400/15 to-orange-400/10 border-amber-300/40 min-w-[180px]">
               <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">
                 Total Pool
               </div>
-              <div className="flex items-center gap-1.5">
-                <DollarSign className="w-4 h-4 text-amber-600" />
-                <span className="text-lg font-bold text-gray-900 tabular-nums">
-                  50,000
+              <div className="flex items-center ">
+                <Gem className="w-4 h-4 text-purple-600" />
+                <span className="text-lg font-bold text-gray-600 tabular-nums me-1">
+                  10,000
                 </span>
-              </div>
-            </div>
-
-            <div className="glass-card px-4 py-3 bg-gradient-to-br from-purple-500/8 to-indigo-500/5 border-purple-200/40 min-w-[180px]">
-              <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">
-                Your Total Earned
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Trophy className="w-4 h-4 text-purple-600" />
-                <span className="text-lg font-bold text-gray-900 tabular-nums">
-                  ${totalUserEarned}
+                (
+                <span className="text-lg font-bold text-gray-600 tabular-nums">
+                  $50,000
                 </span>
+                )
               </div>
             </div>
           </div>
@@ -582,24 +752,29 @@ export function ProvePortfolio() {
       </div>
 
       {/* How It Works & Reward Structure */}
-      <div className="grid lg:grid-cols-2 gap-6">
+      <div className="flex flex-col lg:flex-row items-start lg:items-stretch gap-6">
         {/* How It Works */}
-        <div className="glass-card p-6">
-          <div className="flex items-center gap-2 mb-4">
+        <div className="glass-card p-6 w-full lg:w-1/2">
+                <div className="flex justify-between mb-4">
+                     <div className="flex items-center gap-2 ">
             <h2 className="text-lg font-bold text-gray-900">How It Works</h2>
-            <div className="group relative">
-              <Info className="w-4 h-4 text-gray-400 cursor-help" />
-              <div className="hidden group-hover:block absolute left-0 top-6 z-10 w-64 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-xl">
-                <div className="font-semibold mb-1">Campaign Rules:</div>
-                <ul className="space-y-1 list-disc list-inside">
-                  <li>One on-chain portfolio per day</li>
-                  <li>Task 1 unlocks when you create a portfolio</li>
-                  <li>Task 2 unlocks at +5% performance</li>
-                  <li>If you sell the portfolio, Task 2 becomes unavailable</li>
-                </ul>
-              </div>
-            </div>
+          
           </div>
+            <div className="flex items-center gap-2">
+              <span className="px-2.5 py-1 hidden lg:flex bg-green-100 text-green-700 text-[10px] font-bold rounded-full uppercase tracking-wider">
+                Guaranteed Rewards
+              </span>
+
+                <button
+                onClick={() => setShowMoreDetails(true)}
+                className="glass-card px-3 py-2 hover:bg-gray-50 transition-colors flex items-center gap-2 text-xs whitespace-nowrap"
+              >
+                <Info size={14} className="text-blue-600" />
+                <span className="font-medium">View Details</span>
+              </button>
+             
+            </div>
+                </div>
           <div className="space-y-4">
             <div className="flex gap-3">
               <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
@@ -642,11 +817,25 @@ export function ProvePortfolio() {
                 </div>
               </div>
             </div>
+            <div className="flex gap-3">
+              <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
+                <span className="text-sm font-bold text-purple-600">4</span>
+              </div>
+              <div>
+                <div className="font-semibold text-gray-900 text-sm">
+                  Verification process
+                </div>
+                <div className="text-xs text-gray-500 mt-0.5">
+                  Each submitted task is verified by our team. Track status:
+                  Pending, Verifying, Approved, or Rejected.
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
         {/* Reward Structure */}
-        <div className="glass-card p-6">
+        <div className="glass-card p-6 w-full lg:w-1/2">
           <div className="flex items-center gap-2 mb-4">
             <h2 className="text-lg font-bold text-gray-900">
               Reward Structure
@@ -671,20 +860,16 @@ export function ProvePortfolio() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-200">
-                  <th className="text-left text-xs font-bold text-gray-500 uppercase tracking-wider pb-3 pr-3">
+                  <th className="text-left text-xs font-bold text-gray-500 uppercase tracking-wider pb-0 lg:pb-3 pr-0 lg:pr-3">
                     Investment
                   </th>
-                  <th className="text-right text-xs font-bold text-gray-500 uppercase tracking-wider pb-3 px-3">
+                  <th className="text-right text-xs font-bold text-gray-500 uppercase tracking-wider pb-0 lg:pb-3 px-0 lg:px-3">
                     Task 1<br />
-                    (Guaranteed)
                   </th>
-                  <th className="text-right text-xs font-bold text-gray-500 uppercase tracking-wider pb-3 px-3">
+                  <th className="text-right text-xs font-bold text-gray-500 uppercase tracking-wider pb-0 lg:pb-3 px-0 lg:px-3">
                     Task 2<br />
-                    (Performance)
                   </th>
-                  <th className="text-right text-xs font-bold text-gray-500 uppercase tracking-wider pb-3 pl-3">
-                    Total
-                    <br />
+                  <th className="text-right text-xs font-bold text-gray-500 uppercase tracking-wider pb-0 lg:pb-3 pl-0 lg:pl-3">
                     Rewards
                   </th>
                 </tr>
@@ -695,13 +880,13 @@ export function ProvePortfolio() {
                     <td className="py-3 text-sm font-semibold text-gray-900 pr-3">
                       ${tier.amount.toLocaleString()}
                     </td>
-                    <td className="py-3 text-right text-sm font-semibold text-green-600 px-3">
+                    <td className="py-3 text-right text-sm font-semibold text-gray-900 px-3">
                       ${tier.task1}
                     </td>
-                    <td className="py-3 text-right text-sm font-semibold text-blue-600 px-3">
+                    <td className="py-3 text-right text-sm font-semibold text-gray-900 px-3">
                       ${tier.task2}
                     </td>
-                    <td className="py-3 text-right text-sm font-bold text-purple-600 pl-3">
+                    <td className="py-3 text-right text-sm font-bold text-gray-900 pl-3">
                       ${tier.maxReward}
                     </td>
                   </tr>
@@ -730,20 +915,33 @@ export function ProvePortfolio() {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-3 gap-4 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-0  lg:gap-4 items-start">
           {/* Left: portfolio list */}
           <div className="glass-card flex flex-col col-span-2 h-full">
             <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-gray-100 flex-shrink-0">
               <h2 className="text-lg font-bold text-gray-900">
                 Your Portfolios
               </h2>
-              {portfolios.length > 0 && (
+              {/* {portfolios.length > 0 && (
                 <span className="text-xs text-gray-400">
                   {portfolios.length} portfolio
                   {portfolios.length !== 1 ? "s" : ""} this week
                 </span>
-              )}
+              )} */}
+                 <button
+              onClick={() => {
+                if (portfolios.length === 0) {
+                  setPortfolios(demoPortfolios);
+                  setSelectedId(demoPortfolios[0].id);
+                }
+              }}
+              className="btn-primary px-6 py-3 flex items-center gap-2"
+            >
+              <PlusCircle className="w-4 h-4" />
+              <span className="hidden lg:flex">Create Your Portfolio</span>
+            </button>
             </div>
+          
 
             {portfolios.length === 0 ? (
               <div className="flex-1 flex flex-col items-center justify-center text-center p-10">
@@ -759,24 +957,71 @@ export function ProvePortfolio() {
                 </p>
               </div>
             ) : (
-              <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2 scrollbar-thin scrollbar-thumb-gray-200 scrollbar-track-transparent max-h-[500px]">
-                {portfolios.map((entry) => (
-                  <PortfolioRow
-                    key={entry.id}
-                    entry={entry}
-                    isSelected={selectedId === entry.id}
-                    onSelect={() => setSelectedId(entry.id)}
-                    onTaskSubmit={(task, link) =>
-                      handleTaskSubmit(entry.id, task, link)
-                    }
-                  />
-                ))}
+
+              <>
+                 <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4 scrollbar-thin scrollbar-thumb-gray-200 scrollbar-track-transparent max-h-[500px]">
+                {/* Daily Portfolio Section */}
+                <div>
+                  <div className="mb-2 px-1">
+                    <div className="flex items-center justify-between mb-1">
+                      <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider">Daily Portfolio</h3>
+                      {timeUntilNext.hours > 0 || timeUntilNext.minutes > 0 || timeUntilNext.seconds > 0 ? (
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 border border-amber-200 rounded-lg">
+                          <Clock className="w-3 h-3 text-amber-600" />
+                          <span className="text-xs font-semibold text-amber-700 tabular-nums">
+                            Next in {String(timeUntilNext.hours).padStart(2, '0')}:{String(timeUntilNext.minutes).padStart(2, '0')}:{String(timeUntilNext.seconds).padStart(2, '0')}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-xs font-semibold text-green-600 px-2.5 py-1 bg-green-50 border border-green-200 rounded-lg">
+                          Ready to create!
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-gray-500">
+                      Displays your highest value portfolio from today's creations
+                    </p>
+                  </div>
+                  {dailyPortfolio && (
+                    <PortfolioRow
+                      key={dailyPortfolio.id}
+                      entry={dailyPortfolio}
+                      isSelected={selectedId === dailyPortfolio.id}
+                      onSelect={() => setSelectedId(dailyPortfolio.id)}
+                      onTaskSubmit={(task, link) => handleTaskSubmit(dailyPortfolio.id, task, link)}
+                    />
+                  )}
+                </div>
+
+                {/* Your Submissions Section */}
+                {submissions.length > 0 && (
+                  <div>
+                    <div className="flex items-center justify-between mb-2 px-1">
+                      <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider">Your Submissions</h3>
+                      <span className="text-xs text-gray-400">{submissions.length} submission{submissions.length !== 1 ? 's' : ''}</span>
+                    </div>
+                    <div className="space-y-2">
+                      {submissions.map(entry => (
+                        <PortfolioRow
+                          key={entry.id}
+                          entry={entry}
+                          isSelected={selectedId === entry.id}
+                          onSelect={() => setSelectedId(entry.id)}
+                          onTaskSubmit={(task, link) => handleTaskSubmit(entry.id, task, link)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
+               
+              </>
+          
             )}
           </div>
 
           {/* Right: card generator */}
-          <div className="lg:sticky lg:top-6">
+          <div className="lg:sticky lg:top-6 mt-4 lg:mt-0">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-gray-900">
                 Card Generator
@@ -801,6 +1046,12 @@ export function ProvePortfolio() {
       )}
 
       {/* Leaderboard */}
+
+         <AnimatePresence>
+        {showMoreDetails && (
+          <MoreDetailsModal isOpen={showMoreDetails} onClose={() => setShowMoreDetails(false)} />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

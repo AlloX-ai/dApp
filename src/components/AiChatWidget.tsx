@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { X, Minus, Send } from "lucide-react";
 import { useChatbot, formatText } from "../hooks/useChatbot";
+import { useSearchParams } from "react-router";
 
 interface Message {
   id: string;
@@ -12,6 +13,14 @@ interface Message {
 export function AIChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
+
+  const [searchParams, setSearchParams] = useSearchParams();
+
+    const campaignParam = searchParams.get("campaign");
+
+
+  console.log("Campaign Param:", campaignParam);
+
   const {
     messages,
     inputValue,
@@ -37,6 +46,10 @@ export function AIChatWidget() {
       handleSendMessage();
     }
   };
+
+  if(campaignParam === "prove-your-portfolio") {
+    return null; // Don't render the chat widget if the campaign parameter is "prove-your-portfolio"
+  }
 
   if (!isOpen) {
     return (
