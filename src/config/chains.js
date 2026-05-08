@@ -1,5 +1,6 @@
 export const CHAIN_IDS = {
   BSC: 56,
+  ETH: 1,
   BASE: 8453,
 };
 
@@ -38,6 +39,40 @@ export const CHAINS = {
       },
     ],
   },
+  ETH: {
+    id: "ETH",
+    chainId: CHAIN_IDS.ETH,
+    label: "Ethereum",
+    shortLabel: "ETH",
+    logo: "https://cdn.allox.ai/allox/networks/eth.svg",
+    explorer: "https://etherscan.io/tx/",
+    nativeSymbol: "ETH",
+    defaultSourceToken: "USDC",
+    sourceTokens: [
+      {
+        symbol: "ETH",
+        address: null,
+        decimals: 18,
+        isNative: true,
+        minGasBuffer: 0.0015,
+        logo: "https://cdn.allox.ai/allox/networks/eth.svg",
+      },
+      {
+        symbol: "USDC",
+        address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+        decimals: 6,
+        minGasBuffer: 0,
+        logo: "https://cdn.allox.ai/allox/tokens/usdc.svg",
+      },
+      {
+        symbol: "USDT",
+        address: "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+        decimals: 6,
+        minGasBuffer: 0,
+        logo: "https://cdn.allox.ai/allox/tokens/usdt.svg",
+      },
+    ],
+  },
   BASE: {
     id: "BASE",
     chainId: CHAIN_IDS.BASE,
@@ -67,13 +102,15 @@ export const CHAINS = {
   },
 };
 
-export const CHAIN_LIST = [CHAINS.BSC, CHAINS.BASE];
+export const CHAIN_LIST = [CHAINS.BSC, CHAINS.ETH, CHAINS.BASE];
 
 export const NATIVE_SYMBOLS = new Set(["BNB", "ETH"]);
 
 export function normalizeChain(chain) {
   const key = String(chain || "BSC").toUpperCase();
-  return key === "BASE" ? "BASE" : "BSC";
+  if (key === "BASE") return "BASE";
+  if (key === "ETH" || key === "ETHEREUM" || key === "MAINNET") return "ETH";
+  return "BSC";
 }
 
 export function chainIdFor(chain) {

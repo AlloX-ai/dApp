@@ -20,7 +20,7 @@ import {
   X,
 } from "lucide-react";
 import { AnimatePresence } from "motion/react";
-import { encodeFunctionData } from "viem";
+import { encodeFunctionData, hashTypedData } from "viem";
 import { useDispatch, useSelector } from "react-redux";
 import { NavLink, useLocation, useNavigate } from "react-router";
 import {
@@ -38,7 +38,6 @@ import {
   checkTxStatus,
   createPrivyExecutionTxEnv,
   createWagmiExecutionTxEnv,
-  ensurePermit2Approvals,
   ensureStandardApproval,
 } from "../utils/execution";
 import { chainIdFor, normalizeChain } from "../config/chains";
@@ -46,12 +45,12 @@ import { PortfolioInfoModal } from "../components/PortfolioInfoModal";
 import { useGemsStatus } from "../hooks/useGemsStatus";
 import { getTierStyle } from "../utils/gemsTier";
 
-const PERMIT2_ADDRESS = "0x31c2F6fcFf4F8759b3Bd5Bf0e1084A055615c768";
 // Small grace period after on-chain approvals before we ask the backend to
 // re-prepare the swap — gives its allowance indexer a moment to catch up.
 const APPROVAL_INDEX_LAG_MS = 3000;
 const PREPARE_RETRY_DELAY_MS = 2500;
 const MAX_POST_APPROVAL_PREPARE_RETRIES = 4;
+const PERMIT2_BATCH_PROVIDERS = new Set(["PANCAKESWAP", "UNISWAP"]);
 
 // Maps raw errors (wagmi connector hiccups, user-rejected sign prompts, etc.)
 // to friendly copy so the UI never surfaces internal strings like
@@ -100,8 +99,18 @@ const PERMIT2_ABI = [
 
 const POLL_INTERVAL_MS = 3500;
 const MAX_POLL_ATTEMPTS = 60;
+const STALE_TX_SUBMITTED_TIMEOUT_MS = 120000;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const parseOptionalGasLimit = (value) => {
+  if (value == null || value === "") return undefined;
+  try {
+    const gas = BigInt(value);
+    return gas > 0n ? gas : undefined;
+  } catch {
+    return undefined;
+  }
+};
 const isRateLimitedError = (error) => {
   if (!error) return false;
   if (error?.status === 429 || error?.code === 429) return true;
@@ -118,6 +127,40 @@ const sellPollDelayMs = (attempt, error) => {
   const jitter = 0.85 + Math.random() * 0.3;
   return Math.round(boosted * jitter);
 };
+const normalizeOrderProvider = (provider) =>
+  String(provider || "")
+    .trim()
+    .toUpperCase();
+const canonicalizeOrderProvider = (provider) => {
+  const normalized = normalizeOrderProvider(provider);
+  if (!normalized) return "";
+  if (normalized.includes("PANCAKE")) return "PANCAKESWAP";
+  if (normalized.includes("UNISWAP")) return "UNISWAP";
+  if (normalized.includes("BRIDGERS")) return "BRIDGERS";
+  return normalized;
+};
+const isPermit2BatchProvider = (provider) =>
+  PERMIT2_BATCH_PROVIDERS.has(canonicalizeOrderProvider(provider));
+const pickOrderProvider = (order) =>
+  canonicalizeOrderProvider(
+    order?.swapProvider ?? order?.provider ?? order?.routeProvider,
+  );
+const pickOrderTokenAddress = (order) =>
+  String(
+    order?.fromTokenAddress ??
+      order?.tokenAddress ??
+      order?.fromToken?.address ??
+      order?.token?.address ??
+      "",
+  ).trim();
+const pickOrderAmountWei = (order) =>
+  String(
+    order?.fromAmount ??
+      order?.fromAmountWei ??
+      order?.amountWei ??
+      order?.amountInWei ??
+      "",
+  ).trim();
 
 const archivePortfolio = async (portfolioId) => {
   await apiCall(`/portfolio/${portfolioId}`, {
@@ -257,6 +300,12 @@ export function PortfolioPage() {
   const [isSellExecuting, setIsSellExecuting] = useState(false);
   const [sellExecutionError, setSellExecutionError] = useState("");
   const [sellExecutionLogs, setSellExecutionLogs] = useState([]);
+  const [sellProgress, setSellProgress] = useState({
+    stage: "idle",
+    current: 0,
+    total: 0,
+    label: "",
+  });
   // Per-order execution status: executionOrderId -> 'executing'|'confirmed'|'failed'
   const [orderStatusMap, setOrderStatusMap] = useState({});
   // Retry prompt state: pauses execution until user decides
@@ -624,6 +673,7 @@ export function PortfolioPage() {
     setSellQuoteError("");
     setSellExecutionError("");
     setSellExecutionLogs([]);
+    setSellProgress({ stage: "idle", current: 0, total: 0, label: "" });
     setSellRequiredSlippage(null);
     setOrderStatusMap({});
     setRetryPrompt(null);
@@ -643,6 +693,7 @@ export function PortfolioPage() {
       setSellQuoteError("");
       setSellExecutionError("");
       setSellRequiredSlippage(null);
+      setSellProgress({ stage: "idle", current: 0, total: 0, label: "" });
       try {
         await ensureAuthenticated();
         const nextSlippage = Number(sellSlippage);
@@ -712,13 +763,169 @@ export function PortfolioPage() {
       throw new Error(`Unsupported approval method: ${method}`);
     }
 
-    const txHash = await txEnv.sendTransaction({ to, data, value: 0n });
+    const gas = parseOptionalGasLimit(
+      approvalStep?.tx?.gas ?? approvalStep?.tx?.gasLimit,
+    );
+    const txHash = await txEnv.sendTransaction({
+      to,
+      data,
+      value: 0n,
+      ...(gas !== undefined && { gas }),
+    });
     await txEnv.waitForTransactionReceipt({ hash: txHash });
     return txHash;
   }, []);
 
+  const signSellPermitTypedData = useCallback(
+    async ({ typedData, userAddress, isPrivySession, embeddedWallet }) => {
+      if (!typedData) {
+        throw new Error("Permit batch response is missing typedData.");
+      }
+
+      // Debug guard: compute exactly what hash the FE is about to sign.
+      // Never mutate server-provided typedData before signing.
+      try {
+        const hashFE = hashTypedData({
+          domain: typedData.domain,
+          types: typedData.types,
+          primaryType: typedData.primaryType,
+          message: typedData.message,
+        });
+        console.log("FE will sign hash:", hashFE);
+      } catch (hashErr) {
+        console.warn("Unable to hash permit typedData on FE:", hashErr);
+      }
+
+      const payload = JSON.stringify(typedData);
+      if (isPrivySession) {
+        if (!embeddedWallet?.getEthereumProvider) {
+          throw new Error("Embedded wallet provider is not available.");
+        }
+        const privyProvider = await embeddedWallet.getEthereumProvider();
+        return privyProvider.request({
+          method: "eth_signTypedData_v4",
+          params: [userAddress, payload],
+        });
+      }
+
+      const injectedProvider =
+        typeof window !== "undefined" ? window.ethereum : null;
+      if (!injectedProvider?.request) {
+        throw new Error("Wallet does not support typed-data signing.");
+      }
+      return injectedProvider.request({
+        method: "eth_signTypedData_v4",
+        params: [userAddress, payload],
+      });
+    },
+    [],
+  );
+
+  const buildSellPermitBatchSignatures = useCallback(
+    async ({
+      orders,
+      chain,
+      userAddress,
+      isPrivySession,
+      embeddedWallet,
+      enablePermitBatch,
+    }) => {
+      if (!enablePermitBatch) {
+        addSellLog("Token sell mode: skipping Permit2 batch.");
+        return {};
+      }
+      const byProvider = {};
+      let permit2CandidateCount = 0;
+      for (const order of orders || []) {
+        const provider = pickOrderProvider(order);
+        if (!isPermit2BatchProvider(provider)) continue;
+        permit2CandidateCount += 1;
+        const token = pickOrderTokenAddress(order);
+        const amountWei = pickOrderAmountWei(order);
+        if (!token || !amountWei) {
+          addSellLog(
+            `Skipping ${order?.symbol || "order"} for Permit2 batch: missing token or amount in quote payload.`,
+          );
+          continue;
+        }
+        if (!byProvider[provider]) byProvider[provider] = [];
+        byProvider[provider].push({
+          token,
+          amountWei,
+        });
+      }
+      const providers = Object.keys(byProvider);
+      if (!providers.length) {
+        addSellLog(
+          permit2CandidateCount > 0
+            ? "Permit2 providers detected, but quote payload lacks batchable token/amount fields. Falling back to per-order approvals."
+            : "No Permit2 providers in this quote. Skipping batch permit.",
+        );
+        return {};
+      }
+
+      addSellLog(
+        `Preparing Permit2 signature${providers.length > 1 ? "s" : ""} (${providers.join(", ")})...`,
+      );
+      addSellLog(
+        `Provider groups: ${providers.map((p) => `${p}:${byProvider[p].length}`).join(", ")}`,
+      );
+
+      const signaturesByProvider = {};
+      let providerIdx = 0;
+      for (const provider of providers) {
+        providerIdx += 1;
+        setSellProgress({
+          stage: "signatures",
+          current: providerIdx,
+          total: providers.length,
+          label: `Preparing signature ${providerIdx}/${providers.length} (${provider})...`,
+        });
+        const items = byProvider[provider].map((o) => ({
+          token: o.token,
+          amountWei: o.amountWei,
+        }));
+        addSellLog(
+          `${provider}: requesting /execution/permit-batch for ${items.length} token(s)...`,
+        );
+        const res = await apiCall("/execution/permit-batch", {
+          method: "POST",
+          body: JSON.stringify({
+            chain,
+            provider,
+            items,
+          }),
+        });
+        addSellLog(`${provider}: /execution/permit-batch ready, requesting signature...`);
+        const signature = await signSellPermitTypedData({
+          typedData: res?.typedData,
+          userAddress,
+          isPrivySession,
+          embeddedWallet,
+        });
+        signaturesByProvider[provider] = {
+          permitBatch: res?.permitBatch,
+          permitBatchSignature: signature,
+        };
+        addSellLog(
+          `${provider}: Permit2 batch signed for ${items.length} order(s).`,
+        );
+      }
+
+      return signaturesByProvider;
+    },
+    [addSellLog, signSellPermitTypedData],
+  );
+
   const executeSingleOrder = useCallback(
-    async (order, txEnv, slippageValue, executionChain) => {
+    async (
+      order,
+      txEnv,
+      slippageValue,
+      executionChain,
+      permitBatchSignaturesByProvider,
+      includePermitBatch,
+    ) => {
       const symbol = order?.symbol || "TOKEN";
 
       const describeWalletError = (err) => {
@@ -743,11 +950,25 @@ export function PortfolioPage() {
         return err?.message || "wallet error";
       };
 
-      const callPrepare = () =>
-        apiCall(`/execution/${order.executionOrderId}/prepare`, {
+      const callPrepare = () => {
+        const provider = pickOrderProvider(order);
+        const body = { slippage: slippageValue };
+        if (includePermitBatch && isPermit2BatchProvider(provider)) {
+          const signedBatch = permitBatchSignaturesByProvider?.[provider];
+          if (signedBatch?.permitBatch && signedBatch?.permitBatchSignature) {
+            body.permitBatch = signedBatch.permitBatch;
+            body.permitBatchSignature = signedBatch.permitBatchSignature;
+          } else {
+            addSellLog(
+              `${symbol}: no Permit2 batch signature found for provider ${provider}; prepare will use fallback approval flow.`,
+            );
+          }
+        }
+        return apiCall(`/execution/${order.executionOrderId}/prepare`, {
           method: "POST",
-          body: JSON.stringify({ slippage: slippageValue }),
+          body: JSON.stringify(body),
         });
+      };
 
       // After approvals, the backend may still see the allowance as missing
       // for a second or two while it indexes the approval tx. Retry /prepare
@@ -843,25 +1064,8 @@ export function PortfolioPage() {
 
         try {
           if (prepare.approvalType === "permit2") {
-            const p2 = prepare.permit2Approval;
-            if (!p2?.spender) {
-              addSellLog(
-                `${symbol}: missing permit2 spender in prepare response.`,
-              );
-              return false;
-            }
-            await ensurePermit2Approvals({
-              chain: executionChain,
-              permit2Approval: {
-                permit2Address: p2.permit2Address || PERMIT2_ADDRESS,
-                spender: p2.spender,
-              },
-              fromTokenAddress,
-              userAddress: txEnv.userAddress,
-              requiredAmount,
-              update: () => {},
-              txEnv,
-            });
+            // On 200 /prepare responses, approvalType:"permit2" identifies the
+            // swap route and does not imply an extra approval transaction.
           } else if (prepare.approvalType === "standard") {
             await ensureStandardApproval({
               chain: executionChain,
@@ -884,6 +1088,7 @@ export function PortfolioPage() {
       addSellLog(`${symbol}: waiting for wallet confirmation...`);
       let txHash;
       try {
+        const gas = parseOptionalGasLimit(txData?.gas ?? txData?.gasLimit);
         txHash = await txEnv.sendTransaction({
           to: txData.to,
           data: txData.data,
@@ -894,6 +1099,7 @@ export function PortfolioPage() {
           ...(txData.nonce != null && txData.nonce !== ""
             ? { nonce: Number(txData.nonce) }
             : {}),
+          ...(gas !== undefined && { gas }),
         });
       } catch (walletErr) {
         addSellLog(`${symbol}: ${describeWalletError(walletErr)}.`);
@@ -951,6 +1157,21 @@ export function PortfolioPage() {
             addSellLog(`${symbol}: failed on-chain.`);
             return false;
           }
+          if (status === "TX_SUBMITTED") {
+            const submittedAtMs = Date.parse(String(statusData?.submittedAt || ""));
+            const isStaleSubmitted =
+              Number.isFinite(submittedAtMs) &&
+              Date.now() - submittedAtMs > STALE_TX_SUBMITTED_TIMEOUT_MS;
+            if (isStaleSubmitted) {
+              const onChainStatus = await checkTxStatus(txHash, executionChain);
+              if (onChainStatus == null) {
+                addSellLog(
+                  `${symbol}: tx still not visible on-chain after submit timeout; moving on.`,
+                );
+                return false;
+              }
+            }
+          }
         } catch (statusErr) {
           lastStatusError = statusErr;
           // transient status error — keep polling
@@ -965,21 +1186,72 @@ export function PortfolioPage() {
 
   const MAX_ORDER_ATTEMPTS = 3;
 
+  const executeRequiredErc20Approvals = useCallback(
+    async (requiredApprovals, txEnv) => {
+      const approvals = Array.isArray(requiredApprovals) ? requiredApprovals : [];
+      if (!approvals.length) return;
+      setSellProgress({
+        stage: "approvals",
+        current: 0,
+        total: approvals.length,
+        label: "Confirming required ERC20 approvals...",
+      });
+      addSellLog(
+        `Quote requires ${approvals.length} one-time ERC20 approval(s) to Permit2.`,
+      );
+      for (const [index, entry] of approvals.entries()) {
+        const symbol = entry?.symbol || "TOKEN";
+        const approvalTx = entry?.approvalTx;
+        if (!approvalTx?.to || !approvalTx?.data) {
+          throw new Error(
+            `${symbol}: quote is missing approvalTx details for requiredErc20Approvals.`,
+          );
+        }
+        setSellProgress({
+          stage: "approvals",
+          current: index + 1,
+          total: approvals.length,
+          label: `Approving ${symbol} (${index + 1}/${approvals.length})...`,
+        });
+        addSellLog(`${symbol}: waiting for one-time ERC20 approval...`);
+        const gas = parseOptionalGasLimit(
+          approvalTx?.gas ?? approvalTx?.gasLimit,
+        );
+        const txHash = await txEnv.sendTransaction({
+          to: approvalTx.to,
+          data: approvalTx.data,
+          value:
+            approvalTx?.value != null && approvalTx.value !== ""
+              ? BigInt(approvalTx.value)
+              : 0n,
+          ...(gas !== undefined && { gas }),
+        });
+        await txEnv.waitForTransactionReceipt({ hash: txHash });
+        addSellLog(`${symbol}: one-time ERC20 approval confirmed.`);
+      }
+    },
+    [addSellLog],
+  );
+
   const confirmSell = useCallback(async () => {
     if (!sellTarget?.portfolioId || !sellQuote?.orders?.length) return;
     setIsSellExecuting(true);
     setSellExecutionError("");
     setSellRequiredSlippage(null);
     setSellExecutionLogs([]);
+    setSellProgress({ stage: "starting", current: 0, total: 0, label: "Starting sell flow..." });
     setOrderStatusMap({});
     setRetryPrompt(null);
     const slippageValue = Number(sellSlippage) > 0 ? Number(sellSlippage) : 1;
 
     try {
       await ensureAuthenticated();
-      const executionChain = normalizeChain(sellQuote?.chain || sellTarget?.chain);
+      const executionChain = normalizeChain(
+        sellQuote?.chain || sellTarget?.chain,
+      );
       const executionChainId = chainIdFor(executionChain);
       let txEnv;
+      let embeddedWallet = null;
       // Detect Privy across all signals so a Privy session that lost
       // `authProvider` after /auth/me refresh still uses the embedded wallet
       // path instead of falling through to wagmi (which would throw
@@ -989,13 +1261,13 @@ export function PortfolioPage() {
         sessionSource === "privy" ||
         walletType === "privy";
       if (isPrivySession) {
-        const embedded = getEmbeddedConnectedWallet(wallets);
-        if (!embedded) {
+        embeddedWallet = getEmbeddedConnectedWallet(wallets);
+        if (!embeddedWallet) {
           throw new Error(
             "Embedded wallet not found. Refresh the page or sign in again.",
           );
         }
-        const chainId = embedded.chainId;
+        const chainId = embeddedWallet.chainId;
         const onExecutionChain =
           chainId === `eip155:${executionChainId}` ||
           (typeof chainId === "string" &&
@@ -1003,10 +1275,10 @@ export function PortfolioPage() {
             parseInt(chainId, 16) === executionChainId) ||
           Number(chainId) === executionChainId;
         if (!onExecutionChain) {
-          await embedded.switchChain(executionChainId);
+          await embeddedWallet.switchChain(executionChainId);
         }
         txEnv = createPrivyExecutionTxEnv(
-          embedded.address,
+          embeddedWallet.address,
           privySendTransaction,
           executionChain,
         );
@@ -1015,8 +1287,28 @@ export function PortfolioPage() {
       }
       txEnv.assertReady();
 
+      const shouldUsePermitBatch = true;
+      addSellLog(
+        `Sell mode: permit-batch + swaps (${sellQuote.orders.length} order(s)).`,
+      );
+
+      await executeRequiredErc20Approvals(
+        sellQuote?.requiredErc20Approvals,
+        txEnv,
+      );
+      const permitBatchSignaturesByProvider =
+        await buildSellPermitBatchSignatures({
+          orders: sellQuote.orders,
+          chain: executionChain,
+          userAddress: txEnv.userAddress,
+          isPrivySession,
+          embeddedWallet,
+          enablePermitBatch: shouldUsePermitBatch,
+        });
+      let includePermitBatch = shouldUsePermitBatch;
+
       let confirmed = 0;
-      for (const initialOrder of sellQuote.orders) {
+      for (const [orderIndex, initialOrder] of sellQuote.orders.entries()) {
         let currentOrder = initialOrder;
         let orderConfirmed = false;
         // statusKey stays tied to the row rendered from sellQuote.orders so
@@ -1028,6 +1320,12 @@ export function PortfolioPage() {
             ...prev,
             [statusKey]: "executing",
           }));
+          setSellProgress({
+            stage: "swaps",
+            current: orderIndex + 1,
+            total: sellQuote.orders.length,
+            label: `Executing swap ${orderIndex + 1}/${sellQuote.orders.length} (${currentOrder?.symbol || "TOKEN"})...`,
+          });
 
           let ok = false;
           try {
@@ -1036,6 +1334,8 @@ export function PortfolioPage() {
               txEnv,
               slippageValue,
               executionChain,
+              permitBatchSignaturesByProvider,
+              includePermitBatch,
             );
           } catch (orderErr) {
             if (orderErr?.status === 401) throw orderErr;
@@ -1050,6 +1350,12 @@ export function PortfolioPage() {
               [statusKey]: "confirmed",
             }));
             orderConfirmed = true;
+            if (includePermitBatch) {
+              includePermitBatch = false;
+              addSellLog(
+                "First swap confirmed. Subsequent /prepare calls omit permitBatch signature.",
+              );
+            }
             // Persist this position as sold immediately.
             // /sell/complete is idempotent and skips already-sold positions,
             // so calling it per-order is safe. This ensures partial sells
@@ -1134,6 +1440,12 @@ export function PortfolioPage() {
       addSellLog(
         `Completed. ${confirmed}/${sellQuote.orders.length} order(s) confirmed.`,
       );
+      setSellProgress({
+        stage: "complete",
+        current: confirmed,
+        total: sellQuote.orders.length,
+        label: `Completed ${confirmed}/${sellQuote.orders.length} orders.`,
+      });
       await loadPortfolios();
       await handlePortfolioSelect(sellTarget.portfolioId);
       if (confirmed > 0) {
@@ -1144,9 +1456,11 @@ export function PortfolioPage() {
         logout();
         return;
       }
-      setSellExecutionError(error?.message || "Sell execution failed.");
-      // Auto re-quote so user can retry with fresh execution order IDs
-      quoteSell(sellTarget);
+      const message = error?.message || "Sell execution failed.";
+      setSellExecutionError(message);
+      addSellLog(`Sell flow stopped: ${message}`);
+      // Do not auto re-quote here; it hides the root cause and makes the
+      // confirm action appear to call quote only.
     } finally {
       setIsSellExecuting(false);
       setRetryPrompt(null);
@@ -1158,6 +1472,8 @@ export function PortfolioPage() {
     closeSellModal,
     ensureAuthenticated,
     executeSingleOrder,
+    executeRequiredErc20Approvals,
+    buildSellPermitBatchSignatures,
     handlePortfolioSelect,
     loadPortfolios,
     logout,
@@ -2620,7 +2936,9 @@ export function PortfolioPage() {
                       </span>
                     </div>
                     <div>
-                      <span className="text-gray-500">Est. {sellOutputToken} out:</span>{" "}
+                      <span className="text-gray-500">
+                        Est. {sellOutputToken} out:
+                      </span>{" "}
                       <span className="font-semibold">
                         {sellEstimatedOutTotal.toFixed(4)}
                       </span>
@@ -2668,7 +2986,11 @@ export function PortfolioPage() {
                             <div className="flex items-center gap-2">
                               <span className="text-gray-700">
                                 ~
-                                {Number(order.estimatedToTokenOut ?? order.estimatedUsdtOut ?? 0).toFixed(4)}{" "}
+                                {Number(
+                                  order.estimatedToTokenOut ??
+                                    order.estimatedUsdtOut ??
+                                    0,
+                                ).toFixed(4)}{" "}
                                 {sellOutputToken}
                               </span>
                               {orderStatus === "executing" && (
@@ -2740,6 +3062,32 @@ export function PortfolioPage() {
             {sellExecutionError ? (
               <div className="mt-4 text-sm text-red-600">
                 {sellExecutionError}
+              </div>
+            ) : null}
+            {isSellExecuting && sellProgress.label ? (
+              <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
+                <div className="flex items-center gap-2 text-xs text-emerald-800 font-medium">
+                  <Loader2 size={13} className="animate-spin shrink-0" />
+                  <span>{sellProgress.label}</span>
+                </div>
+                {sellProgress.total > 0 ? (
+                  <div className="mt-2 h-1.5 rounded-full bg-emerald-100 overflow-hidden">
+                    <div
+                      className="h-full bg-emerald-500 transition-all"
+                      style={{
+                        width: `${Math.max(
+                          8,
+                          Math.min(
+                            100,
+                            Math.round(
+                              (sellProgress.current / sellProgress.total) * 100,
+                            ),
+                          ),
+                        )}%`,
+                      }}
+                    />
+                  </div>
+                ) : null}
               </div>
             ) : null}
             {sellExecutionLogs.length > 0 ? (

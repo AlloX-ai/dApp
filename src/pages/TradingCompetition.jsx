@@ -145,11 +145,10 @@ export function TradingCompetitionPage() {
     walletAddress,
   ]);
 
-    useEffect(() => {
-      window.scrollTo(0, 0);
-      document.title = "Allocation Race";
-    }, []);
-  
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    document.title = "Allocation Race";
+  }, []);
 
   return (
     <div className="space-y-4">
@@ -312,7 +311,8 @@ export function TradingCompetitionPage() {
                 <BarChart3 className="w-3 h-3 text-blue-600" />
               </div>
               <p className="text-xs text-gray-700">
-                <strong>Create portfolios</strong> on BNB Chain or BASE
+                <strong>Create portfolios</strong> on BNB Chain, Ethereum or
+                BASE
               </p>
             </div>
 
@@ -666,7 +666,7 @@ export function TradingCompetitionPage() {
                     <span className="text-amber-500 font-bold">•</span>
                     <span>
                       Participants must have a valid wallet connected to BNB
-                      Chain or BASE
+                      Chain, Ethereum or BASE
                     </span>
                   </li>
 
@@ -697,7 +697,7 @@ export function TradingCompetitionPage() {
                   <li className="flex gap-2">
                     <span className="text-purple-500 font-bold">•</span>
                     <span>
-                      Only portfolios created on BNB Chain or BASE count toward
+                      Only portfolios created on BNB Chain, Ethereum or BASE count toward
                       your ranking
                     </span>
                   </li>
