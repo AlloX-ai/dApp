@@ -22,7 +22,7 @@ import {
   FileText,
   Award,
 } from "lucide-react";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import Countdown from "react-countdown";
 import { useDispatch, useSelector } from "react-redux";
@@ -788,6 +788,8 @@ export function ProvePortfolio() {
   const [leaderboardOptIn, setLeaderboardOptIn] = useState(true);
   const [isWalletConnected, setIsWalletConnected] = useState(true);
   const [showMoreDetails, setShowMoreDetails] = useState(false);
+  const [showTierRules, setShowTierRules] = useState(false);
+  const tierRulesRef = useRef(null);
 
   const [timeUntilNext, setTimeUntilNext] = useState({
     hours: 18,
@@ -814,6 +816,21 @@ export function ProvePortfolio() {
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    if (!showTierRules) return;
+
+    const handleOutsideClick = (event) => {
+      if (!tierRulesRef.current?.contains(event.target)) {
+        setShowTierRules(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", handleOutsideClick);
+    return () => {
+      document.removeEventListener("pointerdown", handleOutsideClick);
+    };
+  }, [showTierRules]);
 
   const handleTaskSubmit = (id, task, link) => {
     setPortfolios((prev) =>
@@ -990,13 +1007,22 @@ export function ProvePortfolio() {
 
         {/* Reward Structure */}
         <div className="glass-card p-6 w-full lg:w-1/2">
-          <div className="flex items-center gap-2 mb-4">
+          <div className="flex items-center justify-between gap-2 mb-4">
             <h2 className="text-lg font-bold text-gray-900">
               Reward Structure
             </h2>
-            <div className="group relative">
-              <Info className="w-4 h-4 text-gray-400 cursor-help" />
-              <div className="hidden group-hover:block absolute left-0 top-6 z-10 w-72 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-xl">
+            <div ref={tierRulesRef} className="group relative">
+              <button
+                type="button"
+                onClick={() => setShowTierRules((v) => !v)}
+                className="flex items-center justify-center"
+                aria-label="Show tier rules"
+                aria-expanded={showTierRules}
+              >
+                <Info className="w-4 h-4 text-gray-400 cursor-help" />
+              </button>
+
+              <div className="hidden lg:group-hover:block absolute right-0 top-6 z-10 w-72 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-xl">
                 <div className="font-semibold mb-1">Tier Rules:</div>
                 <ul className="space-y-1 list-disc list-inside">
                   <li>Minimum portfolio amount: $100</li>
@@ -1008,6 +1034,21 @@ export function ProvePortfolio() {
                   <li>Same applies to all tier ranges</li>
                 </ul>
               </div>
+
+              {showTierRules && (
+                <div className="lg:hidden absolute right-0 top-6 z-10 w-72 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-xl">
+                  <div className="font-semibold mb-1">Tier Rules:</div>
+                  <ul className="space-y-1 list-disc list-inside">
+                    <li>Minimum portfolio amount: $100</li>
+                    <li>Portfolios under $100 won't be shown</li>
+                    <li>
+                      Amounts within a range get the same rewards (e.g.,
+                      $100-$499 all earn $10 total)
+                    </li>
+                    <li>Same applies to all tier ranges</li>
+                  </ul>
+                </div>
+              )}
             </div>
           </div>
           <div className="overflow-x-auto">
