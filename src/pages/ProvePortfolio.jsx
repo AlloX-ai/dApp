@@ -35,6 +35,17 @@ import topPerformerBg from "../assets/provePortfolio/v2/topPerformer.webp";
 import portfolioSnapshotBg from "../assets/provePortfolio/v2/portfoliosnapshot.webp";
 import newPortfolioBg from "../assets/provePortfolio/v2/newportfolio.webp";
 
+const CARD_BACKGROUND_BY_TYPE = {
+  "positive-performer": topPerformerBg,
+  "portfolio-snapshot": portfolioSnapshotBg,
+  "new-portfolio": newPortfolioBg,
+};
+
+const TWITTER_SHARE_TEXT = encodeURIComponent(
+  "Just proved my portfolio on @alloxdotai 🚀\n\n#ProveYourPortfolio #AlloX",
+);
+const TWITTER_SHARE_URL = `https://twitter.com/intent/tweet?text=${TWITTER_SHARE_TEXT}`;
+
 const REWARD_TIERS = [
   { amount: 100, maxReward: 10, task1: 4, task2: 6 },
   { amount: 500, maxReward: 50, task1: 20, task2: 30 },
@@ -50,23 +61,125 @@ function getRewardTier(amount) {
   return tier;
 }
 
+function getCardExportFields(entry) {
+  if (!entry) return null;
 
+  const isPerformer = entry.cardType === "positive-performer";
+  const isSnapshot = entry.cardType === "portfolio-snapshot";
+  const backgroundImage =
+    CARD_BACKGROUND_BY_TYPE[entry.cardType] ?? newPortfolioBg;
+
+  const metricValue = isPerformer
+    ? `+${Number(entry.growth ?? 0).toFixed(1)}%`
+    : isSnapshot && entry.snapshotValueUsd != null
+      ? `$${Number(entry.snapshotValueUsd).toLocaleString()}`
+      : `$${entry.amountInvested.toLocaleString()}`;
+
+  const detail = isPerformer
+    ? `${entry.portfolioName} · $${entry.amountInvested.toLocaleString()} invested`
+    : isSnapshot
+      ? [entry.portfolioName, entry.theme].filter(Boolean).join(" · ") ||
+        "On-chain portfolio"
+      : (entry.tokens || []).join(" · ");
+
+  return { backgroundImage, metricValue, detail };
+}
+
+async function exportPortfolioCardPng(
+  { backgroundImage, metricValue, detail },
+  filename,
+) {
+  const canvas = document.createElement("canvas");
+  const exportSize = 1200;
+  canvas.width = exportSize;
+  canvas.height = exportSize;
+
+  const context = canvas.getContext("2d");
+  if (!context) return;
+
+  const img = await new Promise((resolve, reject) => {
+    const image = new Image();
+    image.crossOrigin = "anonymous";
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = backgroundImage;
+  });
+
+  const radius = 48;
+  context.save();
+  context.beginPath();
+  context.moveTo(radius, 0);
+  context.lineTo(exportSize - radius, 0);
+  context.quadraticCurveTo(exportSize, 0, exportSize, radius);
+  context.lineTo(exportSize, exportSize - radius);
+  context.quadraticCurveTo(
+    exportSize,
+    exportSize,
+    exportSize - radius,
+    exportSize,
+  );
+  context.lineTo(radius, exportSize);
+  context.quadraticCurveTo(0, exportSize, 0, exportSize - radius);
+  context.lineTo(0, radius);
+  context.quadraticCurveTo(0, 0, radius, 0);
+  context.closePath();
+  context.clip();
+
+  context.drawImage(img, 0, 0, exportSize, exportSize);
+
+  context.textAlign = "center";
+  context.fillStyle = "#ffffff";
+  context.font = "800 86px Inter, Arial, sans-serif";
+  context.fillText(metricValue, 600, 1050);
+
+  context.textAlign = "center";
+  context.fillStyle = "#ffffffbf";
+  context.font = "400 30px Inter, Arial, sans-serif";
+  context.fillText(detail, 600, 1100);
+
+  context.restore();
+
+  await new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) {
+          reject(new Error("Could not create image blob."));
+          return;
+        }
+        const pngUrl = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = pngUrl;
+        link.download = filename;
+        link.click();
+        URL.revokeObjectURL(pngUrl);
+        resolve();
+      },
+      "image/png",
+    );
+  });
+}
 
 function MoreDetailsModal({ isOpen, onClose }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      onClick={onClose}
+    >
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
-        onClick={e => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
         className="glass-card p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto"
       >
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-bold text-gray-900">Campaign Details</h3>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-all">
+          <button
+            onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-all"
+          >
             <XIcon className="w-5 h-5 text-gray-400" />
           </button>
         </div>
@@ -81,19 +194,34 @@ function MoreDetailsModal({ isOpen, onClose }) {
             <ul className="space-y-2 text-sm text-gray-700">
               <li className="flex gap-2">
                 <span className="text-purple-600 font-bold">•</span>
-                <span>Users can create <strong>one on-chain portfolio per day</strong> with a minimum investment of <strong>$100</strong>.</span>
+                <span>
+                  Users can create{" "}
+                  <strong>one on-chain portfolio per day</strong> with a minimum
+                  investment of <strong>$100</strong>.
+                </span>
               </li>
               <li className="flex gap-2">
                 <span className="text-purple-600 font-bold">•</span>
-                <span><strong>Task 1:</strong> Share your new portfolio card on X (Twitter) and submit the link to earn guaranteed rewards.</span>
+                <span>
+                  <strong>Task 1:</strong> Share your new portfolio card on X
+                  (Twitter) and submit the link to earn guaranteed rewards.
+                </span>
               </li>
               <li className="flex gap-2">
                 <span className="text-purple-600 font-bold">•</span>
-                <span><strong>Task 2:</strong> If your portfolio grows by <strong>5% or more</strong>, this task activates. Share your positive performer card on X and submit the link to earn additional rewards.</span>
+                <span>
+                  <strong>Task 2:</strong> If your portfolio grows by{" "}
+                  <strong>5% or more</strong>, this task activates. Share your
+                  positive performer card on X and submit the link to earn
+                  additional rewards.
+                </span>
               </li>
               <li className="flex gap-2">
                 <span className="text-purple-600 font-bold">•</span>
-                <span><strong>Important:</strong> If you sell your portfolio, you will no longer be able to use it in the campaign.</span>
+                <span>
+                  <strong>Important:</strong> If you sell your portfolio, you
+                  will no longer be able to use it in the campaign.
+                </span>
               </li>
             </ul>
           </div>
@@ -107,23 +235,40 @@ function MoreDetailsModal({ isOpen, onClose }) {
             <ul className="space-y-2 text-sm text-gray-700">
               <li className="flex gap-2">
                 <span className="text-amber-600 font-bold">•</span>
-                <span>When you submit a link for any task, it enters a <strong>verification process</strong>.</span>
+                <span>
+                  When you submit a link for any task, it enters a{" "}
+                  <strong>verification process</strong>.
+                </span>
               </li>
               <li className="flex gap-2">
                 <span className="text-amber-600 font-bold">•</span>
-                <span>Upon submission, <strong>rewards are allocated to your account</strong>, but they must be <strong>verified and approved</strong> by our team before being finalized.</span>
+                <span>
+                  Upon submission,{" "}
+                  <strong>rewards are allocated to your account</strong>, but
+                  they must be <strong>verified and approved</strong> by our
+                  team before being finalized.
+                </span>
               </li>
               <li className="flex gap-2">
                 <span className="text-amber-600 font-bold">•</span>
-                <span>Our team will review your submission to ensure it meets campaign requirements.</span>
+                <span>
+                  Our team will review your submission to ensure it meets
+                  campaign requirements.
+                </span>
               </li>
               <li className="flex gap-2">
                 <span className="text-amber-600 font-bold">•</span>
-                <span>Once verified and approved, the rewards are <strong>confirmed and finalized</strong> in your account.</span>
+                <span>
+                  Once verified and approved, the rewards are{" "}
+                  <strong>confirmed and finalized</strong> in your account.
+                </span>
               </li>
               <li className="flex gap-2">
                 <span className="text-amber-600 font-bold">•</span>
-                <span>You can track the status of each task: Pending, In Verification, Approved, or Rejected.</span>
+                <span>
+                  You can track the status of each task: Pending, In
+                  Verification, Approved, or Rejected.
+                </span>
               </li>
             </ul>
           </div>
@@ -137,37 +282,50 @@ function MoreDetailsModal({ isOpen, onClose }) {
             <ul className="space-y-2 text-xs text-gray-600">
               <li className="flex gap-2">
                 <span className="text-gray-400 font-bold">•</span>
-                <span>AlloX reserves the right to modify, suspend, or terminate the campaign at any time without prior notice.</span>
+                <span>
+                  AlloX reserves the right to modify, suspend, or terminate the
+                  campaign at any time without prior notice.
+                </span>
               </li>
               <li className="flex gap-2">
                 <span className="text-gray-400 font-bold">•</span>
-                <span>Submissions that violate campaign rules, contain fraudulent activity, or use automated bots will be disqualified.</span>
+                <span>
+                  Submissions that violate campaign rules, contain fraudulent
+                  activity, or use automated bots will be disqualified.
+                </span>
               </li>
               <li className="flex gap-2">
                 <span className="text-gray-400 font-bold">•</span>
-                <span>Rewards are subject to verification and approval by our team. Incomplete or invalid submissions will not be rewarded.</span>
+                <span>
+                  Rewards are subject to verification and approval by our team.
+                  Incomplete or invalid submissions will not be rewarded.
+                </span>
               </li>
               <li className="flex gap-2">
                 <span className="text-gray-400 font-bold">•</span>
-                <span>By participating, you agree to comply with all campaign rules and AlloX's terms of service.</span>
+                <span>
+                  By participating, you agree to comply with all campaign rules
+                  and AlloX's terms of service.
+                </span>
               </li>
               <li className="flex gap-2">
                 <span className="text-gray-400 font-bold">•</span>
-                <span>AlloX is not responsible for technical issues, network errors, or user errors that may affect participation.</span>
+                <span>
+                  AlloX is not responsible for technical issues, network errors,
+                  or user errors that may affect participation.
+                </span>
               </li>
             </ul>
           </div>
         </div>
 
-        <button onClick={onClose} className="btn-primary w-full mt-6">Got it</button>
+        <button onClick={onClose} className="btn-primary w-full mt-6">
+          Got it
+        </button>
       </motion.div>
     </div>
   );
 }
-
-
-
-
 
 /* ── Inline link submission field ── */
 function LinkField({
@@ -431,16 +589,43 @@ function PortfolioRow({ entry, isSelected, onSelect, onTaskSubmit }) {
 }
 
 function CardPreview({ entry }) {
-  const handleShare = () => {
+  const [busyAction, setBusyAction] = useState(null);
+
+  const handleDownloadCard = async () => {
     if (!entry) return;
-    const text =
-      entry.cardType === "positive-performer"
-        ? `My ${entry.portfolioName} portfolio on @AlloX is up +${entry.growth}%! 🚀\n\n#ProveYourPortfolio #AlloX`
-        : `Just created ${entry.portfolioName} on @AlloX with $${entry.amountInvested}! 🚀\n\n#ProveYourPortfolio #AlloX`;
-    window.open(
-      `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`,
-      "_blank",
-    );
+    const fields = getCardExportFields(entry);
+    if (!fields) return;
+
+    setBusyAction("save");
+    try {
+      await exportPortfolioCardPng(
+        fields,
+        `allox-${entry.cardType}-${entry.id}-card.png`,
+      );
+    } catch {
+      toast.error("Could not download the card. Please try again.");
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
+  const handleShareOnX = async () => {
+    if (!entry) return;
+    const fields = getCardExportFields(entry);
+    if (!fields) return;
+
+    setBusyAction("share");
+    try {
+      await exportPortfolioCardPng(
+        fields,
+        `allox-${entry.cardType}-${entry.id}-card.png`,
+      );
+      window.open(TWITTER_SHARE_URL, "_blank", "noopener");
+    } catch {
+      toast.error("Could not prepare your card for sharing. Please try again.");
+    } finally {
+      setBusyAction(null);
+    }
   };
 
   if (!entry) {
@@ -459,7 +644,17 @@ function CardPreview({ entry }) {
     );
   }
 
+  const fields = getCardExportFields(entry);
+  const { backgroundImage, metricValue, detail } = fields;
+
   const isPerformer = entry.cardType === "positive-performer";
+  const isSnapshot = entry.cardType === "portfolio-snapshot";
+
+  const cardAlt = isPerformer
+    ? "Positive performer card"
+    : isSnapshot
+      ? "Portfolio snapshot card"
+      : "New portfolio card";
 
   return (
     <motion.div
@@ -468,83 +663,43 @@ function CardPreview({ entry }) {
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.2 }}
     >
-      <div
-        className={`aspect-square w-full rounded-2xl p-7 relative overflow-hidden shadow-2xl ${
-          isPerformer
-            ? "bg-gradient-to-br from-emerald-900 via-teal-900 to-green-900"
-            : "bg-gradient-to-br from-violet-900 via-indigo-900 to-blue-900"
-        }`}
-      >
-        {/* Glow blobs */}
-        <div className="absolute inset-0 opacity-25 pointer-events-none">
-          <div
-            className={`absolute -top-16 -right-16 w-72 h-72 rounded-full blur-3xl ${isPerformer ? "bg-emerald-400" : "bg-violet-400"}`}
-          />
-          <div
-            className={`absolute -bottom-16 -left-16 w-72 h-72 rounded-full blur-3xl ${isPerformer ? "bg-teal-500" : "bg-indigo-500"} opacity-60`}
-          />
-        </div>
-        {/* Grid texture */}
-        <div
-          className="absolute inset-0 opacity-[0.04]"
-          style={{
-            backgroundImage:
-              "linear-gradient(rgba(255,255,255,1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,1) 1px, transparent 1px)",
-            backgroundSize: "28px 28px",
-          }}
+      <div className="aspect-square w-full max-w-[380px] mx-auto rounded-2xl p-6 relative overflow-hidden shadow-2xl">
+        <img
+          src={backgroundImage}
+          alt={cardAlt}
+          className="absolute inset-0 w-full h-full rounded-2xl"
         />
 
-        <div className="relative h-full flex flex-col justify-between">
-          {/* Top */}
-          <div className="flex items-start justify-between">
-            <span className="text-white font-bold text-xl tracking-tight">
-              AlloX
-            </span>
-            <span className="px-3 py-1 bg-white/10 backdrop-blur-sm rounded-full text-white text-xs font-bold border border-white/20">
-              {isPerformer ? "+10% Performer" : "New Portfolio"}
-            </span>
-          </div>
-
-          {/* Center stat */}
-          <div className="text-center">
-            <div className="text-white/60 text-xs uppercase tracking-widest font-semibold mb-3">
-              {isPerformer ? "Portfolio Growth" : "Investment Amount"}
+        <div className="relative top-3 h-full flex items-end justify-center">
+          <div className="text-center px-2 py-1">
+            <div className="text-4xl font-extrabold text-white leading-none drop-shadow-sm">
+              {metricValue}
             </div>
-            <div className="text-7xl font-bold text-white tracking-tight mb-2 leading-none">
-              {isPerformer
-                ? `+${entry.growth}%`
-                : `$${entry.amountInvested.toLocaleString()}`}
+            <div className="text-white/75 text-[11px] uppercase tracking-wider mt-1.5 line-clamp-3">
+              {detail}
             </div>
-            <div className="text-white/50 text-sm mt-2">
-              {isPerformer
-                ? `${entry.portfolioName} · $${entry.amountInvested.toLocaleString()} invested`
-                : entry.tokens.join(" · ")}
-            </div>
-          </div>
-
-          {/* Bottom */}
-          <div className="flex items-center justify-between">
-            <span className="text-white/40 text-xs font-semibold">
-              #ProveYourPortfolio
-            </span>
-            <span className="text-white/40 text-xs font-mono">
-              0x7a8c...4f2e
-            </span>
           </div>
         </div>
       </div>
 
-      <div className="flex gap-2 mt-3">
+      <div className="flex gap-2.5 max-w-[380px] mx-auto mt-3">
         <button
-          onClick={handleShare}
-          className="flex-1 btn-primary py-3 flex items-center justify-center gap-2 text-sm w-1/2"
+          type="button"
+          onClick={handleShareOnX}
+          disabled={busyAction !== null}
+          className="flex-1 btn-primary py-3 flex items-center justify-center gap-2 text-sm disabled:opacity-60 disabled:cursor-not-allowed"
         >
           <Share2 className="w-4 h-4" />
-          Share on X
+          {busyAction === "share" ? "Preparing…" : "Share on X"}
         </button>
-        <button className="px-5 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-xl text-gray-700 font-semibold hover:bg-white/80 transition-all flex items-center justify-center gap-2 text-sm w-1/2">
+        <button
+          type="button"
+          onClick={handleDownloadCard}
+          disabled={busyAction !== null}
+          className="flex-1 px-5 py-3 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-xl text-gray-700 font-semibold hover:bg-white/80 transition-all flex items-center justify-center gap-2 text-sm disabled:opacity-60 disabled:cursor-not-allowed"
+        >
           <Download className="w-4 h-4" />
-          Save
+          {busyAction === "save" ? "Saving…" : "Save"}
         </button>
       </div>
     </motion.div>
@@ -632,14 +787,17 @@ export function ProvePortfolio() {
   );
   const [leaderboardOptIn, setLeaderboardOptIn] = useState(true);
   const [isWalletConnected, setIsWalletConnected] = useState(true);
-    const [showMoreDetails, setShowMoreDetails] = useState(false);
+  const [showMoreDetails, setShowMoreDetails] = useState(false);
 
-
-     const [timeUntilNext, setTimeUntilNext] = useState({ hours: 18, minutes: 32, seconds: 15 });
+  const [timeUntilNext, setTimeUntilNext] = useState({
+    hours: 18,
+    minutes: 32,
+    seconds: 15,
+  });
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setTimeUntilNext(prev => {
+      setTimeUntilNext((prev) => {
         let { hours, minutes, seconds } = prev;
         if (seconds > 0) {
           seconds--;
@@ -679,18 +837,16 @@ export function ProvePortfolio() {
     );
   };
 
+  const dailyPortfolio =
+    portfolios.length > 0
+      ? portfolios.reduce((highest, current) => {
+          const highestValue = highest.currentValue || highest.amountInvested;
+          const currentValue = current.currentValue || current.amountInvested;
+          return currentValue > highestValue ? current : highest;
+        })
+      : null;
 
-    const dailyPortfolio = portfolios.length > 0
-    ? portfolios.reduce((highest, current) => {
-        const highestValue = highest.currentValue || highest.amountInvested;
-        const currentValue = current.currentValue || current.amountInvested;
-        return currentValue > highestValue ? current : highest;
-      })
-    : null;
-
-
-     const submissions = portfolios.filter(p => p.task1Link || p.task2Link);
-
+  const submissions = portfolios.filter((p) => p.task1Link || p.task2Link);
 
   const totalUserEarned = portfolios.reduce((s, e) => s + e.totalEarned, 0);
   const completedTasks = portfolios.reduce(
@@ -716,7 +872,6 @@ export function ProvePortfolio() {
             </p>
 
             {/* Create Portfolio Button */}
-           
 
             <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">
               Your Total Earned
@@ -755,26 +910,24 @@ export function ProvePortfolio() {
       <div className="flex flex-col lg:flex-row items-start lg:items-stretch gap-6">
         {/* How It Works */}
         <div className="glass-card p-6 w-full lg:w-1/2">
-                <div className="flex justify-between mb-4">
-                     <div className="flex items-center gap-2 ">
-            <h2 className="text-lg font-bold text-gray-900">How It Works</h2>
-          
-          </div>
+          <div className="flex justify-between mb-4">
+            <div className="flex items-center gap-2 ">
+              <h2 className="text-lg font-bold text-gray-900">How It Works</h2>
+            </div>
             <div className="flex items-center gap-2">
               <span className="px-2.5 py-1 hidden lg:flex bg-green-100 text-green-700 text-[10px] font-bold rounded-full uppercase tracking-wider">
                 Guaranteed Rewards
               </span>
 
-                <button
+              <button
                 onClick={() => setShowMoreDetails(true)}
                 className="glass-card px-3 py-2 hover:bg-gray-50 transition-colors flex items-center gap-2 text-xs whitespace-nowrap"
               >
                 <Info size={14} className="text-blue-600" />
                 <span className="font-medium">View Details</span>
               </button>
-             
             </div>
-                </div>
+          </div>
           <div className="space-y-4">
             <div className="flex gap-3">
               <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
@@ -928,20 +1081,19 @@ export function ProvePortfolio() {
                   {portfolios.length !== 1 ? "s" : ""} this week
                 </span>
               )} */}
-                 <button
-              onClick={() => {
-                if (portfolios.length === 0) {
-                  setPortfolios(demoPortfolios);
-                  setSelectedId(demoPortfolios[0].id);
-                }
-              }}
-              className="btn-primary px-6 py-3 flex items-center gap-2"
-            >
-              <PlusCircle className="w-4 h-4" />
-              <span className="hidden lg:flex">Create Your Portfolio</span>
-            </button>
+              <button
+                onClick={() => {
+                  if (portfolios.length === 0) {
+                    setPortfolios(demoPortfolios);
+                    setSelectedId(demoPortfolios[0].id);
+                  }
+                }}
+                className="btn-primary px-6 py-3 flex items-center gap-2"
+              >
+                <PlusCircle className="w-4 h-4" />
+                <span className="hidden lg:flex">Create Your Portfolio</span>
+              </button>
             </div>
-          
 
             {portfolios.length === 0 ? (
               <div className="flex-1 flex flex-col items-center justify-center text-center p-10">
@@ -957,66 +1109,80 @@ export function ProvePortfolio() {
                 </p>
               </div>
             ) : (
-
               <>
-                 <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4 scrollbar-thin scrollbar-thumb-gray-200 scrollbar-track-transparent max-h-[500px]">
-                {/* Daily Portfolio Section */}
-                <div>
-                  <div className="mb-2 px-1">
-                    <div className="flex items-center justify-between mb-1">
-                      <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider">Daily Portfolio</h3>
-                      {timeUntilNext.hours > 0 || timeUntilNext.minutes > 0 || timeUntilNext.seconds > 0 ? (
-                        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 border border-amber-200 rounded-lg">
-                          <Clock className="w-3 h-3 text-amber-600" />
-                          <span className="text-xs font-semibold text-amber-700 tabular-nums">
-                            Next in {String(timeUntilNext.hours).padStart(2, '0')}:{String(timeUntilNext.minutes).padStart(2, '0')}:{String(timeUntilNext.seconds).padStart(2, '0')}
+                <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4 scrollbar-thin scrollbar-thumb-gray-200 scrollbar-track-transparent max-h-[400px]">
+                  {/* Daily Portfolio Section */}
+                  <div>
+                    <div className="mb-2 px-1">
+                      <div className="flex items-center justify-between mb-1">
+                        <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider">
+                          Daily Portfolio
+                        </h3>
+                        {timeUntilNext.hours > 0 ||
+                        timeUntilNext.minutes > 0 ||
+                        timeUntilNext.seconds > 0 ? (
+                          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 border border-amber-200 rounded-lg">
+                            <Clock className="w-3 h-3 text-amber-600" />
+                            <span className="text-xs font-semibold text-amber-700 tabular-nums">
+                              Next in{" "}
+                              {String(timeUntilNext.hours).padStart(2, "0")}:
+                              {String(timeUntilNext.minutes).padStart(2, "0")}:
+                              {String(timeUntilNext.seconds).padStart(2, "0")}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-xs font-semibold text-green-600 px-2.5 py-1 bg-green-50 border border-green-200 rounded-lg">
+                            Ready to create!
                           </span>
-                        </div>
-                      ) : (
-                        <span className="text-xs font-semibold text-green-600 px-2.5 py-1 bg-green-50 border border-green-200 rounded-lg">
-                          Ready to create!
-                        </span>
-                      )}
+                        )}
+                      </div>
+                      <p className="text-[11px] text-gray-500">
+                        Displays your highest value portfolio from today's
+                        creations
+                      </p>
                     </div>
-                    <p className="text-[11px] text-gray-500">
-                      Displays your highest value portfolio from today's creations
-                    </p>
+                    {dailyPortfolio && (
+                      <PortfolioRow
+                        key={dailyPortfolio.id}
+                        entry={dailyPortfolio}
+                        isSelected={selectedId === dailyPortfolio.id}
+                        onSelect={() => setSelectedId(dailyPortfolio.id)}
+                        onTaskSubmit={(task, link) =>
+                          handleTaskSubmit(dailyPortfolio.id, task, link)
+                        }
+                      />
+                    )}
                   </div>
-                  {dailyPortfolio && (
-                    <PortfolioRow
-                      key={dailyPortfolio.id}
-                      entry={dailyPortfolio}
-                      isSelected={selectedId === dailyPortfolio.id}
-                      onSelect={() => setSelectedId(dailyPortfolio.id)}
-                      onTaskSubmit={(task, link) => handleTaskSubmit(dailyPortfolio.id, task, link)}
-                    />
+
+                  {/* Your Submissions Section */}
+                  {submissions.length > 0 && (
+                    <div>
+                      <div className="flex items-center justify-between mb-2 px-1">
+                        <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider">
+                          Your Submissions
+                        </h3>
+                        <span className="text-xs text-gray-400">
+                          {submissions.length} submission
+                          {submissions.length !== 1 ? "s" : ""}
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        {submissions.map((entry) => (
+                          <PortfolioRow
+                            key={entry.id}
+                            entry={entry}
+                            isSelected={selectedId === entry.id}
+                            onSelect={() => setSelectedId(entry.id)}
+                            onTaskSubmit={(task, link) =>
+                              handleTaskSubmit(entry.id, task, link)
+                            }
+                          />
+                        ))}
+                      </div>
+                    </div>
                   )}
                 </div>
-
-                {/* Your Submissions Section */}
-                {submissions.length > 0 && (
-                  <div>
-                    <div className="flex items-center justify-between mb-2 px-1">
-                      <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider">Your Submissions</h3>
-                      <span className="text-xs text-gray-400">{submissions.length} submission{submissions.length !== 1 ? 's' : ''}</span>
-                    </div>
-                    <div className="space-y-2">
-                      {submissions.map(entry => (
-                        <PortfolioRow
-                          key={entry.id}
-                          entry={entry}
-                          isSelected={selectedId === entry.id}
-                          onSelect={() => setSelectedId(entry.id)}
-                          onTaskSubmit={(task, link) => handleTaskSubmit(entry.id, task, link)}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-               
               </>
-          
             )}
           </div>
 
@@ -1047,9 +1213,12 @@ export function ProvePortfolio() {
 
       {/* Leaderboard */}
 
-         <AnimatePresence>
+      <AnimatePresence>
         {showMoreDetails && (
-          <MoreDetailsModal isOpen={showMoreDetails} onClose={() => setShowMoreDetails(false)} />
+          <MoreDetailsModal
+            isOpen={showMoreDetails}
+            onClose={() => setShowMoreDetails(false)}
+          />
         )}
       </AnimatePresence>
     </div>
