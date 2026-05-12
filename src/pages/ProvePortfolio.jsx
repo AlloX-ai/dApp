@@ -736,13 +736,14 @@ export function ProvePortfolio() {
                 Total Pool
               </div>
               <div className="flex items-center ">
+                 <span className="text-lg font-bold text-gray-600 tabular-nums">
+                  $50,000
+                </span>
+               
+                (
                 <Gem className="w-4 h-4 text-purple-600" />
                 <span className="text-lg font-bold text-gray-600 tabular-nums me-1">
                   10,000
-                </span>
-                (
-                <span className="text-lg font-bold text-gray-600 tabular-nums">
-                  $50,000
                 </span>
                 )
               </div>
