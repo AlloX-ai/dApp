@@ -24,10 +24,10 @@ const META_MASK_WALLET = {
 const WALLETS = [
   META_MASK_WALLET,
   {
-    name: "Binance Wallet",
-    icon: "https://cdn.allox.ai/allox/wallets/binanceWallet.svg",
+    name: "WalletConnect",
+    icon: "https://cdn.allox.ai/allox/wallets/walletConnect.svg",
     type: "top",
-    walletType: "binance",
+    walletType: "walletconnect",
   },
   {
     name: "OKX",
@@ -52,12 +52,6 @@ const WALLETS = [
     icon: "https://cdn.allox.ai/allox/wallets/phantom.svg",
     type: "top",
     walletType: "phantom",
-  },
-  {
-    name: "WalletConnect",
-    icon: "https://cdn.allox.ai/allox/wallets/walletConnect.svg",
-    type: "more",
-    walletType: "walletconnect",
   },
 ];
 

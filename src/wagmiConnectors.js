@@ -6,9 +6,7 @@ import {
   walletConnect,
   injected,
 } from "wagmi/connectors";
-import { getWagmiConnectorV2 } from "@binance/w3w-wagmi-connector-v2";
 
-const binanceConnector = getWagmiConnectorV2();
 const BASE_RPC_ENDPOINTS = [
   "https://mainnet.base.org",
   "https://base.publicnode.com",
@@ -26,8 +24,15 @@ export const wagmiClient = createConfig({
       projectId: "a465b6d7661ba54df9ca6c4757bce009",
     }),
     injected(),
-    binanceConnector(),
-    metaMask(),
+    metaMask({
+      dapp: {
+        name: "Allox",
+        url:
+          typeof window !== "undefined"
+            ? window.location.origin
+            : "https://allox.ai",
+      },
+    }),
     coinbaseWallet(),
   ],
   transports: {

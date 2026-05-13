@@ -4,10 +4,10 @@ import { useDispatch, useSelector } from "react-redux";
 import OutsideClickHandler from "react-outside-click-handler";
 import { toast } from "../utils/toast";
 import { setAddress, setChainId, setIsConnected, setWalletType } from "../redux/slices/walletSlice";
-import { connect, disconnect, getAccount } from "@wagmi/core";
+import { connect, disconnect, getConnection } from "@wagmi/core";
 import { wagmiClient } from "../wagmiConnectors";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { useSwitchChain, useAccount } from "wagmi";
+import { useSwitchChain, useConnection } from "wagmi";
 import { useWallets } from "@privy-io/react-auth";
 import {
   getPrivyEmbedded,
@@ -46,7 +46,7 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
   const { connected: solanaConnected, publicKey: solanaPublicKey } = useWallet();
   const sessionSource = useSelector((state: any) => state.wallet.sessionSource);
   const { wallets } = useWallets();
-  const { connector } = useAccount();
+  const { connector } = useConnection();
   const { switchChainAsync } = useSwitchChain();
 
   const embeddedWallet = getPrivyEmbedded(wallets);
@@ -177,7 +177,7 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
           c.name?.toLowerCase().includes("phantom") || c.id === "injected",
       );
       if (injectedConnector) {
-        const existing = getAccount(wagmiClient);
+        const existing = getConnection(wagmiClient);
         if (existing?.status !== "connected") {
           try {
             await connect(wagmiClient, { connector: injectedConnector });
@@ -209,14 +209,14 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
             (c) => c.name?.toLowerCase().includes("metamask"),
           );
           if (metaMaskConnector) {
-            const existingAccount = getAccount(wagmiClient);
+            const existingAccount = getConnection(wagmiClient);
             const alreadyMetaMask =
               existingAccount?.connector?.name?.toLowerCase?.().includes("metamask") &&
               existingAccount?.status === "connected";
             if (!alreadyMetaMask) {
               await connect(wagmiClient, { connector: metaMaskConnector });
             }
-            const account = getAccount(wagmiClient);
+            const account = getConnection(wagmiClient);
             if (account?.address) {
               dispatch(setAddress(account.address));
               dispatch(setWalletType("evm"));
@@ -319,7 +319,7 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
     }
     setSwitching(true);
     try {
-      const currentAccount = getAccount(wagmiClient);
+      const currentAccount = getConnection(wagmiClient);
       if (currentAccount?.connector) {
         await disconnect(wagmiClient, { connector: currentAccount.connector });
       }

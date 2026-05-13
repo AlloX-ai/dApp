@@ -16,7 +16,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 
-import { useAccount, useSwitchChain } from "wagmi";
+import { useConnection, useSwitchChain } from "wagmi";
 import { useWallets } from "@privy-io/react-auth";
 import { SOLANA_CHAIN_ID } from "../hooks/useCheckin";
 import { setChainId, setWalletModal } from "../redux/slices/walletSlice";
@@ -119,7 +119,7 @@ export function CheckinModal({
   const isPrivySession =
     sessionSource === "privy" || walletType === "privy";
   const isOpenState = open ?? isOpen ?? false;
-  const { connector } = useAccount();
+  const { connector } = useConnection();
   const { switchChainAsync } = useSwitchChain();
 
   const [justClaimed, setJustClaimed] = useState(false);

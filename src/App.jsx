@@ -22,9 +22,9 @@ import { wagmiClient } from "./wagmiConnectors";
 import {
   connect,
   disconnect,
-  getAccount,
+  getConnection,
   getConnections,
-  watchAccount,
+  watchConnection,
   watchConnections,
 } from "@wagmi/core";
 import {
@@ -138,7 +138,7 @@ function LaunchAppLayout() {
   const prevWalletTypeRef = useRef(undefined);
   const authTriggeredRef = useRef(false);
   const walletAuthInFlightRef = useRef(false);
-  const { connector } = getAccount(wagmiClient);
+  const { connector } = getConnection(wagmiClient);
   const {
     wallets: solanaWallets,
     select: selectSolanaWallet,
@@ -188,13 +188,13 @@ function LaunchAppLayout() {
 
       walletAuthInFlightRef.current = true;
       setIsWalletAuthPending(true);
-      const isBinanceWallet = walletType === "binance";
+      const isMobileWalletHandoff = walletType === "walletconnect";
       const toastId = "wallet-auth-flow";
 
       if (showLoadingToast) {
         toast.loading(
-          isBinanceWallet
-            ? "Waiting for Binance Wallet approval. Return to Chrome after approving the signature."
+          isMobileWalletHandoff
+            ? "Waiting for your wallet. After approving, return to this browser to finish."
             : "Waiting for wallet signature...",
           { id: toastId },
         );
@@ -237,7 +237,7 @@ function LaunchAppLayout() {
   );
 
   const syncCurrentEvmAccount = useCallback(() => {
-    const account = getAccount(wagmiClient);
+    const account = getConnection(wagmiClient);
     if (store.getState().wallet.walletType === "solana") return account;
     if (account.status === "connected" && account.address) {
       dispatch(setAddress(account.address));
@@ -331,11 +331,13 @@ function LaunchAppLayout() {
 
         if (
           shouldRetryAuth &&
-          (currentWallet.walletModal || currentWallet.walletType === "binance")
+          (currentWallet.walletModal ||
+            currentWallet.walletType === "walletconnect")
         ) {
           attemptWalletAuthentication({
             source: "resume",
-            showLoadingToast: currentWallet.walletType === "binance",
+            showLoadingToast:
+              currentWallet.walletType === "walletconnect",
           }).catch(() => {});
         } else if (
           account.status === "connected" &&
@@ -590,22 +592,11 @@ function LaunchAppLayout() {
     );
 
     if (connector && connector.name !== "WalletConnect") {
-      const isBinance =
-        option.walletType === "binance" || option.name === "Binance Wallet";
-      if (isBinance) {
-        toast.info(
-          "Continue in Binance Wallet. After connecting or signing, return to Chrome and we'll resume verification.",
-          { id: "binance-wallet-handoff" },
-        );
-      }
       connect(wagmiClient, { connector })
         .then(() => {
-          dispatch(setWalletType(isBinance ? "binance" : "evm"));
+          dispatch(setWalletType("evm"));
           dispatch(setIsConnected(true));
           dispatch(setSessionSource("wallet"));
-          if (isBinance) {
-            setTimeout(() => getAccount(wagmiClient), 2000);
-          }
         })
         .catch((err) => {
           console.error("Wallet connection error:", err);
@@ -614,9 +605,13 @@ function LaunchAppLayout() {
     } else if (connector?.name === "WalletConnect") {
       const wcConnector = allConnectors.find((c) => c.name === "WalletConnect");
       if (wcConnector) {
+        toast.info(
+          "Scan the QR code or choose your wallet in WalletConnect. When you return to this tab, we will continue.",
+          { id: "walletconnect-handoff" },
+        );
         connect(wagmiClient, { connector: wcConnector })
           .then(() => {
-            dispatch(setWalletType("evm"));
+            dispatch(setWalletType("walletconnect"));
             dispatch(setIsConnected(true));
             dispatch(setSessionSource("wallet"));
           })
@@ -754,13 +749,10 @@ function BetaAccessLayout() {
       c.name.toLowerCase().includes(option.name.toLowerCase()),
     );
     if (connector && connector.name !== "WalletConnect") {
-      const isBinance =
-        option.walletType === "binance" || option.name === "Binance Wallet";
       connect(wagmiClient, { connector })
         .then(() => {
-          dispatch(setWalletType(isBinance ? "binance" : "evm"));
+          dispatch(setWalletType("evm"));
           dispatch(setIsConnected(true));
-          dispatch(setWalletModal(false));
           dispatch(setSessionSource("wallet"));
         })
         .catch((err) => {
@@ -770,9 +762,13 @@ function BetaAccessLayout() {
     } else if (connector?.name === "WalletConnect") {
       const wcConnector = allConnectors.find((c) => c.name === "WalletConnect");
       if (wcConnector) {
+        toast.info(
+          "Scan the QR code or choose your wallet in WalletConnect. When you return to this tab, we will continue.",
+          { id: "walletconnect-handoff" },
+        );
         connect(wagmiClient, { connector: wcConnector })
           .then(() => {
-            dispatch(setWalletType("evm"));
+            dispatch(setWalletType("walletconnect"));
             dispatch(setIsConnected(true));
             dispatch(setWalletModal(false));
             dispatch(setSessionSource("wallet"));
@@ -881,43 +877,45 @@ function WalletSync() {
   useEffect(() => {
     let disconnectTimeoutId = null;
 
-    const unwatch = watchAccount(wagmiClient, (account) => {
-      const walletType = store.getState().wallet.walletType;
-      if (walletType === "solana") return;
+    const unwatch = watchConnection(wagmiClient, {
+      onChange(account) {
+        const walletType = store.getState().wallet.walletType;
+        if (walletType === "solana") return;
 
-      switch (account.status) {
-        case "connected":
-          if (disconnectTimeoutId) {
-            clearTimeout(disconnectTimeoutId);
-            disconnectTimeoutId = null;
-          }
-          if (account.address && account.chainId) {
-            dispatch(setAddress(account.address));
-            dispatch(setChainId(account.chainId));
-            dispatch(setIsConnected(true));
-            dispatch(setSessionSource("wallet"));
-          }
-          break;
-        case "reconnecting":
-          if (!isPrivySessionActive()) dispatch(setIsConnected(false));
-          break;
-        case "connecting":
-          if (!isPrivySessionActive() || !localStorage.getItem("authToken"))
-            dispatch(setIsConnected(false));
-          break;
-        case "disconnected":
-        default:
-          if (disconnectTimeoutId) clearTimeout(disconnectTimeoutId);
-          disconnectTimeoutId = setTimeout(() => {
-            disconnectTimeoutId = null;
-            if (isPrivySessionActive() || localStorage.getItem("authToken"))
-              return;
-            dispatch(setAddress(null));
-            dispatch(setIsConnected(false));
-            dispatch(setWalletType(""));
-          }, 400);
-          break;
-      }
+        switch (account.status) {
+          case "connected":
+            if (disconnectTimeoutId) {
+              clearTimeout(disconnectTimeoutId);
+              disconnectTimeoutId = null;
+            }
+            if (account.address && account.chainId) {
+              dispatch(setAddress(account.address));
+              dispatch(setChainId(account.chainId));
+              dispatch(setIsConnected(true));
+              dispatch(setSessionSource("wallet"));
+            }
+            break;
+          case "reconnecting":
+            if (!isPrivySessionActive()) dispatch(setIsConnected(false));
+            break;
+          case "connecting":
+            if (!isPrivySessionActive() || !localStorage.getItem("authToken"))
+              dispatch(setIsConnected(false));
+            break;
+          case "disconnected":
+          default:
+            if (disconnectTimeoutId) clearTimeout(disconnectTimeoutId);
+            disconnectTimeoutId = setTimeout(() => {
+              disconnectTimeoutId = null;
+              if (isPrivySessionActive() || localStorage.getItem("authToken"))
+                return;
+              dispatch(setAddress(null));
+              dispatch(setIsConnected(false));
+              dispatch(setWalletType(""));
+            }, 400);
+            break;
+        }
+      },
     });
     return () => {
       if (disconnectTimeoutId) clearTimeout(disconnectTimeoutId);
@@ -966,12 +964,7 @@ function WalletSync() {
             dispatch(setSessionSource("wallet"));
             window.WALLET_TYPE = "metamask";
           }
-          if (activeConnection.connector.type === "binanceWallet") {
-            dispatch(setWalletType("evm"));
-            dispatch(setIsConnected(true));
-            dispatch(setSessionSource("wallet"));
-            window.WALLET_TYPE = "binance";
-          } else if (activeConnection.connector.name === "Phantom") {
+          if (activeConnection.connector.name === "Phantom") {
             const provider = window.phantom?.solana;
 
             if (!provider) return;
@@ -1003,10 +996,6 @@ function WalletSync() {
               }
               // not trusted or rejected – don't show popup
             }
-          } else {
-            dispatch(setWalletType("evm"));
-            dispatch(setIsConnected(true));
-            dispatch(setSessionSource("wallet"));
           }
         }
       },
