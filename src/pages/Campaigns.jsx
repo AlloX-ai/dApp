@@ -126,10 +126,9 @@ export function CampaignsPage() {
                 <div className="absolute inset-0 " />
 
                 {/* Badge on Banner */}
-                <div className="absolute top-4 right-4 bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs font-bold shadow-lg">
-                  COMING SOON
+                <div className="absolute top-4 right-4 bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold shadow-lg">
+                  ACTIVE
                 </div>
-
                 {/* Icon on Banner */}
               </div>
 
@@ -166,9 +165,9 @@ export function CampaignsPage() {
 
                 <div className="flex items-center justify-end gap-2 ">
                   <span className="text-sm font-semibold text-amber-600 group-hover:text-amber-700">
-                    Coming Soon
+                    View
                   </span>
-                  {/* <ChevronRight className="w-5 h-5 text-amber-600 group-hover:translate-x-1 transition-transform" /> */}
+                  <ChevronRight className="w-5 h-5 text-amber-600 group-hover:translate-x-1 transition-transform" />
                 </div>
               </div>
             </button>

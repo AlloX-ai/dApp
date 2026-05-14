@@ -167,11 +167,7 @@ export const apiCall = async (endpoint, options = {}, apiType) => {
 
   let response = await doFetch();
 
-  if (
-    response.status === 401 &&
-    !isAuthEndpoint(endpoint) &&
-    getAuthToken()
-  ) {
+  if (response.status === 401 && !isAuthEndpoint(endpoint) && getAuthToken()) {
     let shouldRetry = false;
     try {
       const preview = response.clone();
@@ -241,11 +237,7 @@ export const api2Call = async (endpoint, options = {}) => {
 
   let response = await doFetch();
 
-  if (
-    response.status === 401 &&
-    !isAuthEndpoint(endpoint) &&
-    getAuthToken()
-  ) {
+  if (response.status === 401 && !isAuthEndpoint(endpoint) && getAuthToken()) {
     let shouldRetry = false;
     try {
       const preview = response.clone();

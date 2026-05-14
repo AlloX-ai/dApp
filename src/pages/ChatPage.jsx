@@ -211,6 +211,7 @@ export function ChatPage() {
   const typingMessageRef = useRef(null);
   const completedMessageIdsRef = useRef(new Set());
   const consumedRouteSuggestionKeysRef = useRef(new Set());
+  const prevMessagesLengthRef = useRef(null);
   const [showWalletPrompt, setShowWalletPrompt] = useState(false);
   const [isMessageLimitModalOpen, setIsMessageLimitModalOpen] = useState(false);
   const [showWelcomeGiftModal, setShowWelcomeGiftModal] = useState(false);
@@ -310,6 +311,47 @@ export function ChatPage() {
   const closeQuickWizard = useCallback(() => {
     setQuickWizardOpen(false);
   }, []);
+
+  // Prove Portfolio "Create" → `/?qw=<id>` + sessionStorage handshake (survives StrictMode + replace state).
+  const QUICK_WIZARD_INTENT_PARAM = "qw";
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const intentId = params.get(QUICK_WIZARD_INTENT_PARAM);
+    if (!intentId) return;
+    const sessionKey = `allox:qwIntent:${intentId}`;
+    if (sessionStorage.getItem(sessionKey) !== "1") return;
+
+    if (!isConnected) {
+      setShowWalletPrompt(true);
+      return;
+    }
+
+    openQuickWizard();
+
+    const frame = requestAnimationFrame(() => {
+      try {
+        sessionStorage.removeItem(sessionKey);
+      } catch {
+        /* ignore */
+      }
+      params.delete(QUICK_WIZARD_INTENT_PARAM);
+      const nextSearch = params.toString();
+      navigate(
+        {
+          pathname: location.pathname,
+          search: nextSearch ? `?${nextSearch}` : "",
+        },
+        { replace: true },
+      );
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [
+    location.pathname,
+    location.search,
+    isConnected,
+    openQuickWizard,
+    navigate,
+  ]);
 
   const handleQuickRequestRemoveToken = useCallback((token) => {
     if (!token?.symbol) return;
@@ -548,9 +590,13 @@ export function ChatPage() {
     };
   }, []);
 
-  // If a new chat starts (messages cleared), close the quick portfolio wizard too.
+  // If a new chat starts (messages go from some → none), close the quick portfolio wizard.
+  // Do not close on every empty state — that races with opening the wizard from routing / ?qw=.
   useEffect(() => {
-    if (currentMessages.length === 0) {
+    const len = currentMessages.length;
+    const prev = prevMessagesLengthRef.current;
+    prevMessagesLengthRef.current = len;
+    if (prev != null && prev > 0 && len === 0) {
       setQuickWizardOpen(false);
       resetQuickWizard();
     }
@@ -558,7 +604,8 @@ export function ChatPage() {
 
   // Fire a backend-only reset without adding a user message to UI history.
   useEffect(() => {
-    closeQuickWizard();
+    const suggestion = location.state?.chatSuggestion;
+    if (!suggestion) closeQuickWizard();
 
     if (!backendResetRequestId) return;
     let cancelled = false;
@@ -1673,6 +1720,8 @@ export function ChatPage() {
   const handleSuggestionClick = (suggestion) => {
     const s = String(suggestion);
     if (s === "Build Quick Portfolio") {
+      console.log("Suggestion clicked:", s, isConnected);
+
       // dispatch(
       //   addCurrentMessage({
       //     id: Date.now() + 1,

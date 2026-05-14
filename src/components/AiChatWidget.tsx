@@ -16,10 +16,7 @@ export function AIChatWidget() {
 
   const [searchParams, setSearchParams] = useSearchParams();
 
-    const campaignParam = searchParams.get("campaign");
-
-
-  console.log("Campaign Param:", campaignParam);
+  const campaignParam = searchParams.get("campaign");
 
   const {
     messages,
@@ -47,7 +44,7 @@ export function AIChatWidget() {
     }
   };
 
-  if(campaignParam === "prove-your-portfolio") {
+  if (campaignParam === "prove-your-portfolio") {
     return null; // Don't render the chat widget if the campaign parameter is "prove-your-portfolio"
   }
 
