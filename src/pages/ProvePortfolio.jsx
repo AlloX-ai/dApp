@@ -1745,7 +1745,7 @@ export function ProvePortfolio() {
                 Total Pool
               </div>
               <div className="flex items-center ">
-                <span className="text-lg font-bold text-gray-600 tabular-nums">
+                <span className="text-xl font-bold text-gray-600 tabular-nums">
                   $
                   {Number(totalPoolUsd).toLocaleString("en-US", {
                     maximumFractionDigits: 0,
@@ -1753,7 +1753,7 @@ export function ProvePortfolio() {
                 </span>
                 (
                 <Gem className="w-4 h-4 text-purple-600" />
-                <span className="text-lg font-bold text-gray-600 tabular-nums me-1">
+                <span className="text-base font-bold text-gray-600 tabular-nums me-1">
                   {Number(totalPoolGems).toLocaleString("en-US", {
                     maximumFractionDigits: 0,
                   })}
