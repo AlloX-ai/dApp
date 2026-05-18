@@ -64,6 +64,7 @@ import { useSocial } from "./hooks/useSocial";
 import { CongratsModal } from "./components/CongratsModal";
 import { AIChatWidget } from "./components/AiChatWidget";
 import { CampaignsPage } from "./pages/Campaigns";
+import { BinanceVolumeCampaignPage } from "./pages/BinanceVolumeCampaign";
 import { PrivyFundHubModal } from "./components/PrivyFundHubModal";
 import { MaintenancePage } from "./pages/MaintenancePage";
 import { TopPortfoliosPage } from "./pages/TopPortfoliosPage";
@@ -1096,6 +1097,10 @@ function App() {
           <Route path="/staking" element={<StakingPage />} />
           <Route path="/history" element={<HistoryPage />} />
           <Route path="/referrals" element={<ReferralsPage />} />
+          <Route
+            path="/binance-volume-campaign"
+            element={<BinanceVolumeCampaignPage />}
+          />
         </Route>
       </Routes>
       {showModal && (
