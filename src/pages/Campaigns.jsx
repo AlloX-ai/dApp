@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router";
 import {
   Trophy,
@@ -29,6 +29,11 @@ export function CampaignsPage() {
           ? "prove-portfolio"
           : null;
   }, [searchParams]);
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    document.title = "Campaigns";
+  }, []);
 
   return (
     <>
