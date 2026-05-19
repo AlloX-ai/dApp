@@ -253,8 +253,8 @@ export function useCheckin() {
   const { wallets } = useWallets();
 
   const { chainId: wagmiChainId } = useConnection();
-  const { writeContractAsync } = useWriteContract();
-  const { switchChainAsync } = useSwitchChain();
+  const writeContract = useWriteContract();
+  const switchChain = useSwitchChain();
   const { signMessage: signMessageSolana } = useWallet();
 
   const status = useSelector((state) => state.checkin?.status);
@@ -371,9 +371,9 @@ export function useCheckin() {
         });
       }
 
-      if (currentEVMChainId !== effectiveChainId && switchChainAsync) {
+      if (currentEVMChainId !== effectiveChainId && switchChain.mutateAsync) {
         try {
-          await switchChainAsync({ chainId: effectiveChainId });
+          await switchChain.mutateAsync({ chainId: effectiveChainId });
         } catch (switchErr) {
           if (switchErr?.code === 4902) {
             throw new Error(
@@ -393,7 +393,7 @@ export function useCheckin() {
       }
       const txHash = await writeOrDetectCheckinTx({
         writeTx: () =>
-          writeContractAsync({
+          writeContract.mutateAsync({
             address: contractAddress,
             abi: CHECKIN_ABI,
             functionName: "checkIn",
@@ -422,9 +422,9 @@ export function useCheckin() {
       sessionSource,
       walletType,
       currentEVMChainId,
-      switchChainAsync,
+      switchChain.mutateAsync,
       wallets,
-      writeContractAsync,
+      writeContract.mutateAsync,
       walletAddress,
     ],
   );

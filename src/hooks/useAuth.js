@@ -10,6 +10,7 @@ import {
   refreshAuthToken,
 } from "../utils/api";
 import { setWalletType } from "../redux/slices/walletSlice";
+import { persistWalletType } from "../utils/walletPersistence";
 import { runPrivyLogoutBridge } from "../auth/privyLogoutBridge";
 import { toast } from "../utils/toast";
 
@@ -203,7 +204,7 @@ export async function completePrivyAuth(privyToken) {
 export const useAuth = () => {
   const dispatch = useDispatch();
   const { address: evmAddress } = useConnection();
-  const { signMessageAsync } = useSignMessage();
+  const signMessage = useSignMessage();
   const { signMessage: signMessageSolana } = useWallet();
   const walletAddress = useSelector((state) => state.wallet.address);
   const walletType = useSelector((state) => state.wallet.walletType);
@@ -329,7 +330,7 @@ export const useAuth = () => {
             ? rawSig
             : bs58.encode(new Uint8Array(rawSig));
       } else {
-        signature = await signTimeout(signMessageAsync({ message }));
+        signature = await signTimeout(signMessage.mutateAsync({ message }));
       }
 
       toast.loading("Signature received. Verifying with AlloX...", {
@@ -362,6 +363,7 @@ export const useAuth = () => {
 
       if (walletTypeFromApi) {
         dispatch(setWalletType(walletTypeFromApi));
+        persistWalletType(walletTypeFromApi);
       }
 
       toast.success("Wallet connected and verified.", { id: toastId });
@@ -372,7 +374,7 @@ export const useAuth = () => {
       toast.error(message, { id: toastId });
       throw error;
     }
-  }, [address, walletType, signMessageAsync, signMessageSolana, setUser, dispatch]);
+  }, [address, walletType, signMessage.mutateAsync, signMessageSolana, setUser, dispatch]);
 
   const claimSeason1 = useCallback(async () => {
     const t = token || localStorage.getItem("authToken");

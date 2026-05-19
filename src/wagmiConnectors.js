@@ -1,4 +1,4 @@
-import { createConfig, fallback, http } from "wagmi";
+import { createConfig, createStorage, fallback, http } from "wagmi";
 import { mainnet, opBNB, bsc, base } from "wagmi/chains";
 import {
   metaMask,
@@ -6,6 +6,7 @@ import {
   walletConnect,
   injected,
 } from "wagmi/connectors";
+import { BINANCE_INJECTED_CONNECTOR_ID } from "./constants/binanceWallet";
 
 const BASE_RPC_ENDPOINTS = [
   "https://mainnet.base.org",
@@ -16,14 +17,54 @@ const BASE_RPC_ENDPOINTS = [
 const ETHEREUM_RPC_ENDPOINTS = [
   "https://mainnet.infura.io/v3/7698640038364a678705d3fdd84704f4",
 ];
+
+export const WALLET_CONNECT_PROJECT_ID = "74cdef10fa7dbea4822525c23a70114c";
+
+export const WALLET_CONNECT_METADATA = {
+  name: "Allox",
+  description: "Allox AI",
+  url:
+    typeof window !== "undefined"
+      ? window.location.origin
+      : "https://allox.ai",
+  icons:
+    typeof window !== "undefined"
+      ? [`${window.location.origin}/favicon.ico`]
+      : ["https://allox.ai/favicon.ico"],
+};
+
 export const wagmiClient = createConfig({
   chains: [mainnet, opBNB, bsc, base],
-  // autoConnect: true,
+  storage:
+    typeof window !== "undefined"
+      ? createStorage({ storage: window.localStorage })
+      : undefined,
   connectors: [
     walletConnect({
-      projectId: "a465b6d7661ba54df9ca6c4757bce009",
+      projectId: WALLET_CONNECT_PROJECT_ID,
+      metadata: WALLET_CONNECT_METADATA,
+      showQrModal: true,
+      // Relay logs at pino level 50 (error) spam the console during pairing/handoff.
+      logger: "silent",
+      disableProviderPing: true,
+      customStoragePrefix: "allox-wc",
     }),
     injected(),
+    injected({
+      target: () => {
+        if (
+          typeof window !== "undefined" &&
+          typeof window.binancew3w?.ethereum !== "undefined"
+        ) {
+          return {
+            id: BINANCE_INJECTED_CONNECTOR_ID,
+            name: "Binance Web3 Wallet",
+            provider: window.binancew3w.ethereum,
+          };
+        }
+        return undefined;
+      },
+    }),
     metaMask({
       dapp: {
         name: "Allox",

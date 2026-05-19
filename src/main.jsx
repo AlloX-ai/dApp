@@ -24,6 +24,9 @@ import { bsc, mainnet, base } from "viem/chains";
 
 import "./index.css";
 import App from "./App.jsx";
+import { ensureReownAppKitConfigured } from "./utils/initReownAppKit.js";
+
+ensureReownAppKitConfigured();
 
 const queryClient = new QueryClient({
   defaultOptions: {

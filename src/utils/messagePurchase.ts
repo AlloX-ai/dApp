@@ -11,7 +11,7 @@ import {
   getAssociatedTokenAddressSync,
 } from "@solana/spl-token";
 import {
-  getConnection,
+  getAccount,
   getPublicClient,
 } from "@wagmi/core";
 import {
@@ -1031,7 +1031,7 @@ export async function purchaseEvmPackage(args: {
       return { txHash: hash };
     }
     // Get the current user address for chain polling fallback.
-    const buyerAddress = getConnection(wagmiClient).address as Address | undefined;
+    const buyerAddress = getAccount(wagmiClient).address as Address | undefined;
     if (!buyerAddress) throw new Error("Wallet not connected");
 
     const txHash = await writeOrDetect(
@@ -1067,7 +1067,7 @@ export async function purchaseEvmPackage(args: {
 
   const walletAddress = usePrivy
     ? args.privy!.walletAddress
-    : getConnection(wagmiClient).address;
+    : getAccount(wagmiClient).address;
   if (!walletAddress) throw new Error("Wallet not connected");
 
   const decimals = await client.readContract({

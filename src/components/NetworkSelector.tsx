@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import OutsideClickHandler from "react-outside-click-handler";
 import { toast } from "../utils/toast";
 import { setAddress, setChainId, setIsConnected, setWalletType } from "../redux/slices/walletSlice";
-import { connect, disconnect, getConnection } from "@wagmi/core";
+import { connect, disconnect, getAccount } from "@wagmi/core";
 import { wagmiClient } from "../wagmiConnectors";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useSwitchChain, useConnection } from "wagmi";
@@ -13,6 +13,7 @@ import {
   getPrivyEmbedded,
   switchPrivyEmbeddedToChain,
 } from "../utils/privyWalletUtils";
+import { persistWalletType } from "../utils/walletPersistence";
 
 const PREFERRED_CHAIN_STORAGE_KEY = "walletPreferredChainId";
 const SOLANA_CHAIN_ID = 101;
@@ -47,7 +48,7 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
   const sessionSource = useSelector((state: any) => state.wallet.sessionSource);
   const { wallets } = useWallets();
   const { connector } = useConnection();
-  const { switchChainAsync } = useSwitchChain();
+  const switchChain = useSwitchChain();
 
   const embeddedWallet = getPrivyEmbedded(wallets);
   const privySwitchWallet =
@@ -177,7 +178,7 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
           c.name?.toLowerCase().includes("phantom") || c.id === "injected",
       );
       if (injectedConnector) {
-        const existing = getConnection(wagmiClient);
+        const existing = getAccount(wagmiClient);
         if (existing?.status !== "connected") {
           try {
             await connect(wagmiClient, { connector: injectedConnector });
@@ -209,17 +210,18 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
             (c) => c.name?.toLowerCase().includes("metamask"),
           );
           if (metaMaskConnector) {
-            const existingAccount = getConnection(wagmiClient);
+            const existingAccount = getAccount(wagmiClient);
             const alreadyMetaMask =
               existingAccount?.connector?.name?.toLowerCase?.().includes("metamask") &&
               existingAccount?.status === "connected";
             if (!alreadyMetaMask) {
               await connect(wagmiClient, { connector: metaMaskConnector });
             }
-            const account = getConnection(wagmiClient);
+            const account = getAccount(wagmiClient);
             if (account?.address) {
               dispatch(setAddress(account.address));
               dispatch(setWalletType("evm"));
+              persistWalletType("evm");
               dispatch(setIsConnected(true));
             }
           }
@@ -262,7 +264,7 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
       await switchPrivyEVMChain(network);
       return;
     }
-    if (!switchChainAsync) {
+    if (!switchChain.mutateAsync) {
       toast.error("Unable to switch chain. Please try reconnecting your wallet.");
       return;
     }
@@ -272,7 +274,7 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
     }
     try {
       setIsSwitching(true);
-      await switchChainAsync({ chainId: network.chainId });
+      await switchChain.mutateAsync({ chainId: network.chainId });
       dispatch(setChainId(network.chainId));
       localStorage.removeItem(PREFERRED_CHAIN_STORAGE_KEY);
       setIsOpen(false);
@@ -293,7 +295,7 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
               },
             ],
           });
-          await switchChainAsync({ chainId: network.chainId });
+          await switchChain.mutateAsync({ chainId: network.chainId });
           dispatch(setChainId(network.chainId));
           localStorage.removeItem(PREFERRED_CHAIN_STORAGE_KEY);
           setIsOpen(false);
@@ -319,7 +321,7 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
     }
     setSwitching(true);
     try {
-      const currentAccount = getConnection(wagmiClient);
+      const currentAccount = getAccount(wagmiClient);
       if (currentAccount?.connector) {
         await disconnect(wagmiClient, { connector: currentAccount.connector });
       }
