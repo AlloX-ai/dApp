@@ -68,6 +68,7 @@ import { PrivyFundHubModal } from "./components/PrivyFundHubModal";
 import { MaintenancePage } from "./pages/MaintenancePage";
 import { TopPortfoliosPage } from "./pages/TopPortfoliosPage";
 import { WatchlistPage } from "./pages/WatchlistPage";
+import { PrimePicks } from "./pages/PrimePicks";
 
 const MAINTENANCE_MODE = false;
 
@@ -1090,6 +1091,8 @@ function App() {
           <Route path="/top-portfolios" element={<TopPortfoliosPage />} />
           <Route path="/campaigns" element={<CampaignsPage />} />
           <Route path="/watchlist" element={<WatchlistPage />} />
+          <Route path="/prime-picks" element={<PrimePicks />} />
+
           <Route path="/rewards" element={<PointsPage />} />
 
           <Route path="/trending" element={<TradingPage />} />
