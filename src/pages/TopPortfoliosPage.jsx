@@ -577,42 +577,48 @@ export function TopPortfoliosPage() {
                 </div>
               </div>
               {/* Stats Grid */}
-              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-200/50">
-                <div>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2 pt-4 border-t border-gray-200/50">
+                <div className="min-w-0">
                   <div className="text-xs text-gray-500 mb-1">
                     Current Value
                   </div>
-                  <div className="font-bold text-sm sm:text-xl text-gray-900">
-                    ${portfolio.currentValue.toLocaleString()}
+                  <div
+                    className="font-bold text-base text-gray-900 tabular-nums truncate"
+                    title={formatCurrency(portfolio.currentValue)}
+                  >
+                    {formatCurrency(portfolio.currentValue)}
                   </div>
                 </div>
-                <div className="text-right">
+                <div className="min-w-0 text-right">
                   <div className="text-xs text-gray-500 mb-1">P&L</div>
-                  <div className="flex items-center gap-2 justify-end">
+                  <div className="flex flex-col items-end gap-0.5 min-w-0">
                     <div
-                      className={`flex items-center justify-end gap-1.5 font-bold text-sm sm:text-xl ${
+                      className={`flex items-center justify-end gap-1 font-bold text-base tabular-nums min-w-0 max-w-full ${
                         portfolio.plPercentage >= 0
                           ? "text-green-600"
                           : "text-red-600"
                       }`}
+                      title={formatPercent(portfolio.plPercentage)}
                     >
                       {portfolio.plPercentage >= 0 ? (
-                        <TrendingUp className="w-5 h-5" />
+                        <TrendingUp className="w-4 h-4 shrink-0" />
                       ) : (
-                        <TrendingDown className="w-5 h-5" />
+                        <TrendingDown className="w-4 h-4 shrink-0" />
                       )}
-                      {portfolio.plPercentage >= 0 ? "+" : ""}
-                      {portfolio.plPercentage.toFixed(2)}%
+                      <span className="truncate">
+                        {formatPercent(portfolio.plPercentage)}
+                      </span>
                     </div>
                     <div
-                      className={`text-sm font-semibold ${
+                      className={`text-sm font-semibold tabular-nums truncate max-w-full ${
                         portfolio.plDollar >= 0
                           ? "text-green-600"
                           : "text-red-600"
                       }`}
+                      title={`${portfolio.plDollar >= 0 ? "+" : ""}${formatCurrency(portfolio.plDollar)}`}
                     >
-                      {portfolio.plDollar >= 0 ? "+" : ""}$
-                      {portfolio.plDollar.toLocaleString()}
+                      {portfolio.plDollar >= 0 ? "+" : ""}
+                      {formatCurrency(portfolio.plDollar)}
                     </div>
                   </div>
                 </div>
