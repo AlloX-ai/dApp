@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useAccount, useSignMessage } from "wagmi";
+import { useConnection, useSignMessage } from "wagmi";
 import { useWallet } from "@solana/wallet-adapter-react";
 import bs58 from "bs58";
 import {
@@ -202,7 +202,7 @@ export async function completePrivyAuth(privyToken) {
 
 export const useAuth = () => {
   const dispatch = useDispatch();
-  const { address: evmAddress } = useAccount();
+  const { address: evmAddress } = useConnection();
   const { signMessageAsync } = useSignMessage();
   const { signMessage: signMessageSolana } = useWallet();
   const walletAddress = useSelector((state) => state.wallet.address);
@@ -387,7 +387,7 @@ export const useAuth = () => {
     // see the token immediately after it is saved — before React re-renders.
     // This prevents the race window where a second call arrives after
     // authenticate() resolves but before the React state update propagates,
-    // causing a duplicate sign request (visible on mobile with Binance/MetaMask).
+    // causing a duplicate sign request (visible on mobile with WalletConnect / MetaMask).
     const currentToken = globalAuthState.token || localStorage.getItem("authToken");
     if (currentToken) {
       if (currentToken !== globalAuthState.token) setGlobalToken(currentToken);

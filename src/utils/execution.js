@@ -1,5 +1,5 @@
 import {
-  getAccount,
+  getConnection,
   getPublicClient,
   readContract as wagmiReadContract,
   sendTransaction as wagmiSendTransaction,
@@ -176,8 +176,8 @@ const showIosWalletHandoffToast = (state = "initial") => {
   if (!isIosBrowser()) return;
   const message =
     state === "resume"
-      ? "Returned from wallet. Keep Chrome open for 3-4 seconds so AlloX can resume the request, then switch back if Binance Wallet needs to reopen."
-      : "On iPhone/iPad, if Binance Wallet opens and the request appears stuck, return to Chrome for 3-4 seconds, then switch back to Binance Wallet.";
+      ? "Returned from your wallet. Keep this browser tab open for a few seconds so AlloX can resume, then switch back to the wallet app if needed."
+      : "On iPhone/iPad, if the wallet app opens and the request looks stuck, return to this browser for a few seconds, then switch back to the wallet app.";
   toast.info(message, {
     id: IOS_WALLET_HANDOFF_TOAST_ID,
     duration: 9000,
@@ -644,7 +644,7 @@ export const checkTxStatus = async (hash, chain = "BSC") => {
 export function createWagmiExecutionTxEnv(chain = "BSC") {
   const normalizedChain = normalizeExecutionChain(chain);
   const executionChainId = chainIdFor(normalizedChain);
-  const accountState = getAccount(wagmiClient);
+  const accountState = getConnection(wagmiClient);
   const userAddress = accountState?.address;
   return {
     userAddress,
@@ -663,7 +663,7 @@ export function createWagmiExecutionTxEnv(chain = "BSC") {
     },
     sendTransaction: async ({ to, data, value, nonce, gas }) => {
       // Mobile WalletConnect can drop callback responses while Chrome is in
-      // the background (Binance/MetaMask deep-link). Race wallet callback with
+      // the background (WalletConnect / mobile wallet deep-link). Race wallet callback with
       // chain log detection so execution can continue even if callback is lost.
       return sendWithChainFallback({
         to,

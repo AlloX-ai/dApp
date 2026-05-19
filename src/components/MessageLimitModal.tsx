@@ -10,7 +10,7 @@ import {
 import { toast } from "../utils/toast";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useSendTransaction, useWallets } from "@privy-io/react-auth";
-import { useAccount, useSwitchChain, useWriteContract } from "wagmi";
+import { useConnection, useSwitchChain, useWriteContract } from "wagmi";
 import type { Address } from "viem";
 import { numberToHex } from "viem";
 import { useAuth } from "../hooks/useAuth";
@@ -108,7 +108,7 @@ export function MessageLimitModal({
   );
 
   const { publicKey, connected, sendTransaction } = useWallet();
-  const { address: evmAddress, chainId: wagmiChainId, connector } = useAccount();
+  const { address: evmAddress, chainId: wagmiChainId, connector } = useConnection();
   const wagmiChainRef = useRef(wagmiChainId);
   wagmiChainRef.current = wagmiChainId;
   const { writeContractAsync } = useWriteContract();

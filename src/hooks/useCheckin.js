@@ -1,6 +1,6 @@
 import { useCallback, useState, useEffect } from "react";
 import { useSelector } from "react-redux";
-import { useWriteContract, useSwitchChain, useAccount } from "wagmi";
+import { useWriteContract, useSwitchChain, useConnection } from "wagmi";
 import { useWallet } from "@solana/wallet-adapter-react";
 import {
   getPublicClient,
@@ -252,7 +252,7 @@ export function useCheckin() {
   const { user: authUser, isAuthenticated } = useAuth();
   const { wallets } = useWallets();
 
-  const { chainId: wagmiChainId } = useAccount();
+  const { chainId: wagmiChainId } = useConnection();
   const { writeContractAsync } = useWriteContract();
   const { switchChainAsync } = useSwitchChain();
   const { signMessage: signMessageSolana } = useWallet();

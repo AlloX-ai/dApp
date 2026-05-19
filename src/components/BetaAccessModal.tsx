@@ -26,10 +26,10 @@ const WALLET_OPTIONS = [
     walletType: "metamask",
   },
   {
-    name: "Binance Wallet",
-    icon: "https://cdn.allox.ai/allox/wallets/binanceWallet.svg",
+    name: "WalletConnect",
+    icon: "https://cdn.allox.ai/allox/wallets/walletConnect.svg",
     type: "top",
-    walletType: "binance",
+    walletType: "walletconnect",
   },
   {
     name: "OKX",
@@ -56,15 +56,9 @@ const WALLET_OPTIONS = [
     walletType: "phantom",
     isPhantom: true,
   },
-  {
-    name: "WalletConnect",
-    icon: "https://cdn.allox.ai/allox/wallets/walletConnect.svg",
-    type: "more",
-    walletType: "walletconnect",
-  },
 ];
 
-const SUGGESTED_WALLET_TYPES = ["binance", "metamask"];
+const SUGGESTED_WALLET_TYPES = ["walletconnect", "metamask"];
 
 function getSuggestedWallets() {
   return SUGGESTED_WALLET_TYPES
