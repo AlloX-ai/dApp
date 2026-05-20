@@ -15,6 +15,7 @@ import {
   RefreshCcw,
   ChevronDown,
   ChevronUp,
+  Gem,
 } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import { ChatBubble } from "../components/ChatBubble";
@@ -3325,9 +3326,22 @@ export function ChatPage() {
 
               <h2 className="text-3xl font-bold mb-4">Hello, I'm AlloX</h2>
 
-              <p className="text-gray-600 mb-8">
+              <p className="text-gray-600 mb-6">
                 I can help you discover, execute, and manage your portfolio.
               </p>
+              <NavLink
+                to="/prime-picks"
+                className="inline-flex items-center gap-2.5 px-5 py-2 bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-cyan-500/10 border border-purple-500/20 rounded-full mb-4 shadow-lg shadow-purple-500/5 backdrop-blur-sm overflow-hidden"
+              >
+                <div className="flex items-center justify-center w-6 h-6 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full transition-all duration-300">
+                  <Gem size={14} className="text-white" strokeWidth={3} />
+                </div>
+                <span
+                  className={`text-sm font-semibold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent transition-all duration-500`}
+                >
+                  Prime Picks
+                </span>
+              </NavLink>
 
               <div className="mb-8 grid grid-cols-2 md:grid-cols-3 gap-2">
                 {[
