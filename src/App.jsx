@@ -1097,7 +1097,6 @@ function App() {
           <Route path="/staking" element={<StakingPage />} />
           <Route path="/history" element={<HistoryPage />} />
           <Route path="/referrals" element={<ReferralsPage />} />
-          <Route path="/binancewallet-campaign-rules" element={<CampaignRulesPage />} />
         </Route>
       </Routes>
       {showModal && (
