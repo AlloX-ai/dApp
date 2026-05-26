@@ -68,6 +68,7 @@ import { PrivyFundHubModal } from "./components/PrivyFundHubModal";
 import { MaintenancePage } from "./pages/MaintenancePage";
 import { TopPortfoliosPage } from "./pages/TopPortfoliosPage";
 import { WatchlistPage } from "./pages/WatchlistPage";
+import { CampaignRulesPage } from "./pages/CampaignRulesPage";
 
 const MAINTENANCE_MODE = false;
 
@@ -1096,6 +1097,7 @@ function App() {
           <Route path="/staking" element={<StakingPage />} />
           <Route path="/history" element={<HistoryPage />} />
           <Route path="/referrals" element={<ReferralsPage />} />
+          <Route path="/binancewallet-campaign-rules" element={<CampaignRulesPage />} />
         </Route>
       </Routes>
       {showModal && (
