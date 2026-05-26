@@ -20,7 +20,7 @@ interface WalletModalProps {
 
 const META_MASK_WALLET = {
   name: "MetaMask",
-  icon: "https://cdn.allox.ai/allox/wallets/metamaskConnect.svg",
+  icon: "https://cdn.allox.ai/allox/wallets/newMetamask.svg",
   type: "top",
   walletType: "metamask",
 };

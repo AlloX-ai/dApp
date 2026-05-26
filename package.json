@@ -51,6 +51,8 @@
     "@tanstack/query-sync-storage-persister": "^5.64.2",
     "@tanstack/react-query": "^5.67.3",
     "@tanstack/react-query-persist-client": "^5.64.2",
+    "@wagmi/connectors": "^8.0.14",
+    "@wagmi/core": "^3.4.12",
     "@walletconnect/ethereum-provider": "^2.23.9",
     "bs58": "^6.0.0",
     "buffer": "^6.0.3",
@@ -78,7 +80,7 @@
     "tailwindcss": "^4.1.18",
     "vaul": "^1.1.2",
     "viem": "^2.48.11",
-    "wagmi": "^3.6.0"
+    "wagmi": "^3.6.15"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
