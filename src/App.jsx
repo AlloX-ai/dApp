@@ -76,6 +76,24 @@ const PREFERRED_CHAIN_STORAGE_KEY = "walletPreferredChainId";
 const PRIVY_VERIFY_BASE_COOLDOWN_MS = 5000;
 const PRIVY_VERIFY_MAX_COOLDOWN_MS = 120000;
 
+const isRateLimitError = (error) => {
+  const status = Number(error?.status ?? error?.code);
+  if (status === 429) return true;
+  const message = String(error?.message ?? error?.data?.error ?? "").toLowerCase();
+  return message.includes("429") || message.includes("too many requests");
+};
+
+function isBinanceConnectorLike(connector) {
+  const type = String(connector?.type ?? "").toLowerCase();
+  const id = String(connector?.id ?? "").toLowerCase();
+  const name = String(connector?.name ?? "").toLowerCase();
+  return (
+    type.includes("binance") ||
+    id.includes("binance") ||
+    name.includes("binance")
+  );
+}
+
 /** Avoid EVM (wagmi) and Solana (adapter) fighting for the same MetaMask session. */
 async function disconnectAllEvmWagmi() {
   try {
@@ -188,7 +206,11 @@ function LaunchAppLayout() {
 
       walletAuthInFlightRef.current = true;
       setIsWalletAuthPending(true);
-      const isBinanceWallet = walletType === "binance";
+      const activeConnector = getAccount(wagmiClient)?.connector;
+      const isBinanceWallet =
+        walletType === "binance" ||
+        window.WALLET_TYPE === "binance" ||
+        isBinanceConnectorLike(activeConnector);
       const toastId = "wallet-auth-flow";
 
       if (showLoadingToast) {
@@ -298,8 +320,12 @@ function LaunchAppLayout() {
     if (walletType === "privy" || user?.authProvider === "privy") return;
     if (authTriggeredRef.current) return;
     authTriggeredRef.current = true;
-    attemptWalletAuthentication({ source: "auto" }).catch(() => {
-      authTriggeredRef.current = false;
+    attemptWalletAuthentication({ source: "auto" }).catch((error) => {
+      // On auth rate limit, hold the guard so we don't spam /auth/nonce.
+      // It will be reset by account/type changes or reconnect.
+      if (!isRateLimitError(error)) {
+        authTriggeredRef.current = false;
+      }
     });
   }, [
     isConnected,
@@ -591,7 +617,9 @@ function LaunchAppLayout() {
 
     if (connector && connector.name !== "WalletConnect") {
       const isBinance =
-        option.walletType === "binance" || option.name === "Binance Wallet";
+        option.walletType === "binance" ||
+        option.name === "Binance Wallet" ||
+        isBinanceConnectorLike(connector);
       if (isBinance) {
         toast.info(
           "Continue in Binance Wallet. After connecting or signing, return to Chrome and we'll resume verification.",
@@ -958,19 +986,16 @@ function WalletSync() {
             clearTimeoutId = null;
           }
           const activeConnection = connections[0];
+          const isBinanceConnection = isBinanceConnectorLike(
+            activeConnection?.connector,
+          );
           if (activeConnection.accounts[0] && activeConnection.chainId) {
-            dispatch(setWalletType("evm"));
+            dispatch(setWalletType(isBinanceConnection ? "binance" : "evm"));
             dispatch(setAddress(activeConnection.accounts[0]));
             dispatch(setChainId(activeConnection.chainId));
             dispatch(setIsConnected(true));
             dispatch(setSessionSource("wallet"));
-            window.WALLET_TYPE = "metamask";
-          }
-          if (activeConnection.connector.type === "binanceWallet") {
-            dispatch(setWalletType("evm"));
-            dispatch(setIsConnected(true));
-            dispatch(setSessionSource("wallet"));
-            window.WALLET_TYPE = "binance";
+            window.WALLET_TYPE = isBinanceConnection ? "binance" : "metamask";
           } else if (activeConnection.connector.name === "Phantom") {
             const provider = window.phantom?.solana;
 
