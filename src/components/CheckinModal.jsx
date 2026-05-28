@@ -5,7 +5,7 @@ const CONFETTI_POSITIONS = [...Array(8)].map(() => ({
 }));
 import { createPortal } from "react-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { toast } from "sonner";
+import { toast } from "../utils/toast";
 import {
   X,
   Gift,
@@ -16,8 +16,15 @@ import {
   ChevronDown,
 } from "lucide-react";
 
+import { useAccount, useSwitchChain } from "wagmi";
+import { useWallets } from "@privy-io/react-auth";
 import { SOLANA_CHAIN_ID } from "../hooks/useCheckin";
-import { setChainId } from "../redux/slices/walletSlice";
+import { setChainId, setWalletModal } from "../redux/slices/walletSlice";
+import {
+  getPrivyEmbedded,
+  switchPrivyEmbeddedToChain,
+} from "../utils/privyWalletUtils";
+import { useAuth } from "../hooks/useAuth";
 
 const PREFERRED_CHAIN_STORAGE_KEY = "walletPreferredChainId";
 
@@ -37,7 +44,7 @@ const CHECKIN_CHAINS = [
     chainHex: "0x38",
     name: "BNB Chain",
     icon: "https://cdn.allox.ai/allox/networks/bnbIcon.svg",
-    chainName: "BNB Smart Chain",
+    chainName: "BNB Chain",
     rpcUrls: ["https://bsc-dataseed.binance.org"],
     blockExplorerUrls: ["https://bscscan.com"],
     nativeCurrency: { name: "BNB", symbol: "BNB", decimals: 18 },
@@ -105,13 +112,21 @@ export function CheckinModal({
   const dispatch = useDispatch();
   const walletType = useSelector((state) => state.wallet.walletType);
   const chainId = useSelector((state) => state.wallet.chainId);
+  const sessionSource = useSelector((state) => state.wallet.sessionSource);
+  const { wallets } = useWallets();
+  const { isAuthenticated } = useAuth();
   const isSolana = walletType === "solana";
+  const isPrivySession =
+    sessionSource === "privy" || walletType === "privy";
   const isOpenState = open ?? isOpen ?? false;
+  const { connector } = useAccount();
+  const { switchChainAsync } = useSwitchChain();
 
   const [justClaimed, setJustClaimed] = useState(false);
   const [selectedDay, setSelectedDay] = useState(null);
   const [chainDropdownOpen, setChainDropdownOpen] = useState(false);
   const [selectedChainId, setSelectedChainId] = useState(SOLANA_CHAIN_ID);
+  const [isSwitchingChain, setIsSwitchingChain] = useState(false);
 
   // Sync selected chain when modal opens or wallet changes
   useEffect(() => {
@@ -119,23 +134,25 @@ export function CheckinModal({
       setSelectedChainId(
         isSolana
           ? SOLANA_CHAIN_ID
-          : chainId && chainId !== SOLANA_CHAIN_ID
-            ? chainId
-            : 1,
+          : isPrivySession
+            ? 56
+            : chainId && chainId !== SOLANA_CHAIN_ID
+              ? chainId
+              : 1,
       );
     }
-  }, [isOpenState, isSolana, chainId]);
+  }, [isOpenState, isSolana, isPrivySession, chainId]);
 
   const weekDays = useMemo(
     () => mapStatusToWeekDays(status?.rewards),
     [status?.rewards],
   );
-  const totalPointsCollected = status?.totalPointsEarned ?? 0;
-  const { totalPoints } = useTotalPoints();
-  const giftsCollected =
-    status?.rewards.filter((items) => {
-      return items.claimed === true;
-    }).length ?? 0;
+  const totalPointsCollected = isAuthenticated ? (status?.totalPointsEarned ?? 0) : 0;
+  const { totalPoints: rawTotalPoints } = useTotalPoints();
+  const totalPoints = isAuthenticated ? rawTotalPoints : 0;
+  const giftsCollected = isAuthenticated
+    ? (status?.rewards?.filter((items) => items.claimed === true).length ?? 0)
+    : 0;
 
   const activeDay = weekDays.find((day) => day.status === "active");
   const currentDay =
@@ -150,10 +167,18 @@ export function CheckinModal({
     CHECKIN_CHAINS[0];
 
   const handleChainSelect = async (chain) => {
+    // Solana / EVM wallet-type guards
     const wantsSolana = chain.chainId === SOLANA_CHAIN_ID;
+    if (wantsSolana && isPrivySession) {
+      toast.error(
+        "Your account uses Privy’s embedded EVM wallet. Choose Ethereum, BNB Chain, or Base.",
+      );
+      setChainDropdownOpen(false);
+      return;
+    }
     if (wantsSolana && !isSolana) {
       toast.error(
-        "Solana requires a Solana-capable wallet (e.g. Phantom). Connect with a Solana wallet to claim on Solana.",
+        "Solana requires a Solana-capable wallet (e.g. MetaMask with Solana). Connect with a Solana wallet to claim on Solana.",
       );
       setChainDropdownOpen(false);
       return;
@@ -178,42 +203,55 @@ export function CheckinModal({
       } catch (e) {
         console.warn("Failed to persist preferred chain", e);
       }
-      const provider = typeof window !== "undefined" && window.phantom?.solana;
-      if (provider) {
-        try {
-          await provider.connect({ onlyIfTrusted: true });
-        } catch (err) {
-          console.error("Failed to connect Phantom:", err);
-        }
+      return;
+    }
+
+    // Privy embedded EVM — same UX as NetworkSelector
+    if (isPrivySession) {
+      const embedded = getPrivyEmbedded(wallets);
+      if (!embedded) {
+        toast.error("Embedded wallet not ready. Refresh the page or sign in again.");
+        setChainDropdownOpen(false);
+        return;
+      }
+      try {
+        setIsSwitchingChain(true);
+        await switchPrivyEmbeddedToChain(embedded, chain.chainId);
+        dispatch(setChainId(chain.chainId));
+        localStorage.removeItem(PREFERRED_CHAIN_STORAGE_KEY);
+        setSelectedChainId(chain.chainId);
+        setChainDropdownOpen(false);
+      } catch (error) {
+        console.error("Privy network switch error:", error);
+        toast.error("Failed to switch network.");
+      } finally {
+        setIsSwitchingChain(false);
       }
       return;
     }
 
-    const provider =
-      (typeof window !== "undefined" && window.phantom?.ethereum) ||
-      (typeof window !== "undefined" && window.ethereum);
-    if (!provider) {
-      toast.error("No EVM wallet detected (e.g. MetaMask).");
+    // EVM path – wagmi (MetaMask, etc.)
+    if (!switchChainAsync) {
+      toast.error("Unable to switch chain. Please try reconnecting your wallet.");
+      return;
+    }
+    if (!connector) {
+      toast.error("No wallet connected. Please connect an EVM wallet first.");
       return;
     }
 
     try {
-      await provider.request({
-        method: "wallet_switchEthereumChain",
-        params: [{ chainId: chain.chainHex }],
-      });
-      try {
-        await provider.request({ method: "eth_requestAccounts" });
-      } catch (accountsError) {
-        console.error("Failed to request EVM accounts:", accountsError);
-      }
+      setIsSwitchingChain(true);
+      await switchChainAsync({ chainId: chain.chainId });
       dispatch(setChainId(chain.chainId));
+      localStorage.removeItem(PREFERRED_CHAIN_STORAGE_KEY);
       setSelectedChainId(chain.chainId);
       setChainDropdownOpen(false);
     } catch (error) {
-      const code = error?.code;
-      if (code === 4902) {
+      const errCode = error?.code;
+      if (errCode === 4902) {
         try {
+          const provider = await connector.getProvider();
           await provider.request({
             method: "wallet_addEthereumChain",
             params: [
@@ -226,17 +264,22 @@ export function CheckinModal({
               },
             ],
           });
+          await switchChainAsync({ chainId: chain.chainId });
           dispatch(setChainId(chain.chainId));
+          localStorage.removeItem(PREFERRED_CHAIN_STORAGE_KEY);
           setSelectedChainId(chain.chainId);
           setChainDropdownOpen(false);
           return;
-        } catch (addError) {
-          console.error("Network add error:", addError);
+        } catch (addErr) {
+          console.error("Network add error:", addErr);
+          toast.error("Failed to add or switch network.");
+          return;
         }
-      } else {
-        console.error("Network switch error:", error);
       }
+      console.error("Network switch error:", error);
       toast.error("Failed to switch network.");
+    } finally {
+      setIsSwitchingChain(false);
     }
   };
 
@@ -535,16 +578,17 @@ export function CheckinModal({
                       </div>
                     )}
 
-                    {/* Chain selector */}
-                    <div className="w-full mb-4">
+                    {/* Chain selector — only shown when authenticated */}
+                    {isAuthenticated && <div className="w-full mb-4">
                       <label className="block text-xs font-semibold text-gray-500 mb-2">
                         Claim on
                       </label>
                       <div className="relative">
                         <button
                           type="button"
+                          disabled={isSwitchingChain}
                           onClick={() => setChainDropdownOpen((o) => !o)}
-                          className="w-full flex items-center justify-between gap-2 px-4 py-2.5 rounded-xl border border-gray-200 bg-white/80 hover:bg-gray-50/80 transition-colors text-sm"
+                          className="w-full flex items-center justify-between gap-2 px-4 py-2.5 rounded-xl border border-gray-200 bg-white/80 hover:bg-gray-50/80 transition-colors text-sm disabled:opacity-60"
                         >
                           <span className="flex items-center gap-2">
                             <img
@@ -569,12 +613,20 @@ export function CheckinModal({
                               aria-hidden="true"
                             />
                             <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg py-1 z-20 max-h-48 overflow-y-auto">
-                              {CHECKIN_CHAINS.filter((items) => {
-                                return items.name !== selectedChain.name;
-                              }).map((chain) => (
+                              {(isPrivySession
+                                ? CHECKIN_CHAINS.filter(
+                                    (c) => c.chainId !== SOLANA_CHAIN_ID,
+                                  )
+                                : CHECKIN_CHAINS
+                              )
+                                .filter((items) => {
+                                  return items.name !== selectedChain.name;
+                                })
+                                .map((chain) => (
                                 <button
                                   key={chain.chainId}
                                   type="button"
+                                  disabled={isSwitchingChain}
                                   onClick={() => handleChainSelect(chain)}
                                   className={`w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors ${
                                     selectedChainId === chain.chainId
@@ -594,10 +646,17 @@ export function CheckinModal({
                           </>
                         )}
                       </div>
-                    </div>
+                    </div>}
 
                     {/* Claim Button or Status */}
-                    {isClaimedView ? (
+                    {!isAuthenticated ? (
+                      <button
+                        onClick={() => { dispatch(setWalletModal(true)); onClose(); }}
+                        className="w-full px-8 py-3 rounded-xl font-semibold transition-all shadow-lg bg-black text-white hover:shadow-xl hover:scale-105"
+                      >
+                        Connect Wallet
+                      </button>
+                    ) : isClaimedView ? (
                       <div className="w-full px-8 py-3 rounded-xl font-semibold text-center bg-green-100 text-green-700 border-2 border-green-300">
                         <span className="flex items-center justify-center gap-2">
                           <Check size={20} />

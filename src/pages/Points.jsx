@@ -24,11 +24,16 @@ import {
   setPointsBalance,
   INITIAL_CLAIM_POINTS,
 } from "../redux/slices/pointsSlice";
-import { openCheckinModal } from "../redux/slices/walletSlice";
+import { openCheckinModal, setWalletModal } from "../redux/slices/walletSlice";
 import { XTasksModal } from "../components/XTasksModal";
-import { motion, AnimatePresence } from "motion/react";
+// import { motion, AnimatePresence } from "motion/react";
 import FAQModal from "../components/FaqModal";
+import { PortfolioInfoModal } from "../components/PortfolioInfoModal";
 import getFormattedNumber from "../hooks/get-formatted-number";
+import { useSocial } from "../hooks/useSocial";
+import { useGemsStatus } from "../hooks/useGemsStatus";
+import { getTierStyle } from "../utils/gemsTier";
+
 // Custom X (Twitter) Logo Component
 function XLogo({ className }) {
   return (
@@ -46,14 +51,19 @@ function XLogo({ className }) {
 export function PointsPage() {
   const [showXTasksModal, setShowXTasksModal] = useState(false);
   const [showFAQModal, setShowFAQModal] = useState(false);
-
+  const [showPortfolioInfoModal, setShowPortfolioInfoModal] = useState(false);
+  const { status: gemsStatus } = useGemsStatus();
+  const portfolioTierName = gemsStatus?.currentTier?.name || "Bronze";
+  const portfolioTierStyle = getTierStyle(portfolioTierName);
+  // console.log(gemsStatus);
   // local state kept for backward compatibility but UI now uses Redux newCount
-  const [newTasksCount, setNewTasksCount] = useState(4);
-  const [expandedFaq, setExpandedFaq] = useState(null);
-  const [showTooltip, setShowTooltip] = useState(false);
+  // const [newTasksCount, setNewTasksCount] = useState(4);
+  // const [expandedFaq, setExpandedFaq] = useState(null);
+  // const [showTooltip, setShowTooltip] = useState(false);
   const [showWelcomeGiftModal, setShowWelcomeGiftModal] = useState(false);
   const [claiming, setClaiming] = useState(false);
   const [claimError, setClaimError] = useState(null);
+  const { isConnected } = useSelector((state) => state.wallet);
 
   const html = document.querySelector("html");
 
@@ -64,6 +74,15 @@ export function PointsPage() {
       html.classList.remove("hidescroll");
     }
   }, [showXTasksModal]);
+    const requireConnectedAction = (action) => {
+    if (!isConnected) {
+      dispatch(setWalletModal(true));
+      return false;
+    }
+    if (typeof action === "function") action();
+    return true;
+  };
+  
   const params = new URLSearchParams(window.location.search);
   const error = params.get("error");
   const message = params.get("message");
@@ -72,16 +91,19 @@ export function PointsPage() {
   console.log(params, error, message, success);
 
   const handleXTasksClick = () => {
-    setShowXTasksModal(true);
+    requireConnectedAction(() => setShowXTasksModal(true));
   };
 
   const handleTasksViewed = () => {
-    setNewTasksCount(0); // Reset count when tasks are viewed
+    // setNewTasksCount(0); // Reset count when tasks are viewed
   };
+
+  const { fetchSocialPoints, fetchAllPoints } = useSocial();
 
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { user, setUser, claimSeason1 } = useAuth();
+  const { user, setUser, claimSeason1, ensureAuthenticated } = useAuth();
+  const claimStatusKnown = typeof user?.season1?.claimed === "boolean";
   const hasClaimedWelcomeBonus = user?.season1?.claimed === true;
   const userPointsBreakdown = user?.season1?.pointsBreakdown || {};
   const rateLimit =
@@ -90,19 +112,36 @@ export function PointsPage() {
 
   const checkinStatus = useSelector((state) => state.checkin?.status);
   const socialPoints = useSelector((state) => state.social?.socialPoints);
+  const telegramPoints = useSelector((state) => state.social?.telegramPoints);
   const newCount = useSelector((state) => state.social?.newCount);
 
-  const lastClaimed = useMemo(() => {
-    for (let i = checkinStatus?.rewards?.length - 1; i >= 0; i--) {
-      if (checkinStatus.rewards[i].claimed === true) {
-        if (i === checkinStatus.rewards.length - 1) {
-          return checkinStatus.rewards[0];
-        } else {
-          return checkinStatus.rewards[i];
-        }
+  useEffect(() => {
+    if (!isConnected) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        await ensureAuthenticated();
+        if (cancelled) return;
+        await Promise.all([fetchSocialPoints(), fetchAllPoints()]);
+      } catch (err) {
+        // no-op: existing UI/hook error handlers cover failed fetches/auth
       }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isConnected, ensureAuthenticated, fetchSocialPoints, fetchAllPoints]);
+
+  const lastClaimed = useMemo(() => {
+    const rewards = checkinStatus?.rewards ?? [];
+    const result =
+      checkinStatus?.rewards?.find((item) => {
+        return item.current === true;
+      }) || rewards?.toReversed().find((item) => item.claimed);
+    if (result) {
+      return result;
     }
-    return checkinStatus?.rewards[0];
   }, [checkinStatus]);
 
   const earnWays = [
@@ -123,7 +162,7 @@ export function PointsPage() {
       name: "Create Portfolio",
       points: "250",
       gems: "0",
-      description: "Earn for each portfolio you create",
+      description: "Earn for each on-chain portfolio you create",
       icon: PieChart,
       customIcon: null,
       comingSoon: false,
@@ -189,15 +228,17 @@ export function PointsPage() {
     {
       id: 6,
       name: "Social Tasks",
-      points: "1000",
+      points: "500",
       description: "Complete social media tasks",
       icon: null,
       customIcon: XLogo,
       comingSoon: false,
       isClickable: true,
-      userPoints: getFormattedNumber(socialPoints || 0, 0) || 0,
+      userPoints:
+        getFormattedNumber(socialPoints + telegramPoints || 0, 0) || 0,
     },
   ];
+
   const handleClaimPoints = async () => {
     setClaimError(null);
     setClaiming(true);
@@ -230,16 +271,16 @@ export function PointsPage() {
   };
 
   const handleClick = (id) => {
-    if (id === 1 && !hasClaimedWelcomeBonus) {
-      setShowWelcomeGiftModal(true);
+    if (id === 1 && claimStatusKnown && !hasClaimedWelcomeBonus) {
+      requireConnectedAction(() => setShowWelcomeGiftModal(true));
     } else if (id === 4) {
-      dispatch(openCheckinModal());
+      requireConnectedAction(() => dispatch(openCheckinModal()));
     } else if (id === 5) {
       // navigate("/referrals", { replace: true });
     } else if (id === 7) {
       navigate("/referrals", { replace: true });
     } else if (id > 1 && id <= 3) {
-      navigate("/", { replace: true });
+      requireConnectedAction(() => navigate("/", { replace: true }));
     } else if (id === 6) {
       handleXTasksClick();
     }
@@ -304,14 +345,22 @@ export function PointsPage() {
 
         {/* Gems Section */}
         <div className="glass-card p-6 bg-gradient-to-br from-purple-50 to-pink-50 border-purple-200/50">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-pink-600 rounded-2xl flex items-center justify-center">
-              <Gem className="w-6 h-6 text-white" />
+          <div className="flex align-center justify-between">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-pink-600 rounded-2xl flex items-center justify-center">
+                <Gem className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold">Gems</h3>
+                <div className="text-sm text-purple-600 font-medium">
+                  Premium Rewards
+                </div>
+              </div>
             </div>
-            <div>
-              <h3 className="text-xl font-bold">Gems</h3>
-              <div className="text-sm text-purple-600 font-medium">
-                Premium Rewards
+            <div className="h-fit px-3 py-2 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg">
+              <div className="flex items-center justify-center gap-2 text-white">
+                <Gem size={16} className="flex-shrink-0" />
+                <span className="font-bold text-sm sm:text-base">1 = $5</span>
               </div>
             </div>
           </div>
@@ -402,9 +451,40 @@ export function PointsPage() {
                     <div className="mb-4">
                       <h3 className="text-lg font-bold mb-1">{way.name}</h3>
                       <p className="text-sm text-gray-600">{way.description}</p>
+                      {/* {way.id === 2 && gemsStatus?.currentTier && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowPortfolioInfoModal(true);
+                          }}
+                          className={`mt-2 inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full border ${portfolioTierStyle.chip} hover:opacity-90 transition`}
+                        >
+                          <Gem size={11} />
+                          <span>
+                            {gemsStatus.currentTier.ratePct}% rate · see tiers
+                          </span>
+                        </button>
+                      )} */}
                     </div>
                   </div>
-                  <div className="flex gap-2 mb-auto ml-auto">
+                  <div className="flex gap-2 mb-auto ml-auto flex-wrap justify-end">
+                    {way.id === 2 && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowPortfolioInfoModal(true);
+                        }}
+                        title={`Your gems tier: ${portfolioTierName}. Tap for details.`}
+                        style={{
+                          backgroundImage: portfolioTierStyle.backgroundImage,
+                        }}
+                        className="px-2 py-1 text-white text-xs font-bold rounded-lg transition-all cursor-pointer shadow-sm mb-auto hover:brightness-110"
+                      >
+                        {portfolioTierName}
+                      </button>
+                    )}
                     {hasGems && (
                       <div className="flex mb-auto ml-auto items-center gap-1.5 px-2 py-1 bg-purple-100 border border-purple-200 rounded-lg w-fit">
                         <Gem size={14} className="text-purple-600" />
@@ -414,7 +494,7 @@ export function PointsPage() {
                       </div>
                     )}
                     {!way.comingSoon && (
-                      <div className="bg-blue-100 border border-blue-200 px-2 py-1 rounded-lg ml-auto mb-auto">
+                      <div className="bg-blue-100 border border-blue-200 px-2 py-1 rounded-lg mb-auto">
                         <div className="flex gap-1 items-baseline">
                           <span className="text-xs font-bold text-blue-700">
                             {way.points}
@@ -535,15 +615,54 @@ export function PointsPage() {
           </button>
         </div>
       </div>
+      <div className="pt-8 border-t border-gray-200/50">
+        {/* Social Icons */}
+
+        <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-gray-600">
+          <div>© 2026 AlloX Foundation. All rights reserved.</div>
+          <div className="flex gap-6">
+            <a
+              href="https://www.allox.ai/privacy"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-black transition-colors"
+            >
+              Privacy
+            </a>
+            <a
+              href="https://www.allox.ai/terms"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-black transition-colors"
+            >
+              Terms
+            </a>
+          </div>
+        </div>
+      </div>
+
       {/* X Tasks Modal */}
       <XTasksModal
         isOpen={showXTasksModal}
-        onClose={() => setShowXTasksModal(false)}
+        onClose={() => {
+          setShowXTasksModal(false);
+          fetchSocialPoints(); // Refresh points when modal is closed
+          fetchAllPoints();
+        }}
         onTasksViewed={handleTasksViewed}
       />
 
       {/* FAQ Modal */}
       <FAQModal isOpen={showFAQModal} onClose={() => setShowFAQModal(false)} />
+
+      {/* Portfolio / Gems tier info modal (shared with PortfolioPage) */}
+      {showPortfolioInfoModal && (
+        <PortfolioInfoModal
+          isOpen={showPortfolioInfoModal}
+          onClose={() => setShowPortfolioInfoModal(false)}
+          gemsStatus={gemsStatus}
+        />
+      )}
       {/* Welcome Bonus Claim Modal */}
       {showWelcomeGiftModal && (
         <div
@@ -588,8 +707,14 @@ export function PointsPage() {
               <p className="text-sm text-red-600 mb-2">{claimError}</p>
             )}
             <button
-              onClick={handleClaimPoints}
-              disabled={claiming || !isConnected}
+              onClick={() => {
+                if (!isConnected) {
+                  dispatch(setWalletModal(true));
+                  return;
+                }
+                handleClaimPoints();
+              }}
+              disabled={claiming}
               className="w-full py-4 rounded-2xl font-medium bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {claiming ? (
@@ -597,8 +722,10 @@ export function PointsPage() {
                   <Loader2 className="w-5 h-5 animate-spin" />
                   Claiming...
                 </>
-              ) : (
+              ) : isConnected ? (
                 "Claim"
+              ) : (
+                "Connect Wallet"
               )}
             </button>
           </div>

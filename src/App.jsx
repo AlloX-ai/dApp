@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Navigate,
   Outlet,
@@ -13,7 +13,6 @@ import { LaunchSidebar } from "./components/LaunchSidebar";
 import { Header } from "./components/Header";
 import { ChatPage } from "./pages/ChatPage";
 import { PortfolioPage } from "./pages/PortfolioPage";
-import { Season1 } from "./pages/Season1";
 import { TradingPage } from "./pages/TradingPage";
 import { StakingPage } from "./pages/StakingPage";
 import { HistoryPage } from "./pages/HistoryPage";
@@ -34,15 +33,25 @@ import {
   setIsConnected,
   setWalletModal,
   setWalletType,
+  setSessionSource,
   closeCheckinModal,
 } from "./redux/slices/walletSlice";
+import { useCreateWallet, usePrivy, useWallets } from "@privy-io/react-auth";
+import {
+  getPrivyEmbedded,
+  switchPrivyEmbeddedToChain,
+} from "./utils/privyWalletUtils";
+import { setPrivyLogoutBridge } from "./auth/privyLogoutBridge";
+import { isPrivySessionActive } from "./utils/privySession";
 import { resetPoints, setPointsBalance } from "./redux/slices/pointsSlice";
 import { clearCheckin } from "./redux/slices/checkinSlice";
 import { useAuth } from "./hooks/useAuth";
+import { completePrivyAuth } from "./hooks/useAuth";
 import { useCheckin } from "./hooks/useCheckin";
 import { CheckinModal } from "./components/CheckinModal";
 
-import { Toaster, toast } from "sonner";
+import { Toaster } from "sonner";
+import { toast } from "./utils/toast";
 import {
   setRateLimit,
   setCurrentMessages,
@@ -50,53 +59,396 @@ import {
 } from "./redux/slices/chatSlice";
 import { store } from "./redux/store";
 import { PointsPage } from "./pages/Points";
+import { useWallet } from "@solana/wallet-adapter-react";
 import { useSocial } from "./hooks/useSocial";
+import { CongratsModal } from "./components/CongratsModal";
+import { AIChatWidget } from "./components/AiChatWidget";
+import { CampaignsPage } from "./pages/Campaigns";
+import { PrivyFundHubModal } from "./components/PrivyFundHubModal";
+import { MaintenancePage } from "./pages/MaintenancePage";
+import { TopPortfoliosPage } from "./pages/TopPortfoliosPage";
+import { WatchlistPage } from "./pages/WatchlistPage";
+
+const MAINTENANCE_MODE = false;
 
 const SOLANA_MAINNET_CHAIN_ID = 101;
 const PREFERRED_CHAIN_STORAGE_KEY = "walletPreferredChainId";
+const PRIVY_VERIFY_BASE_COOLDOWN_MS = 5000;
+const PRIVY_VERIFY_MAX_COOLDOWN_MS = 120000;
 
-async function tryRestorePhantomSession(dispatch) {
-  const connections = getConnections(wagmiClient);
-  const hasEVMConnection = connections.some(
-    (c) => c.connector?.name !== "Phantom" && c.accounts?.length > 0,
+const isRateLimitError = (error) => {
+  const status = Number(error?.status ?? error?.code);
+  if (status === 429) return true;
+  const message = String(error?.message ?? error?.data?.error ?? "").toLowerCase();
+  return message.includes("429") || message.includes("too many requests");
+};
+
+function isBinanceConnectorLike(connector) {
+  const type = String(connector?.type ?? "").toLowerCase();
+  const id = String(connector?.id ?? "").toLowerCase();
+  const name = String(connector?.name ?? "").toLowerCase();
+  return (
+    type.includes("binance") ||
+    id.includes("binance") ||
+    name.includes("binance")
   );
-  if (hasEVMConnection) return false;
+}
 
-  const provider = window.phantom?.solana;
-  if (!provider) return false;
+/** Avoid EVM (wagmi) and Solana (adapter) fighting for the same MetaMask session. */
+async function disconnectAllEvmWagmi() {
   try {
-    const resp = await provider.connect({ onlyIfTrusted: true });
-    const walletAddress = resp.publicKey?.toString?.() ?? resp.publicKey;
-    if (!walletAddress) return false;
-    dispatch(setWalletType("solana"));
-    dispatch(setAddress(walletAddress));
-    dispatch(setIsConnected(true));
-    dispatch(setWalletModal(false));
-    return true;
-  } catch {
-    return false;
+    const connections = getConnections(wagmiClient);
+    for (const c of connections) {
+      await disconnect(wagmiClient, { connector: c.connector });
+    }
+  } catch (e) {
+    console.warn("disconnectAllEvmWagmi:", e);
   }
 }
 
-function LaunchAppLayout() {
+function getStoredAuthUser() {
+  return null;
+}
 
+function hasPrivyEmbeddedWallet(user) {
+  if (!user) return false;
+  const accounts = user.linkedAccounts ?? user.linked_accounts ?? [];
+  return accounts.some(
+    (a) =>
+      a.type === "wallet" &&
+      (a.walletClientType === "privy" || a.wallet_client_type === "privy"),
+  );
+}
+
+/** After Privy login, move embedded wallet to BNB Chain (56) so check-in and on-chain flows match Redux. */
+function PrivyEnsureBnbChain() {
+  const { user } = useAuth();
+  const { wallets, ready } = useWallets();
+  const hasRun = useRef(false);
+
+  useEffect(() => {
+    if (!ready || user?.authProvider !== "privy") return;
+    if (hasRun.current) return;
+    const embedded = getPrivyEmbedded(wallets);
+    if (!embedded) return;
+    hasRun.current = true;
+    let cancelled = false;
+    (async () => {
+      try {
+        await switchPrivyEmbeddedToChain(embedded, 56);
+      } catch (e) {
+        if (!cancelled) console.warn("Privy default BNB chain:", e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, user?.authProvider, wallets]);
+
+  return null;
+}
+
+function LaunchAppLayout() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const wasConnectedRef = useRef(false);
   const prevAddressRef = useRef(undefined);
   const prevWalletTypeRef = useRef(undefined);
   const authTriggeredRef = useRef(false);
+  const walletAuthInFlightRef = useRef(false);
   const { connector } = getAccount(wagmiClient);
+  const {
+    wallets: solanaWallets,
+    select: selectSolanaWallet,
+    disconnect: disconnectSolana,
+  } = useWallet();
 
-  const {fetchSocialPoints, loadSeenPosts} = useSocial();
-   useEffect(() => {
-     fetchSocialPoints();
-     loadSeenPosts();
-   }, [fetchSocialPoints, loadSeenPosts]);
+  const {
+    address,
+    isConnected,
+    walletModal,
+    walletType,
+    checkinModal,
+    chainId,
+  } = useSelector((state) => state.wallet);
+  const [fundModalOpen, setFundModalOpen] = useState(false);
+  const { token, user, logout, ensureAuthenticated } = useAuth();
+  const {
+    login,
+    authenticated,
+    user: privyUser,
+    getAccessToken,
+    ready: privyReady,
+  } = usePrivy();
+  const { createWallet } = useCreateWallet();
+  const [isPrivyVerifying, setIsPrivyVerifying] = useState(false);
+  const [isWalletAuthPending, setIsWalletAuthPending] = useState(false);
+  const privyVerifyAttemptedRef = useRef(false);
+  const privyVerifyFailuresRef = useRef(0);
+  const privyVerifyCooldownUntilRef = useRef(0);
 
-  const { address, isConnected, walletModal, walletType, checkinModal } =
-    useSelector((state) => state.wallet);
-  const { token, user, ensureAuthenticated, logout } = useAuth();
+  const attemptWalletAuthentication = useCallback(
+    async ({
+      source = "auto",
+      showLoadingToast = true,
+      keepModalOpenOnError = true,
+    } = {}) => {
+      // Privy sessions authenticate through `completePrivyAuth` and do not
+      // expose a wagmi connector for `signMessageAsync`.
+      if (authenticated) return null;
+      if (!isConnected || !address) return null;
+      if (token) {
+        dispatch(setWalletModal(false));
+        return token;
+      }
+      if (walletType === "privy" || user?.authProvider === "privy") return null;
+      if (walletAuthInFlightRef.current) return null;
+
+      walletAuthInFlightRef.current = true;
+      setIsWalletAuthPending(true);
+      const activeConnector = getAccount(wagmiClient)?.connector;
+      const isBinanceWallet =
+        walletType === "binance" ||
+        window.WALLET_TYPE === "binance" ||
+        isBinanceConnectorLike(activeConnector);
+      const toastId = "wallet-auth-flow";
+
+      if (showLoadingToast) {
+        toast.loading(
+          isBinanceWallet
+            ? "Waiting for Binance Wallet approval. Return to Chrome after approving the signature."
+            : "Waiting for wallet signature...",
+          { id: toastId },
+        );
+      }
+
+      try {
+        const nextToken = await ensureAuthenticated();
+        if (!nextToken) {
+          throw new Error("Wallet verification did not complete.");
+        }
+        dispatch(setWalletModal(false));
+        toast.success("Wallet verified successfully.", { id: toastId });
+        return nextToken;
+      } catch (err) {
+        const message =
+          err?.message ||
+          (source === "resume"
+            ? "Wallet verification did not resume. Please tap 'Sign to continue'."
+            : "Wallet verification failed. Please try again.");
+        if (keepModalOpenOnError) {
+          dispatch(setWalletModal(true));
+        }
+        toast.error(message, { id: toastId });
+        throw err;
+      } finally {
+        walletAuthInFlightRef.current = false;
+        setIsWalletAuthPending(false);
+      }
+    },
+    [
+      authenticated,
+      isConnected,
+      address,
+      token,
+      walletType,
+      user?.authProvider,
+      ensureAuthenticated,
+      dispatch,
+    ],
+  );
+
+  const syncCurrentEvmAccount = useCallback(() => {
+    const account = getAccount(wagmiClient);
+    if (store.getState().wallet.walletType === "solana") return account;
+    if (account.status === "connected" && account.address) {
+      dispatch(setAddress(account.address));
+      dispatch(setIsConnected(true));
+      dispatch(setSessionSource("wallet"));
+      if (account.chainId) {
+        dispatch(setChainId(account.chainId));
+      }
+    }
+    return account;
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (user?.authProvider !== "privy" || !user?.address) return;
+    dispatch(setSessionSource("privy"));
+    dispatch(setAddress(user.address));
+    dispatch(setIsConnected(true));
+    dispatch(setWalletType(user.walletType || "privy"));
+    // On-chain execution uses BNB Chain (56); keeps quick wizard / chat BSC gates in sync for Privy users
+    dispatch(setChainId(56));
+  }, [user?.authProvider, user?.address, user?.walletType, dispatch]);
+
+  // Reset auth trigger only when wallet identity genuinely switches (not on initial connect).
+  // Using prevAddressRef/prevWalletTypeRef to detect account/type changes vs. initial settle.
+  useEffect(() => {
+    const prevAddr = prevAddressRef.current;
+    const prevType = prevWalletTypeRef.current;
+    prevAddressRef.current = address;
+    prevWalletTypeRef.current = walletType;
+
+    // Account switch: had a real address before and it changed
+    const addrSwitch =
+      prevAddr && address && prevAddr.toLowerCase() !== address.toLowerCase();
+    // Wallet type switch: had a real type before and it changed (e.g. evm → solana)
+    const typeSwitch = prevType && walletType && prevType !== walletType;
+
+    if (!address || addrSwitch || typeSwitch) {
+      authTriggeredRef.current = false;
+    }
+  }, [address, walletType]);
+
+  // Auto-sign: when wallet connects and no token exists, trigger sign message.
+  // Skip Privy sessions — their re-auth goes through `completePrivyAuth`
+  // (below). Calling `ensureAuthenticated()` here for a Privy user would
+  // fall through to wagmi's `signMessageAsync`, which throws
+  // "Connector not connected" because Privy doesn't register a wagmi
+  // connector.
+  useEffect(() => {
+    if (!isConnected) {
+      authTriggeredRef.current = false;
+      return;
+    }
+    if (authenticated) return;
+    if (token) {
+      dispatch(setWalletModal(false));
+      return;
+    }
+    if (walletType === "privy" || user?.authProvider === "privy") return;
+    if (authTriggeredRef.current) return;
+    authTriggeredRef.current = true;
+    attemptWalletAuthentication({ source: "auto" }).catch((error) => {
+      // On auth rate limit, hold the guard so we don't spam /auth/nonce.
+      // It will be reset by account/type changes or reconnect.
+      if (!isRateLimitError(error)) {
+        authTriggeredRef.current = false;
+      }
+    });
+  }, [
+    isConnected,
+    token,
+    address,
+    walletType,
+    authenticated,
+    user?.authProvider,
+    attemptWalletAuthentication,
+    dispatch,
+  ]);
+
+  useEffect(() => {
+    const handleResume = () => {
+      if (document.visibilityState && document.visibilityState !== "visible")
+        return;
+
+      window.setTimeout(() => {
+        const account = syncCurrentEvmAccount();
+        const currentToken = localStorage.getItem("authToken");
+        const currentWallet = store.getState().wallet;
+        const shouldRetryAuth =
+          !currentToken &&
+          !authenticated &&
+          currentWallet.isConnected &&
+          !!currentWallet.address &&
+          currentWallet.walletType !== "privy" &&
+          currentWallet.walletType !== "solana";
+
+        if (
+          shouldRetryAuth &&
+          (currentWallet.walletModal || currentWallet.walletType === "binance")
+        ) {
+          attemptWalletAuthentication({
+            source: "resume",
+            showLoadingToast: currentWallet.walletType === "binance",
+          }).catch(() => {});
+        } else if (
+          account.status === "connected" &&
+          account.address &&
+          currentWallet.walletModal &&
+          currentToken
+        ) {
+          dispatch(setWalletModal(false));
+        }
+      }, 350);
+    };
+
+    window.addEventListener("focus", handleResume);
+    window.addEventListener("pageshow", handleResume);
+    document.addEventListener("visibilitychange", handleResume);
+    return () => {
+      window.removeEventListener("focus", handleResume);
+      window.removeEventListener("pageshow", handleResume);
+      document.removeEventListener("visibilitychange", handleResume);
+    };
+  }, [
+    attemptWalletAuthentication,
+    authenticated,
+    dispatch,
+    syncCurrentEvmAccount,
+  ]);
+
+  useEffect(() => {
+    if (!authenticated) {
+      privyVerifyAttemptedRef.current = false;
+    }
+  }, [authenticated]);
+
+  // When the app JWT is cleared while the Privy session is still alive
+  // (e.g. a 7-day refresh/`/auth/refresh` failure in api.js), reset the
+  // "already attempted" guard so the re-verify effect below gets another
+  // chance to call `completePrivyAuth` with a fresh Privy access token.
+  // Without this, the user gets stuck logged-out until they manually
+  // disconnect and reconnect Privy.
+  useEffect(() => {
+    if (!token && authenticated) {
+      privyVerifyAttemptedRef.current = false;
+    }
+  }, [token, authenticated]);
+
+  useEffect(() => {
+    if (!authenticated || token) return;
+    if (!privyUser) return;
+    if (isPrivyVerifying) return;
+    if (Date.now() < privyVerifyCooldownUntilRef.current) return;
+    if (privyVerifyAttemptedRef.current) return;
+    privyVerifyAttemptedRef.current = true;
+    setIsPrivyVerifying(true);
+
+    (async () => {
+      try {
+        if (!hasPrivyEmbeddedWallet(privyUser)) {
+          await createWallet();
+        }
+        const t = await getAccessToken();
+        if (!t) throw new Error("No Privy access token");
+        await completePrivyAuth(t);
+        privyVerifyFailuresRef.current = 0;
+        privyVerifyCooldownUntilRef.current = 0;
+      } catch (err) {
+        console.error("Privy verify:", err);
+        privyVerifyFailuresRef.current += 1;
+        const exp = Math.max(0, privyVerifyFailuresRef.current - 1);
+        const backoffMs = Math.min(
+          PRIVY_VERIFY_MAX_COOLDOWN_MS,
+          PRIVY_VERIFY_BASE_COOLDOWN_MS * 2 ** exp,
+        );
+        privyVerifyCooldownUntilRef.current = Date.now() + backoffMs;
+        privyVerifyAttemptedRef.current = false;
+        toast.error(err?.message || "Sign-in failed. Please try again.");
+      } finally {
+        setIsPrivyVerifying(false);
+      }
+    })();
+  }, [
+    authenticated,
+    token,
+    privyUser,
+    createWallet,
+    getAccessToken,
+    isPrivyVerifying,
+  ]);
   const {
     status: checkinStatus,
     claim: claimCheckin,
@@ -105,16 +457,29 @@ function LaunchAppLayout() {
     loading: checkinLoading,
   } = useCheckin();
 
-  const handleDisconnect = async () => {
-    // if (walletType === "phantom") {
-    try {
-      if (window.phantom?.solana) {
-        await window.phantom.solana.disconnect();
-      }
-    } catch (e) {
-      console.warn("Phantom disconnect:", e);
-    }
-    // } else
+  const { fetchSocialPoints, fetchAllPoints, loadSeenPosts } = useSocial();
+  useEffect(() => {
+    if (!isConnected || !authenticated) return;
+    fetchSocialPoints();
+    fetchAllPoints();
+    loadSeenPosts();
+  }, [
+    isConnected,
+    authenticated,
+    fetchSocialPoints,
+    fetchAllPoints,
+    loadSeenPosts,
+  ]);
+
+  const handleDisconnect = useCallback(async () => {
+    // if (walletType === "solana") {
+    //   try {
+    await disconnectSolana();
+    // } catch (e) {
+    //   console.warn("Solana wallet disconnect:", e);
+    // }
+    // }
+    // else
     if (connector) {
       await disconnect(wagmiClient, { connector });
     }
@@ -122,26 +487,13 @@ function LaunchAppLayout() {
     dispatch(setChainId(null));
     dispatch(setIsConnected(false));
     dispatch(setWalletType(""));
+    dispatch(setSessionSource(null));
     dispatch(setViewingHistorySessionId(null));
     dispatch(setCurrentMessages([]));
     dispatch(clearCheckin());
-    // Fully clear auth state (token + user) across the app
-    logout();
-    navigate("/login");
-  };
-
-  useEffect(() => {
-    if (!isConnected) {
-      authTriggeredRef.current = false;
-      return;
-    }
-    if (token) return;
-    if (authTriggeredRef.current) return;
-    authTriggeredRef.current = true;
-    ensureAuthenticated().catch(() => {
-      authTriggeredRef.current = false;
-    });
-  }, [isConnected, token, ensureAuthenticated]);
+    // Fully clear auth state (token + user) across the app (includes Privy logout via bridge)
+    await logout();
+  });
 
   useEffect(() => {
     const points = user?.season1?.points;
@@ -161,7 +513,8 @@ function LaunchAppLayout() {
     if (
       limit != null &&
       (typeof limit.remaining === "number" ||
-        typeof limit.messagesRemaining === "number")
+        typeof limit.messagesRemaining === "number" ||
+        typeof limit.bonusMessages === "number")
     ) {
       dispatch(setRateLimit(user?.season1?.rateLimit));
     }
@@ -169,6 +522,7 @@ function LaunchAppLayout() {
     user?.season1?.rateLimit,
     user?.season1?.rateLimit?.remaining,
     user?.season1?.rateLimit?.messagesRemaining,
+    user?.season1?.rateLimit?.bonusMessages,
     dispatch,
   ]);
 
@@ -177,19 +531,16 @@ function LaunchAppLayout() {
       const hasAuth = !!localStorage.getItem("authToken");
       if (!hasAuth) {
         localStorage.removeItem("authToken");
-        localStorage.removeItem("authUser");
 
         dispatch(setViewingHistorySessionId(null));
         dispatch(setCurrentMessages([]));
-        navigate("/login", { replace: true });
       }
     }
     wasConnectedRef.current = isConnected;
-  }, [isConnected, navigate]);
+  }, [dispatch, isConnected, navigate]);
 
   // If the user changes account within the same wallet type (e.g. MetaMask account 1 → 2),
-  // force a fresh session. But don't treat switching wallet types (e.g. Phantom → MetaMask)
-  // as a mid-session switch that should wipe auth.
+  // force a fresh session. Compare addresses case-insensitively to avoid false positives (EVM checksum).
   useEffect(() => {
     const prevAddress = prevAddressRef.current;
     const prevWalletType = prevWalletTypeRef.current;
@@ -197,11 +548,11 @@ function LaunchAppLayout() {
     if (
       prevAddress != null &&
       address != null &&
-      prevAddress !== address &&
-      prevWalletType === walletType
+      prevWalletType === "evm" &&
+      walletType === "evm" &&
+      prevAddress.toLowerCase() !== address.toLowerCase()
     ) {
       localStorage.removeItem("authToken");
-      localStorage.removeItem("authUser");
       dispatch(setViewingHistorySessionId(null));
       dispatch(setCurrentMessages([]));
       dispatch(resetPoints());
@@ -210,7 +561,7 @@ function LaunchAppLayout() {
 
     prevAddressRef.current = address;
     prevWalletTypeRef.current = walletType;
-  }, [address, walletType, dispatch, navigate]);
+  }, [address, walletType, dispatch, handleDisconnect]);
 
   const setWalletModalOpen = (nextValue) => {
     dispatch(setWalletModal(nextValue));
@@ -219,41 +570,67 @@ function LaunchAppLayout() {
   const allConnectors = wagmiClient.connectors;
 
   const handleWalletConnect = async (option) => {
-    // Phantom (Solana) – connect via window.phantom.solana
-    if (option.isPhantom || option.walletType === "phantom") {
-      const provider = window.phantom?.solana;
-      if (!provider) {
-        toast.error("Phantom not found. Install the Phantom extension.");
+    // Solana wallets (MetaMask via Wallet Standard, Phantom) – Redux is synced by WalletSync when adapter connects
+    if (
+      option.isSolana ||
+      option.walletType === "solana" ||
+      option.walletType === "phantom" ||
+      option.isPhantom
+    ) {
+      const isPhantom = option.isPhantom || option.walletType === "phantom";
+      const searchName = isPhantom ? "phantom" : "metamask";
+      const solanaWallet = solanaWallets.find((w) =>
+        w.adapter?.name?.toLowerCase?.().includes(searchName),
+      );
+      if (!solanaWallet) {
+        toast.error(
+          isPhantom
+            ? "Phantom wallet not found. Install the Phantom browser extension."
+            : "MetaMask with Solana support not found. Install or enable MetaMask.",
+        );
         return;
       }
       try {
-        const resp = await provider.connect();
-        const walletAddress = resp.publicKey.toString();
-        dispatch(setWalletType("solana"));
-        dispatch(setAddress(walletAddress));
-        dispatch(setChainId(SOLANA_MAINNET_CHAIN_ID));
-        dispatch(setIsConnected(true));
-        dispatch(setWalletModal(false));
+        await disconnectAllEvmWagmi();
+        selectSolanaWallet(solanaWallet.adapter.name);
+        await solanaWallet.adapter.connect();
+        dispatch(setSessionSource("wallet"));
       } catch (err) {
-        console.error("Phantom connection error:", err);
-        toast.error("Failed to connect Phantom. Please try again.");
+        console.error("Solana wallet connection error:", err);
+        toast.error(
+          "Failed to connect " + option.name + " for Solana. Please try again.",
+        );
       }
       return;
     }
 
     // EVM wallets – match by name
+    try {
+      await disconnectSolana();
+    } catch (e) {
+      console.warn("Solana disconnect before EVM:", e);
+    }
+
     const connector = allConnectors.find((c) =>
       c.name.toLowerCase().includes(option.name.toLowerCase()),
     );
 
     if (connector && connector.name !== "WalletConnect") {
       const isBinance =
-        option.walletType === "binance" || option.name === "Binance Wallet";
+        option.walletType === "binance" ||
+        option.name === "Binance Wallet" ||
+        isBinanceConnectorLike(connector);
+      if (isBinance) {
+        toast.info(
+          "Continue in Binance Wallet. After connecting or signing, return to Chrome and we'll resume verification.",
+          { id: "binance-wallet-handoff" },
+        );
+      }
       connect(wagmiClient, { connector })
         .then(() => {
           dispatch(setWalletType(isBinance ? "binance" : "evm"));
           dispatch(setIsConnected(true));
-          dispatch(setWalletModal(false));
+          dispatch(setSessionSource("wallet"));
           if (isBinance) {
             setTimeout(() => getAccount(wagmiClient), 2000);
           }
@@ -269,7 +646,7 @@ function LaunchAppLayout() {
           .then(() => {
             dispatch(setWalletType("evm"));
             dispatch(setIsConnected(true));
-            dispatch(setWalletModal(false));
+            dispatch(setSessionSource("wallet"));
           })
           .catch((err) => {
             console.error("WalletConnect connection error:", err);
@@ -289,11 +666,20 @@ function LaunchAppLayout() {
   return (
     <div className="min-h-screen bg-pattern flex flex-col main-wrapper">
       <WalletSync />
+      <PrivyEnsureBnbChain />
       <Header
         isConnected={isConnected}
         onConnectClick={() => setWalletModalOpen(true)}
         coinbase={address}
         onDisconnectClick={handleDisconnect}
+        onOpenFundModal={() => setFundModalOpen(true)}
+      />
+
+      <PrivyFundHubModal
+        open={fundModalOpen}
+        onClose={() => setFundModalOpen(false)}
+        walletChainId={chainId}
+        coinbase={address}
       />
 
       <div className="w-full flex-1 pt-20 flex min-h-0">
@@ -307,6 +693,21 @@ function LaunchAppLayout() {
         isOpen={walletModal}
         onClose={() => setWalletModalOpen(false)}
         onConnect={handleWalletConnect}
+        onSign={() =>
+          attemptWalletAuthentication({
+            source: "manual",
+            showLoadingToast: true,
+            keepModalOpenOnError: true,
+          }).catch(() => {})
+        }
+        isSigning={isPrivyVerifying || isWalletAuthPending}
+        signingMessage={
+          isPrivyVerifying
+            ? "Setting up your wallet..."
+            : "Waiting for wallet approval..."
+        }
+        onPrivySignIn={() => login()}
+        privyReady={privyReady}
       />
 
       <CheckinModal
@@ -326,32 +727,55 @@ function BetaAccessLayout() {
   const dispatch = useDispatch();
   const { walletModal } = useSelector((state) => state.wallet);
   const allConnectors = wagmiClient.connectors;
+  const {
+    wallets: solanaWallets,
+    select: selectSolanaWallet,
+    disconnect: disconnectSolanaAdapter,
+  } = useWallet();
 
   const setWalletModalOpen = (nextValue) => {
     dispatch(setWalletModal(nextValue));
   };
 
   const handleWalletConnect = async (option) => {
-    if (option.isPhantom || option.walletType === "phantom") {
-      const provider = window.phantom?.solana;
-      if (!provider) {
-        toast.error("Phantom not found. Install the Phantom extension.");
+    if (
+      option.isSolana ||
+      option.walletType === "solana" ||
+      option.walletType === "phantom" ||
+      option.isPhantom
+    ) {
+      const isPhantom = option.isPhantom || option.walletType === "phantom";
+      const searchName = isPhantom ? "phantom" : "metamask";
+      const solanaWallet = solanaWallets.find((w) =>
+        w.adapter?.name?.toLowerCase?.().includes(searchName),
+      );
+      if (!solanaWallet) {
+        toast.error(
+          isPhantom
+            ? "Phantom wallet not found. Install the Phantom browser extension."
+            : "MetaMask with Solana support not found. Install or enable MetaMask.",
+        );
         return;
       }
       try {
-        const resp = await provider.connect();
-        const walletAddress = resp.publicKey.toString();
-        window.WALLET_TYPE = "phantom";
-        dispatch(setWalletType("phantom"));
-        dispatch(setAddress(walletAddress));
-        dispatch(setChainId(SOLANA_MAINNET_CHAIN_ID));
-        dispatch(setIsConnected(true));
+        await disconnectAllEvmWagmi();
+        selectSolanaWallet(solanaWallet.adapter.name);
+        await solanaWallet.adapter.connect();
         dispatch(setWalletModal(false));
+        dispatch(setSessionSource("wallet"));
       } catch (err) {
-        console.error("Phantom connection error:", err);
-        toast.error("Failed to connect Phantom. Please try again.");
+        console.error("Solana wallet connection error:", err);
+        toast.error(
+          "Failed to connect " + option.name + " for Solana. Please try again.",
+        );
       }
       return;
+    }
+
+    try {
+      await disconnectSolanaAdapter();
+    } catch (e) {
+      console.warn("Solana disconnect before EVM:", e);
     }
 
     const connector = allConnectors.find((c) =>
@@ -365,6 +789,7 @@ function BetaAccessLayout() {
           dispatch(setWalletType(isBinance ? "binance" : "evm"));
           dispatch(setIsConnected(true));
           dispatch(setWalletModal(false));
+          dispatch(setSessionSource("wallet"));
         })
         .catch((err) => {
           console.error("Wallet connection error:", err);
@@ -378,6 +803,7 @@ function BetaAccessLayout() {
             dispatch(setWalletType("evm"));
             dispatch(setIsConnected(true));
             dispatch(setWalletModal(false));
+            dispatch(setSessionSource("wallet"));
           })
           .catch((err) => {
             console.error("WalletConnect connection error:", err);
@@ -409,14 +835,66 @@ function BetaAccessLayout() {
 
 function WalletSync() {
   const dispatch = useDispatch();
-  const { pathname } = useLocation();
+  const solanaActiveRef = useRef(false);
+  const { authenticated, user: privyUser } = usePrivy();
+  const { wallets: privyWallets, ready: privyWalletsReady } = useWallets();
 
   // Eagerly restore Phantom only when NOT on login (per Phantom docs: use onlyIfTrusted for page load).
   // Skip on /login so logout doesn’t trigger reconnection and popup.
+  const { connected: solanaConnected, publicKey: solanaPublicKey } =
+    useWallet();
+
   useEffect(() => {
-    if (pathname === "/login") return;
-    tryRestorePhantomSession(dispatch);
-  }, [dispatch, pathname]);
+    solanaActiveRef.current = !!(solanaConnected && solanaPublicKey);
+  }, [solanaConnected, solanaPublicKey]);
+
+  // Restore Privy connected wallet on reload (without relying on localStorage authUser).
+  useEffect(() => {
+    if (!authenticated || !privyWalletsReady) return;
+    if (solanaConnected && solanaPublicKey) return;
+
+    const embedded = getPrivyEmbedded(privyWallets);
+    const connected = embedded ?? privyWallets?.[0];
+    const linkedWallet = (privyUser?.linkedAccounts ?? []).find(
+      (a) => a?.type === "wallet" && a?.address,
+    );
+    const address = connected?.address ?? linkedWallet?.address ?? null;
+
+    if (address) {
+      dispatch(setWalletType("privy"));
+      dispatch(setSessionSource("privy"));
+      dispatch(setAddress(address));
+      dispatch(setIsConnected(true));
+      const connectedChainId = Number(connected?.chainId);
+      dispatch(
+        setChainId(Number.isFinite(connectedChainId) ? connectedChainId : 56),
+      );
+    }
+  }, [
+    authenticated,
+    privyWalletsReady,
+    privyWallets,
+    privyUser,
+    solanaConnected,
+    solanaPublicKey,
+    dispatch,
+  ]);
+
+  useEffect(() => {
+    const currentWalletType = store.getState().wallet.walletType;
+    if (solanaConnected && solanaPublicKey) {
+      dispatch(setWalletType("solana"));
+      dispatch(setAddress(solanaPublicKey.toBase58()));
+      dispatch(setChainId(SOLANA_MAINNET_CHAIN_ID));
+      dispatch(setIsConnected(true));
+    } else if (currentWalletType === "solana" && !solanaConnected) {
+      if (localStorage.getItem("authToken")) return;
+      dispatch(setAddress(null));
+      dispatch(setChainId(null));
+      dispatch(setIsConnected(false));
+      dispatch(setWalletType(""));
+    }
+  }, [solanaConnected, solanaPublicKey, dispatch]);
 
   // Restore Solana as default when user previously selected Solana (saved in localStorage)
   useEffect(() => {
@@ -427,13 +905,13 @@ function WalletSync() {
     dispatch(setChainId(SOLANA_MAINNET_CHAIN_ID));
   }, [dispatch]);
 
-  // Watch account changes with cleanup (EVM only; skip when Phantom is active)
+  // Watch account changes (EVM only; skip when stored user or Redux is Solana)
   useEffect(() => {
     let disconnectTimeoutId = null;
 
     const unwatch = watchAccount(wagmiClient, (account) => {
       const walletType = store.getState().wallet.walletType;
-      if (walletType === "phantom") return;
+      if (walletType === "solana") return;
 
       switch (account.status) {
         case "connected":
@@ -445,20 +923,23 @@ function WalletSync() {
             dispatch(setAddress(account.address));
             dispatch(setChainId(account.chainId));
             dispatch(setIsConnected(true));
-            dispatch(setWalletModal(false));
+            dispatch(setSessionSource("wallet"));
           }
           break;
         case "reconnecting":
-          dispatch(setIsConnected(false));
+          if (!isPrivySessionActive()) dispatch(setIsConnected(false));
           break;
         case "connecting":
-          dispatch(setIsConnected(false));
+          if (!isPrivySessionActive() || !localStorage.getItem("authToken"))
+            dispatch(setIsConnected(false));
           break;
         case "disconnected":
         default:
           if (disconnectTimeoutId) clearTimeout(disconnectTimeoutId);
           disconnectTimeoutId = setTimeout(() => {
             disconnectTimeoutId = null;
+            if (isPrivySessionActive() || localStorage.getItem("authToken"))
+              return;
             dispatch(setAddress(null));
             dispatch(setIsConnected(false));
             dispatch(setWalletType(""));
@@ -471,46 +952,50 @@ function WalletSync() {
       unwatch();
     };
   }, [dispatch]);
-  // Watch connections (EVM only; don't run Phantom restore here – only on mount, so disconnect doesn't re-trigger)
+  // Watch connections (EVM only; Solana is synced via adapter above)
   useEffect(() => {
     let clearTimeoutId = null;
 
     const unwatch = watchConnections(wagmiClient, {
       async onChange(connections) {
         if (connections.length === 0) {
-          // Debounce: wagmi can briefly report 0 when navigating (e.g. login → app) before rehydrating
           if (clearTimeoutId) clearTimeout(clearTimeoutId);
           clearTimeoutId = setTimeout(() => {
             clearTimeoutId = null;
+            if (localStorage.getItem("authToken")) return;
+            if (store.getState().wallet.walletType !== "solana") {
+              dispatch(setAddress(null));
+              dispatch(setIsConnected(false));
+              dispatch(setWalletType(""));
+            }
+            if (isPrivySessionActive()) return;
             dispatch(setAddress(null));
             dispatch(setIsConnected(false));
             dispatch(setWalletType(""));
             window.WALLET_TYPE = null;
           }, 400);
         } else {
+          if (
+            solanaActiveRef.current ||
+            store.getState().wallet.walletType === "solana"
+          ) {
+            return;
+          }
           if (clearTimeoutId) {
             clearTimeout(clearTimeoutId);
             clearTimeoutId = null;
           }
           const activeConnection = connections[0];
-
-          if (
-            activeConnection.accounts[0] &&
-            activeConnection.chainId &&
-            activeConnection.connector.name !== "Phantom"
-          ) {
-            dispatch(setWalletType("evm"));
+          const isBinanceConnection = isBinanceConnectorLike(
+            activeConnection?.connector,
+          );
+          if (activeConnection.accounts[0] && activeConnection.chainId) {
+            dispatch(setWalletType(isBinanceConnection ? "binance" : "evm"));
             dispatch(setAddress(activeConnection.accounts[0]));
             dispatch(setChainId(activeConnection.chainId));
             dispatch(setIsConnected(true));
-            dispatch(setWalletModal(false));
-            window.WALLET_TYPE = "metamask";
-          }
-          if (activeConnection.connector.type === "binanceWallet") {
-            dispatch(setWalletType("evm"));
-            dispatch(setIsConnected(true));
-            dispatch(setWalletModal(false));
-            window.WALLET_TYPE = "binance";
+            dispatch(setSessionSource("wallet"));
+            window.WALLET_TYPE = isBinanceConnection ? "binance" : "metamask";
           } else if (activeConnection.connector.name === "Phantom") {
             const provider = window.phantom?.solana;
 
@@ -526,7 +1011,7 @@ function WalletSync() {
                   dispatch(setWalletType("solana"));
                   dispatch(setAddress(walletAddress));
                   dispatch(setIsConnected(true));
-                  dispatch(setWalletModal(false));
+                  dispatch(setSessionSource("wallet"));
                   window.WALLET_TYPE = "solana";
 
                   const stored = localStorage.getItem(
@@ -546,7 +1031,7 @@ function WalletSync() {
           } else {
             dispatch(setWalletType("evm"));
             dispatch(setIsConnected(true));
-            dispatch(setWalletModal(false));
+            dispatch(setSessionSource("wallet"));
           }
         }
       },
@@ -557,22 +1042,22 @@ function WalletSync() {
     };
   }, [dispatch]);
 
-  // Handle EVM account/chain changes (Phantom EVM or other EVM wallets)
+  // Handle EVM account/chain changes
   useEffect(() => {
-    const provider =
-      (window.phantom && window.phantom.ethereum) || window.ethereum;
+    const provider = window.ethereum;
     if (!provider) return;
 
     const handleAccountsChanged = (accounts) => {
       if (store.getState().wallet.walletType === "solana") return;
       if (!accounts[0]) {
+        if (isPrivySessionActive()) return;
         dispatch(setAddress(null));
         dispatch(setIsConnected(false));
       }
     };
 
     const handleChainChanged = (chainHex) => {
-      if (store.getState().wallet.walletType === "phantom") return;
+      if (store.getState().wallet.walletType === "solana") return;
       dispatch(setChainId(parseInt(chainHex, 16)));
     };
 
@@ -584,54 +1069,52 @@ function WalletSync() {
     };
   }, [dispatch]);
 
-  // Phantom: listen for account disconnect
-  useEffect(() => {
-    const provider = window.phantom?.solana;
-    if (!provider) return;
-
-    const handlePhantomAccountChanged = (pubkey) => {
-      if (pubkey) return;
-      if (store.getState().wallet.walletType !== "solana") return;
-      dispatch(setAddress(null));
-      dispatch(setChainId(null));
-      dispatch(setIsConnected(false));
-      dispatch(setWalletType(""));
-    };
-    provider.on("accountChanged", handlePhantomAccountChanged);
-    return () => provider.off?.("accountChanged", handlePhantomAccountChanged);
-  }, [dispatch]);
-
   return null;
 }
 
-function RequireAuth({ children }) {
-  const location = useLocation();
-  const { isAuthenticated } = useAuth();
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace state={{ from: location }} />;
-  }
-
-  return children;
+function PrivyLogoutBridge() {
+  const { logout: privyLogout } = usePrivy();
+  useEffect(() => {
+    setPrivyLogoutBridge(privyLogout);
+    return () => setPrivyLogoutBridge(null);
+  }, [privyLogout]);
+  return null;
 }
 
 function App() {
+  const { address } = useSelector((state) => state.wallet);
+  const { isAuthenticated } = useAuth();
+
+  const [showModal, setShowModal] = useState(false);
+  const lastShown = localStorage.getItem("chatDate");
+  const count = parseInt(localStorage.getItem("chatCount") || "0", 10);
+  useEffect(() => {
+    const today = new Date().toDateString();
+    // App only decides visibility; storage updates happen in CongratsModal after open.
+    setShowModal(lastShown !== today && count < 3 && isAuthenticated);
+  }, [lastShown, count, isAuthenticated]);
+
+  if (MAINTENANCE_MODE) {
+    return (
+      <>
+        <Toaster position="top-right" richColors closeButton />
+        <MaintenancePage />
+      </>
+    );
+  }
+
   return (
     <>
+      <PrivyLogoutBridge />
       <Toaster position="top-right" richColors closeButton />
       <Routes>
-        <Route path="/login" element={<BetaAccessLayout />} />
-        <Route
-          path="/"
-          element={
-            <RequireAuth>
-              <LaunchAppLayout />
-            </RequireAuth>
-          }
-        >
+        <Route path="/login" element={<Navigate to="/" replace />} />
+        <Route path="/" element={<LaunchAppLayout />}>
           <Route index element={<ChatPage />} />
           <Route path="/portfolio" element={<PortfolioPage />} />
-          <Route path="/spring-series" element={<Season1 />} />
+          <Route path="/top-portfolios" element={<TopPortfoliosPage />} />
+          <Route path="/campaigns" element={<CampaignsPage />} />
+          <Route path="/watchlist" element={<WatchlistPage />} />
           <Route path="/rewards" element={<PointsPage />} />
 
           <Route path="/trending" element={<TradingPage />} />
@@ -640,6 +1123,16 @@ function App() {
           <Route path="/referrals" element={<ReferralsPage />} />
         </Route>
       </Routes>
+      {showModal && (
+        <CongratsModal
+          isOpen={showModal}
+          onClose={() => {
+            setShowModal(false);
+          }}
+          address={address}
+        />
+      )}
+      {isAuthenticated && <AIChatWidget />}
     </>
   );
 }
