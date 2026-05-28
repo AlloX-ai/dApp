@@ -339,10 +339,10 @@ export function ReferralsPage() {
                     others work for you and build your network.
                   </p>
                   <button
-                    // onClick={handleActivate}
+                    onClick={handleActivate}
                     className="bg-white w-fit text-black px-8 py-3 rounded-xl font-semibold hover:bg-gray-200 transition-colors mb-2"
                   >
-                    Coming Soon
+                    Activate
                   </button>
                 </div>
                 {/* Stats Grid */}
