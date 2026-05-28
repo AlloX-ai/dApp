@@ -68,7 +68,6 @@ import { PrivyFundHubModal } from "./components/PrivyFundHubModal";
 import { MaintenancePage } from "./pages/MaintenancePage";
 import { TopPortfoliosPage } from "./pages/TopPortfoliosPage";
 import { WatchlistPage } from "./pages/WatchlistPage";
-import { CampaignRulesPage } from "./pages/CampaignRulesPage";
 
 const MAINTENANCE_MODE = false;
 
