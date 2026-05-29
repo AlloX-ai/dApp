@@ -273,13 +273,13 @@ export function TradingCompetitionPage() {
           </div>
 
           {/* Create Portfolio Button - Below */}
-          <Link
-            to={"/"}
-            className="btn-primary w-full flex items-center justify-center gap-2 text-sm mt-3"
+          <button
+            disabled
+            className="btn-primary w-full flex items-center justify-center gap-2 text-sm mt-3 opacity-60 bg-gray-300"
           >
             <Plus size={16} />
             Create Portfolio
-          </Link>
+          </button>
         </div>
 
         {/* Right: How it Works & Rewards - Compact */}

@@ -51,71 +51,6 @@ export function CampaignsPage() {
             {/* Trading Competition Card */}
             <button
               onClick={() => {
-                setSearchParams({ campaign: "allocation-race" });
-              }}
-              className="glass-card overflow-hidden text-left hover:shadow-2xl transition-all duration-300 group relative"
-            >
-              {/* Banner Image */}
-              <div className="relative h-48 w-full overflow-hidden">
-                <ImageWithFallback
-                  src={tcBanner}
-                  alt="Trading Competition"
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-                {/* Gradient Overlay */}
-                <div className="absolute inset-0 " />
-
-                {/* Badge on Banner */}
-                <div className="absolute top-4 right-4 bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold shadow-lg">
-                  ACTIVE
-                </div>
-
-                {/* Icon on Banner */}
-              </div>
-
-              {/* Content */}
-              <div className="p-8">
-                {/* Title */}
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">
-                  The Allocation Race
-                </h3>
-                <p className="text-gray-600 mb-6">
-                  Create on-chain portfolios and compete for $500,000 reward
-                  pool
-                </p>
-
-                {/* Stats */}
-                <div className="flex flex-col sm:flex-row gap-2 sm:items-center justify-between mb-6">
-                  <div className="bg-white/60 backdrop-blur-sm rounded-xl p-3">
-                    <div className="text-xs text-gray-600 mb-1">
-                      Total Rewards
-                    </div>
-                    <div className="font-bold text-gray-900 flex items-center gap-1">
-                      $500,000 (<Gem className="w-4 h-4 text-purple-600" />
-                      100,000)
-                    </div>
-                  </div>
-                  <div className="bg-white/60 backdrop-blur-sm rounded-xl p-3">
-                    <div className="text-xs text-gray-600 mb-1">Duration</div>
-                    <div className="font-bold text-gray-900 flex items-center gap-1">
-                      <Calendar className="w-4 h-4 text-blue-600" />
-                      Apr 17 - May 29
-                    </div>
-                  </div>
-                </div>
-
-                {/* CTA */}
-                <div className="flex items-center justify-end gap-2 ">
-                  <span className="text-sm font-semibold text-amber-600 group-hover:text-amber-700">
-                    View
-                  </span>
-                  <ChevronRight className="w-5 h-5 text-amber-600 group-hover:translate-x-1 transition-transform" />
-                </div>
-              </div>
-            </button>
-
-            <button
-              onClick={() => {
                 setSearchParams({ campaign: "prove-your-portfolio" });
               }}
               className="glass-card overflow-hidden text-left hover:shadow-2xl transition-all duration-300 group relative"
@@ -173,6 +108,71 @@ export function CampaignsPage() {
                     View
                   </span>
                   <ChevronRight className="w-5 h-5 text-amber-600 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </div>
+            </button>
+
+            <button
+              onClick={() => {
+                setSearchParams({ campaign: "allocation-race" });
+              }}
+              className="glass-card overflow-hidden text-left hover:shadow-2xl transition-all duration-300 group relative"
+            >
+              {/* Banner Image */}
+              <div className="relative h-48 w-full overflow-hidden">
+                <ImageWithFallback
+                  src={tcBanner}
+                  alt="Trading Competition"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                />
+                {/* Gradient Overlay */}
+                <div className="absolute inset-0 " />
+
+                {/* Badge on Banner */}
+                <div className="absolute top-4 right-4 bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-xs font-bold shadow-lg">
+                  ENDED
+                </div>
+
+                {/* Icon on Banner */}
+              </div>
+
+              {/* Content */}
+              <div className="p-8">
+                {/* Title */}
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                  The Allocation Race
+                </h3>
+                <p className="text-gray-600 mb-6">
+                  Create on-chain portfolios and compete for $500,000 reward
+                  pool
+                </p>
+
+                {/* Stats */}
+                <div className="flex flex-col sm:flex-row gap-2 sm:items-center justify-between mb-6">
+                  <div className="bg-white/60 backdrop-blur-sm rounded-xl p-3">
+                    <div className="text-xs text-gray-600 mb-1">
+                      Total Rewards
+                    </div>
+                    <div className="font-bold text-gray-900 flex items-center gap-1">
+                      $500,000 (<Gem className="w-4 h-4 text-purple-600" />
+                      100,000)
+                    </div>
+                  </div>
+                  <div className="bg-white/60 backdrop-blur-sm rounded-xl p-3">
+                    <div className="text-xs text-gray-600 mb-1">Duration</div>
+                    <div className="font-bold text-gray-900 flex items-center gap-1">
+                      <Calendar className="w-4 h-4 text-blue-600" />
+                      Apr 17 - May 29
+                    </div>
+                  </div>
+                </div>
+
+                {/* CTA */}
+                <div className="flex items-center justify-end gap-2 ">
+                  <span className="text-sm font-semibold text-gray-600 group-hover:text-gray-700">
+                    Ended
+                  </span>
+                  {/* <ChevronRight className="w-5 h-5 text-amber-600 group-hover:translate-x-1 transition-transform" /> */}
                 </div>
               </div>
             </button>
