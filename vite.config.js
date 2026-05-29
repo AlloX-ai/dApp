@@ -28,7 +28,13 @@ export default defineConfig({
       // Exact package id only — avoid rewriting eciesjs/dist/... used by the shim.
       { find: /^eciesjs$/, replacement: eciesjsEsm },
     ],
-    dedupe: ["@reown/appkit", "@reown/appkit-controllers", "valtio"],
+    dedupe: [
+      "@reown/appkit",
+      "@reown/appkit-common",
+      "@reown/appkit-controllers",
+      "@reown/appkit-utils",
+      "valtio",
+    ],
   },
   optimizeDeps: {
     include: [

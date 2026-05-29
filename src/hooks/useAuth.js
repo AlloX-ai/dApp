@@ -10,7 +10,8 @@ import {
   refreshAuthToken,
 } from "../utils/api";
 import { setWalletType } from "../redux/slices/walletSlice";
-import { persistWalletType } from "../utils/walletPersistence";
+import { persistWalletType, getPersistedWalletType } from "../utils/walletPersistence";
+import { resolveWalletProvider } from "../utils/resolveWalletProvider";
 import { runPrivyLogoutBridge } from "../auth/privyLogoutBridge";
 import { toast } from "../utils/toast";
 
@@ -203,9 +204,9 @@ export async function completePrivyAuth(privyToken) {
 
 export const useAuth = () => {
   const dispatch = useDispatch();
-  const { address: evmAddress } = useConnection();
+  const { address: evmAddress, connector } = useConnection();
   const signMessage = useSignMessage();
-  const { signMessage: signMessageSolana } = useWallet();
+  const { signMessage: signMessageSolana, wallet: solanaWallet } = useWallet();
   const walletAddress = useSelector((state) => state.wallet.address);
   const walletType = useSelector((state) => state.wallet.walletType);
 
@@ -337,9 +338,26 @@ export const useAuth = () => {
         id: toastId,
       });
 
+      const walletProvider = resolveWalletProvider({
+        connector: walletTypeFromApi === "solana" ? null : connector,
+        walletType: walletTypeFromApi,
+        solanaAdapterName: solanaWallet?.adapter?.name,
+        persistedWalletType: getPersistedWalletType(),
+      });
+
+      const referralCode =
+        typeof window !== "undefined"
+          ? localStorage.getItem("allox_ref") || undefined
+          : undefined;
+
       const verifyRes = await apiCall("/auth/verify", {
         method: "POST",
-        body: JSON.stringify({ address, signature }),
+        body: JSON.stringify({
+          address,
+          signature,
+          walletProvider: walletProvider ?? null,
+          ...(referralCode ? { referralCode } : {}),
+        }),
       });
 
       if (!verifyRes.token) {
@@ -374,7 +392,16 @@ export const useAuth = () => {
       toast.error(message, { id: toastId });
       throw error;
     }
-  }, [address, walletType, signMessage.mutateAsync, signMessageSolana, setUser, dispatch]);
+  }, [
+    address,
+    walletType,
+    connector,
+    solanaWallet,
+    signMessage.mutateAsync,
+    signMessageSolana,
+    setUser,
+    dispatch,
+  ]);
 
   const claimSeason1 = useCallback(async () => {
     const t = token || localStorage.getItem("authToken");

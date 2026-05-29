@@ -232,7 +232,7 @@ export function WalletModal({
                   <div className="flex-1">
                     <span className="font-medium block">Solana</span>
                     <span className="text-xs text-gray-500">
-                      MetaMask Solana Snap
+                      Solana in MetaMask
                     </span>
                   </div>
                 </button>

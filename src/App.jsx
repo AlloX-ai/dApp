@@ -73,6 +73,10 @@ import {
 import { store } from "./redux/store";
 import { PointsPage } from "./pages/Points";
 import { useWallet } from "@solana/wallet-adapter-react";
+import {
+  resolveSolanaWalletForConnect,
+  warmupMetaMaskSolanaIfSession,
+} from "./utils/initMetaMaskSolana.js";
 import { useSocial } from "./hooks/useSocial";
 import { CongratsModal } from "./components/CongratsModal";
 import { AIChatWidget } from "./components/AiChatWidget";
@@ -157,6 +161,10 @@ function LaunchAppLayout() {
     select: selectSolanaWallet,
     disconnect: disconnectSolana,
   } = useWallet();
+  const solanaWalletsRef = useRef(solanaWallets);
+  useEffect(() => {
+    solanaWalletsRef.current = solanaWallets;
+  }, [solanaWallets]);
 
   const {
     address,
@@ -570,18 +578,19 @@ function LaunchAppLayout() {
     ) {
       const isPhantom = option.isPhantom || option.walletType === "phantom";
       const searchName = isPhantom ? "phantom" : "metamask";
-      const solanaWallet = solanaWallets.find((w) =>
-        w.adapter?.name?.toLowerCase?.().includes(searchName),
-      );
-      if (!solanaWallet) {
-        toast.error(
-          isPhantom
-            ? "Phantom wallet not found. Install the Phantom browser extension."
-            : "MetaMask with Solana support not found. Install or enable MetaMask.",
-        );
-        return;
-      }
       try {
+        const solanaWallet = await resolveSolanaWalletForConnect(
+          () => solanaWalletsRef.current,
+          searchName,
+        );
+        if (!solanaWallet) {
+          toast.error(
+            isPhantom
+              ? "Phantom wallet not found. Install the Phantom browser extension."
+              : "MetaMask with Solana support not found. Install or enable MetaMask.",
+          );
+          return;
+        }
         await disconnectAllEvmWagmi();
         selectSolanaWallet(solanaWallet.adapter.name);
         await solanaWallet.adapter.connect();
@@ -716,6 +725,10 @@ function BetaAccessLayout() {
     select: selectSolanaWallet,
     disconnect: disconnectSolanaAdapter,
   } = useWallet();
+  const solanaWalletsRef = useRef(solanaWallets);
+  useEffect(() => {
+    solanaWalletsRef.current = solanaWallets;
+  }, [solanaWallets]);
 
   const setWalletModalOpen = (nextValue) => {
     dispatch(setWalletModal(nextValue));
@@ -730,18 +743,19 @@ function BetaAccessLayout() {
     ) {
       const isPhantom = option.isPhantom || option.walletType === "phantom";
       const searchName = isPhantom ? "phantom" : "metamask";
-      const solanaWallet = solanaWallets.find((w) =>
-        w.adapter?.name?.toLowerCase?.().includes(searchName),
-      );
-      if (!solanaWallet) {
-        toast.error(
-          isPhantom
-            ? "Phantom wallet not found. Install the Phantom browser extension."
-            : "MetaMask with Solana support not found. Install or enable MetaMask.",
-        );
-        return;
-      }
       try {
+        const solanaWallet = await resolveSolanaWalletForConnect(
+          () => solanaWalletsRef.current,
+          searchName,
+        );
+        if (!solanaWallet) {
+          toast.error(
+            isPhantom
+              ? "Phantom wallet not found. Install the Phantom browser extension."
+              : "MetaMask with Solana support not found. Install or enable MetaMask.",
+          );
+          return;
+        }
         await disconnectAllEvmWagmi();
         selectSolanaWallet(solanaWallet.adapter.name);
         await solanaWallet.adapter.connect();
@@ -830,6 +844,10 @@ function WalletSync() {
       dispatch(setWalletType(persisted));
     }
   }, [dispatch]);
+
+  useEffect(() => {
+    warmupMetaMaskSolanaIfSession();
+  }, []);
 
   // Eagerly restore Phantom only when NOT on login (per Phantom docs: use onlyIfTrusted for page load).
   // Skip on /login so logout doesn’t trigger reconnection and popup.

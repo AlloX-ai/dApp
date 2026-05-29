@@ -1,3 +1,4 @@
+import { PACKAGE_VERSION as APPKIT_VERSION } from "@reown/appkit/constants";
 import { OptionsController } from "@reown/appkit-controllers";
 import {
   WALLET_CONNECT_METADATA,
@@ -16,7 +17,7 @@ export function ensureReownAppKitConfigured() {
 
   OptionsController.setProjectId(WALLET_CONNECT_PROJECT_ID);
   OptionsController.setMetadata(WALLET_CONNECT_METADATA);
-  OptionsController.setSdkVersion("html-wagmi-3.6.15");
+  OptionsController.setSdkVersion(`html-wagmi-${APPKIT_VERSION}`);
   OptionsController.setEnableWallets(true);
 
   configured = true;
