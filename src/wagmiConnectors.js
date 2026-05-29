@@ -77,9 +77,9 @@ export const wagmiClient = createConfig({
     coinbaseWallet(),
   ],
   transports: {
-    [bsc.id]: http(),
+    [bsc.id]: fallback(BSC_RPC_ENDPOINTS.map((url) => http(url))),
     [mainnet.id]: fallback(ETHEREUM_RPC_ENDPOINTS.map((url) => http(url))),
-    [opBNB.id]: http(),
+    [opBNB.id]: fallback(OPBNB_RPC_ENDPOINTS.map((url) => http(url))),
     [base.id]: fallback(BASE_RPC_ENDPOINTS.map((url) => http(url))),
   },
 });

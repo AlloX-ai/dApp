@@ -79,6 +79,15 @@ let initialRefreshAttempted = false;
 // Prevents double sign requests when React effects re-run due to walletType/address settling.
 let globalAuthInFlight = null;
 let globalAuthInFlightAddress = null;
+let authRateLimitedUntil = 0;
+const AUTH_RATE_LIMIT_COOLDOWN_MS = 45000;
+
+const isRateLimitError = (error) => {
+  const status = Number(error?.status ?? error?.code);
+  if (status === 429) return true;
+  const msg = String(error?.message ?? error?.data?.error ?? "").toLowerCase();
+  return msg.includes("429") || msg.includes("too many requests") || msg.includes("rate limit");
+};
 
 const notifySubscribers = () => {
   for (const cb of subscribers) {
@@ -387,6 +396,9 @@ export const useAuth = () => {
       toast.success("Wallet connected and verified.", { id: toastId });
       return { token: verifyRes.token, user: verifyRes.user };
     } catch (error) {
+      if (isRateLimitError(error)) {
+        authRateLimitedUntil = Date.now() + AUTH_RATE_LIMIT_COOLDOWN_MS;
+      }
       const message =
         error?.message || error?.data?.error || "Wallet verification failed";
       toast.error(message, { id: toastId });
@@ -425,6 +437,17 @@ export const useAuth = () => {
     if (walletType === "privy" || globalAuthState.user?.authProvider === "privy") {
       throw new Error("Privy session is still syncing. Please wait a moment and retry.");
     }
+    if (Date.now() < authRateLimitedUntil) {
+      const secondsLeft = Math.max(
+        1,
+        Math.ceil((authRateLimitedUntil - Date.now()) / 1000),
+      );
+      const err = new Error(
+        `Too many authentication attempts. Please wait ${secondsLeft}s and try again.`,
+      );
+      err.status = 429;
+      throw err;
+    }
     if (!address) throw new Error("Wallet not connected");
     // Reuse in-flight promise for the same address to prevent double sign
     if (globalAuthInFlight && globalAuthInFlightAddress === address) {
@@ -438,7 +461,7 @@ export const useAuth = () => {
         globalAuthInFlightAddress = null;
       });
     return globalAuthInFlight;
-  }, [address, authenticate]);
+  }, [address, authenticate, walletType]);
 
   const logout = useCallback(async () => {
     await runPrivyLogoutBridge();

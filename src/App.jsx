@@ -93,6 +93,24 @@ const PREFERRED_CHAIN_STORAGE_KEY = "walletPreferredChainId";
 const PRIVY_VERIFY_BASE_COOLDOWN_MS = 5000;
 const PRIVY_VERIFY_MAX_COOLDOWN_MS = 120000;
 
+const isRateLimitError = (error) => {
+  const status = Number(error?.status ?? error?.code);
+  if (status === 429) return true;
+  const message = String(error?.message ?? error?.data?.error ?? "").toLowerCase();
+  return message.includes("429") || message.includes("too many requests");
+};
+
+function isBinanceConnectorLike(connector) {
+  const type = String(connector?.type ?? "").toLowerCase();
+  const id = String(connector?.id ?? "").toLowerCase();
+  const name = String(connector?.name ?? "").toLowerCase();
+  return (
+    type.includes("binance") ||
+    id.includes("binance") ||
+    name.includes("binance")
+  );
+}
+
 /** Avoid EVM (wagmi) and Solana (adapter) fighting for the same MetaMask session. */
 async function disconnectAllEvmWagmi() {
   try {
@@ -319,8 +337,12 @@ function LaunchAppLayout() {
     if (walletType === "privy" || user?.authProvider === "privy") return;
     if (authTriggeredRef.current) return;
     authTriggeredRef.current = true;
-    attemptWalletAuthentication({ source: "auto" }).catch(() => {
-      authTriggeredRef.current = false;
+    attemptWalletAuthentication({ source: "auto" }).catch((error) => {
+      // On auth rate limit, hold the guard so we don't spam /auth/nonce.
+      // It will be reset by account/type changes or reconnect.
+      if (!isRateLimitError(error)) {
+        authTriggeredRef.current = false;
+      }
     });
   }, [
     isConnected,
@@ -1130,14 +1152,14 @@ function App() {
   const { address } = useSelector((state) => state.wallet);
   const { isAuthenticated } = useAuth();
 
-  const [showModal, setShowModal] = useState(false);
-  const lastShown = localStorage.getItem("chatDate");
-  const count = parseInt(localStorage.getItem("chatCount") || "0", 10);
-  useEffect(() => {
-    const today = new Date().toDateString();
+  // const [showModal, setShowModal] = useState(false);
+  // const lastShown = localStorage.getItem("chatDate");
+  // const count = parseInt(localStorage.getItem("chatCount") || "0", 10);
+  // useEffect(() => {
+  //   const today = new Date().toDateString();
     // App only decides visibility; storage updates happen in CongratsModal after open.
-    setShowModal(lastShown !== today && count < 3 && isAuthenticated);
-  }, [lastShown, count, isAuthenticated]);
+  //   setShowModal(lastShown !== today && count < 3 && isAuthenticated);
+  // }, [lastShown, count, isAuthenticated]);
 
   if (MAINTENANCE_MODE) {
     return (
@@ -1168,7 +1190,7 @@ function App() {
           <Route path="/referrals" element={<ReferralsPage />} />
         </Route>
       </Routes>
-      {showModal && (
+      {/* {showModal && (
         <CongratsModal
           isOpen={showModal}
           onClose={() => {
@@ -1176,7 +1198,7 @@ function App() {
           }}
           address={address}
         />
-      )}
+      )} */}
       {isAuthenticated && <AIChatWidget />}
     </>
   );
