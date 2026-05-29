@@ -49,6 +49,7 @@ import { useAuth } from "./hooks/useAuth";
 import { completePrivyAuth } from "./hooks/useAuth";
 import { useCheckin } from "./hooks/useCheckin";
 import { CheckinModal } from "./components/CheckinModal";
+import { getApiUrl } from "./utils/api";
 
 import { Toaster } from "sonner";
 import { toast } from "./utils/toast";
@@ -172,6 +173,7 @@ function LaunchAppLayout() {
     chainId,
   } = useSelector((state) => state.wallet);
   const [fundModalOpen, setFundModalOpen] = useState(false);
+  const [referrerDisplay, setReferrerDisplay] = useState("");
   const { token, user, logout, ensureAuthenticated } = useAuth();
   const {
     login,
@@ -457,6 +459,18 @@ function LaunchAppLayout() {
     loading: checkinLoading,
   } = useCheckin();
 
+  useEffect(() => {
+    const loadReferrerDisplay = () => {
+      const stored = localStorage.getItem("allox_referrer_display");
+      setReferrerDisplay(stored || "");
+    };
+    loadReferrerDisplay();
+    window.addEventListener("storage", loadReferrerDisplay);
+    return () => {
+      window.removeEventListener("storage", loadReferrerDisplay);
+    };
+  }, []);
+
   const { fetchSocialPoints, fetchAllPoints, loadSeenPosts } = useSocial();
   useEffect(() => {
     if (!isConnected || !authenticated) return;
@@ -685,6 +699,11 @@ function LaunchAppLayout() {
       <div className="w-full flex-1 pt-20 flex min-h-0">
         <LaunchSidebar />
         <main className="w-full flex flex-col min-h-0">
+          {!token && !!referrerDisplay && (
+            <div className="mx-6 mt-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-xs text-blue-900">
+              Referred by {referrerDisplay}
+            </div>
+          )}
           <Outlet />
         </main>
       </div>
@@ -1093,6 +1112,32 @@ function App() {
     // App only decides visibility; storage updates happen in CongratsModal after open.
     setShowModal(lastShown !== today && count < 3 && isAuthenticated);
   }, [lastShown, count, isAuthenticated]);
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const ref = url.searchParams.get("ref");
+    if (!ref) return;
+    const normalizedRef = ref.toLowerCase();
+    localStorage.setItem("allox_ref", normalizedRef);
+
+    fetch(`${getApiUrl()}/referral/track?ref=${encodeURIComponent(normalizedRef)}`, {
+      credentials: "include",
+    }).catch(() => {});
+
+    fetch(`${getApiUrl()}/referral/check/${encodeURIComponent(normalizedRef)}`, {
+      credentials: "include",
+    })
+      .then(async (response) => {
+        if (!response.ok) return null;
+        return response.json();
+      })
+      .then((payload) => {
+        const display = payload?.referrerDisplay;
+        if (!display) return;
+        localStorage.setItem("allox_referrer_display", display);
+      })
+      .catch(() => {});
+  }, []);
 
   if (MAINTENANCE_MODE) {
     return (

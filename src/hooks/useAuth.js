@@ -166,10 +166,16 @@ export async function completePrivyAuth(privyToken) {
   if (!privyToken) {
     throw new Error("Missing Privy token");
   }
+  const ref =
+    typeof window !== "undefined" ? localStorage.getItem("allox_ref") : null;
   const res = await fetch(`${getApiUrl()}/auth/privy-verify`, {
     method: "POST",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ privyToken }),
+    body: JSON.stringify({
+      privyToken,
+      referralCode: ref || undefined,
+    }),
   });
   let data = {};
   try {
@@ -188,6 +194,13 @@ export async function completePrivyAuth(privyToken) {
     throw new Error("Missing auth token");
   }
   setGlobalToken(data.token);
+  if (ref) {
+    try {
+      localStorage.removeItem("allox_ref");
+    } catch (e) {
+      console.error(e);
+    }
+  }
   const resolvedProvider =
     data.authProvider != null
       ? data.authProvider
@@ -345,9 +358,14 @@ export const useAuth = () => {
         id: toastId,
       });
 
+      const ref = localStorage.getItem("allox_ref");
       const verifyRes = await apiCall("/auth/verify", {
         method: "POST",
-        body: JSON.stringify({ address, signature }),
+        body: JSON.stringify({
+          address,
+          signature,
+          referralCode: ref || undefined,
+        }),
       });
 
       if (!verifyRes.token) {
@@ -356,6 +374,13 @@ export const useAuth = () => {
 
       // Always persist user with walletType and address so session restore and guards work after navigate
       setGlobalToken(verifyRes.token);
+      if (ref) {
+        try {
+          localStorage.removeItem("allox_ref");
+        } catch (e) {
+          console.error(e);
+        }
+      }
       // Wallet-based login — clear any stale Privy marker a previous session
       // might have left behind in localStorage.
       writeStoredAuthProvider(null);
