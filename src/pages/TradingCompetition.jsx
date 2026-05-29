@@ -273,13 +273,13 @@ export function TradingCompetitionPage() {
           </div>
 
           {/* Create Portfolio Button - Below */}
-          <button
-            disabled
-            className="btn-primary w-full flex items-center justify-center gap-2 text-sm mt-3 opacity-60 bg-gray-300"
+          <Link
+            to={"/"}
+            className="btn-primary w-full flex items-center justify-center gap-2 text-sm mt-3"
           >
             <Plus size={16} />
             Create Portfolio
-          </button>
+          </Link>
         </div>
 
         {/* Right: How it Works & Rewards - Compact */}
@@ -697,8 +697,8 @@ export function TradingCompetitionPage() {
                   <li className="flex gap-2">
                     <span className="text-purple-500 font-bold">•</span>
                     <span>
-                      Only portfolios created on BNB Chain, Ethereum or BASE count toward
-                      your ranking
+                      Only portfolios created on BNB Chain, Ethereum or BASE
+                      count toward your ranking
                     </span>
                   </li>
                   <li className="flex gap-2">

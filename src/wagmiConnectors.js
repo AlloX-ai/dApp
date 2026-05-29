@@ -14,6 +14,17 @@ const BASE_RPC_ENDPOINTS = [
   "https://base-rpc.publicnode.com",
 ];
 
+const BSC_RPC_ENDPOINTS = [
+  "https://bsc-dataseed.binance.org",
+  "https://bsc-dataseed1.bnbchain.org",
+  "https://bsc-rpc.publicnode.com",
+  "https://binance.llamarpc.com",
+];
+const OPBNB_RPC_ENDPOINTS = [
+  "https://opbnb-mainnet-rpc.bnbchain.org",
+  "https://opbnb-rpc.publicnode.com",
+];
+
 const ETHEREUM_RPC_ENDPOINTS = [
   "https://mainnet.infura.io/v3/7698640038364a678705d3fdd84704f4",
 ];
@@ -24,9 +35,7 @@ export const WALLET_CONNECT_METADATA = {
   name: "Allox",
   description: "Allox AI",
   url:
-    typeof window !== "undefined"
-      ? window.location.origin
-      : "https://allox.ai",
+    typeof window !== "undefined" ? window.location.origin : "https://allox.ai",
   icons:
     typeof window !== "undefined"
       ? [`${window.location.origin}/favicon.ico`]
