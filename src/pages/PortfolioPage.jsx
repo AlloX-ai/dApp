@@ -39,6 +39,7 @@ import {
   createPrivyExecutionTxEnv,
   createWagmiExecutionTxEnv,
   ensureStandardApproval,
+  signTypedDataV4ForConnectedWallet,
 } from "../utils/execution";
 import { chainIdFor, normalizeChain } from "../config/chains";
 import { PortfolioInfoModal } from "../components/PortfolioInfoModal";
@@ -808,14 +809,9 @@ export function PortfolioPage() {
         });
       }
 
-      const injectedProvider =
-        typeof window !== "undefined" ? window.ethereum : null;
-      if (!injectedProvider?.request) {
-        throw new Error("Wallet does not support typed-data signing.");
-      }
-      return injectedProvider.request({
-        method: "eth_signTypedData_v4",
-        params: [userAddress, payload],
+      return signTypedDataV4ForConnectedWallet({
+        typedData,
+        userAddress,
       });
     },
     [],
