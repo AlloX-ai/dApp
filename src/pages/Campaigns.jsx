@@ -1,4 +1,4 @@
-import { useMemo, useEffect } from "react";
+import { useMemo, useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 import {
   Trophy,
@@ -19,6 +19,9 @@ import { ProvePortfolio } from "./ProvePortfolio";
 
 export function CampaignsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const [raceCountdown, setRaceCountdown] = useState(null);
+  const [raceEnded, setRaceEnded] = useState(false);
+
   const activeTab = useMemo(() => {
     const campaignParam = searchParams.get("campaign");
     return campaignParam === "spring-series"
@@ -33,6 +36,36 @@ export function CampaignsPage() {
   useEffect(() => {
     window.scrollTo(0, 0);
     document.title = "Campaigns";
+  }, []);
+
+  // Countdown timer for Allocation Race (until 17:00 UTC on 29/05/2026)
+  useEffect(() => {
+    const calculateCountdown = () => {
+      const now = new Date();
+      const targetTime = new Date("2026-05-29T15:00:00Z"); // 17:00 UTC on 29/05/2026
+      const timeLeft = targetTime.getTime() - now.getTime();
+
+      if (timeLeft <= 0) {
+        setRaceEnded(true);
+        setRaceCountdown(null);
+      } else {
+        setRaceEnded(false);
+        const totalSeconds = Math.floor(timeLeft / 1000);
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+
+        setRaceCountdown({
+          hours: String(hours).padStart(2, "0"),
+          minutes: String(minutes).padStart(2, "0"),
+          seconds: String(seconds).padStart(2, "0"),
+        });
+      }
+    };
+
+    calculateCountdown();
+    const interval = setInterval(calculateCountdown, 1000);
+    return () => clearInterval(interval);
   }, []);
 
   return (
@@ -129,8 +162,18 @@ export function CampaignsPage() {
                 <div className="absolute inset-0 " />
 
                 {/* Badge on Banner */}
-                <div className="absolute top-4 right-4 bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-xs font-bold shadow-lg">
-                  ENDED
+                <div
+                  className={`absolute top-4 right-4 px-3 py-1 rounded-full text-xs font-bold shadow-lg ${
+                    raceEnded
+                      ? "bg-gray-100 text-gray-700"
+                      : "bg-orange-100 text-orange-700"
+                  }`}
+                >
+                  {raceEnded
+                    ? "ENDED"
+                    : raceCountdown
+                      ? `ENDS IN ${raceCountdown.hours}:${raceCountdown.minutes}:${raceCountdown.seconds}`
+                      : "LOADING..."}
                 </div>
 
                 {/* Icon on Banner */}
@@ -169,8 +212,23 @@ export function CampaignsPage() {
 
                 {/* CTA */}
                 <div className="flex items-center justify-end gap-2 ">
-                  <span className="text-sm font-semibold text-gray-600 group-hover:text-gray-700">
-                    Ended
+                  <span
+                    className={`text-sm font-semibold group-hover:opacity-80 transition-opacity ${
+                      raceEnded ? "text-gray-600" : "text-orange-600"
+                    }`}
+                  >
+                    {raceEnded ? (
+                      "Ended"
+                    ) : raceCountdown ? (
+                      <div className="flex items-center justify-end gap-2 ">
+                        <span className="text-sm font-semibold text-amber-600 group-hover:text-amber-700">
+                          View
+                        </span>
+                        <ChevronRight className="w-5 h-5 text-amber-600 group-hover:translate-x-1 transition-transform" />
+                      </div>
+                    ) : (
+                      "Loading..."
+                    )}
                   </span>
                   {/* <ChevronRight className="w-5 h-5 text-amber-600 group-hover:translate-x-1 transition-transform" /> */}
                 </div>
