@@ -388,7 +388,7 @@ export const useAuth = () => {
 
       // Always persist user with walletType and address so session restore and guards work after navigate
       setGlobalToken(verifyRes.token);
-      if (ref) {
+      if (referralCode) {
         try {
           localStorage.removeItem("allox_ref");
         } catch (e) {

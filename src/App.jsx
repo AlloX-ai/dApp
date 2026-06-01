@@ -62,7 +62,7 @@ import { useAuth } from "./hooks/useAuth";
 import { completePrivyAuth } from "./hooks/useAuth";
 import { useCheckin } from "./hooks/useCheckin";
 import { CheckinModal } from "./components/CheckinModal";
-import { getApiUrl } from "./utils/api";
+import { getApiUrl, getApi2Url } from "./utils/api";
 
 import { Toaster } from "sonner";
 import { toast } from "./utils/toast";
@@ -97,7 +97,9 @@ const PRIVY_VERIFY_MAX_COOLDOWN_MS = 120000;
 const isRateLimitError = (error) => {
   const status = Number(error?.status ?? error?.code);
   if (status === 429) return true;
-  const message = String(error?.message ?? error?.data?.error ?? "").toLowerCase();
+  const message = String(
+    error?.message ?? error?.data?.error ?? "",
+  ).toLowerCase();
   return message.includes("429") || message.includes("too many requests");
 };
 
@@ -673,8 +675,7 @@ function LaunchAppLayout() {
     if (connector) {
       connect(wagmiClient, { connector })
         .then(() => {
-          const type =
-            option.walletType === "metamask" ? "metamask" : "evm";
+          const type = option.walletType === "metamask" ? "metamask" : "evm";
           dispatch(setWalletType(type));
           persistWalletType(type);
           dispatch(setIsConnected(true));
@@ -714,11 +715,11 @@ function LaunchAppLayout() {
       <div className="w-full flex-1 pt-20 flex min-h-0">
         <LaunchSidebar />
         <main className="w-full flex flex-col min-h-0">
-          {!token && !!referrerDisplay && (
-            <div className="mx-6 mt-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-xs text-blue-900">
+          {/* {!token && !!referrerDisplay && (
+            <div className="mx-6 mt-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-xs text-blue-900 w-fit relative -top-5">
               Referred by {referrerDisplay}
             </div>
-          )}
+          )} */}
           <Outlet />
         </main>
       </div>
@@ -842,8 +843,7 @@ function BetaAccessLayout() {
     if (connector) {
       connect(wagmiClient, { connector })
         .then(() => {
-          const type =
-            option.walletType === "metamask" ? "metamask" : "evm";
+          const type = option.walletType === "metamask" ? "metamask" : "evm";
           dispatch(setWalletType(type));
           persistWalletType(type);
           dispatch(setSessionSource("wallet"));
@@ -1070,9 +1070,7 @@ function WalletSync() {
             persistWalletType(resolvedType);
             dispatch(setAddress(activeConnection.accounts[0]));
             dispatch(
-              setChainId(
-                activeConnection.chainId ?? getChainId(wagmiClient),
-              ),
+              setChainId(activeConnection.chainId ?? getChainId(wagmiClient)),
             );
             dispatch(setIsConnected(true));
             dispatch(setSessionSource("wallet"));
@@ -1176,7 +1174,7 @@ function App() {
   // const count = parseInt(localStorage.getItem("chatCount") || "0", 10);
   // useEffect(() => {
   //   const today = new Date().toDateString();
-    // App only decides visibility; storage updates happen in CongratsModal after open.
+  // App only decides visibility; storage updates happen in CongratsModal after open.
   //   setShowModal(lastShown !== today && count < 3 && isAuthenticated);
   // }, [lastShown, count, isAuthenticated]);
 
@@ -1187,13 +1185,19 @@ function App() {
     const normalizedRef = ref.toLowerCase();
     localStorage.setItem("allox_ref", normalizedRef);
 
-    fetch(`${getApiUrl()}/referral/track?ref=${encodeURIComponent(normalizedRef)}`, {
-      credentials: "include",
-    }).catch(() => {});
+    fetch(
+      `${getApi2Url()}/referral/track?ref=${encodeURIComponent(normalizedRef)}`,
+      {
+        credentials: "include",
+      },
+    ).catch(() => {});
 
-    fetch(`${getApiUrl()}/referral/check/${encodeURIComponent(normalizedRef)}`, {
-      credentials: "include",
-    })
+    fetch(
+      `${getApi2Url()}/referral/check/${encodeURIComponent(normalizedRef)}`,
+      {
+        credentials: "include",
+      },
+    )
       .then(async (response) => {
         if (!response.ok) return null;
         return response.json();
