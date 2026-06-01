@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { Check, Loader2, X, ChevronLeft, Mail } from "lucide-react";
+import { toast } from "sonner";
 import { shortAddress } from "../hooks/shortAddress";
+import { BINANCE_DEFAULT_CHAIN_ID } from "../constants/binanceWallet";
+import { connectBinanceViaWalletConnect } from "../utils/binanceWalletAppKit";
+import { setSessionSource, setWalletType } from "../redux/slices/walletSlice";
 
 interface WalletModalProps {
   isOpen: boolean;
@@ -16,7 +20,7 @@ interface WalletModalProps {
 
 const META_MASK_WALLET = {
   name: "MetaMask",
-  icon: "https://cdn.allox.ai/allox/wallets/metamaskConnect.svg",
+  icon: "https://cdn.allox.ai/allox/wallets/newMetamask.svg",
   type: "top",
   walletType: "metamask",
 };
@@ -28,6 +32,7 @@ const WALLETS = [
     icon: "https://cdn.allox.ai/allox/wallets/binanceWallet.svg",
     type: "top",
     walletType: "binance",
+    chainId: BINANCE_DEFAULT_CHAIN_ID,
   },
   {
     name: "OKX",
@@ -71,8 +76,42 @@ export function WalletModal({
   onPrivySignIn,
   privyReady = true,
 }: WalletModalProps) {
+  const dispatch = useDispatch();
   const { address, isConnected } = useSelector((state: any) => state.wallet);
   const [view, setView] = useState<"list" | "metamask">("list");
+  const [binanceConnecting, setBinanceConnecting] = useState(false);
+
+  const handleWalletClick = async (wallet: (typeof WALLETS)[number]) => {
+    if (wallet.walletType === "metamask") {
+      setView("metamask");
+      return;
+    }
+
+    if (wallet.walletType === "binance") {
+      setBinanceConnecting(true);
+      try {
+        await connectBinanceViaWalletConnect({
+          chainId: wallet.chainId ?? BINANCE_DEFAULT_CHAIN_ID,
+          onWalletType: (type) => {
+            dispatch(setWalletType(type));
+            dispatch(setSessionSource("wallet"));
+          },
+        });
+      } catch (err) {
+        console.error("Binance wallet connection error:", err);
+        toast.error(
+          err instanceof Error
+            ? err.message
+            : "Failed to connect Binance Wallet. Please try again.",
+        );
+      } finally {
+        setBinanceConnecting(false);
+      }
+      return;
+    }
+
+    onConnect(wallet);
+  };
 
   useEffect(() => {
     if (!isConnected) setView("list");
@@ -193,7 +232,7 @@ export function WalletModal({
                   <div className="flex-1">
                     <span className="font-medium block">Solana</span>
                     <span className="text-xs text-gray-500">
-                      MetaMask Solana Snap
+                      Solana in MetaMask
                     </span>
                   </div>
                 </button>
@@ -231,18 +270,15 @@ export function WalletModal({
               </p>
               {WALLETS.slice(0, 2).map((wallet) => {
                 const isMetaMask = wallet.walletType === "metamask";
+                const isBinance = wallet.walletType === "binance";
+                const isBusy = isBinance && binanceConnecting;
                 return (
                   <button
                     key={wallet.name}
                     type="button"
-                    onClick={() => {
-                      if (isMetaMask) {
-                        setView("metamask");
-                      } else {
-                        onConnect(wallet);
-                      }
-                    }}
-                    className="w-full flex items-center gap-4 p-2 bg-white/60 border border-gray-200/50 rounded-2xl hover:bg-white/80 hover:border-gray-300 transition-all text-left"
+                    disabled={isBusy}
+                    onClick={() => handleWalletClick(wallet)}
+                    className="w-full flex items-center gap-4 p-2 bg-white/60 border border-gray-200/50 rounded-2xl hover:bg-white/80 hover:border-gray-300 transition-all text-left disabled:opacity-60"
                   >
                     <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center border border-gray-200/50 overflow-hidden">
                       <img
@@ -268,7 +304,7 @@ export function WalletModal({
                   <button
                     key={wallet.name}
                     type="button"
-                    onClick={() => onConnect(wallet)}
+                    onClick={() => handleWalletClick(wallet)}
                     className="w-full flex flex-col items-center mb-0 gap-4 p-2 bg-white/60 border border-gray-200/50 rounded-2xl hover:bg-white/80 hover:border-gray-300 transition-all text-left"
                   >
                     <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center border border-gray-200/50 overflow-hidden">

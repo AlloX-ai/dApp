@@ -16,7 +16,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 
-import { useAccount, useSwitchChain } from "wagmi";
+import { useConnection, useSwitchChain } from "wagmi";
 import { useWallets } from "@privy-io/react-auth";
 import { SOLANA_CHAIN_ID } from "../hooks/useCheckin";
 import { setChainId, setWalletModal } from "../redux/slices/walletSlice";
@@ -119,8 +119,8 @@ export function CheckinModal({
   const isPrivySession =
     sessionSource === "privy" || walletType === "privy";
   const isOpenState = open ?? isOpen ?? false;
-  const { connector } = useAccount();
-  const { switchChainAsync } = useSwitchChain();
+  const { connector } = useConnection();
+  const switchChain = useSwitchChain();
 
   const [justClaimed, setJustClaimed] = useState(false);
   const [selectedDay, setSelectedDay] = useState(null);
@@ -231,7 +231,7 @@ export function CheckinModal({
     }
 
     // EVM path – wagmi (MetaMask, etc.)
-    if (!switchChainAsync) {
+    if (!switchChain.mutateAsync) {
       toast.error("Unable to switch chain. Please try reconnecting your wallet.");
       return;
     }
@@ -242,7 +242,7 @@ export function CheckinModal({
 
     try {
       setIsSwitchingChain(true);
-      await switchChainAsync({ chainId: chain.chainId });
+      await switchChain.mutateAsync({ chainId: chain.chainId });
       dispatch(setChainId(chain.chainId));
       localStorage.removeItem(PREFERRED_CHAIN_STORAGE_KEY);
       setSelectedChainId(chain.chainId);
@@ -264,7 +264,7 @@ export function CheckinModal({
               },
             ],
           });
-          await switchChainAsync({ chainId: chain.chainId });
+          await switchChain.mutateAsync({ chainId: chain.chainId });
           dispatch(setChainId(chain.chainId));
           localStorage.removeItem(PREFERRED_CHAIN_STORAGE_KEY);
           setSelectedChainId(chain.chainId);

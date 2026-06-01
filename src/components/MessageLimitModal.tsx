@@ -10,7 +10,7 @@ import {
 import { toast } from "../utils/toast";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useSendTransaction, useWallets } from "@privy-io/react-auth";
-import { useAccount, useSwitchChain, useWriteContract } from "wagmi";
+import { useConnection, useSwitchChain, useWriteContract } from "wagmi";
 import type { Address } from "viem";
 import { numberToHex } from "viem";
 import { useAuth } from "../hooks/useAuth";
@@ -108,11 +108,11 @@ export function MessageLimitModal({
   );
 
   const { publicKey, connected, sendTransaction } = useWallet();
-  const { address: evmAddress, chainId: wagmiChainId, connector } = useAccount();
+  const { address: evmAddress, chainId: wagmiChainId, connector } = useConnection();
   const wagmiChainRef = useRef(wagmiChainId);
   wagmiChainRef.current = wagmiChainId;
-  const { writeContractAsync } = useWriteContract();
-  const { switchChainAsync } = useSwitchChain();
+  const writeContract = useWriteContract();
+  const switchChain = useSwitchChain();
 
   const [packages, setPackages] = useState<MessagePackage[]>([]);
   const [chains, setChains] = useState<MessagesChains | undefined>();
@@ -183,9 +183,9 @@ export function MessageLimitModal({
         return;
       }
 
-      if (switchChainAsync && connector) {
+      if (switchChain.mutateAsync && connector) {
         try {
-          await switchChainAsync({ chainId });
+          await switchChain.mutateAsync({ chainId });
           dispatch(setChainId(chainId));
           try {
             localStorage.removeItem(WALLET_PREFERRED_CHAIN_STORAGE_KEY);
@@ -236,7 +236,7 @@ export function MessageLimitModal({
       sessionSource,
       walletType,
       wallets,
-      switchChainAsync,
+      switchChain.mutateAsync,
       connector,
       dispatch,
     ],
@@ -612,10 +612,10 @@ export function MessageLimitModal({
         chains,
         tokenSymbol: selectedToken,
         tokenType: tok.type === "native" ? "native" : "erc20",
-        writeContractAsync: writeContractAsync as (
+        writeContractAsync: writeContract.mutateAsync as (
           p: Record<string, unknown>,
         ) => Promise<`0x${string}`>,
-        switchChainAsync,
+        switchChainAsync: switchChain.mutateAsync,
         currentChainId: evmChainId,
       });
 
@@ -676,8 +676,8 @@ export function MessageLimitModal({
     solanaAddress,
     wallets,
     privySendTransaction,
-    writeContractAsync,
-    switchChainAsync,
+    writeContract.mutateAsync,
+    switchChain.mutateAsync,
     dispatch,
     setUser,
     onPurchaseSuccess,

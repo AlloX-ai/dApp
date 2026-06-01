@@ -697,8 +697,8 @@ export function TradingCompetitionPage() {
                   <li className="flex gap-2">
                     <span className="text-purple-500 font-bold">•</span>
                     <span>
-                      Only portfolios created on BNB Chain, Ethereum or BASE count toward
-                      your ranking
+                      Only portfolios created on BNB Chain, Ethereum or BASE
+                      count toward your ranking
                     </span>
                   </li>
                   <li className="flex gap-2">
