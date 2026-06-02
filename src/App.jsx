@@ -515,10 +515,8 @@ function LaunchAppLayout() {
     //   console.warn("Solana wallet disconnect:", e);
     // }
     // }
-    // else
-    if (connector) {
-      await disconnect(wagmiClient, { connector });
-    }
+    // Ensure all wagmi connector sessions are cleared (v3 keeps per-connector connections).
+    await disconnectAllEvmWagmi();
     dispatch(setAddress(null));
     dispatch(setChainId(null));
     dispatch(setIsConnected(false));
@@ -530,7 +528,7 @@ function LaunchAppLayout() {
     dispatch(clearCheckin());
     // Fully clear auth state (token + user) across the app (includes Privy logout via bridge)
     await logout();
-  });
+  }, [dispatch, disconnectSolana, logout]);
 
   useEffect(() => {
     const points = user?.season1?.points;
@@ -673,18 +671,35 @@ function LaunchAppLayout() {
     );
 
     if (connector) {
-      connect(wagmiClient, { connector })
-        .then(() => {
-          const type = option.walletType === "metamask" ? "metamask" : "evm";
-          dispatch(setWalletType(type));
-          persistWalletType(type);
-          dispatch(setIsConnected(true));
-          dispatch(setSessionSource("wallet"));
-        })
-        .catch((err) => {
+      try {
+        // Defensive cleanup for stale connector state before reconnect.
+        await disconnectAllEvmWagmi();
+        await connect(wagmiClient, { connector });
+        const type = option.walletType === "metamask" ? "metamask" : "evm";
+        dispatch(setWalletType(type));
+        persistWalletType(type);
+        dispatch(setIsConnected(true));
+        dispatch(setSessionSource("wallet"));
+      } catch (err) {
+        const message = String(err?.message || "").toLowerCase();
+        if (message.includes("already connected")) {
+          try {
+            await disconnect(wagmiClient, { connector });
+            await connect(wagmiClient, { connector });
+            const type = option.walletType === "metamask" ? "metamask" : "evm";
+            dispatch(setWalletType(type));
+            persistWalletType(type);
+            dispatch(setIsConnected(true));
+            dispatch(setSessionSource("wallet"));
+            return;
+          } catch (retryErr) {
+            console.error("Wallet reconnect after stale session failed:", retryErr);
+          }
+        } else {
           console.error("Wallet connection error:", err);
-          toast.error("Failed to connect wallet. Please try again.");
-        });
+        }
+        toast.error("Failed to connect wallet. Please try again.");
+      }
     } else {
       toast.error(
         option.name +
@@ -841,17 +856,32 @@ function BetaAccessLayout() {
       c.name.toLowerCase().includes(option.name.toLowerCase()),
     );
     if (connector) {
-      connect(wagmiClient, { connector })
-        .then(() => {
-          const type = option.walletType === "metamask" ? "metamask" : "evm";
-          dispatch(setWalletType(type));
-          persistWalletType(type);
-          dispatch(setSessionSource("wallet"));
-        })
-        .catch((err) => {
+      try {
+        await disconnectAllEvmWagmi();
+        await connect(wagmiClient, { connector });
+        const type = option.walletType === "metamask" ? "metamask" : "evm";
+        dispatch(setWalletType(type));
+        persistWalletType(type);
+        dispatch(setSessionSource("wallet"));
+      } catch (err) {
+        const message = String(err?.message || "").toLowerCase();
+        if (message.includes("already connected")) {
+          try {
+            await disconnect(wagmiClient, { connector });
+            await connect(wagmiClient, { connector });
+            const type = option.walletType === "metamask" ? "metamask" : "evm";
+            dispatch(setWalletType(type));
+            persistWalletType(type);
+            dispatch(setSessionSource("wallet"));
+            return;
+          } catch (retryErr) {
+            console.error("Wallet reconnect after stale session failed:", retryErr);
+          }
+        } else {
           console.error("Wallet connection error:", err);
-          toast.error("Failed to connect wallet. Please try again.");
-        });
+        }
+        toast.error("Failed to connect wallet. Please try again.");
+      }
     } else {
       toast.error(
         option.name +

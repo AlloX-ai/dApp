@@ -15,6 +15,9 @@ import {
   TrendingUp,
   Star,
   HelpCircle,
+  Trophy,
+  DollarSign,
+  Target,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import FAQReferralModal from "../components/FaqReferralModal";
@@ -84,11 +87,20 @@ export function ReferralsPage() {
   const totalPoints = asNumber(dashboard?.stats?.totalEarnedUsd);
   const directUsd = asNumber(breakdown.track1?.usd);
   const networkUsd = asNumber(breakdown.track2?.usd);
+  const milestoneUsd = asNumber(breakdown.milestone?.usd);
   const level2Percent = asNumber(dashboard?.level2PercentOfTrack1) || 5;
   const minInvestmentUsd = asNumber(dashboard?.minInvestmentUsd) || 100;
   const rewardTiers = dashboard?.rewardTiers ?? [];
   const milestones = dashboard?.milestones ?? {};
   const nextMilestone = milestones?.next;
+  const directEarnings = directUsd;
+  const networkEarnings = networkUsd;
+  const milestoneEarnings = milestoneUsd;
+  const totalEarnings =
+    asNumber(dashboard?.stats?.totalEarnedUsd) ||
+    directEarnings + networkEarnings + milestoneEarnings;
+  const totalReferrals =
+    asNumber(dashboard?.stats?.totalCount) || asNumber(listPagination.total);
 
   const milestoneProgress = useMemo(() => {
     if (!nextMilestone) return 100;
@@ -163,14 +175,18 @@ export function ReferralsPage() {
   }, [isAuthenticated, listPage, mapRefereesToUi]);
 
   const reloadListPage = async (page) => {
-    const listData = await api2Call(
-      `/referral/list?page=${page}&limit=${REF_LIST_LIMIT}`,
-    );
-    const { regs, actions } = mapRefereesToUi(listData?.referees);
-    setRegistrations(regs);
-    setCompletedActions(actions);
-    if (listData?.pagination) setListPagination(listData.pagination);
-    setListPage(page);
+    try {
+      const listData = await api2Call(
+        `/referral/list?page=${page}&limit=${REF_LIST_LIMIT}`,
+      );
+      const { regs, actions } = mapRefereesToUi(listData?.referees);
+      setRegistrations(regs);
+      setCompletedActions(actions);
+      if (listData?.pagination) setListPagination(listData.pagination);
+      setListPage(page);
+    } catch (e) {
+      setDashboardError(e?.message || "Failed to load referral activity page.");
+    }
   };
 
   const handleCopy = (text) => {
@@ -263,11 +279,12 @@ export function ReferralsPage() {
     const now = Date.now();
     let timeLimit = 0;
 
-    if (dateFilter === "7d") {
-      timeLimit = now - 7 * 24 * 60 * 60 * 1000;
-    } else if (dateFilter === "30d") {
-      timeLimit = now - 30 * 24 * 60 * 60 * 1000;
-    }
+    if (dateFilter === "24h") timeLimit = now - 24 * 60 * 60 * 1000;
+    else if (dateFilter === "7d") timeLimit = now - 7 * 24 * 60 * 60 * 1000;
+    else if (dateFilter === "30d") timeLimit = now - 30 * 24 * 60 * 60 * 1000;
+    else if (dateFilter === "60d") timeLimit = now - 60 * 24 * 60 * 60 * 1000;
+    else if (dateFilter === "90d") timeLimit = now - 90 * 24 * 60 * 60 * 1000;
+    else if (dateFilter === "365d") timeLimit = now - 365 * 24 * 60 * 60 * 1000;
 
     return data.filter((item) => {
       const itemDate = item.registeredDate || item.timestamp;
@@ -354,6 +371,25 @@ export function ReferralsPage() {
     window.scrollTo(0, 0);
     document.title = "Referrals";
   }, []);
+
+  // Bootstrap activation state from API so existing referrers skip landing.
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const me = await api2Call("/referral/me");
+        if (cancelled) return;
+        setDashboard(me);
+        if (me?.referralCode) setIsActivated(true);
+      } catch {
+        // Dashboard errors are shown by full loader once the user activates.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (isAuthenticated && isActivated) {
@@ -686,235 +722,152 @@ export function ReferralsPage() {
           )}
 
           {/* Summary Cards */}
-          <div className="grid grid-cols-1 xl:grid-cols-4 lg:grid-cols-2 md:grid-cols-2 gap-4">
-            <div className="glass-card p-5 flex justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-purple-100 rounded-2xl flex items-center justify-center">
-                  <Gem size={20} className="text-purple-600" />
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="glass-card p-5">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center">
+                  <DollarSign size={18} className="text-white" />
                 </div>
                 <div>
-                  <div className="text-xs text-gray-600">Total Gems</div>
-                  <div className="text-2xl font-bold">{totalGems}</div>
+                  <div className="text-xs text-gray-600">Total Earned</div>
+                  <div className="text-2xl font-bold">${totalEarnings}</div>
                 </div>
               </div>
-              {/* Breakdown */}
-              <div className="flex flex-col">
-                <div className="flex items-center justify-between px-3 py-2 bg-green-50 border border-green-200 rounded-lg mb-2 relative group/icon">
+            </div>
+
+            <div className="glass-card p-5">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
+                  <Target size={18} className="text-green-600" />
+                </div>
+                <div>
+                  <div className="text-xs text-gray-600">Track 1 & 2</div>
+                  <div className="text-2xl font-bold">
+                    ${directEarnings + networkEarnings}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="glass-card p-5">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
+                  <Trophy size={18} className="text-purple-600" />
+                </div>
+                <div>
+                  <div className="text-xs text-gray-600">Milestones</div>
+                  <div className="text-2xl font-bold">${milestoneEarnings}</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="glass-card p-5">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                  <Users size={18} className="text-blue-600" />
+                </div>
+                <div>
+                  <div className="text-xs text-gray-600">Referrals</div>
+                  <div className="text-2xl font-bold">{totalReferrals}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row justify-between gap-4">
+            <div className="glass-card p-5 w-full">
+              <h3 className="font-bold text-sm mb-4">Earnings Breakdown</h3>
+              <div className="grid gap-3">
+                <div className="flex items-center justify-between px-3 py-2 bg-green-50 border border-green-200 rounded-lg">
                   <div className="flex items-center gap-2">
-                    <Users size={14} className="text-green-600" />
+                    <DollarSign size={14} className="text-green-600" />
                     <span className="text-xs font-medium text-green-800">
-                      Direct
+                      Track 1: Direct
                     </span>
                   </div>
                   <span className="text-sm font-bold text-green-900">
-                    {directGems}
+                    ${directEarnings}
                   </span>
-                  <div className="absolute left-6 top-1/2 -translate-y-1/2 whitespace-nowrap bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover/icon:opacity-100 transition-opacity pointer-events-none z-10">
-                    Gems from direct users
-                  </div>
                 </div>
-                <div className="flex items-center justify-between px-3 py-2 gap-2 bg-blue-50 border border-blue-200 rounded-lg mb-2 relative group/icon">
+                <div className="flex items-center justify-between px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg">
                   <div className="flex items-center gap-2">
                     <Sparkles size={14} className="text-blue-600" />
                     <span className="text-xs font-medium text-blue-800">
-                      Network
+                      Track 2: Network
                     </span>
                   </div>
                   <span className="text-sm font-bold text-blue-900">
-                    {networkGems}
+                    ${networkEarnings}
                   </span>
-                  <div className="absolute left-6 top-1/2 -translate-y-1/2 whitespace-nowrap bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover/icon:opacity-100 transition-opacity pointer-events-none z-10">
-                    {asNumber(breakdown.track2?.count)} passive payouts
-                  </div>
                 </div>
-                <div className="flex items-center justify-between px-3 py-2 gap-2 bg-amber-50 border border-amber-200 rounded-lg relative group/icon">
+                <div className="flex items-center justify-between px-3 py-2 bg-purple-50 border border-purple-200 rounded-lg">
                   <div className="flex items-center gap-2">
-                    <Star size={14} className="text-amber-600" />
-                    <span className="text-xs font-medium text-amber-800">
-                      Milestone
+                    <Trophy size={14} className="text-purple-600" />
+                    <span className="text-xs font-medium text-purple-800">
+                      Track 3: Milestones
                     </span>
                   </div>
-                  <span className="text-sm font-bold text-amber-900">
-                    {milestoneGems}
+                  <span className="text-sm font-bold text-purple-900">
+                    ${milestoneEarnings}
                   </span>
                 </div>
               </div>
             </div>
 
-            <div className="glass-card p-5 flex justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center">
-                  <Coins size={20} className="text-blue-600" />
-                </div>
-                <div>
-                  <div className="text-xs text-gray-600">
-                    Total Points
-                  </div>
-                  <div className="text-2xl font-bold">{money(totalPoints)}</div>
-                </div>
-              </div>
-              {/* Breakdown */}
-              <div className="flex flex-col">
-                <div className="flex items-center justify-between px-3 py-2 bg-green-50 border border-green-200 rounded-lg mb-2 relative group/icon">
-                  <div className="flex items-center gap-2">
-                    <Users size={14} className="text-green-600" />
-                    <span className="text-xs font-medium text-green-800">
-                      Direct
-                    </span>
-                  </div>
-                  <span className="text-sm font-bold text-green-900">
-                    {money(directUsd)}
-                  </span>
-                  <div className="absolute left-6 top-1/2 -translate-y-1/2 whitespace-nowrap bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover/icon:opacity-100 transition-opacity pointer-events-none z-10">
-                    {asNumber(dashboard?.stats?.activeCount)} active /{" "}
-                    {asNumber(dashboard?.stats?.totalCount)} referrals
-                  </div>
-                </div>
-                <div className="flex items-center justify-between px-3 py-2 gap-2 bg-blue-50 border border-blue-200 rounded-lg relative group/icon">
-                  <div className="flex items-center gap-2">
-                    <Sparkles size={14} className="text-blue-600" />
-                    <span className="text-xs font-medium text-blue-800">
-                     Network
-                    </span>
-                  </div>
-                  <span className="text-sm font-bold text-blue-900">
-                    {money(networkUsd)}
-                  </span>
-                  <div className="absolute left-6 top-1/2 -translate-y-1/2 whitespace-nowrap bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover/icon:opacity-100 transition-opacity pointer-events-none z-10">
-                    Level 2 passive ({level2Percent}% of Track 1)
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="glass-card p-5 flex flex-col justify-between">
+            {/* Referral Link Section */}
+            <div className="glass-card p-5 w-full">
               <h3 className="font-bold text-sm mb-3">Your Referral Link</h3>
               {referralCode ? (
                 <>
-                  <div className="flex gap-2 relative">
+                  <p className="text-xs text-gray-600 my-2">
+                    Share this link with your network. When someone creates a
+                    portfolio with $100+ investment, you earn instantly.
+                  </p>
+                  <div className="flex gap-2">
                     <input
                       type="text"
                       value={baseReferralLink}
                       readOnly
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-xs font-mono"
+                      className="flex-1 px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-xs font-mono"
                     />
                     <button
                       onClick={() => handleCopy(baseReferralLink)}
-                      className="px-3 absolute right-0 h-full py-2 bg-black text-white rounded-lg font-semibold hover:bg-gray-800 transition-colors flex items-center gap-1.5 whitespace-nowrap text-xs"
+                      className="px-4 py-2 bg-black text-white rounded-lg font-semibold hover:bg-gray-800 transition-colors flex items-center gap-2 whitespace-nowrap text-xs"
                     >
                       {copied ? <Check size={14} /> : <Copy size={14} />}
                       {copied ? "Copied" : "Copy"}
                     </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={shareOnX}
-                    className="mt-2 w-full text-xs py-2 border border-gray-200 rounded-lg hover:bg-gray-50"
-                  >
-                    Share on X
-                  </button>
                 </>
               ) : (
-                <form onSubmit={submitReferralCode} className="space-y-2">
-                  <p className="text-xs text-gray-600">
-                    Choose your code to unlock your link.
+                <>
+                  <p className="text-xs text-gray-600 my-2">
+                    Create your referral code to generate a shareable invite
+                    link.
                   </p>
-                  <input
-                    value={newCode}
-                    onChange={(e) => setNewCode(e.target.value)}
-                    placeholder="lorena"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs"
-                    disabled={dashboard?.canChangeCode === false}
-                  />
-                  <button
-                    type="submit"
-                    disabled={
-                      submittingCode || dashboard?.canChangeCode === false
-                    }
-                    className="w-full py-2 bg-black text-white rounded-lg text-xs font-semibold disabled:opacity-50"
-                  >
-                    {submittingCode ? "Saving..." : "Choose your code"}
-                  </button>
-                  {codeError && (
-                    <p className="text-xs text-red-600">{codeError}</p>
-                  )}
-                </form>
+                  <form onSubmit={submitReferralCode} className="space-y-2">
+                    <input
+                      value={newCode}
+                      onChange={(e) => setNewCode(e.target.value)}
+                      placeholder="Set your referral code"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs"
+                    />
+                    {codeError && (
+                      <p className="text-xs text-red-600">{codeError}</p>
+                    )}
+                    <button
+                      type="submit"
+                      disabled={submittingCode || !newCode.trim()}
+                      className="px-4 py-2 bg-black text-white rounded-lg text-xs font-semibold disabled:opacity-50"
+                    >
+                      {submittingCode ? "Saving..." : "Create code"}
+                    </button>
+                  </form>
+                </>
               )}
             </div>
-
-            {/* Pool-Specific Link */}
-            <div className="glass-card p-5 flex flex-col justify-between">
-              <h3 className="font-bold text-sm mb-3">Pool Specific Link</h3>
-              <button
-                onClick={() => setShowPoolLinkModal(true)}
-                disabled={!referralCode}
-                className="w-full px-3 py-2 border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-400 hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 text-gray-600 font-medium text-xs disabled:opacity-50"
-              >
-                <Sparkles size={14} />
-                <span>Create Pool Link</span>
-              </button>
-            </div>
           </div>
 
-          {/* API: earnings by track */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {[
-              {
-                key: "track1",
-                data: breakdown.track1,
-                fallback: "Per Referral Reward",
-              },
-              {
-                key: "track2",
-                data: breakdown.track2,
-                fallback: `Level 2 Passive (${level2Percent}%)`,
-                countLabel: "passive payouts",
-              },
-              {
-                key: "milestone",
-                data: breakdown.milestone,
-                fallback: "Milestone Bonus",
-              },
-            ].map(({ key, data, fallback, countLabel }) => (
-              <div key={key} className="glass-card p-5">
-                <div className="text-xs text-gray-500">
-                  {data?.label || fallback}
-                </div>
-                <div className="text-2xl font-bold mt-1">
-                  {money(data?.usd)}
-                </div>
-                <div className="text-xs text-gray-600 mt-1">
-                  {asNumber(data?.gems)} gems ·{" "}
-                  {key === "track2"
-                    ? `${asNumber(data?.count)} ${countLabel}`
-                    : `${asNumber(data?.count)} events`}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* API: milestone progress */}
-          {nextMilestone && (
-            <div className="glass-card p-5">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="font-bold text-sm">Next milestone</h3>
-                <span className="text-xs text-gray-600">
-                  {money(nextMilestone.bonusUsd)} bonus
-                </span>
-              </div>
-              <p className="text-xs text-gray-600 mb-2">
-                {asNumber(nextMilestone.referralsToNext)} activated referrals to
-                go (min {money(minInvestmentUsd)} first portfolio each)
-              </p>
-              <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-purple-600 to-indigo-600"
-                  style={{ width: `${milestoneProgress}%` }}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* API: manual claim fallback */}
           {!dashboard?.referredBy && (
             <form
               onSubmit={submitClaim}
@@ -936,7 +889,7 @@ export function ReferralsPage() {
               </div>
               <button
                 type="submit"
-                disabled={claiming}
+                disabled={claiming || !claimCode.trim()}
                 className="px-4 py-2 bg-black text-white rounded-lg text-xs font-semibold disabled:opacity-50"
               >
                 {claiming ? "Claiming..." : "Claim"}
@@ -1422,7 +1375,12 @@ export function ReferralsPage() {
               className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-auto"
             >
               <div className="sticky top-0 bg-white border-b border-gray-200 p-5 flex items-center justify-between">
-                <h2 className="text-xl font-bold">How Rewards Work</h2>
+                <div className="flex gap-2 flex-col">
+                  <h2 className="text-xl font-bold">Three Reward Tracks</h2>
+                  <p className="text-gray-600 text-sm mb-4">
+                    Independent and stackable earning opportunities
+                  </p>
+                </div>
                 <button
                   onClick={() => setShowTiersModal(false)}
                   className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -1432,82 +1390,130 @@ export function ReferralsPage() {
               </div>
 
               <div className="p-5">
-                <h3 className="font-bold mb-2">Portfolio referral rewards</h3>
-                <p className="text-gray-600 text-sm mb-4">
-                  You earn when a referee creates their first on-chain portfolio
-                  of at least {money(minInvestmentUsd)}. Additional portfolios
-                  from the same referee do not pay again.
-                </p>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
-                  {(rewardTiers.length
-                    ? rewardTiers
-                    : [
-                        {
-                          label: "Tier 1",
-                          minInvestmentUsd: 100,
-                          rewardUsd: 5,
-                        },
-                        {
-                          label: "Tier 2",
-                          minInvestmentUsd: 500,
-                          rewardUsd: 25,
-                        },
-                        {
-                          label: "Tier 3",
-                          minInvestmentUsd: 1000,
-                          rewardUsd: 50,
-                        },
-                        {
-                          label: "Tier 4",
-                          minInvestmentUsd: 2500,
-                          rewardUsd: 100,
-                        },
-                      ]
-                  ).map((tier) => (
-                    <div
-                      key={tier.label}
-                      className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-4"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="text-sm font-semibold text-blue-900 mb-0.5">
-                            {tier.label}
-                          </div>
-                          <div className="text-xs text-blue-600">
-                            ≥ {money(tier.minInvestmentUsd)} portfolio
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1.5 px-3 py-1 bg-white/70 rounded-lg">
-                          <Gem size={14} className="text-purple-600" />
-                          <span className="text-sm font-bold text-gray-900">
-                            {money(tier.rewardUsd)}
-                          </span>
-                        </div>
-                      </div>
+                <div className="border border-gray-200 rounded-xl p-5 bg-gray-50">
+                  <div className="flex items-start gap-3 mb-3">
+                    <div className="w-10 h-10 bg-gray-900 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <DollarSign size={20} className="text-white" />
                     </div>
-                  ))}
-                </div>
-
-                <h3 className="font-bold mb-2">Level 2 passive</h3>
-                <p className="text-gray-600 text-sm mb-3">
-                  When your referrals earn direct rewards, you receive{" "}
-                  {level2Percent}% as passive payouts (
-                  {asNumber(breakdown.track2?.count)} payouts so far).
-                </p>
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="w-8 h-8 bg-blue-200 rounded-lg flex items-center justify-center">
-                      <Users size={16} className="text-blue-700" />
-                    </div>
-                    <div className="font-bold text-blue-900">
-                      {level2Percent}% of Direct earnings
+                    <div>
+                      <h3 className="font-bold text-gray-900">
+                        Track 1: Per Referral Reward
+                      </h3>
+                      <p className="text-sm text-gray-600 mt-1">
+                        Earn $5 to $100 every time a direct referral creates a
+                        qualifying portfolio (min $100 invested)
+                      </p>
                     </div>
                   </div>
-                  <p className="text-sm text-blue-700">
-                    Milestone bonuses unlock at referral count thresholds shown
-                    on your dashboard progress bar.
-                  </p>
+                  <div className="bg-white rounded-lg p-4 space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">
+                        $100 – $499 portfolio
+                      </span>
+                      <span className="font-bold text-gray-900">$5</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">
+                        $500 – $999 portfolio
+                      </span>
+                      <span className="font-bold text-gray-900">$25</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">
+                        $1,000 – $2,499 portfolio
+                      </span>
+                      <span className="font-bold text-gray-900">$50</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">$2,500+ portfolio</span>
+                      <span className="font-bold text-gray-900">$100</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Track 2 */}
+                <div className="border border-gray-200 rounded-xl p-5 bg-gray-50">
+                  <div className="flex items-start gap-3 mb-3">
+                    <div className="w-10 h-10 bg-gray-900 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Sparkles size={20} className="text-white" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-gray-900">
+                        Track 2: Level 2 Passive Earnings
+                      </h3>
+                      <p className="text-sm text-gray-600 mt-1">
+                        Earn 5% of whatever your direct referrals earn from
+                        their own referrals — automatic, lifetime
+                      </p>
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-lg p-4 space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">They earn $5</span>
+                      <span className="font-bold text-gray-900">
+                        You get $0.25
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">They earn $25</span>
+                      <span className="font-bold text-gray-900">
+                        You get $1.25
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">They earn $50</span>
+                      <span className="font-bold text-gray-900">
+                        You get $2.50
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">They earn $100</span>
+                      <span className="font-bold text-gray-900">
+                        You get $5.00
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Track 3 */}
+                <div className="border border-gray-200 rounded-xl p-5 bg-gray-50">
+                  <div className="flex items-start gap-3 mb-3">
+                    <div className="w-10 h-10 bg-gray-900 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Trophy size={20} className="text-white" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-gray-900">
+                        Track 3: Milestone Bonuses
+                      </h3>
+                      <p className="text-sm text-gray-600 mt-1">
+                        One-time bonuses as your total direct referrals grow
+                      </p>
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-lg p-4 space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">10 referrals</span>
+                      <span className="font-bold text-gray-900">$30 bonus</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">50 referrals</span>
+                      <span className="font-bold text-gray-900">
+                        $150 bonus
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">150 referrals</span>
+                      <span className="font-bold text-gray-900">
+                        $300 bonus
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">250 referrals</span>
+                      <span className="font-bold text-gray-900">
+                        $600 bonus
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </motion.div>
