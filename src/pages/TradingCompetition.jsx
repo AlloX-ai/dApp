@@ -15,13 +15,15 @@ import {
   Plus,
   BookOpen,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
 import { PortfolioTutorialModal } from "../components/PortfolioTutorialModal";
 import { Link } from "react-router";
 import { useTrading } from "../hooks/useTrading";
 import getFormattedNumber from "../hooks/get-formatted-number";
 import { shortAddress } from "../hooks/shortAddress";
+import { findAllocationRaceRewardForWallet } from "../constants/rewards";
+import { CongratsModal } from "../components/CongratsModal";
 
 const getLeaderboardEntries = (payload) => {
   if (Array.isArray(payload)) return payload;
@@ -49,6 +51,8 @@ export function TradingCompetitionPage() {
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [showTutorialModal, setShowTutorialModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [showModal, setShowModal] = useState(false);
+
   const itemsPerPage = 10;
   const walletAddress = useSelector((state) => state.wallet.address);
   const {
@@ -90,6 +94,11 @@ export function TradingCompetitionPage() {
   const handleNextPage = () => {
     if (currentPage < totalPages) setCurrentPage(currentPage + 1);
   };
+
+  const user3 = useMemo(
+    () => findAllocationRaceRewardForWallet(walletAddress),
+    [walletAddress],
+  );
 
   useEffect(() => {
     const loadCompetitionData = async () => {
@@ -265,21 +274,30 @@ export function TradingCompetitionPage() {
               </div>
             </div>
 
-            {!hasUserRank && walletAddress && (
+            {/* {!hasUserRank && walletAddress && (
               <div className="mt-3 text-center text-xs text-gray-600">
                 Create your first portfolio to join the leaderboard.
               </div>
-            )}
+            )} */}
           </div>
 
-          {/* Create Portfolio Button - Below */}
-          <Link
-            to={"/"}
-            className="btn-primary w-full flex items-center justify-center gap-2 text-sm mt-3"
-          >
-            <Plus size={16} />
-            Create Portfolio
-          </Link>
+          {user3 && (
+            <div className="absolute -bottom-0 left-1/2 -translate-x-1/2">
+              <button
+                onClick={() => setShowModal(true)}
+                className="px-4 py-1.5 bg-white/95 backdrop-blur-sm text-gray-900 rounded-t-4xl text-sm font-semibold hover:bg-white hover:shadow-[0_-5px_18px_rgba(0,0,0,0.25)] transition-all border-t border-l border-r border-gray-200 flex items-center gap-1.5"
+              >
+                <svg
+                  className="w-3 h-3"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
+                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                </svg>
+                Share
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Right: How it Works & Rewards - Compact */}
@@ -805,6 +823,16 @@ export function TradingCompetitionPage() {
             {/* Footer */}
           </div>
         </div>
+      )}
+
+      {showModal && (
+        <CongratsModal
+          isOpen={showModal}
+          onClose={() => {
+            setShowModal(false);
+          }}
+          address={walletAddress}
+        />
       )}
 
       {/* Portfolio Tutorial Modal */}
