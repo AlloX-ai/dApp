@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import {
   Copy,
   Check,
@@ -18,11 +19,13 @@ import {
   Trophy,
   DollarSign,
   Target,
+  Award,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import FAQReferralModal from "../components/FaqReferralModal";
 import { api2Call } from "../utils/api";
 import { useAuth } from "../hooks/useAuth";
+import { setWalletModal } from "../redux/slices/walletSlice";
 
 const REF_LIST_LIMIT = 20;
 
@@ -45,7 +48,10 @@ const STAKING_POOLS = [
 ];
 
 export function ReferralsPage() {
-  const { isAuthenticated } = useAuth();
+  const dispatch = useDispatch();
+  const isConnected = useSelector((state) => state.wallet.isConnected);
+  const { isAuthenticated, ensureAuthenticated } = useAuth();
+  const [activating, setActivating] = useState(false);
   const [isActivated, setIsActivated] = useState(false);
   const [copied, setCopied] = useState(false);
   const [selectedPool, setSelectedPool] = useState("");
@@ -210,8 +216,22 @@ export function ReferralsPage() {
     document.body.removeChild(textArea);
   };
 
-  const handleActivate = () => {
-    setIsActivated(true);
+  const handlePrimaryAction = async () => {
+    if (!isConnected) {
+      dispatch(setWalletModal(true));
+      return;
+    }
+    setActivating(true);
+    try {
+      if (!isAuthenticated) {
+        await ensureAuthenticated();
+      }
+      setIsActivated(true);
+    } catch {
+      // Wallet modal / toast from auth flow surfaces errors.
+    } finally {
+      setActivating(false);
+    }
   };
 
   const shareOnX = () => {
@@ -418,32 +438,38 @@ export function ReferralsPage() {
               <div className="flex flex-col md:flex-row w-full gap-3">
                 <div className="flex flex-col w-full">
                   <h1 className="text-4xl md:text-5xl font-bold mb-4 leading-tight">
-                    High Payouts.
+                    Earn Up to $100
                     <br />
-                    Earn now.
+                    Per Referral
                   </h1>
 
                   <p className="text-lg text-white/90 mb-6 max-w-2xl">
-                    We aim to reward your work at each step of your journey. The
-                    more active you are, the more benefits you unlock. Make
-                    others work for you and build your network.
+                    Get paid when your referrals create portfolios. Three
+                    independent reward tracks: per-referral bonuses, passive
+                    network earnings, and milestone rewards.
                   </p>
                   <button
-                    onClick={handleActivate}
-                    className="bg-white w-fit text-black px-8 py-3 rounded-xl font-semibold hover:bg-gray-200 transition-colors mb-2"
+                    type="button"
+                    onClick={handlePrimaryAction}
+                    disabled={activating}
+                    className="bg-white w-fit text-black px-8 py-3 rounded-xl font-semibold hover:bg-gray-200 transition-colors mb-2 disabled:opacity-60"
                   >
-                    Activate
+                    {activating
+                      ? "Activating..."
+                      : !isConnected
+                        ? "Connect wallet"
+                        : "Activate"}
                   </button>
                 </div>
                 {/* Stats Grid */}
                 <div className="grid grid-cols-1 gap-4 mb-6 w-70 items-center">
                   <div className="bg-white/10 h-fit backdrop-blur-sm rounded-xl p-4 border border-white/20">
                     <div className="flex items-center justify-center gap-2 mb-1">
-                      <Gem size={16} className="text-yellow-300" />
-                      <div className="text-2xl font-bold">10x</div>
+                      <DollarSign size={16} className="text-yellow-300" />
+                      <div className="text-2xl font-bold">$100</div>
                     </div>
                     <div className="text-xs flex justify-center text-white/80">
-                      Max Gems per Staking
+                      Max Per Referral
                     </div>
                   </div>
                   <div className="bg-white/10 h-fit backdrop-blur-sm rounded-xl p-4 border border-white/20">
@@ -457,11 +483,11 @@ export function ReferralsPage() {
                   </div>
                   <div className="bg-white/10 h-fit backdrop-blur-sm rounded-xl p-4 border border-white/20">
                     <div className="flex items-center justify-center gap-2 mb-1">
-                      <Zap size={16} className="text-orange-300" />
-                      <div className="text-2xl font-bold">∞</div>
+                      <Trophy size={16} className="text-orange-300" />
+                      <div className="text-2xl font-bold">$600</div>
                     </div>
                     <div className="text-xs text-white/80 flex justify-center">
-                      Unlimited Duration
+                      Milestone Bonus
                     </div>
                   </div>
                 </div>
@@ -469,14 +495,148 @@ export function ReferralsPage() {
             </div>
           </div>
 
-          {/* Benefits Table */}
-          <div className="glass-card p-8 overflow-x-auto border-2 border-indigo-200 bg-gradient-to-br from-indigo-50/50 to-purple-50/50">
-            {/* Column Headers */}
-            <div className="grid grid-cols-3 gap-4 mb-6">
-              <div className="col-span-1"></div>
+          <div className="flex items-start justify-between">
+            <div>
+              <h2 className="text-3xl font-bold mb-2">Three Reward Tracks</h2>
+              <p className="text-gray-600 text-sm">
+                Independent and stackable earning opportunities
+              </p>
+            </div>
 
-              {/* Direct Referral Header */}
-              <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-4 shadow-lg">
+            {/* Info Buttons - Top Right */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowTiersModal(true)}
+                className="glass-card px-3 py-2 hover:bg-gray-50 transition-colors flex items-center gap-2 text-xs whitespace-nowrap"
+              >
+                <Award size={14} className="text-gray-700" />
+                <span className="font-medium text-gray-700">View Details</span>
+              </button>
+              <button
+                onClick={() => setFaqModalOpen(true)}
+                className="glass-card px-3 py-2 hover:bg-gray-50 transition-colors flex items-center gap-2 text-xs whitespace-nowrap"
+              >
+                <HelpCircle size={14} className="text-gray-700" />
+                <span className="font-medium text-gray-700">FAQs</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Track 1: Per Referral Reward */}
+            <div className="glass-card p-6 border-2 border-green-200 bg-gradient-to-br from-green-50/50 to-emerald-50/50">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center">
+                  <DollarSign size={24} className="text-white" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-lg">Track 1</h3>
+                  <p className="text-xs text-gray-600">Per Referral Reward</p>
+                </div>
+              </div>
+              <p className="text-sm text-gray-700 mb-4">
+                Earn <strong>$5 to $100</strong> every time a direct referral
+                creates a qualifying portfolio.
+              </p>
+              <div className="bg-white/60 rounded-lg p-3 space-y-2">
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-600">$100-$499</span>
+                  <span className="font-bold text-green-700">$5</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-600">$500-$999</span>
+                  <span className="font-bold text-green-700">$25</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-600">$1K-$2.4K</span>
+                  <span className="font-bold text-green-700">$50</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-600">$2.5K+</span>
+                  <span className="font-bold text-green-700">$100</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Track 2: Level 2 Passive Earnings */}
+            <div className="glass-card p-6 border-2 border-blue-200 bg-gradient-to-br from-blue-50/50 to-indigo-50/50">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center">
+                  <Sparkles size={24} className="text-white" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-lg">Track 2</h3>
+                  <p className="text-xs text-gray-600">Level 2 Passive</p>
+                </div>
+              </div>
+              <p className="text-sm text-gray-700 mb-4">
+                Earn <strong>5% of whatever your direct referrals earn</strong>{" "}
+                from their own referrals. Automatic, lifetime earnings.
+              </p>
+              <div className="bg-white/60 rounded-lg p-3 space-y-2">
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-600">They earn $5</span>
+                  <span className="font-bold text-blue-700">You get $0.25</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-600">They earn $25</span>
+                  <span className="font-bold text-blue-700">You get $1.25</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-600">They earn $50</span>
+                  <span className="font-bold text-blue-700">You get $2.50</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-600">They earn $100</span>
+                  <span className="font-bold text-blue-700">You get $5.00</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Track 3: Milestone Bonuses */}
+            <div className="glass-card p-6 border-2 border-purple-200 bg-gradient-to-br from-purple-50/50 to-pink-50/50">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center">
+                  <Trophy size={24} className="text-white" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-lg">Track 3</h3>
+                  <p className="text-xs text-gray-600">Milestone Bonuses</p>
+                </div>
+              </div>
+              <p className="text-sm text-gray-700 mb-4">
+                Unlock <strong>one-time bonuses</strong> as your total direct
+                referrals grow. Each milestone triggers independently.
+              </p>
+              <div className="bg-white/60 rounded-lg p-3 space-y-2">
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-600">10 referrals</span>
+                  <span className="font-bold text-purple-700">$30</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-600">50 referrals</span>
+                  <span className="font-bold text-purple-700">$150</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-600">150 referrals</span>
+                  <span className="font-bold text-purple-700">$300</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-600">250 referrals</span>
+                  <span className="font-bold text-purple-700">$600</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Benefits Table */}
+          {/* <div className="glass-card p-8 overflow-x-auto border-2 border-indigo-200 bg-gradient-to-br from-indigo-50/50 to-purple-50/50"> */}
+          {/* Column Headers */}
+          {/* <div className="grid grid-cols-3 gap-4 mb-6">
+              <div className="col-span-1"></div> */}
+
+          {/* Direct Referral Header */}
+          {/* <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-4 shadow-lg">
                 <div className="flex items-center justify-center gap-2">
                   <Users size={24} className="text-white" />
                   <h3 className="text-lg font-bold text-white">
@@ -486,10 +646,10 @@ export function ReferralsPage() {
                 <p className="text-center text-white/90 text-sm">
                   Your direct invites
                 </p>
-              </div>
+              </div> */}
 
-              {/* Network Referral Header */}
-              <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-4 shadow-lg">
+          {/* Network Referral Header */}
+          {/* <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-4 shadow-lg">
                 <div className="flex items-center justify-center gap-2">
                   <Sparkles size={24} className="text-white" />
                   <h3 className="text-lg font-bold text-white">
@@ -500,12 +660,12 @@ export function ReferralsPage() {
                   Your referrals' invites
                 </p>
               </div>
-            </div>
+            </div> */}
 
-            {/* Benefits Rows */}
-            <div className="space-y-1">
-              {/* Benefit 1 */}
-              <div className="grid grid-cols-3 gap-4 items-center bg-white/60 rounded-xl p-3 hover:shadow-md transition-shadow">
+          {/* Benefits Rows */}
+          {/* <div className="space-y-1"> */}
+          {/* Benefit 1 */}
+          {/* <div className="grid grid-cols-3 gap-4 items-center bg-white/60 rounded-xl p-3 hover:shadow-md transition-shadow">
                 <div className="col-span-1 font-medium text-sm text-gray-800">
                   Earn Gems from staking
                 </div>
@@ -527,10 +687,10 @@ export function ReferralsPage() {
                     />
                   </div>
                 </div>
-              </div>
+              </div> */}
 
-              {/* Benefit 2 */}
-              <div className="grid grid-cols-3 gap-4 items-center bg-white/60 rounded-xl p-3 hover:shadow-md transition-shadow">
+          {/* Benefit 2 */}
+          {/* <div className="grid grid-cols-3 gap-4 items-center bg-white/60 rounded-xl p-3 hover:shadow-md transition-shadow">
                 <div className="col-span-1 font-medium text-sm text-gray-800">
                   30-day referral tracking
                 </div>
@@ -552,10 +712,10 @@ export function ReferralsPage() {
                     />
                   </div>
                 </div>
-              </div>
+              </div> */}
 
-              {/* Benefit 3 */}
-              <div className="grid grid-cols-3 gap-4 items-center bg-white/60 rounded-xl p-3 hover:shadow-md transition-shadow">
+          {/* Benefit 3 */}
+          {/* <div className="grid grid-cols-3 gap-4 items-center bg-white/60 rounded-xl p-3 hover:shadow-md transition-shadow">
                 <div className="col-span-1 font-medium text-sm text-gray-800">
                   Verified wallet rewards
                 </div>
@@ -577,10 +737,10 @@ export function ReferralsPage() {
                     />
                   </div>
                 </div>
-              </div>
+              </div> */}
 
-              {/* Benefit 4 */}
-              <div className="grid grid-cols-3 gap-4 items-center bg-white/60 rounded-xl p-3 hover:shadow-md transition-shadow">
+          {/* Benefit 4 */}
+          {/* <div className="grid grid-cols-3 gap-4 items-center bg-white/60 rounded-xl p-3 hover:shadow-md transition-shadow">
                 <div className="col-span-1 font-medium text-sm text-gray-800">
                   Referral dashboard tracking
                 </div>
@@ -602,10 +762,10 @@ export function ReferralsPage() {
                     />
                   </div>
                 </div>
-              </div>
+              </div> */}
 
-              {/* Benefit 5 */}
-              <div className="grid grid-cols-3 gap-4 items-center bg-white/60 rounded-xl p-3 hover:shadow-md transition-shadow">
+          {/* Benefit 5 */}
+          {/* <div className="grid grid-cols-3 gap-4 items-center bg-white/60 rounded-xl p-3 hover:shadow-md transition-shadow">
                 <div className="col-span-1 font-medium text-sm text-gray-800">
                   Unlimited earning duration
                 </div>
@@ -627,10 +787,10 @@ export function ReferralsPage() {
                     />
                   </div>
                 </div>
-              </div>
+              </div> */}
 
-              {/* Benefit 6 - Highlight difference */}
-              <div className="grid grid-cols-3 gap-4 items-center bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-3 border-2 border-indigo-200 hover:shadow-md transition-shadow">
+          {/* Benefit 6 - Highlight difference */}
+          {/* <div className="grid grid-cols-3 gap-4 items-center bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-3 border-2 border-indigo-200 hover:shadow-md transition-shadow">
                 <div className="col-span-1">
                   <div className="font-semibold text-sm text-gray-900">
                     Earn from referral network
@@ -649,10 +809,10 @@ export function ReferralsPage() {
                     <Check className="text-white" size={20} strokeWidth={3} />
                   </div>
                 </div>
-              </div>
+              </div> */}
 
-              {/* Benefit 7 - Highlight difference */}
-              <div className="grid grid-cols-3 gap-4 items-center bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-3 border-2 border-indigo-200 hover:shadow-md transition-shadow">
+          {/* Benefit 7 - Highlight difference */}
+          {/* <div className="grid grid-cols-3 gap-4 items-center bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-3 border-2 border-indigo-200 hover:shadow-md transition-shadow">
                 <div className="col-span-1">
                   <div className="font-semibold text-sm text-gray-900">
                     5% network earnings share
@@ -673,7 +833,7 @@ export function ReferralsPage() {
                 </div>
               </div>
             </div>
-          </div>
+          </div> */}
         </>
       ) : (
         // Dashboard - After Activation
@@ -819,10 +979,7 @@ export function ReferralsPage() {
               <h3 className="font-bold text-sm mb-3">Your Referral Link</h3>
               {referralCode ? (
                 <>
-                  <p className="text-xs text-gray-600 my-2">
-                    Share this link with your network. When someone creates a
-                    portfolio with $100+ investment, you earn instantly.
-                  </p>
+                
                   <div className="flex gap-2">
                     <input
                       type="text"
@@ -837,7 +994,11 @@ export function ReferralsPage() {
                       {copied ? <Check size={14} /> : <Copy size={14} />}
                       {copied ? "Copied" : "Copy"}
                     </button>
-                  </div>
+                  </div> 
+                  <p className="text-xs text-gray-600 my-2">
+                    Share this link with your network. When someone creates a
+                    portfolio with $100+ investment, you earn instantly.
+                  </p>
                 </>
               ) : (
                 <>
@@ -868,7 +1029,7 @@ export function ReferralsPage() {
             </div>
           </div>
 
-          {!dashboard?.referredBy && (
+          {/* {!dashboard?.referredBy && (
             <form
               onSubmit={submitClaim}
               className="glass-card p-5 flex flex-col sm:flex-row gap-2 items-end"
@@ -895,7 +1056,7 @@ export function ReferralsPage() {
                 {claiming ? "Claiming..." : "Claim"}
               </button>
             </form>
-          )}
+          )} */}
 
           {/* Date Filter */}
           <div className="flex items-center justify-between">
