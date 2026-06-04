@@ -3596,9 +3596,9 @@ export function ChatPage() {
                   "Build Quick Portfolio",
                   "Build a Portfolio - Guided",
                   "Explain narratives",
-                  // "Trending Tokens",
-                  // "How should I invest $100?",
-                  // "Start guided chat",
+                  "Trending Tokens",
+                  "How should I invest $100?",
+                  "Start guided chat",
                 ].map((suggestion) => (
                   <button
                     key={suggestion}
