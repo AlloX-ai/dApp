@@ -62,6 +62,7 @@ import { useAuth } from "./hooks/useAuth";
 import { completePrivyAuth } from "./hooks/useAuth";
 import { useCheckin } from "./hooks/useCheckin";
 import { CheckinModal } from "./components/CheckinModal";
+import { getApiUrl, getApi2Url } from "./utils/api";
 
 import { Toaster } from "sonner";
 import { toast } from "./utils/toast";
@@ -96,7 +97,9 @@ const PRIVY_VERIFY_MAX_COOLDOWN_MS = 120000;
 const isRateLimitError = (error) => {
   const status = Number(error?.status ?? error?.code);
   if (status === 429) return true;
-  const message = String(error?.message ?? error?.data?.error ?? "").toLowerCase();
+  const message = String(
+    error?.message ?? error?.data?.error ?? "",
+  ).toLowerCase();
   return message.includes("429") || message.includes("too many requests");
 };
 
@@ -193,6 +196,7 @@ function LaunchAppLayout() {
     chainId,
   } = useSelector((state) => state.wallet);
   const [fundModalOpen, setFundModalOpen] = useState(false);
+  const [referrerDisplay, setReferrerDisplay] = useState("");
   const { token, user, logout, ensureAuthenticated } = useAuth();
   const {
     login,
@@ -477,6 +481,18 @@ function LaunchAppLayout() {
     loading: checkinLoading,
   } = useCheckin();
 
+  useEffect(() => {
+    const loadReferrerDisplay = () => {
+      const stored = localStorage.getItem("allox_referrer_display");
+      setReferrerDisplay(stored || "");
+    };
+    loadReferrerDisplay();
+    window.addEventListener("storage", loadReferrerDisplay);
+    return () => {
+      window.removeEventListener("storage", loadReferrerDisplay);
+    };
+  }, []);
+
   const { fetchSocialPoints, fetchAllPoints, loadSeenPosts } = useSocial();
   useEffect(() => {
     if (!isConnected || !authenticated) return;
@@ -499,10 +515,8 @@ function LaunchAppLayout() {
     //   console.warn("Solana wallet disconnect:", e);
     // }
     // }
-    // else
-    if (connector) {
-      await disconnect(wagmiClient, { connector });
-    }
+    // Ensure all wagmi connector sessions are cleared (v3 keeps per-connector connections).
+    await disconnectAllEvmWagmi();
     dispatch(setAddress(null));
     dispatch(setChainId(null));
     dispatch(setIsConnected(false));
@@ -514,7 +528,7 @@ function LaunchAppLayout() {
     dispatch(clearCheckin());
     // Fully clear auth state (token + user) across the app (includes Privy logout via bridge)
     await logout();
-  });
+  }, [dispatch, disconnectSolana, logout]);
 
   useEffect(() => {
     const points = user?.season1?.points;
@@ -657,19 +671,35 @@ function LaunchAppLayout() {
     );
 
     if (connector) {
-      connect(wagmiClient, { connector })
-        .then(() => {
-          const type =
-            option.walletType === "metamask" ? "metamask" : "evm";
-          dispatch(setWalletType(type));
-          persistWalletType(type);
-          dispatch(setIsConnected(true));
-          dispatch(setSessionSource("wallet"));
-        })
-        .catch((err) => {
+      try {
+        // Defensive cleanup for stale connector state before reconnect.
+        await disconnectAllEvmWagmi();
+        await connect(wagmiClient, { connector });
+        const type = option.walletType === "metamask" ? "metamask" : "evm";
+        dispatch(setWalletType(type));
+        persistWalletType(type);
+        dispatch(setIsConnected(true));
+        dispatch(setSessionSource("wallet"));
+      } catch (err) {
+        const message = String(err?.message || "").toLowerCase();
+        if (message.includes("already connected")) {
+          try {
+            await disconnect(wagmiClient, { connector });
+            await connect(wagmiClient, { connector });
+            const type = option.walletType === "metamask" ? "metamask" : "evm";
+            dispatch(setWalletType(type));
+            persistWalletType(type);
+            dispatch(setIsConnected(true));
+            dispatch(setSessionSource("wallet"));
+            return;
+          } catch (retryErr) {
+            console.error("Wallet reconnect after stale session failed:", retryErr);
+          }
+        } else {
           console.error("Wallet connection error:", err);
-          toast.error("Failed to connect wallet. Please try again.");
-        });
+        }
+        toast.error("Failed to connect wallet. Please try again.");
+      }
     } else {
       toast.error(
         option.name +
@@ -700,6 +730,11 @@ function LaunchAppLayout() {
       <div className="w-full flex-1 pt-20 flex min-h-0">
         <LaunchSidebar />
         <main className="w-full flex flex-col min-h-0">
+          {/* {!token && !!referrerDisplay && (
+            <div className="mx-6 mt-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-xs text-blue-900 w-fit relative -top-5">
+              Referred by {referrerDisplay}
+            </div>
+          )} */}
           <Outlet />
         </main>
       </div>
@@ -821,18 +856,32 @@ function BetaAccessLayout() {
       c.name.toLowerCase().includes(option.name.toLowerCase()),
     );
     if (connector) {
-      connect(wagmiClient, { connector })
-        .then(() => {
-          const type =
-            option.walletType === "metamask" ? "metamask" : "evm";
-          dispatch(setWalletType(type));
-          persistWalletType(type);
-          dispatch(setSessionSource("wallet"));
-        })
-        .catch((err) => {
+      try {
+        await disconnectAllEvmWagmi();
+        await connect(wagmiClient, { connector });
+        const type = option.walletType === "metamask" ? "metamask" : "evm";
+        dispatch(setWalletType(type));
+        persistWalletType(type);
+        dispatch(setSessionSource("wallet"));
+      } catch (err) {
+        const message = String(err?.message || "").toLowerCase();
+        if (message.includes("already connected")) {
+          try {
+            await disconnect(wagmiClient, { connector });
+            await connect(wagmiClient, { connector });
+            const type = option.walletType === "metamask" ? "metamask" : "evm";
+            dispatch(setWalletType(type));
+            persistWalletType(type);
+            dispatch(setSessionSource("wallet"));
+            return;
+          } catch (retryErr) {
+            console.error("Wallet reconnect after stale session failed:", retryErr);
+          }
+        } else {
           console.error("Wallet connection error:", err);
-          toast.error("Failed to connect wallet. Please try again.");
-        });
+        }
+        toast.error("Failed to connect wallet. Please try again.");
+      }
     } else {
       toast.error(
         option.name +
@@ -1051,9 +1100,7 @@ function WalletSync() {
             persistWalletType(resolvedType);
             dispatch(setAddress(activeConnection.accounts[0]));
             dispatch(
-              setChainId(
-                activeConnection.chainId ?? getChainId(wagmiClient),
-              ),
+              setChainId(activeConnection.chainId ?? getChainId(wagmiClient)),
             );
             dispatch(setIsConnected(true));
             dispatch(setSessionSource("wallet"));
@@ -1160,6 +1207,38 @@ function App() {
   // App only decides visibility; storage updates happen in CongratsModal after open.
     setShowModal(lastShown !== today && count < 3 && isAuthenticated);
   }, [lastShown, count, isAuthenticated]);
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const ref = url.searchParams.get("ref");
+    if (!ref) return;
+    const normalizedRef = ref.toLowerCase();
+    localStorage.setItem("allox_ref", normalizedRef);
+
+    fetch(
+      `${getApi2Url()}/referral/track?ref=${encodeURIComponent(normalizedRef)}`,
+      {
+        credentials: "include",
+      },
+    ).catch(() => {});
+
+    fetch(
+      `${getApi2Url()}/referral/check/${encodeURIComponent(normalizedRef)}`,
+      {
+        credentials: "include",
+      },
+    )
+      .then(async (response) => {
+        if (!response.ok) return null;
+        return response.json();
+      })
+      .then((payload) => {
+        const display = payload?.referrerDisplay;
+        if (!display) return;
+        localStorage.setItem("allox_referrer_display", display);
+      })
+      .catch(() => {});
+  }, []);
 
   if (MAINTENANCE_MODE) {
     return (
