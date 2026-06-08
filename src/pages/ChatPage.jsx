@@ -505,7 +505,7 @@ export function ChatPage() {
       );
 
       await ensureAuthenticated();
-      const response = await apiCall("/chat/message", {
+      const response = await apiCall("/chat/allox/message", {
         method: "POST",
         body: JSON.stringify({ message: `remove ${symbol}` }),
       });
@@ -615,7 +615,7 @@ export function ChatPage() {
       try {
         await ensureAuthenticated();
         if (cancelled) return;
-        await apiCall("/chat/message", {
+        await apiCall("/chat/allox/message", {
           method: "POST",
           body: JSON.stringify({ message: "Start over" }),
         });
@@ -1339,7 +1339,7 @@ export function ChatPage() {
 
         const prompt = `Build a $${quickForm.amountUsd} ${riskLabel} ${interestLabel} portfolio on ${chainLabel}`;
 
-        const response = await apiCall("/chat/message", {
+        const response = await apiCall("/chat/allox/message", {
           method: "POST",
           body: JSON.stringify({ message: prompt }),
         });
@@ -1434,7 +1434,7 @@ export function ChatPage() {
 
       const prompt = `Confirm and execute this quick portfolio.\nChain: ${chainLabel}\nPayment token: ${quickForm.paymentToken}\n- Portfolio type: ${interestLabel}\n- Investment: $${quickForm.amountUsd}\n- Risk tolerance: ${riskLabel}\nTokens:\n${tokenLines}`;
 
-      const response = await apiCall("/chat/message", {
+      const response = await apiCall("/chat/allox/message", {
         method: "POST",
         body: JSON.stringify({ message: prompt }),
       });
@@ -1587,7 +1587,7 @@ export function ChatPage() {
 
       try {
         await ensureAuthenticated();
-        const response = await apiCall("/chat/message", {
+        const response = await apiCall("/chat/allox/message", {
           method: "POST",
           body: JSON.stringify({ message: trimmed }),
         });
