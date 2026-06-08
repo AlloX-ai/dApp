@@ -63,7 +63,7 @@ export function HistoryPage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await apiCall("/chat/history");
+      const data = await apiCall("/chat/allox/history");
       const sessions = Array.isArray(data) ? data : (data?.sessions ?? []);
       dispatch(
         setChatSessions(
@@ -90,7 +90,7 @@ export function HistoryPage() {
   const handleLoadChat = useCallback(
     async (session) => {
       try {
-        const data = await apiCall(`/chat/history/${session.id}`);
+        const data = await apiCall(`/chat/allox/history/${session.id}`);
         const messages = data?.messages ?? [];
         dispatch(setCurrentMessages(Array.isArray(messages) ? messages : []));
         dispatch(setViewingHistorySessionId(session.id));
@@ -115,7 +115,7 @@ export function HistoryPage() {
         return;
       }
       try {
-        await apiCall(`/chat/history/${sessionId}/title`, {
+        await apiCall(`/chat/allox/history/${sessionId}/title`, {
           method: "DELETE",
           body: JSON.stringify({ title: editTitle.trim() }),
         });
@@ -136,7 +136,7 @@ export function HistoryPage() {
       event?.stopPropagation();
       setDeletingId(sessionId);
       try {
-        await apiCall(`/chat/history/${sessionId}`, { method: "DELETE" });
+        await apiCall(`/chat/allox/history/${sessionId}`, { method: "DELETE" });
         dispatch(
           setChatSessions(chatSessions.filter((s) => s.id !== sessionId)),
         );
@@ -153,7 +153,7 @@ export function HistoryPage() {
     setDeletingAll(true);
     setError(null);
     try {
-      await apiCall("/chat/history", { method: "DELETE" });
+      await apiCall("/chat/allox/history", { method: "DELETE" });
       dispatch(setChatSessions([]));
       setDeleteAllConfirm(false);
     } catch (err) {

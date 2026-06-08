@@ -1199,14 +1199,14 @@ function App() {
   const { address } = useSelector((state) => state.wallet);
   const { isAuthenticated } = useAuth();
 
-  // const [showModal, setShowModal] = useState(false);
-  // const lastShown = localStorage.getItem("chatDate");
-  // const count = parseInt(localStorage.getItem("chatCount") || "0", 10);
-  // useEffect(() => {
-  //   const today = new Date().toDateString();
+  const [showModal, setShowModal] = useState(false);
+  const lastShown = localStorage.getItem("alloxRacechatDate");
+  const count = parseInt(localStorage.getItem("alloxRaceChatCount") || "0", 10);
+  useEffect(() => {
+    const today = new Date().toDateString();
   // App only decides visibility; storage updates happen in CongratsModal after open.
-  //   setShowModal(lastShown !== today && count < 3 && isAuthenticated);
-  // }, [lastShown, count, isAuthenticated]);
+    setShowModal(lastShown !== today && count < 3 && isAuthenticated);
+  }, [lastShown, count, isAuthenticated]);
 
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -1269,7 +1269,7 @@ function App() {
           <Route path="/referrals" element={<ReferralsPage />} />
         </Route>
       </Routes>
-      {/* {showModal && (
+      {showModal && (
         <CongratsModal
           isOpen={showModal}
           onClose={() => {
@@ -1277,7 +1277,7 @@ function App() {
           }}
           address={address}
         />
-      )} */}
+      )}
       {isAuthenticated && <AIChatWidget />}
     </>
   );

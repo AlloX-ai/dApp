@@ -492,8 +492,8 @@ export const useAuth = () => {
     writeStoredAuthProvider(null);
     initialRefreshAttempted = false;
     try {
-      localStorage.removeItem("chatCount");
-      localStorage.removeItem("chatDate");
+      localStorage.removeItem("alloxRaceChatCount");
+      localStorage.removeItem("alloxRacechatDate");
     } catch (e) {
       console.error(e);
     }
