@@ -69,6 +69,7 @@ import { MaintenancePage } from "./pages/MaintenancePage";
 import { TopPortfoliosPage } from "./pages/TopPortfoliosPage";
 import { WatchlistPage } from "./pages/WatchlistPage";
 import { PrimePicks } from "./pages/PrimePicks";
+import { persistBinanceBoosterAddrFromSearch } from "./utils/binanceCampaign";
 
 const MAINTENANCE_MODE = false;
 
@@ -134,6 +135,7 @@ function PrivyEnsureBnbChain() {
 function LaunchAppLayout() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
   const wasConnectedRef = useRef(false);
   const prevAddressRef = useRef(undefined);
   const prevWalletTypeRef = useRef(undefined);
@@ -169,6 +171,10 @@ function LaunchAppLayout() {
   const privyVerifyAttemptedRef = useRef(false);
   const privyVerifyFailuresRef = useRef(0);
   const privyVerifyCooldownUntilRef = useRef(0);
+
+  useEffect(() => {
+    persistBinanceBoosterAddrFromSearch(location.search);
+  }, [location.search]);
 
   const attemptWalletAuthentication = useCallback(
     async ({

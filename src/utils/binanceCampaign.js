@@ -27,7 +27,7 @@ export const BINANCE_CAMPAIGN_EXECUTE_PATH =
 
 /** Reward tiers — min portfolio volume (USD) per Binance campaign lucky draw */
 export const BINANCE_CAMPAIGN_AMOUNT_TIERS = [
-  { amountUsd: 25, tier: 1 },
+  { amountUsd: 20, tier: 1 },
   { amountUsd: 100, tier: 2 },
   { amountUsd: 500, tier: 3 },
   { amountUsd: 1000, tier: 4 },
@@ -38,13 +38,13 @@ export const BINANCE_CAMPAIGN_MIN_AMOUNT_USD = 25;
 
 /** Tokens eligible for Prime Picks / Binance campaign portfolios */
 export const PRIME_PICKS_INCLUDED_TOKENS = [
-  { symbol: "BNB", iconColor: "bg-yellow-400" },
-  { symbol: "CAKE", iconColor: "bg-teal-400" },
-  { symbol: "BTCB", iconColor: "bg-orange-400" },
-  { symbol: "ETH", iconColor: "bg-blue-500" },
-  { symbol: "LINK", iconColor: "bg-blue-700" },
-  { symbol: "UNI", iconColor: "bg-pink-400" },
-  { symbol: "ASTR", iconColor: "bg-purple-500" },
+  { symbol: "BNB", iconColor: "bg-yellow-400", logo: 'https://cdn.allox.ai/allox/tokens/bnbToken.png' },
+  { symbol: "CAKE", iconColor: "bg-teal-400", logo: 'https://cdn.allox.ai/allox/tokens/cakeToken.png' },
+  { symbol: "BTCB", iconColor: "bg-orange-400", logo: 'https://cdn.allox.ai/allox/tokens/bitcoinToken.svg' },
+  { symbol: "ETH", iconColor: "bg-blue-500", logo: 'https://cdn.allox.ai/allox/tokens/ethToken.png' },
+  { symbol: "LINK", iconColor: "bg-blue-700", logo: 'https://cdn.allox.ai/allox/tokens/linkToken.png' },
+  { symbol: "UNI", iconColor: "bg-pink-400", logo: 'https://cdn.allox.ai/allox/tokens/uniToken.png' },
+  { symbol: "ASTR", iconColor: "bg-purple-500", logo: 'https://cdn.allox.ai/allox/tokens/asterToken.png' },
 ];
 
 export const PRIME_PICKS_PORTFOLIO_SIZE = 3;
@@ -210,6 +210,31 @@ export function parsePortfolioBasketFromResponse(
   }
 
   return { previewId: extractCampaignPreviewId(response), previewMeta: null, basket: [] };
+}
+
+export const BINANCE_BOOSTER_ADDR_STORAGE_KEY = "binance_booster_addr";
+export const BINANCE_BOOSTER_ADDR_PARAM = "binanceBoosterVerAddr";
+export const BINANCE_WALLET_ADDRESS_HELP_URL =
+  "https://www.binance.com/en/support/faq/detail/ebfa9f504ec548968bf0c1ed591a3eaa";
+
+/** Persist campaign keyless wallet from `?binanceBoosterVerAddr=` (any page load). */
+export function persistBinanceBoosterAddrFromSearch(search) {
+  const params = new URLSearchParams(search || "");
+  const raw = params.get(BINANCE_BOOSTER_ADDR_PARAM)?.trim();
+  if (!raw) return;
+  try {
+    localStorage.setItem(BINANCE_BOOSTER_ADDR_STORAGE_KEY, raw.toLowerCase());
+  } catch {
+    /* ignore */
+  }
+}
+
+export function getStoredBinanceBoosterAddr() {
+  try {
+    return localStorage.getItem(BINANCE_BOOSTER_ADDR_STORAGE_KEY);
+  } catch {
+    return null;
+  }
 }
 
 export function getBinanceMissingSelections(form) {
