@@ -1,13 +1,13 @@
 # AlloX dApp
 
-A Web3 points and rewards dashboard built on **BNB Chain (BSC)** and compatible with other EVM networks, featuring seamless wallet connectivity via the **BNB Wallet SDK**.
+A Web3 points and rewards dashboard built on **BNB Chain (BSC)** and compatible with other EVM networks, featuring wallet connectivity via **WalletConnect**, **MetaMask**, and other standard wallets.
 
 ## Technology Stack
 
 - **Blockchain**: BNB Chain + EVM-compatible chains
-- **BNB Chain SDKs:** `@binance/w3w-wagmi-connector-v2` (BNB Chain official Web3 Wallet Connector)
+- **Wallet connectivity:** [Wagmi](https://wagmi.sh) v3 + [WalletConnect](https://walletconnect.com/) + [MetaMask Connect](https://docs.metamask.io/metamask-connect/)
 - **Smart Contracts**: Solidity ^0.8.x
-- **Frontend**: React + ethers.js + BNB Wallet SDK
+- **Frontend**: React + ethers.js + wagmi / viem
 - **Development**: Hardhat, OpenZeppelin libraries
 
 ## Supported Networks

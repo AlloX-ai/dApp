@@ -1,6 +1,6 @@
 import { X, Trophy, Gem, Share2, Sparkles, PartyPopper } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { findSeason2RewardForWallet, findSeason3RewardForWallet } from "../constants/rewards";
+import { findAllocationRaceRewardForWallet } from "../constants/rewards";
 import { useEffect, useMemo } from "react";
 
 interface CongratsModalProps {
@@ -22,7 +22,7 @@ export function CongratsModal({
 
 
   const user3 = useMemo(
-    () => findSeason3RewardForWallet(address),
+    () => findAllocationRaceRewardForWallet(address),
     [address],
   );
 
@@ -30,15 +30,15 @@ export function CongratsModal({
     if (!isOpen || (!user3)) return;
 
     const today = new Date().toDateString();
-    const lastShown = localStorage.getItem("chatDate");
+    const lastShown = localStorage.getItem("alloxRacechatDate");
     const count = parseInt(
-      localStorage.getItem("chatCount") || "0",
+      localStorage.getItem("alloxRaceChatCount") || "0",
       10,
     );
 
     if (lastShown !== today && count < 3) {
-      localStorage.setItem("chatCount", String(count + 1));
-      localStorage.setItem("chatDate", today);
+      localStorage.setItem("alloxRaceChatCount", String(count + 1));
+      localStorage.setItem("alloxRacechatDate", today);
     }
   }, [isOpen, user3]);
 
@@ -87,7 +87,7 @@ export function CongratsModal({
                 initial={{ scale: 0, rotate: -180 }}
                 animate={{ scale: 1, rotate: 0 }}
                 transition={{ type: "spring", delay: 0.2, duration: 0.6 }}
-                className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-yellow-400 via-orange-500 to-pink-500 rounded-full flex items-center justify-center shadow-2xl relative"
+                className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-purple-500 via-cyan-500 to-purple-600 rounded-full flex items-center justify-center shadow-2xl relative"
               >
                 <Trophy className="w-12 h-12 text-white" />
                 <motion.div
@@ -100,7 +100,7 @@ export function CongratsModal({
                     duration: 2,
                     ease: "easeInOut",
                   }}
-                  className="absolute inset-0 bg-gradient-to-br from-yellow-400 to-pink-500 rounded-full blur-xl"
+                  className="absolute inset-0 bg-gradient-to-br from-purple-400 to-blue-500 rounded-full blur-xl"
                 />
               </motion.div>
 
@@ -120,7 +120,7 @@ export function CongratsModal({
                 transition={{ delay: 0.4 }}
                 className="text-lg text-gray-700 mb-6"
               >
-                You are a winner of Spring Series S3
+                You are a winner of the Allocation Race Campaign
               </motion.p>
 
               {/* Rewards Display */}
@@ -139,7 +139,7 @@ export function CongratsModal({
                     {(user3 ? Number(user3.gems) : 0)}
                   </span>
                   <span className="text-xl text-gray-600">
-                    (${ user3 ? Number(user3.gems) * 5 : 0})
+                    (${user3 ? Number(user3.gems) * 5 : 0})
                   </span>
                 </div>
               </motion.div>

@@ -718,10 +718,10 @@ export type PurchasePrivyEvmSigner = {
   switchChain?: (chainId: number) => Promise<void>;
 };
 
-// ─── Mobile WalletConnect (Binance app) purchase helpers ────────────────────
+// ─── Mobile WalletConnect purchase helpers ────────────────────────────────────
 //
 // On mobile Chrome the browser goes to background while the user confirms in
-// the wallet app. The WalletConnect (or Binance W3W) relay can drop the
+// the wallet app. The WalletConnect relay can drop the
 // response, so `writeContractAsync` may NEVER resolve even though the tx was
 // broadcast and confirmed on-chain.
 //
@@ -729,7 +729,7 @@ export type PurchasePrivyEvmSigner = {
 // BSC logs for a matching confirmed purchase from the user's address. Whichever
 // path delivers the txHash first wins. This means:
 //  - Fast WalletConnect path (wallet responds within ~10 s): use that hash.
-//  - Slow / broken path (Binance W3W deep-link drops the response): chain
+//  - Slow / broken path (mobile relay drops the response): chain
 //    polling detects the confirmed tx within seconds and unblocks the UI.
 //
 // For the BUY step we intentionally do NOT await `waitForTransactionReceipt`

@@ -28,6 +28,7 @@ import OutsideClickHandler from "react-outside-click-handler";
 import {
   findSeason2RewardForWallet,
   findSeason3RewardForWallet,
+  findAllocationRaceRewardForWallet,
 } from "../constants/rewards";
 import { MessageLimitModal } from "./MessageLimitModal";
 import { useAuth } from "../hooks/useAuth";
@@ -60,6 +61,10 @@ export function Header({
 
   const user = useMemo(() => findSeason2RewardForWallet(coinbase), [coinbase]);
   const user3 = useMemo(() => findSeason3RewardForWallet(coinbase), [coinbase]);
+  const user4 = useMemo(
+    () => findAllocationRaceRewardForWallet(coinbase),
+    [coinbase],
+  );
   const { checkedInToday } = useCheckin();
   const { user: authUser, isAuthenticated } = useAuth();
 
@@ -127,17 +132,19 @@ export function Header({
                       {totalPoints.toLocaleString()}
                     </span>
                   </div>
-                  {(messagesRemaining != null || user || user3) && (
+                  {(messagesRemaining != null || user || user3 || user4) && (
                     <div className="border-l border-gray-200/60 pl-3 flex items-center gap-2">
                       <Gem className="size-4 text-purple-600" />
                       <span className="text-xs sm:text-sm font-semibold tabular-nums flex">
                         {(user ? Number(user.gems) : 0) +
-                          (user3 ? Number(user3.gems) : 0)}
+                          (user3 ? Number(user3.gems) : 0) +
+                          (user4 ? Number(user4.gems) : 0)}
 
                         <span className="text-xs sm:text-sm font-semibold tabular-nums text-[#4A5565]">
                           ($
-                          {(user ? Number(user.gems) : 0)* 5 +
-                            (user3 ? Number(user3.gems) : 0) * 5}
+                          {(user ? Number(user.gems) : 0) * 5 +
+                            (user3 ? Number(user3.gems) : 0) * 5 +
+                            (user4 ? Number(user4.gems) : 0) * 5}
                           )
                         </span>
                       </span>
@@ -327,7 +334,7 @@ export function Header({
                           )}
 
                           {isConnected && (
-                            <div className="rounded-xl border border-gray-100 bg-gray-50/80 p-3 flex items-center gap-2 justify-between">
+                            <div className="rounded-xl border border-gray-100 bg-gray-50/80 p-3 flex flex-col gap-2 justify-between">
                               <div className="flex items-center gap-2 justify-between">
                                 <span
                                   className="pl-1 py-1 text-xs font-medium flex gap-3 items-center"
@@ -341,8 +348,8 @@ export function Header({
                                   {shortAddress(coinbase)}
                                 </span>
                               </div>
-
-                              <div className="rounded-full border border-gray-200/80 px-2 py-1 flex items-center justify-between gap-2 bg-white shadow-sm hover:bg-gray-50">
+<div className="flex items-center gap-2" >
+                              <div className="rounded-full w-full border border-gray-200/80 px-2 py-1 flex items-center justify-between gap-2 bg-white shadow-sm hover:bg-gray-50">
                                 <div className="flex items-center gap-2">
                                   <Coins className="size-4 text-amber-500" />
                                   <span className="text-xs font-semibold tabular-nums">
@@ -352,8 +359,9 @@ export function Header({
                                 <div className="flex items-center gap-2">
                                   <Gem className="size-4 text-purple-600" />
                                   <span className="text-xs font-semibold tabular-nums">
-                                {(user ? Number(user.gems) : 0) +
-                          (user3 ? Number(user3.gems) : 0)}
+                                    {(user ? Number(user.gems) : 0) +
+                                      (user3 ? Number(user3.gems) : 0) +
+                                      (user4 ? Number(user4.gems) : 0)}
                                   </span>
                                 </div>
                               </div>
@@ -375,6 +383,8 @@ export function Header({
                                   </button>
                                 )}
                             </div>
+                            </div>
+
                           )}
 
                           <div className="px-4 pb-4 mt-auto">

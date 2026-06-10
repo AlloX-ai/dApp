@@ -7,12 +7,13 @@ import { setAddress, setChainId, setIsConnected, setWalletType } from "../redux/
 import { connect, disconnect, getAccount } from "@wagmi/core";
 import { wagmiClient } from "../wagmiConnectors";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { useSwitchChain, useAccount } from "wagmi";
+import { useSwitchChain, useConnection } from "wagmi";
 import { useWallets } from "@privy-io/react-auth";
 import {
   getPrivyEmbedded,
   switchPrivyEmbeddedToChain,
 } from "../utils/privyWalletUtils";
+import { persistWalletType } from "../utils/walletPersistence";
 
 const PREFERRED_CHAIN_STORAGE_KEY = "walletPreferredChainId";
 const SOLANA_CHAIN_ID = 101;
@@ -43,11 +44,16 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
   const [switching, setSwitching] = useState(false);
   const chainId = useSelector((state: any) => state.wallet.chainId);
   const walletType = useSelector((state: any) => state.wallet.walletType);
-  const { connected: solanaConnected, publicKey: solanaPublicKey } = useWallet();
+  const {
+    connected: solanaConnected,
+    publicKey: solanaPublicKey,
+    wallet: solanaWallet,
+    disconnect: disconnectSolanaWallet,
+  } = useWallet();
   const sessionSource = useSelector((state: any) => state.wallet.sessionSource);
   const { wallets } = useWallets();
-  const { connector } = useAccount();
-  const { switchChainAsync } = useSwitchChain();
+  const { connector } = useConnection();
+  const switchChain = useSwitchChain();
 
   const embeddedWallet = getPrivyEmbedded(wallets);
   const privySwitchWallet =
@@ -117,12 +123,85 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
   const selectedNetwork =
     networks.find((network) => network.chainId === chainId) ?? errorNetwork[0];
 
+  const isMetaMaskSolanaWallet = () =>
+    solanaWallet?.adapter?.name?.toLowerCase?.().includes("metamask") ?? false;
+
+  /** MetaMask Solana via QR/mobile has no window.ethereum — use wagmi MetaMask Connect. */
+  const switchSolanaToEvmViaMetaMaskConnect = async (network: NetworkOption) => {
+    setSwitching(true);
+    setIsSwitching(true);
+    try {
+      const metaMaskConnector = wagmiClient.connectors.find((c) =>
+        c.name?.toLowerCase().includes("metamask"),
+      );
+      if (!metaMaskConnector) {
+        toast.error("MetaMask connector not available.");
+        return;
+      }
+
+      if (solanaConnected) {
+        try {
+          await disconnectSolanaWallet();
+        } catch (e) {
+          console.warn("Solana disconnect before EVM:", e);
+        }
+      }
+
+      const existing = getAccount(wagmiClient);
+      const alreadyMetaMask =
+        existing?.connector?.name?.toLowerCase?.().includes("metamask") &&
+        existing?.status === "connected";
+
+      if (!alreadyMetaMask) {
+        await connect(wagmiClient, { connector: metaMaskConnector });
+      } else if (switchChain.mutateAsync) {
+        await switchChain.mutateAsync({ chainId: network.chainId });
+      }
+
+      const account = getAccount(wagmiClient);
+      if (
+        account?.status === "connected" &&
+        switchChain.mutateAsync &&
+        account.chainId !== network.chainId
+      ) {
+        await switchChain.mutateAsync({ chainId: network.chainId });
+      }
+
+      if (account?.address) {
+        dispatch(setAddress(account.address));
+        dispatch(setWalletType("metamask"));
+        persistWalletType("metamask");
+        dispatch(setIsConnected(true));
+      }
+      dispatch(setChainId(network.chainId));
+      localStorage.removeItem(PREFERRED_CHAIN_STORAGE_KEY);
+      setIsOpen(false);
+    } catch (error) {
+      console.error("MetaMask Solana → EVM switch:", error);
+      toast.error(
+        "Failed to switch network. Approve the connection in MetaMask.",
+      );
+    } finally {
+      setSwitching(false);
+      setIsSwitching(false);
+    }
+  };
+
   const handleSwitchNetwork = async (network: NetworkOption) => {
     // Already on Solana — just ensure chain state is correct
     if (network.name === "Solana") {
       localStorage.setItem(PREFERRED_CHAIN_STORAGE_KEY, String(SOLANA_CHAIN_ID));
       dispatch(setChainId(SOLANA_CHAIN_ID));
       setIsOpen(false);
+      return;
+    }
+
+    if (
+      walletType === "solana" &&
+      !isPrivySession &&
+      isMetaMaskSolanaWallet()
+    ) {
+      await switchSolanaToEvmViaMetaMaskConnect(network);
       return;
     }
 
@@ -220,6 +299,7 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
             if (account?.address) {
               dispatch(setAddress(account.address));
               dispatch(setWalletType("evm"));
+              persistWalletType("evm");
               dispatch(setIsConnected(true));
             }
           }
@@ -262,7 +342,7 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
       await switchPrivyEVMChain(network);
       return;
     }
-    if (!switchChainAsync) {
+    if (!switchChain.mutateAsync) {
       toast.error("Unable to switch chain. Please try reconnecting your wallet.");
       return;
     }
@@ -272,7 +352,7 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
     }
     try {
       setIsSwitching(true);
-      await switchChainAsync({ chainId: network.chainId });
+      await switchChain.mutateAsync({ chainId: network.chainId });
       dispatch(setChainId(network.chainId));
       localStorage.removeItem(PREFERRED_CHAIN_STORAGE_KEY);
       setIsOpen(false);
@@ -293,7 +373,7 @@ export function NetworkSelector({ onDisconnectClick }: NetworkSelectorProps) {
               },
             ],
           });
-          await switchChainAsync({ chainId: network.chainId });
+          await switchChain.mutateAsync({ chainId: network.chainId });
           dispatch(setChainId(network.chainId));
           localStorage.removeItem(PREFERRED_CHAIN_STORAGE_KEY);
           setIsOpen(false);

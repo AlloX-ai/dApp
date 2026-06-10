@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useAccount, useSignMessage } from "wagmi";
+import { useConnection, useSignMessage } from "wagmi";
 import { useWallet } from "@solana/wallet-adapter-react";
 import bs58 from "bs58";
 import {
@@ -10,6 +10,8 @@ import {
   refreshAuthToken,
 } from "../utils/api";
 import { setWalletType } from "../redux/slices/walletSlice";
+import { persistWalletType, getPersistedWalletType } from "../utils/walletPersistence";
+import { resolveWalletProvider } from "../utils/resolveWalletProvider";
 import { runPrivyLogoutBridge } from "../auth/privyLogoutBridge";
 import { toast } from "../utils/toast";
 
@@ -77,6 +79,15 @@ let initialRefreshAttempted = false;
 // Prevents double sign requests when React effects re-run due to walletType/address settling.
 let globalAuthInFlight = null;
 let globalAuthInFlightAddress = null;
+let authRateLimitedUntil = 0;
+const AUTH_RATE_LIMIT_COOLDOWN_MS = 45000;
+
+const isRateLimitError = (error) => {
+  const status = Number(error?.status ?? error?.code);
+  if (status === 429) return true;
+  const msg = String(error?.message ?? error?.data?.error ?? "").toLowerCase();
+  return msg.includes("429") || msg.includes("too many requests") || msg.includes("rate limit");
+};
 
 const notifySubscribers = () => {
   for (const cb of subscribers) {
@@ -202,9 +213,9 @@ export async function completePrivyAuth(privyToken) {
 
 export const useAuth = () => {
   const dispatch = useDispatch();
-  const { address: evmAddress } = useAccount();
-  const { signMessageAsync } = useSignMessage();
-  const { signMessage: signMessageSolana } = useWallet();
+  const { address: evmAddress, connector } = useConnection();
+  const signMessage = useSignMessage();
+  const { signMessage: signMessageSolana, wallet: solanaWallet } = useWallet();
   const walletAddress = useSelector((state) => state.wallet.address);
   const walletType = useSelector((state) => state.wallet.walletType);
 
@@ -329,16 +340,33 @@ export const useAuth = () => {
             ? rawSig
             : bs58.encode(new Uint8Array(rawSig));
       } else {
-        signature = await signTimeout(signMessageAsync({ message }));
+        signature = await signTimeout(signMessage.mutateAsync({ message }));
       }
 
       toast.loading("Signature received. Verifying with AlloX...", {
         id: toastId,
       });
 
+      const walletProvider = resolveWalletProvider({
+        connector: walletTypeFromApi === "solana" ? null : connector,
+        walletType: walletTypeFromApi,
+        solanaAdapterName: solanaWallet?.adapter?.name,
+        persistedWalletType: getPersistedWalletType(),
+      });
+
+      const referralCode =
+        typeof window !== "undefined"
+          ? localStorage.getItem("allox_ref") || undefined
+          : undefined;
+
       const verifyRes = await apiCall("/auth/verify", {
         method: "POST",
-        body: JSON.stringify({ address, signature }),
+        body: JSON.stringify({
+          address,
+          signature,
+          walletProvider: walletProvider ?? null,
+          ...(referralCode ? { referralCode } : {}),
+        }),
       });
 
       if (!verifyRes.token) {
@@ -362,17 +390,30 @@ export const useAuth = () => {
 
       if (walletTypeFromApi) {
         dispatch(setWalletType(walletTypeFromApi));
+        persistWalletType(walletTypeFromApi);
       }
 
       toast.success("Wallet connected and verified.", { id: toastId });
       return { token: verifyRes.token, user: verifyRes.user };
     } catch (error) {
+      if (isRateLimitError(error)) {
+        authRateLimitedUntil = Date.now() + AUTH_RATE_LIMIT_COOLDOWN_MS;
+      }
       const message =
         error?.message || error?.data?.error || "Wallet verification failed";
       toast.error(message, { id: toastId });
       throw error;
     }
-  }, [address, walletType, signMessageAsync, signMessageSolana, setUser, dispatch]);
+  }, [
+    address,
+    walletType,
+    connector,
+    solanaWallet,
+    signMessage.mutateAsync,
+    signMessageSolana,
+    setUser,
+    dispatch,
+  ]);
 
   const claimSeason1 = useCallback(async () => {
     const t = token || localStorage.getItem("authToken");
@@ -387,7 +428,7 @@ export const useAuth = () => {
     // see the token immediately after it is saved — before React re-renders.
     // This prevents the race window where a second call arrives after
     // authenticate() resolves but before the React state update propagates,
-    // causing a duplicate sign request (visible on mobile with Binance/MetaMask).
+    // causing a duplicate sign request (visible on mobile with WalletConnect / MetaMask).
     const currentToken = globalAuthState.token || localStorage.getItem("authToken");
     if (currentToken) {
       if (currentToken !== globalAuthState.token) setGlobalToken(currentToken);
@@ -395,6 +436,17 @@ export const useAuth = () => {
     }
     if (walletType === "privy" || globalAuthState.user?.authProvider === "privy") {
       throw new Error("Privy session is still syncing. Please wait a moment and retry.");
+    }
+    if (Date.now() < authRateLimitedUntil) {
+      const secondsLeft = Math.max(
+        1,
+        Math.ceil((authRateLimitedUntil - Date.now()) / 1000),
+      );
+      const err = new Error(
+        `Too many authentication attempts. Please wait ${secondsLeft}s and try again.`,
+      );
+      err.status = 429;
+      throw err;
     }
     if (!address) throw new Error("Wallet not connected");
     // Reuse in-flight promise for the same address to prevent double sign
@@ -409,7 +461,7 @@ export const useAuth = () => {
         globalAuthInFlightAddress = null;
       });
     return globalAuthInFlight;
-  }, [address, authenticate]);
+  }, [address, authenticate, walletType]);
 
   const logout = useCallback(async () => {
     await runPrivyLogoutBridge();
@@ -420,8 +472,8 @@ export const useAuth = () => {
     writeStoredAuthProvider(null);
     initialRefreshAttempted = false;
     try {
-      localStorage.removeItem("chatCount");
-      localStorage.removeItem("chatDate");
+      localStorage.removeItem("alloxRaceChatCount");
+      localStorage.removeItem("alloxRacechatDate");
     } catch (e) {
       console.error(e);
     }

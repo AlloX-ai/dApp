@@ -611,7 +611,7 @@ export function ChatPage() {
       );
 
       await ensureAuthenticated();
-      const response = await apiCall("/chat/message", {
+      const response = await apiCall("/chat/allox/message", {
         method: "POST",
         body: JSON.stringify({ message: `remove ${symbol}` }),
       });
@@ -723,7 +723,7 @@ export function ChatPage() {
       try {
         await ensureAuthenticated();
         if (cancelled) return;
-        await apiCall("/chat/message", {
+        await apiCall("/chat/allox/message", {
           method: "POST",
           body: JSON.stringify({ message: "Start over" }),
         });
@@ -923,10 +923,16 @@ export function ChatPage() {
     : [];
   const recentPortfoliosLoading = recentPortfoliosQuery.isLoading;
 
+  const SOLANA_MAINNET_CHAIN_ID = 101;
+
   const SUPPORTED_ONCHAIN_CHAIN_IDS = useMemo(
     () => CHAIN_LIST.map((chain) => chain.chainId),
     [],
   );
+
+  const isSolanaWalletSession =
+    walletType === "solana" ||
+    Number(walletChainId) === SOLANA_MAINNET_CHAIN_ID;
 
   const CHAIN_NATIVE_COINGECKO_IDS = useMemo(
     () => ({
@@ -942,6 +948,7 @@ export function ChatPage() {
     enabled:
       isConnected &&
       !isReadOnly &&
+      !isSolanaWalletSession &&
       !!walletAddress &&
       SUPPORTED_ONCHAIN_CHAIN_IDS.includes(Number(walletChainId)),
     staleTime: 20_000,
@@ -1021,9 +1028,9 @@ export function ChatPage() {
     chainLabel: CHAINS[defaultBalanceChain]?.label || CHAINS.BSC.label,
     rows: [],
   };
-  const showChainBalancesPanel = SUPPORTED_ONCHAIN_CHAIN_IDS.includes(
-    Number(walletChainId),
-  );
+  const showChainBalancesPanel =
+    !isSolanaWalletSession &&
+    SUPPORTED_ONCHAIN_CHAIN_IDS.includes(Number(walletChainId));
 
   const renderChainBalancesContent = (compact = false) => {
     if (!isConnected) {
@@ -1440,7 +1447,7 @@ export function ChatPage() {
 
         const prompt = `Build a $${quickForm.amountUsd} ${riskLabel} ${interestLabel} portfolio on ${chainLabel}`;
 
-        const response = await apiCall("/chat/message", {
+        const response = await apiCall("/chat/allox/message", {
           method: "POST",
           body: JSON.stringify({ message: prompt }),
         });
@@ -1535,7 +1542,7 @@ export function ChatPage() {
 
       const prompt = `Confirm and execute this quick portfolio.\nChain: ${chainLabel}\nPayment token: ${quickForm.paymentToken}\n- Portfolio type: ${interestLabel}\n- Investment: $${quickForm.amountUsd}\n- Risk tolerance: ${riskLabel}\nTokens:\n${tokenLines}`;
 
-      const response = await apiCall("/chat/message", {
+      const response = await apiCall("/chat/allox/message", {
         method: "POST",
         body: JSON.stringify({ message: prompt }),
       });
@@ -1928,7 +1935,7 @@ export function ChatPage() {
 
       try {
         await ensureAuthenticated();
-        const response = await apiCall("/chat/message", {
+        const response = await apiCall("/chat/allox/message", {
           method: "POST",
           body: JSON.stringify({ message: trimmed }),
         });
