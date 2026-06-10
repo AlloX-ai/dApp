@@ -96,7 +96,9 @@ const PRIVY_VERIFY_MAX_COOLDOWN_MS = 120000;
 const isRateLimitError = (error) => {
   const status = Number(error?.status ?? error?.code);
   if (status === 429) return true;
-  const message = String(error?.message ?? error?.data?.error ?? "").toLowerCase();
+  const message = String(
+    error?.message ?? error?.data?.error ?? "",
+  ).toLowerCase();
   return message.includes("429") || message.includes("too many requests");
 };
 
@@ -659,8 +661,7 @@ function LaunchAppLayout() {
     if (connector) {
       connect(wagmiClient, { connector })
         .then(() => {
-          const type =
-            option.walletType === "metamask" ? "metamask" : "evm";
+          const type = option.walletType === "metamask" ? "metamask" : "evm";
           dispatch(setWalletType(type));
           persistWalletType(type);
           dispatch(setIsConnected(true));
@@ -727,7 +728,10 @@ function LaunchAppLayout() {
 
       <CheckinModal
         open={checkinModal}
-        onClose={() => dispatch(closeCheckinModal())}
+        onClose={() => {
+          dispatch(closeCheckinModal());
+          window.location.hash = "";
+        }}
         status={checkinStatus}
         claim={claimCheckin}
         fetchStatus={fetchCheckinStatus}
@@ -823,8 +827,7 @@ function BetaAccessLayout() {
     if (connector) {
       connect(wagmiClient, { connector })
         .then(() => {
-          const type =
-            option.walletType === "metamask" ? "metamask" : "evm";
+          const type = option.walletType === "metamask" ? "metamask" : "evm";
           dispatch(setWalletType(type));
           persistWalletType(type);
           dispatch(setSessionSource("wallet"));
@@ -1051,9 +1054,7 @@ function WalletSync() {
             persistWalletType(resolvedType);
             dispatch(setAddress(activeConnection.accounts[0]));
             dispatch(
-              setChainId(
-                activeConnection.chainId ?? getChainId(wagmiClient),
-              ),
+              setChainId(activeConnection.chainId ?? getChainId(wagmiClient)),
             );
             dispatch(setIsConnected(true));
             dispatch(setSessionSource("wallet"));
@@ -1157,7 +1158,7 @@ function App() {
   const count = parseInt(localStorage.getItem("alloxRaceChatCount") || "0", 10);
   useEffect(() => {
     const today = new Date().toDateString();
-  // App only decides visibility; storage updates happen in CongratsModal after open.
+    // App only decides visibility; storage updates happen in CongratsModal after open.
     setShowModal(lastShown !== today && count < 3 && isAuthenticated);
   }, [lastShown, count, isAuthenticated]);
 
@@ -1199,7 +1200,7 @@ function App() {
           address={address}
         />
       )}
-      {isAuthenticated && <AIChatWidget />}
+      {/* {isAuthenticated && <AIChatWidget />} */}
     </>
   );
 }
