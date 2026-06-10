@@ -1199,7 +1199,7 @@ function App() {
           address={address}
         />
       )}
-      {isAuthenticated && <AIChatWidget />}
+      {/* {isAuthenticated && <AIChatWidget />} */}
     </>
   );
 }
