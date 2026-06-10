@@ -3717,6 +3717,23 @@ export function ChatPage() {
                       Prime Picks
                     </span>
                   </NavLink>
+                  <NavLink
+                    to="/campaigns?campaign=volume-league"
+                    className="inline-flex items-center gap-2.5 px-5 py-2 bg-gradient-to-r from-teal-500/10 via-cyan-500/10 to-emerald-500/10 border border-cyan-500/20 rounded-full shadow-lg shadow-cyan-500/5 backdrop-blur-sm overflow-hidden"
+                  >
+                    <div className="flex items-center justify-center w-6 h-6 bg-gradient-to-br from-teal-500 to-cyan-500 rounded-full transition-all duration-300">
+                      <TrendingUp
+                        size={14}
+                        className="text-white"
+                        strokeWidth={3}
+                      />
+                    </div>
+                    <span
+                      className={`text-sm font-semibold bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent transition-all duration-500`}
+                    >
+                      Volume League
+                    </span>
+                  </NavLink>
                 </div>
                 <div className="mb-8 grid grid-cols-2 md:grid-cols-3 gap-2">
                   {[
