@@ -36,6 +36,19 @@ export const BINANCE_CAMPAIGN_AMOUNT_TIERS = [
 
 export const BINANCE_CAMPAIGN_MIN_AMOUNT_USD = 25;
 
+/** Tokens eligible for Prime Picks / Binance campaign portfolios */
+export const PRIME_PICKS_INCLUDED_TOKENS = [
+  { symbol: "BNB", iconColor: "bg-yellow-400" },
+  { symbol: "CAKE", iconColor: "bg-teal-400" },
+  { symbol: "BTCB", iconColor: "bg-orange-400" },
+  { symbol: "ETH", iconColor: "bg-blue-500" },
+  { symbol: "LINK", iconColor: "bg-blue-700" },
+  { symbol: "UNI", iconColor: "bg-pink-400" },
+  { symbol: "ASTR", iconColor: "bg-purple-500" },
+];
+
+export const PRIME_PICKS_PORTFOLIO_SIZE = 3;
+
 export const BINANCE_RISK_OPTIONS = [
   {
     value: "CONSERVATIVE",
@@ -60,7 +73,7 @@ export const BINANCE_RISK_OPTIONS = [
   },
 ];
 
-export function buildBinancePreviewPayload({ amountUsd, risk }) {
+export function buildBinancePreviewPayload({ amountUsd, risk = "BALANCED" }) {
   return {
     chain: BINANCE_CAMPAIGN_CHAIN,
     amountUsd: Number(amountUsd),
@@ -71,7 +84,7 @@ export function buildBinancePreviewPayload({ amountUsd, risk }) {
 
 export function buildBinanceExecutePayload({
   amountUsd,
-  risk,
+  risk = "BALANCED",
   previewId,
   positions,
 }) {
@@ -209,6 +222,5 @@ export function getBinanceMissingSelections(form) {
       `investment of at least $${BINANCE_CAMPAIGN_MIN_AMOUNT_USD}`,
     );
   }
-  if (!form?.risk) missing.push("risk tolerance");
   return missing;
 }
