@@ -65,6 +65,7 @@ import { wagmiClient } from "../wagmiConnectors";
 import { erc20Abi, formatEther, formatUnits } from "viem";
 import { AnimatePresence, motion } from "motion/react";
 import ChatMoreInfoModal from "../components/ChatMoreInfoModal";
+import { SellPortfolioModal } from "../components/SellPortfolioModal";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CHAINS,
@@ -245,6 +246,7 @@ export function ChatPage() {
   const { switchChainAsync } = useSwitchChain();
 
   const speechBoxRef = useRef(null);
+  const chatScrollRef = useRef(null);
   const typingTimerRef = useRef(null);
   const typingMessageRef = useRef(null);
   const completedMessageIdsRef = useRef(new Set());
@@ -288,6 +290,8 @@ export function ChatPage() {
   // Quick portfolio wizard (form-based UX)
 
   const [showMoreInfoModal, setShowMoreInfoModal] = useState(false);
+  const [sellPortfolioModalOpen, setSellPortfolioModalOpen] = useState(false);
+  const [sellPortfolioTarget, setSellPortfolioTarget] = useState(null);
   const [lastBuildMode, setLastBuildMode] = useState("guided"); // "guided" | "quick"
   const [quickWizardOpen, setQuickWizardOpen] = useState(false);
   const [quickWizardStep, setQuickWizardStep] = useState(0); // 0..3
@@ -1941,13 +1945,51 @@ export function ChatPage() {
     dispatch(setMessage(""));
   };
 
-  const handleStartNewChat = () => {
+  const resetChatExecutionUi = useCallback(() => {
+    setExecutionState({
+      isExecuting: false,
+      currentSymbol: null,
+      completed: 0,
+      total: 0,
+      error: null,
+      portfolioId: null,
+      tokenStatuses: {},
+    });
+    setExecutionPrompt(null);
+    executionPromptResolverRef.current = null;
+  }, []);
+
+  const scrollChatToMainView = useCallback(() => {
+    chatScrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
+  const handleStartNewChat = useCallback(() => {
     closeQuickWizard();
     closeBinanceWizard();
+    resetQuickWizard();
+    resetBinanceWizard();
+    setSellPortfolioModalOpen(false);
+    setSellPortfolioTarget(null);
+    resetChatExecutionUi();
     dispatch(requestBackendChatReset());
     dispatch(setViewingHistorySessionId(null));
     dispatch(setCurrentMessages([]));
-  };
+    scrollChatToMainView();
+  }, [
+    closeBinanceWizard,
+    closeQuickWizard,
+    dispatch,
+    resetBinanceWizard,
+    resetChatExecutionUi,
+    resetQuickWizard,
+    scrollChatToMainView,
+  ]);
+
+  const handlePortfolioSellComplete = useCallback(async () => {
+    void queryClient.invalidateQueries({ queryKey: ["recentPortfolios"] });
+    handleStartNewChat();
+  }, [handleStartNewChat, queryClient]);
 
   const handleInputKeyDown = (event) => {
     if (event.key !== "Enter") return;
@@ -2594,40 +2636,39 @@ export function ChatPage() {
             </div>
           </div>
         )}
-        <div className="flex gap-2">
-          {/* <NavLink
-            to={`/portfolio?portfolio=${portfolio?.id}`}
-            className="px-3 py-2 bg-white/80 border border-gray-200 rounded-xl text-xs font-medium hover:bg-white hover:border-gray-300 hover:shadow-md transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            View Portfolio
-          </NavLink>
-          <button
-            onClick={() => {
-              handleSuggestionClick(
-                lastBuildMode === "quick"
-                  ? "Build Quick Portfolio"
-                  : "Build a Portfolio",
-              );
-            }}
-            className="px-3 py-2 bg-white/80 border border-gray-200 rounded-xl text-xs font-medium hover:bg-white hover:border-gray-300 hover:shadow-md transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            Create another portfolio
-          </button> */}
+        <div className="flex flex-col gap-2">
           {safeOptions.length > 0 && (
-            <div className="border-t border-green-200/60">
-              <div className="flex flex-wrap gap-2">
-                {safeOptions.map((option, index) => (
-                  <button
-                    key={`${option.action}-${option.value}-${index}`}
-                    onClick={() => handleOptionClick(option)}
-                    disabled={isReadOnly}
-                    className="px-3 py-2 bg-white/80 border border-gray-200 rounded-xl text-xs font-medium hover:bg-white hover:border-gray-300 hover:shadow-md transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
-                  >
-                    {option.label || option.value || option.action}
-                  </button>
-                ))}
-              </div>
+            <div className="flex flex-wrap gap-2">
+              {safeOptions.map((option, index) => (
+                <button
+                  key={`${option.action}-${option.value}-${index}`}
+                  onClick={() => handleOptionClick(option)}
+                  disabled={isReadOnly}
+                  className="px-3 py-2 bg-white/80 border border-gray-200 rounded-xl text-xs font-medium hover:bg-white hover:border-gray-300 hover:shadow-md transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {option.label || option.value || option.action}
+                </button>
+              ))}
             </div>
+          )}
+          {(portfolio.id || portfolio.portfolioId) && (
+            <button
+              type="button"
+              onClick={() => {
+                const portfolioId = portfolio.id || portfolio.portfolioId;
+                setSellPortfolioTarget({
+                  type: "portfolio",
+                  portfolioId,
+                  title: portfolio.name || portfolio.title || "Portfolio",
+                  chain: portfolio.chain,
+                });
+                setSellPortfolioModalOpen(true);
+              }}
+              disabled={isReadOnly}
+              className="w-fit px-3 py-2 bg-white/80 border border-gray-200 rounded-xl text-xs font-medium hover:bg-white hover:border-emerald-200 hover:text-emerald-700 hover:shadow-md transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              Sell portfolio
+            </button>
           )}
         </div>
       </div>
@@ -3739,7 +3780,10 @@ export function ChatPage() {
           </div>
         </>
       )}
-      <div className="flex-1 flex flex-col overflow-y-auto">
+      <div
+        ref={chatScrollRef}
+        className="flex-1 flex flex-col overflow-y-auto"
+      >
         {currentMessages.length === 0 &&
           !quickWizardOpen &&
           !binanceWizardOpen && (
@@ -5720,6 +5764,15 @@ export function ChatPage() {
           }}
         />
       )}
+      <SellPortfolioModal
+        isOpen={sellPortfolioModalOpen}
+        onClose={() => {
+          setSellPortfolioModalOpen(false);
+          setSellPortfolioTarget(null);
+        }}
+        target={sellPortfolioTarget}
+        onComplete={handlePortfolioSellComplete}
+      />
     </div>
   );
 }
