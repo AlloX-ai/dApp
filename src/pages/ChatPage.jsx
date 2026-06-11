@@ -88,6 +88,8 @@ import {
   getStoredBinanceBoosterAddr,
   persistBinanceBoosterAddrFromSearch,
   BINANCE_WALLET_ADDRESS_HELP_URL,
+  formatBinancePercent,
+  formatBinanceReceiveAmount,
   parseBinanceGenerateResponse,
 } from "../utils/binanceCampaign";
 import {
@@ -438,6 +440,11 @@ export function ChatPage() {
     binanceBasket.length === 0 &&
     !binanceIsGenerating &&
     !binanceIsExecuting;
+
+  const binanceSlippagePercent = useMemo(() => {
+    const parsed = parseFloat(chatSlippageSetting);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 0.5;
+  }, [chatSlippageSetting]);
 
   // Prove Portfolio "Create" → `/?qw=<id>` + sessionStorage handshake (survives StrictMode + replace state).
   const QUICK_WIZARD_INTENT_PARAM = "qw";
@@ -2246,8 +2253,17 @@ export function ChatPage() {
   }, [needsToClaimPoints, userDismissedClaimModal, hasAlreadyClaimed]);
 
   useEffect(() => {
-    scrollToBottom(); // Scroll to the bottom when messages update
-  }, [currentMessages, isThinking, typingMessageId]);
+    scrollToBottom();
+  }, [
+    currentMessages,
+    isThinking,
+    typingMessageId,
+    binanceWizardOpen,
+    binanceBasket,
+    binanceIsGenerating,
+    binanceIsExecuting,
+    executionState,
+  ]);
 
   useEffect(() => {
     if (isConnected && showWalletPrompt) {
@@ -4660,6 +4676,20 @@ export function ChatPage() {
                           </div>
                         )}
 
+                        {binanceQuote?.summary && (
+                          <p className="text-sm text-gray-700">
+                            Got quotes for{" "}
+                            {binanceQuote.summary.quotedSuccessfully ??
+                              binanceBasket.length}{" "}
+                            of{" "}
+                            {binanceQuote.summary.totalPositions ??
+                              binanceBasket.length}{" "}
+                            tokens using{" "}
+                            {binanceGenerateMeta?.sourceToken || "USDT"}. Review
+                            the swaps before executing.
+                          </p>
+                        )}
+
                         {(executionState.isExecuting || binanceIsExecuting) && (
                           <div className="flex items-center gap-2 text-sm text-blue-800 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
                             <Loader2 className="w-4 h-4 animate-spin shrink-0 text-blue-600" />
@@ -4673,56 +4703,107 @@ export function ChatPage() {
                           </div>
                         )}
 
-                        <div className="rounded-2xl bg-white/70 border border-orange-200/70 p-3 sm:p-4 shadow-sm">
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                            {binanceBasket.map((token, idx) => {
-                              const execUi = getBinanceTokenExecutionUi(
-                                token.symbol,
-                              );
-                              return (
-                                <div
-                                  key={String(
-                                    token.id || `${token.symbol}-${idx}`,
-                                  )}
-                                  className={`flex flex-col gap-2 rounded-xl border px-3 py-3 transition-colors ${
-                                    execUi?.cardClass ??
-                                    "border-gray-200/80 bg-white/80"
-                                  }`}
-                                >
-                                  <div className="flex items-center gap-3 min-w-0">
-                                    {token.logo ? (
-                                      <img
-                                        src={token.logo}
-                                        alt={token.symbol}
-                                        className="w-10 h-10 rounded-full bg-white border border-gray-200 object-cover shrink-0"
-                                      />
-                                    ) : (
-                                      <div className="w-10 h-10 rounded-full bg-gray-100 border border-gray-200 shrink-0" />
+                        <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white/80 shadow-sm">
+                          <table className="w-full min-w-[520px] text-sm bg-gradient-to-br from-blue-50/80 to-purple-50/80 border border-blue-200/50">
+                            <thead>
+                              <tr className="border-b border-gray-200 bg-gray-50/80">
+                                <th className="px-4 py-3 text-left font-semibold text-gray-700">
+                                  Token
+                                </th>
+                                <th className="px-4 py-3 text-right font-semibold text-gray-700">
+                                  Allocation
+                                </th>
+                                <th className="px-4 py-3 text-right font-semibold text-gray-700">
+                                  You&apos;ll receive
+                                </th>
+                                <th className="px-4 py-3 text-right font-semibold text-gray-700">
+                                  Impact
+                                </th>
+                                <th className="px-4 py-3 text-right font-semibold text-gray-700">
+                                  Slippage
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {binanceBasket.map((token, idx) => {
+                                const execUi = getBinanceTokenExecutionUi(
+                                  token.symbol,
+                                );
+                                const impactNum = Number(token.priceImpact);
+                                const isHighImpact =
+                                  Number.isFinite(impactNum) && impactNum >= 5;
+
+                                return (
+                                  <tr
+                                    key={String(
+                                      token.id || `${token.symbol}-${idx}`,
                                     )}
-                                    <div className="min-w-0 flex-1">
-                                      <div className="font-bold text-gray-900">
-                                        {token.symbol}
-                                      </div>
-                                      {token.allocationUsd != null && (
-                                        <div className="text-xs text-gray-600">
-                                          $
-                                          {Number(token.allocationUsd).toFixed(
-                                            2,
+                                    className={
+                                      execUi
+                                        ? `${execUi.cardClass} border-b last:border-0`
+                                        : "border-b border-gray-100 last:border-0 hover:bg-gray-50/50"
+                                    }
+                                  >
+                                    <td className="px-4 py-3">
+                                      <div className="flex items-center justify-between gap-3 min-w-0">
+                                        <span className="inline-flex items-center gap-2 min-w-0">
+                                          {execUi?.icon ? (
+                                            execUi.icon
+                                          ) : token.logo ? (
+                                            <img
+                                              src={token.logo}
+                                              alt={token.symbol}
+                                              className="w-7 h-7 rounded-full bg-white border border-gray-200 object-cover shrink-0"
+                                            />
+                                          ) : (
+                                            <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-gray-100 border border-gray-200 shrink-0" />
                                           )}
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                  {execUi && (
-                                    <span className={execUi.badgeClass}>
-                                      {execUi.icon}
-                                      {execUi.label}
-                                    </span>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
+                                          <span className="font-bold text-gray-900 truncate">
+                                            {token.symbol}
+                                          </span>
+                                        </span>
+                                        {execUi && (
+                                          <span
+                                            className={`${execUi.badgeClass} shrink-0`}
+                                          >
+                                            {execUi.label}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </td>
+                                    <td className="px-4 py-3 text-right font-medium text-gray-900 tabular-nums">
+                                      {token.allocationUsd != null
+                                        ? `$${Number(token.allocationUsd).toFixed(2)}`
+                                        : "—"}
+                                    </td>
+                                    <td className="px-4 py-3 text-right font-medium text-gray-800 tabular-nums">
+                                      {token.quoteError
+                                        ? "—"
+                                        : formatBinanceReceiveAmount(
+                                            token.toTokenAmount,
+                                          )}
+                                    </td>
+                                    <td
+                                      className={`px-4 py-3 text-right font-medium tabular-nums ${
+                                        isHighImpact
+                                          ? "text-amber-700"
+                                          : "text-gray-800"
+                                      }`}
+                                    >
+                                      {token.quoteError
+                                        ? "—"
+                                        : formatBinancePercent(
+                                            token.priceImpact,
+                                          )}
+                                    </td>
+                                    <td className="px-4 py-3 text-right font-medium text-gray-800 tabular-nums">
+                                      {binanceSlippagePercent}%
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
                         </div>
 
                         <div className="flex flex-col sm:flex-row gap-2 justify-end pt-2 items-stretch sm:items-center">

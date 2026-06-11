@@ -74,16 +74,43 @@ export function buildBinanceGeneratePayload({
   };
 }
 
+export function formatBinancePercent(value) {
+  if (value == null || value === "") return "—";
+  const num = Number(value);
+  if (Number.isFinite(num)) return `${num}%`;
+  const str = String(value).trim();
+  return str.endsWith("%") ? str : `${str}%`;
+}
+
+export function formatBinanceReceiveAmount(value) {
+  if (value == null || value === "") return "—";
+  const num = Number(value);
+  if (!Number.isFinite(num)) return String(value);
+  if (num === 0) return "0";
+  if (num >= 1) {
+    return `~${num.toLocaleString(undefined, { maximumFractionDigits: 4 })}`;
+  }
+  return `~${num.toLocaleString(undefined, { maximumSignificantDigits: 4 })}`;
+}
+
 export function parseBinanceGenerateResponse(response) {
   const data = response?.data ?? response ?? {};
   const picked = Array.isArray(data.picked) ? data.picked : [];
   const quote = data.quote ?? null;
   const perTokenAllocationUsd = data.perTokenAllocationUsd ?? null;
+  const quotePositions = Array.isArray(quote?.positions) ? quote.positions : [];
+  const quoteBySymbol = quotePositions.reduce((acc, pos) => {
+    const sym = String(pos?.symbol || "").toUpperCase();
+    if (sym) acc[sym] = pos;
+    return acc;
+  }, {});
 
   const basket = picked
     .map((p, idx) => {
       const symbol = String(p?.symbol || "").toUpperCase();
       if (!symbol) return null;
+      const quotePos = quoteBySymbol[symbol];
+      const swapQuote = quotePos?.quote ?? {};
       return {
         id: p?.contractAddress || `${symbol}-${idx}`,
         symbol,
@@ -91,7 +118,14 @@ export function parseBinanceGenerateResponse(response) {
         logo: p?.logo || null,
         contractAddress: p?.contractAddress || null,
         marketCap: p?.marketCap ?? null,
-        allocationUsd: perTokenAllocationUsd,
+        allocationUsd:
+          quotePos?.allocationUsd ?? perTokenAllocationUsd ?? null,
+        toTokenAmount: swapQuote.toTokenAmount ?? null,
+        priceImpact: swapQuote.priceImpact ?? null,
+        route: swapQuote.route ?? null,
+        fee: swapQuote.fee ?? null,
+        executionOrderId: quotePos?.executionOrderId ?? null,
+        quoteError: quotePos?.error ?? null,
       };
     })
     .filter(Boolean);
