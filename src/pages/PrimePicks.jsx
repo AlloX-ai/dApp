@@ -163,9 +163,7 @@ function BundleAllocationPreview({
   slippagePercent = BUNDLE_DEFAULT_SLIPPAGE,
 }) {
   const showStatuses =
-    isExecuting ||
-    isQuoting ||
-    Object.keys(tokenStatuses || {}).length > 0;
+    isExecuting || isQuoting || Object.keys(tokenStatuses || {}).length > 0;
   const showQuoteDetails =
     !showStatuses &&
     quoteBySymbol != null &&
@@ -198,7 +196,8 @@ function BundleAllocationPreview({
                 {quoteSummary.failed} of {quoteSummary.totalPositions} tokens
                 could not be quoted
               </p>
-              {quoteSummary.redistributed && quoteSummary.quotedSuccessfully > 0 ? (
+              {quoteSummary.redistributed &&
+              quoteSummary.quotedSuccessfully > 0 ? (
                 <p className="mt-1 leading-relaxed">
                   Their allocation will be redistributed across the remaining{" "}
                   {quoteSummary.quotedSuccessfully} token
@@ -280,13 +279,12 @@ function BundleAllocationPreview({
                       <span className="text-amber-700">
                         {quoteDetail.quoteError}
                       </span>
-                    ) 
-                    // : quoteDetail?.route ? (
+                    ) : // : quoteDetail?.route ? (
                     //   <span className="text-gray-500 truncate">
                     //     {quoteDetail.route}
                     //   </span>
                     // )
-                     : !quoteDetail ? (
+                    !quoteDetail ? (
                       <span className="text-gray-400">Quote pending...</span>
                     ) : null}
                   </div>
@@ -407,12 +405,15 @@ function BundleInvestmentReadonly({ amount, sourceToken }) {
       </div>
 
       <div className="relative mt-3 mb-4">
-        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold">
+        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold">
           $
         </span>
-        <div className="w-full px-4 ps-8 py-3 text-sm border border-gray-200 rounded-xl bg-white/70 font-semibold text-gray-700">
-          {!isPreset && amount > 0 ? amount : ""}
-        </div>
+        <input
+          type="number"
+          disabled
+          placeholder="Enter amount"
+          className="w-full px-4 ps-8 py-3 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/20 bg-white/50"
+        />
       </div>
 
       <div className="mb-4">
@@ -616,8 +617,7 @@ export function PrimePicks() {
 
   const previewQuoteDetails =
     previewQuoteQuery.data?.quoteDetailsBySymbol ?? null;
-  const previewQuoteSummary =
-    previewQuoteQuery.data?.quoteSummary ?? null;
+  const previewQuoteSummary = previewQuoteQuery.data?.quoteSummary ?? null;
   const previewQuoteBlocksInvest = previewQuoteSummary?.allFailed === true;
 
   const handleExecutionUpdate = useCallback((update) => {
@@ -781,9 +781,7 @@ export function PrimePicks() {
       return;
     }
     if (!onTargetChain) {
-      toast.error(
-        `Please switch your wallet to ${targetChainLabel} before continuing.`,
-      );
+      void handleSwitchChain();
       return;
     }
     if (!effectiveAmount || effectiveAmount < BUNDLE_MIN_AMOUNT_USD) {
@@ -903,6 +901,8 @@ export function PrimePicks() {
   };
 
   const isBusy = isQuoting || executionState.isExecuting;
+  const needsWalletConnect = !isConnected;
+  const needsChainSwitch = isConnected && !onTargetChain;
   const showSuccess = portfolioId && !executionState.isExecuting && !isQuoting;
 
   return (
@@ -1352,7 +1352,17 @@ export function PrimePicks() {
                       {!isBusy && (actionError || executionState.error) && (
                         <button
                           type="button"
-                          onClick={() => setStep("invest")}
+                          onClick={() => {
+                            setStep("invest");
+                            setActionError("");
+                            setExecutionState((prev) => ({
+                              ...prev,
+                              error: null,
+                            }));
+                            setSelectedAmount(null);
+                            setIsCustom(false);
+                            setCustomAmount("");
+                          }}
                           className="w-full py-3 rounded-xl border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50"
                         >
                           Back
@@ -1391,32 +1401,6 @@ export function PrimePicks() {
                           <X size={20} />
                         </button>
                       </div>
-
-                      {!isConnected && (
-                        <div className="mb-4 glass-card p-4 border border-blue-200/60 bg-blue-50/50 text-sm text-blue-900">
-                          Connect your wallet to invest in this bundle.
-                          <button
-                            type="button"
-                            onClick={() => dispatch(setWalletModal(true))}
-                            className="ml-2 underline font-medium"
-                          >
-                            Connect wallet
-                          </button>
-                        </div>
-                      )}
-
-                      {isConnected && !onTargetChain && (
-                        <div className="mb-4 glass-card p-4 border border-amber-200/60 bg-amber-50/50 text-sm text-amber-900">
-                          Switch to {targetChainLabel} to continue.
-                          <button
-                            type="button"
-                            onClick={handleSwitchChain}
-                            className="ml-2 underline font-medium"
-                          >
-                            Switch network
-                          </button>
-                        </div>
-                      )}
 
                       <div className="grid grid-cols-2 gap-3 mb-4">
                         {PRESET_AMOUNTS.map((amount) => (
@@ -1529,13 +1513,26 @@ export function PrimePicks() {
                       <button
                         type="button"
                         disabled={
-                          !effectiveAmount ||
-                          effectiveAmount < BUNDLE_MIN_AMOUNT_USD ||
                           isBusy ||
-                          previewQuoteBlocksInvest ||
-                          (canFetchPreviewQuote && previewQuoteQuery.isFetching)
+                          (needsWalletConnect || needsChainSwitch
+                            ? false
+                            : !effectiveAmount ||
+                              effectiveAmount < BUNDLE_MIN_AMOUNT_USD ||
+                              previewQuoteBlocksInvest ||
+                              (canFetchPreviewQuote &&
+                                previewQuoteQuery.isFetching))
                         }
-                        onClick={handleConfirmInvest}
+                        onClick={() => {
+                          if (needsWalletConnect) {
+                            dispatch(setWalletModal(true));
+                            return;
+                          }
+                          if (needsChainSwitch) {
+                            void handleSwitchChain();
+                            return;
+                          }
+                          void handleConfirmInvest();
+                        }}
                         className="w-full mt-6 bg-black text-white font-semibold py-4 rounded-xl hover:bg-gray-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                       >
                         {isQuoting ? (
@@ -1543,8 +1540,12 @@ export function PrimePicks() {
                             <Loader2 className="w-4 h-4 animate-spin" />
                             Getting quote...
                           </>
+                        ) : needsWalletConnect ? (
+                          "Connect wallet"
+                        ) : needsChainSwitch ? (
+                          `Switch to ${targetChainLabel}`
                         ) : effectiveAmount > 0 ? (
-                          `Confirm`
+                          "Confirm"
                         ) : (
                           "Select an Amount"
                         )}

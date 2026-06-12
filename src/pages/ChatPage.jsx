@@ -3834,7 +3834,7 @@ export function ChatPage() {
                   I can help you discover, execute, and manage your portfolio.
                 </p>
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-4">
-                  <button
+                  {/* <button
                     type="button"
                     onClick={() => {
                       if (isReadOnly || messagesRemaining === 0) return;
@@ -3858,7 +3858,7 @@ export function ChatPage() {
                     >
                       Binance Campaign
                     </span>
-                  </button>
+                  </button> */}
                   <NavLink
                     to="/prime-picks"
                     className="inline-flex items-center gap-2.5 px-5 py-2 bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-cyan-500/10 border border-purple-500/20 rounded-full shadow-lg shadow-purple-500/5 backdrop-blur-sm overflow-hidden"
