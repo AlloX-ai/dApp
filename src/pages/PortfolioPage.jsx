@@ -537,6 +537,46 @@ export function PortfolioPage() {
     setSellTarget(null);
   }, []);
 
+  const totalBalance = Number(activePortfolio?.totalCurrentValue || 0);
+  const totalPnL = Number(activePortfolio?.totalPnL || 0);
+  const totalPnLPercent = Number(activePortfolio?.totalPnLPercent || 0);
+  const analyticsData = analytics?.analytics || analytics;
+  const overview = analyticsData?.overview;
+  const narrativeBreakdown = analyticsData?.narrativeBreakdown || {};
+  const riskBreakdown = analyticsData?.riskBreakdown || {};
+  const topPerformers = analyticsData?.topPerformers || [];
+  const bottomPerformers = analyticsData?.bottomPerformers || [];
+  const positionsInfo = Array.isArray(portfolioInfo?.portfolio?.positions)
+    ? portfolioInfo.portfolio.positions
+    : [];
+  const isPositionClosed = (pos) => {
+    if (pos?.soldAt) return true;
+    const status = String(pos?.status || "").toUpperCase();
+    const sellStatus = String(pos?.sellStatus || "").toUpperCase();
+    return (
+      status === "CLOSED" ||
+      sellStatus === "CLOSED" ||
+      sellStatus === "CONFIRMED"
+    );
+  };
+  const activePositionsInfo = useMemo(
+    () => positionsInfo.filter((pos) => !isPositionClosed(pos)),
+    [positionsInfo],
+  );
+  const closedPositionsInfo = useMemo(
+    () => positionsInfo.filter((pos) => isPositionClosed(pos)),
+    [positionsInfo],
+  );
+  const selectedRiskLabel =
+    RISK_FILTER_OPTIONS.find((item) => item.value === filterRisk)?.label ||
+    "All Risk Levels";
+  const selectedExecutionModeLabel =
+    EXECUTION_MODE_FILTER_OPTIONS.find(
+      (item) => item.value === filterExecutionMode,
+    )?.label || "All Execution Modes";
+  const selectedSortLabel =
+    SORT_OPTIONS.find((item) => item.value === sortBy)?.label ||
+    "Sort by: Recent";
 
   const { status: gemsStatus } = useGemsStatus();
   const userTierName = gemsStatus?.currentTier?.name || "Bronze";

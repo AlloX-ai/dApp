@@ -2046,7 +2046,7 @@ export function ChatPage() {
 
       try {
         await ensureAuthenticated();
-        const response = await apiCall("/chat/message", {
+        const response = await apiCall("/chat/allox/message", {
           method: "POST",
           body: JSON.stringify({ message: trimmed }),
         });
