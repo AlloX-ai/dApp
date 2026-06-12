@@ -97,6 +97,7 @@ import {
   getPrivyEmbedded,
   switchPrivyEmbeddedToChain,
 } from "../utils/privyWalletUtils";
+import { isBinanceWalletConnection } from "../utils/binanceWallet";
 
 const BNB_CHAIN_SWITCH = {
   chainId: 56,
@@ -365,11 +366,19 @@ export function ChatPage() {
     setBinanceBoosterAddr(getStoredBinanceBoosterAddr());
   }, [location.search]);
 
+  const isBinanceWalletConnected = useMemo(
+    () => isBinanceWalletConnection({ connector, walletType }),
+    [connector, walletType],
+  );
   const showBinanceBoosterWalletWarning =
     isConnected &&
     !!binanceBoosterAddr &&
     !!walletAddress &&
     walletAddress.toLowerCase() !== binanceBoosterAddr;
+  const showBinanceCampaignIneligibleWarning =
+    isConnected &&
+    !isBinanceWalletConnected &&
+    !showBinanceBoosterWalletWarning;
 
   const resetBinanceWizard = useCallback(() => {
     setBinanceError("");
@@ -441,9 +450,7 @@ export function ChatPage() {
   const showQuickWizardBack =
     quickBasket.length === 0 && !quickIsGenerating && !quickIsExecuting;
   const showBinanceWizardBack =
-    binanceBasket.length === 0 &&
-    !binanceIsGenerating &&
-    !binanceIsExecuting;
+    binanceBasket.length === 0 && !binanceIsGenerating && !binanceIsExecuting;
 
   const binanceSlippagePercent = useMemo(() => {
     const parsed = parseFloat(chatSlippageSetting);
@@ -1871,7 +1878,9 @@ export function ChatPage() {
       quote: binanceQuote,
     });
     if (!execution) {
-      setBinanceError("Missing portfolio quote. Generate again before executing.");
+      setBinanceError(
+        "Missing portfolio quote. Generate again before executing.",
+      );
       return;
     }
 
@@ -3780,10 +3789,7 @@ export function ChatPage() {
           </div>
         </>
       )}
-      <div
-        ref={chatScrollRef}
-        className="flex-1 flex flex-col overflow-y-auto"
-      >
+      <div ref={chatScrollRef} className="flex-1 flex flex-col overflow-y-auto">
         {currentMessages.length === 0 &&
           !quickWizardOpen &&
           !binanceWizardOpen && (
@@ -4906,6 +4912,22 @@ export function ChatPage() {
                       >
                         Can&apos;t find that address?
                       </a>
+                    </div>
+                  )}
+
+                  {showBinanceCampaignIneligibleWarning && (
+                    <div className="max-w-[78%] flex flex-col gap-2 text-xs bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3">
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle
+                          size={16}
+                          className="shrink-0 mt-0.5 text-red-700"
+                        />
+                        <p>
+                          You can create a portfolio, but it won&apos;t be
+                          eligible for the Binance campaign rewards. Connect
+                          with Binance MPC Wallet to participate.
+                        </p>
+                      </div>
                     </div>
                   )}
                 </>
