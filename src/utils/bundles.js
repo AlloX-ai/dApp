@@ -4,6 +4,7 @@ export const BUNDLE_CHAIN = "BSC";
 export const BUNDLE_SOURCE = "prime_picks";
 export const BUNDLE_MIN_AMOUNT_USD = 5;
 export const BUNDLE_SOURCE_TOKENS = ["USDT", "USDC", "BNB"];
+export const BUNDLE_DEFAULT_SLIPPAGE = 0.5;
 
 const TOKEN_LOGO_FALLBACKS = {
   BTC: "https://cdn.allox.ai/allox/tokens/bitcoinToken.svg",
@@ -139,6 +140,97 @@ export const buildBundleQuotePayload = ({
   sourceToken,
 });
 
+export const formatBundlePercent = (value) => {
+  if (value == null || value === "") return "—";
+  const num = Number(value);
+  if (Number.isFinite(num)) return `${num}%`;
+  const str = String(value).trim();
+  return str.endsWith("%") ? str : `${str}%`;
+};
+
+export const formatBundleReceiveAmount = (value) => {
+  if (value == null || value === "") return "—";
+  const num = Number(value);
+  if (!Number.isFinite(num)) return String(value);
+  if (num === 0) return "0";
+  if (num >= 1) {
+    return `~${num.toLocaleString(undefined, { maximumFractionDigits: 4 })}`;
+  }
+  return `~${num.toLocaleString(undefined, { maximumSignificantDigits: 4 })}`;
+};
+
+export const mapBundleQuoteDetailsBySymbol = (quote) => {
+  const bySymbol = {};
+
+  for (const pos of Array.isArray(quote?.positions) ? quote.positions : []) {
+    const sym = String(pos?.symbol || "").toUpperCase();
+    if (!sym) continue;
+
+    const swapQuote = pos?.quote ?? {};
+    bySymbol[sym] = {
+      symbol: sym,
+      failed: false,
+      allocationUsd: pos.allocationUsd ?? null,
+      toTokenAmount: swapQuote.toTokenAmount ?? null,
+      priceImpact: swapQuote.priceImpact ?? null,
+      fee: swapQuote.fee ?? null,
+      route: swapQuote.route ?? null,
+      quoteError: pos?.error ?? null,
+      reason: pos?.error ?? null,
+      narrative: null,
+    };
+  }
+
+  for (const failed of Array.isArray(quote?.failedTokens)
+    ? quote.failedTokens
+    : []) {
+    const sym = String(failed?.symbol || "").toUpperCase();
+    if (!sym) continue;
+
+    const existing = bySymbol[sym];
+    if (existing && !existing.quoteError && !existing.failed) continue;
+
+    bySymbol[sym] = {
+      symbol: sym,
+      failed: true,
+      allocationUsd: failed.allocationUsd ?? existing?.allocationUsd ?? null,
+      toTokenAmount: null,
+      priceImpact: null,
+      fee: null,
+      route: null,
+      quoteError: failed.reason ?? "Quote failed",
+      reason: failed.reason ?? null,
+      narrative: failed.narrative ?? null,
+    };
+  }
+
+  return bySymbol;
+};
+
+export const parseBundleQuoteSummary = (quote) => {
+  const summary = quote?.summary ?? {};
+  const failedTokens = Array.isArray(quote?.failedTokens)
+    ? quote.failedTokens
+    : [];
+  const quotedPositions = Array.isArray(quote?.positions) ? quote.positions : [];
+  const quotedSuccessfully =
+    toNumber(summary.quotedSuccessfully) ?? quotedPositions.length;
+  const failed = toNumber(summary.failed) ?? failedTokens.length;
+  const totalPositions =
+    toNumber(summary.totalPositions) ?? quotedSuccessfully + failed;
+
+  return {
+    totalPositions,
+    quotedSuccessfully,
+    failed,
+    redistributed: summary.redistributed === true,
+    failedTokens,
+    hasFailures: failed > 0,
+    allFailed: quotedSuccessfully === 0 && failed > 0,
+    partialFailure: quotedSuccessfully > 0 && failed > 0,
+  };
+};
+
 export const fetchBundleQuote = async (bundleId, payload) => {
   const response = await apiCall(`/bundles/${bundleId}/quote`, {
     method: "POST",
@@ -154,6 +246,8 @@ export const parseBundleQuoteResponse = (response) => {
 
   return {
     quote,
+    quoteDetailsBySymbol: mapBundleQuoteDetailsBySymbol(quote),
+    quoteSummary: parseBundleQuoteSummary(quote),
     meta: {
       chain: data.chain ?? quote?.chain ?? BUNDLE_CHAIN,
       sourceToken: data.sourceToken ?? quote?.sourceToken ?? "USDT",

@@ -11,7 +11,7 @@ import {
   isBinanceInAppBrowser,
 } from "./binanceWallet";
 import { ensureReownAppKitConfigured } from "./initReownAppKit";
-import { persistWalletType } from "./walletPersistence";
+import { markBinanceWalletSession } from "./walletPersistence";
 import { getWalletConnectConnector } from "./wagmiWalletConnect";
 
 /**
@@ -59,10 +59,7 @@ export async function connectBinanceViaWalletConnect({
   chainId = BINANCE_DEFAULT_CHAIN_ID,
   onWalletType,
 } = {}) {
-  if (typeof window !== "undefined") {
-    window.WALLET_TYPE = "binance";
-  }
-  persistWalletType("binance");
+  markBinanceWalletSession();
   onWalletType?.("binance");
   ensureReownAppKitConfigured();
 

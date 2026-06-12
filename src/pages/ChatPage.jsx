@@ -59,7 +59,7 @@ import { NavLink, useLocation, useNavigate } from "react-router";
 import getFormattedNumber from "../hooks/get-formatted-number";
 import { CongratsModal } from "../components/CongratsModal";
 import { toast } from "../utils/toast";
-import { getPublicClient } from "@wagmi/core";
+import { getAccount, getPublicClient } from "@wagmi/core";
 import { useAccount, useSwitchChain } from "wagmi";
 import { wagmiClient } from "../wagmiConnectors";
 import { erc20Abi, formatEther, formatUnits } from "viem";
@@ -243,8 +243,13 @@ export function ChatPage() {
   } = useAuth();
   const { wallets } = useWallets();
   const { sendTransaction: privySendTransaction } = useSendTransaction();
-  const { connector } = useAccount();
+  const { connector: wagmiConnector, isConnected: wagmiIsConnected } =
+    useAccount();
   const { switchChainAsync } = useSwitchChain();
+  const activeConnector = useMemo(
+    () => wagmiConnector ?? getAccount(wagmiClient)?.connector ?? null,
+    [wagmiConnector],
+  );
 
   const speechBoxRef = useRef(null);
   const chatScrollRef = useRef(null);
@@ -366,17 +371,32 @@ export function ChatPage() {
     setBinanceBoosterAddr(getStoredBinanceBoosterAddr());
   }, [location.search]);
 
+  const hasActiveWalletSession = isConnected || wagmiIsConnected;
+  const activeConnectorId = activeConnector?.id ?? null;
   const isBinanceWalletConnected = useMemo(
-    () => isBinanceWalletConnection({ connector, walletType }),
-    [connector, walletType],
+    () =>
+      isBinanceWalletConnection({
+        connector: activeConnector,
+        walletType,
+        sessionSource,
+        isWalletConnected: hasActiveWalletSession,
+      }),
+    [
+      activeConnector,
+      activeConnectorId,
+      walletType,
+      sessionSource,
+      hasActiveWalletSession,
+      wagmiIsConnected,
+    ],
   );
   const showBinanceBoosterWalletWarning =
-    isConnected &&
+    hasActiveWalletSession &&
     !!binanceBoosterAddr &&
     !!walletAddress &&
     walletAddress.toLowerCase() !== binanceBoosterAddr;
   const showBinanceCampaignIneligibleWarning =
-    isConnected &&
+    hasActiveWalletSession &&
     !isBinanceWalletConnected &&
     !showBinanceBoosterWalletWarning;
 
@@ -1721,7 +1741,7 @@ export function ChatPage() {
         );
         return;
       }
-      if (!connector) {
+      if (!activeConnector) {
         toast.error("No wallet connected. Please connect an EVM wallet first.");
         return;
       }
@@ -1730,7 +1750,7 @@ export function ChatPage() {
         await switchChainAsync({ chainId: BNB_CHAIN_SWITCH.chainId });
       } catch (error) {
         if (error?.code === 4902) {
-          const provider = await connector.getProvider();
+          const provider = await activeConnector.getProvider();
           await provider.request({
             method: "wallet_addEthereumChain",
             params: [
@@ -1759,8 +1779,8 @@ export function ChatPage() {
     }
   }, [
     authUser?.authProvider,
+    activeConnector,
     binanceTargetChainLabel,
-    connector,
     dispatch,
     isConnected,
     sessionSource,
@@ -4797,9 +4817,7 @@ export function ChatPage() {
                                     <td className="px-4 py-3">
                                       <div className="flex items-center justify-between gap-3 min-w-0">
                                         <span className="inline-flex items-center gap-2 min-w-0">
-                                          {execUi?.icon ? (
-                                            execUi.icon
-                                          ) : token.logo ? (
+                                          {token.logo ? (
                                             <img
                                               src={token.logo}
                                               alt={token.symbol}
@@ -4816,6 +4834,7 @@ export function ChatPage() {
                                           <span
                                             className={`${execUi.badgeClass} shrink-0`}
                                           >
+                                            {execUi.icon}
                                             {execUi.label}
                                           </span>
                                         )}

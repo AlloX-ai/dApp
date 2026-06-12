@@ -27,13 +27,18 @@ import {
 } from "../utils/execution";
 import {
   BUNDLE_CHAIN,
+  BUNDLE_DEFAULT_SLIPPAGE,
   BUNDLE_MIN_AMOUNT_USD,
   BUNDLE_SOURCE_TOKENS,
   buildBundleExecutionFromQuote,
   buildBundleQuotePayload,
   fetchBundleQuote,
   fetchBundles,
+  formatBundlePercent,
+  formatBundleReceiveAmount,
   formatYtdPercent,
+  mapBundleQuoteDetailsBySymbol,
+  parseBundleQuoteSummary,
 } from "../utils/bundles";
 
 const PRESET_AMOUNTS = [20, 50, 100, 500];
@@ -147,22 +152,83 @@ const getPositionExecutionUi = ({
 function BundleAllocationPreview({
   positions,
   amount,
+  sourceToken = "USDT",
   tokenStatuses,
   currentSymbol,
   isExecuting = false,
   isQuoting = false,
+  quoteBySymbol = null,
+  quoteSummary = null,
+  isLoadingQuote = false,
+  slippagePercent = BUNDLE_DEFAULT_SLIPPAGE,
 }) {
   const showStatuses =
     isExecuting ||
     isQuoting ||
     Object.keys(tokenStatuses || {}).length > 0;
+  const showQuoteDetails =
+    !showStatuses &&
+    quoteBySymbol != null &&
+    (isLoadingQuote || Object.keys(quoteBySymbol).length > 0);
 
   return (
     <div className="mt-4 p-4 bg-gray-50 rounded-xl space-y-2">
       <p className="text-xs text-gray-500 font-semibold uppercase tracking-wide mb-3">
         Allocation Preview
       </p>
+      {showQuoteDetails && !isLoadingQuote && quoteSummary?.hasFailures && (
+        <div
+          className={`rounded-lg px-3 py-2.5 text-xs mb-2 ${
+            quoteSummary.allFailed
+              ? "bg-red-50 border border-red-200 text-red-800"
+              : "bg-amber-50 border border-amber-200 text-amber-900"
+          }`}
+        >
+          {quoteSummary.allFailed ? (
+            <>
+              <p className="font-semibold">No swap routes available</p>
+              <p className="mt-1 leading-relaxed">
+                None of the tokens in this bundle can be purchased with{" "}
+                {sourceToken}. Try another payment token or amount.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="font-semibold">
+                {quoteSummary.failed} of {quoteSummary.totalPositions} tokens
+                could not be quoted
+              </p>
+              {quoteSummary.redistributed && quoteSummary.quotedSuccessfully > 0 ? (
+                <p className="mt-1 leading-relaxed">
+                  Their allocation will be redistributed across the remaining{" "}
+                  {quoteSummary.quotedSuccessfully} token
+                  {quoteSummary.quotedSuccessfully === 1 ? "" : "s"}.
+                </p>
+              ) : null}
+            </>
+          )}
+        </div>
+      )}
+      {showQuoteDetails && (
+        <div className="flex items-center justify-between gap-3 px-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+          <span>Token</span>
+          <div className="flex items-center gap-3 shrink-0">
+            <span className="w-14 text-right">Impact</span>
+            <span className="w-14 text-right">Slippage</span>
+            <span className="w-16 text-right">Amount</span>
+          </div>
+        </div>
+      )}
       {positions.map((position) => {
+        const symKey = String(position.symbol || "").toUpperCase();
+        const displayKey = String(
+          position.displaySymbol || position.symbol || "",
+        ).toUpperCase();
+        const quoteDetail =
+          quoteBySymbol?.[symKey] ?? quoteBySymbol?.[displayKey] ?? null;
+        const isFailed = quoteDetail?.failed === true;
+        const impactNum = Number(quoteDetail?.priceImpact);
+        const isHighImpact = Number.isFinite(impactNum) && impactNum >= 5;
         const executionUi = showStatuses
           ? getPositionExecutionUi({
               position,
@@ -172,30 +238,94 @@ function BundleAllocationPreview({
               isQuoting,
             })
           : null;
+        const allocationUsd =
+          quoteDetail?.allocationUsd ??
+          (position.weightPct != null
+            ? (amount * position.weightPct) / 100
+            : null);
 
         return (
           <div
             key={position.id || position.symbol}
-            className={`flex items-center justify-between gap-3 text-sm rounded-lg px-2 py-1.5 transition-colors ${
-              executionUi?.rowClass || ""
+            className={`flex items-start justify-between gap-3 text-sm rounded-lg px-2 py-1.5 transition-colors ${
+              executionUi?.rowClass ||
+              (isFailed ? "bg-red-50/80 border border-red-200/80" : "")
             }`}
           >
-            <div className="flex items-center gap-2 min-w-0">
+            <div className="flex items-start gap-2 min-w-0 flex-1">
               <BundlePositionAvatar position={position} size="sm" />
-              <span className="font-medium">
-                {position.displaySymbol || position.symbol}
-              </span>
-              <span className="text-gray-400">
-                {position.weightPct != null ? `${position.weightPct}%` : "—"}
-              </span>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-medium">
+                    {position.displaySymbol || position.symbol}
+                  </span>
+                  <span className="text-gray-400">
+                    {position.weightPct != null
+                      ? `${position.weightPct}%`
+                      : "—"}
+                  </span>
+                </div>
+                {showQuoteDetails && !showStatuses && (
+                  <div className="mt-0.5 text-[11px] leading-relaxed">
+                    {isLoadingQuote ? (
+                      <span className="inline-flex items-center gap-1 text-gray-500">
+                        <Loader2 className="w-3 h-3 animate-spin shrink-0" />
+                        Fetching quote...
+                      </span>
+                    ) : isFailed ? (
+                      <span className="text-red-700">
+                        {quoteDetail?.reason || "No route available"}
+                      </span>
+                    ) : quoteDetail?.quoteError ? (
+                      <span className="text-amber-700">
+                        {quoteDetail.quoteError}
+                      </span>
+                    ) 
+                    // : quoteDetail?.route ? (
+                    //   <span className="text-gray-500 truncate">
+                    //     {quoteDetail.route}
+                    //   </span>
+                    // )
+                     : !quoteDetail ? (
+                      <span className="text-gray-400">Quote pending...</span>
+                    ) : null}
+                  </div>
+                )}
+              </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <span className="font-bold tabular-nums">
-                $
-                {position.weightPct != null
-                  ? ((amount * position.weightPct) / 100).toFixed(2)
-                  : "—"}
-              </span>
+              {showQuoteDetails ? (
+                <div className="flex items-center gap-3 text-xs tabular-nums">
+                  <span
+                    className={`w-14 text-right font-medium ${
+                      isHighImpact ? "text-amber-700" : "text-gray-700"
+                    }`}
+                  >
+                    {isLoadingQuote || isFailed || quoteDetail?.quoteError
+                      ? "—"
+                      : formatBundlePercent(quoteDetail?.priceImpact)}
+                  </span>
+                  <span className="w-14 text-right font-medium text-gray-700">
+                    {isLoadingQuote ? "—" : `${slippagePercent}%`}
+                  </span>
+                  <span className="w-16 text-right font-bold text-gray-900">
+                    {allocationUsd != null
+                      ? `$${Number(allocationUsd).toFixed(2)}`
+                      : "—"}
+                  </span>
+                </div>
+              ) : (
+                <span className="font-bold tabular-nums">
+                  {allocationUsd != null
+                    ? `$${Number(allocationUsd).toFixed(2)}`
+                    : "—"}
+                </span>
+              )}
+              {showQuoteDetails && isFailed && !executionUi && (
+                <span className="inline-flex items-center text-[11px] font-semibold text-red-700 bg-red-100 border border-red-200 px-2 py-0.5 rounded-full shrink-0">
+                  Failed
+                </span>
+              )}
               {executionUi && (
                 <span className={executionUi.badgeClass}>
                   {executionUi.icon}
@@ -206,6 +336,42 @@ function BundleAllocationPreview({
           </div>
         );
       })}
+      {showQuoteDetails && !showStatuses && !isLoadingQuote && (
+        <div className="px-2 pt-1 text-[11px] text-gray-500 space-y-1">
+          {positions.map((position) => {
+            const symKey = String(position.symbol || "").toUpperCase();
+            const displayKey = String(
+              position.displaySymbol || position.symbol || "",
+            ).toUpperCase();
+            const quoteDetail =
+              quoteBySymbol?.[symKey] ?? quoteBySymbol?.[displayKey] ?? null;
+            if (
+              quoteDetail?.failed ||
+              !quoteDetail?.toTokenAmount ||
+              quoteDetail?.quoteError
+            ) {
+              return null;
+            }
+
+            return (
+              <div
+                key={`receive-${position.id || position.symbol}`}
+                className="flex items-center justify-between gap-3"
+              >
+                <span>
+                  You&apos;ll receive{" "}
+                  <span className="font-medium text-gray-700">
+                    {position.displaySymbol || position.symbol}
+                  </span>
+                </span>
+                <span className="font-medium text-gray-800 tabular-nums">
+                  {formatBundleReceiveAmount(quoteDetail.toTokenAmount)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -329,6 +495,9 @@ export function PrimePicks() {
   const [actionError, setActionError] = useState("");
   const [isQuoting, setIsQuoting] = useState(false);
   const [portfolioId, setPortfolioId] = useState(null);
+  const [activeQuoteDetails, setActiveQuoteDetails] = useState(null);
+  const [activeQuoteSummary, setActiveQuoteSummary] = useState(null);
+  const [debouncedAmount, setDebouncedAmount] = useState(0);
 
   const [executionState, setExecutionState] = useState({
     isExecuting: false,
@@ -369,6 +538,9 @@ export function PrimePicks() {
     setSourceToken("USDT");
     setActionError("");
     setPortfolioId(null);
+    setActiveQuoteDetails(null);
+    setActiveQuoteSummary(null);
+    setDebouncedAmount(0);
     setExecutionState({
       isExecuting: false,
       currentSymbol: null,
@@ -390,6 +562,9 @@ export function PrimePicks() {
     setSourceToken("USDT");
     setActionError("");
     setPortfolioId(null);
+    setActiveQuoteDetails(null);
+    setActiveQuoteSummary(null);
+    setDebouncedAmount(0);
     setExecutionState({
       isExecuting: false,
       currentSymbol: null,
@@ -403,6 +578,47 @@ export function PrimePicks() {
   const effectiveAmount = isCustom
     ? parseFloat(customAmount) || 0
     : selectedAmount;
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedAmount(effectiveAmount || 0);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [effectiveAmount]);
+
+  const canFetchPreviewQuote =
+    step === "invest" &&
+    Boolean(selectedBundle?.id) &&
+    debouncedAmount >= BUNDLE_MIN_AMOUNT_USD &&
+    isConnected &&
+    onTargetChain;
+
+  const previewQuoteQuery = useQuery({
+    queryKey: [
+      "bundleQuotePreview",
+      selectedBundle?.id,
+      debouncedAmount,
+      sourceToken,
+    ],
+    queryFn: () =>
+      fetchBundleQuote(
+        selectedBundle.id,
+        buildBundleQuotePayload({
+          totalInvestment: debouncedAmount,
+          sourceToken,
+        }),
+      ),
+    enabled: canFetchPreviewQuote,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+    retry: false,
+  });
+
+  const previewQuoteDetails =
+    previewQuoteQuery.data?.quoteDetailsBySymbol ?? null;
+  const previewQuoteSummary =
+    previewQuoteQuery.data?.quoteSummary ?? null;
+  const previewQuoteBlocksInvest = previewQuoteSummary?.allFailed === true;
 
   const handleExecutionUpdate = useCallback((update) => {
     setExecutionState((prev) => {
@@ -589,7 +805,7 @@ export function PrimePicks() {
 
       await ensureAuthenticated();
 
-      const { quote, meta } = await fetchBundleQuote(
+      const { quote, meta, quoteSummary } = await fetchBundleQuote(
         selectedBundle.id,
         buildBundleQuotePayload({
           totalInvestment: effectiveAmount,
@@ -599,6 +815,19 @@ export function PrimePicks() {
 
       if (!quote) {
         setActionError("Bundle quote was not returned. Try again.");
+        return;
+      }
+
+      const quoteDetails = mapBundleQuoteDetailsBySymbol(quote);
+      const resolvedQuoteSummary =
+        quoteSummary ?? parseBundleQuoteSummary(quote);
+      setActiveQuoteDetails(quoteDetails);
+      setActiveQuoteSummary(resolvedQuoteSummary);
+
+      if (resolvedQuoteSummary.allFailed) {
+        setActionError(
+          `No swap routes are available for any token in this bundle with ${sourceToken}. Try another payment token.`,
+        );
         return;
       }
 
@@ -612,7 +841,6 @@ export function PrimePicks() {
         setActionError("Could not build execution from quote. Try again.");
         return;
       }
-
       setIsQuoting(false);
       setStep("execute");
 
@@ -982,10 +1210,14 @@ export function PrimePicks() {
                       <BundleAllocationPreview
                         positions={selectedBundle.positions}
                         amount={effectiveAmount}
+                        sourceToken={sourceToken}
                         tokenStatuses={executionState.tokenStatuses}
                         currentSymbol={executionState.currentSymbol}
                         isExecuting={executionState.isExecuting}
                         isQuoting={isQuoting}
+                        quoteBySymbol={activeQuoteDetails}
+                        quoteSummary={activeQuoteSummary}
+                        slippagePercent={BUNDLE_DEFAULT_SLIPPAGE}
                       />
 
                       <div className="glass-card p-4 border border-amber-200/50 bg-amber-50/30 mb-4 mt-6">
@@ -1014,6 +1246,20 @@ export function PrimePicks() {
                               <p className="font-medium text-gray-900 mb-1">
                                 Some tokens have no valid swap route
                               </p>
+                              <ul className="text-xs text-gray-700 mb-2 space-y-1 list-disc list-inside">
+                                {(executionPrompt.failedTokens || []).map(
+                                  (token) => (
+                                    <li key={token.symbol}>
+                                      <span className="font-medium">
+                                        {token.symbol}
+                                      </span>
+                                      {token.reason
+                                        ? `: ${token.reason}`
+                                        : null}
+                                    </li>
+                                  ),
+                                )}
+                              </ul>
                               <p className="text-xs text-gray-700 mb-3">
                                 Continue with available routes or go back to
                                 edit.
@@ -1263,6 +1509,15 @@ export function PrimePicks() {
                       <BundleAllocationPreview
                         positions={selectedBundle.positions}
                         amount={effectiveAmount}
+                        sourceToken={sourceToken}
+                        quoteBySymbol={
+                          canFetchPreviewQuote
+                            ? (previewQuoteDetails ?? {})
+                            : null
+                        }
+                        quoteSummary={previewQuoteSummary}
+                        isLoadingQuote={previewQuoteQuery.isFetching}
+                        slippagePercent={BUNDLE_DEFAULT_SLIPPAGE}
                       />
 
                       {actionError && (
@@ -1276,7 +1531,9 @@ export function PrimePicks() {
                         disabled={
                           !effectiveAmount ||
                           effectiveAmount < BUNDLE_MIN_AMOUNT_USD ||
-                          isBusy
+                          isBusy ||
+                          previewQuoteBlocksInvest ||
+                          (canFetchPreviewQuote && previewQuoteQuery.isFetching)
                         }
                         onClick={handleConfirmInvest}
                         className="w-full mt-6 bg-black text-white font-semibold py-4 rounded-xl hover:bg-gray-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
