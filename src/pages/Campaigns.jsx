@@ -52,6 +52,53 @@ export function CampaignsPage() {
 
           {/* Campaign Cards Grid */}
           <div className="grid xl:grid-cols-2 gap-6">
+                 <button
+          onClick={() => setSearchParams({ campaign: "volume-league" })}
+          className="glass-card overflow-hidden text-left hover:shadow-2xl transition-all duration-300 group relative"
+        >
+          <div className="relative h-48 w-full overflow-hidden bg-gradient-to-br from-cyan-900 via-blue-900 to-indigo-900 flex items-center justify-center">
+            <div className="absolute inset-0 opacity-20">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="absolute rounded-full border border-cyan-400/40" style={{ width: `${60 + i * 30}px`, height: `${60 + i * 30}px`, top: '50%', left: '50%', transform: 'translate(-50%,-50%)' }} />
+              ))}
+            </div>
+            <TrendingUp className="w-16 h-16 text-cyan-400 drop-shadow-lg" />
+            <div className="absolute top-4 right-4 bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold shadow-lg">
+              ACTIVE
+            </div>
+            <div className="absolute top-4 left-4 bg-cyan-500/20 backdrop-blur-sm text-cyan-200 px-3 py-1 rounded-full text-xs font-semibold border border-cyan-400/30">
+              Weekly Rewards
+            </div>
+          </div>
+          <div className="p-8">
+            <h3 className="text-2xl font-bold text-gray-900 mb-2">Volume League</h3>
+            <p className="text-gray-600 mb-6">Generate volume on BNB Chain, climb tier brackets, and earn weekly Gem distributions from the leaderboard</p>
+           <div className="flex flex-col sm:flex-row gap-2 sm:items-center justify-between mb-6">
+                  <div className="bg-white/60 backdrop-blur-sm rounded-xl p-3">
+                    <div className="text-xs text-gray-600 mb-1">
+                      Weekly Pool
+                    </div>
+                    <div className="font-bold text-base text-gray-900 flex items-center gap-1">
+                      $11,250 (<Gem className="w-4 h-4 text-purple-600" />
+                      2,250)
+                    </div>
+                  </div>
+                  <div className="bg-white/60 backdrop-blur-sm rounded-xl p-3">
+                    <div className="text-xs text-gray-600 mb-1">Duration</div>
+                    <div className="font-bold text-gray-900 flex items-center gap-1">
+                      <Calendar className="w-4 h-4 text-blue-600" />
+                      Jun 15 - Jul 15
+                    </div>
+                  </div>
+                </div>
+            <div className="flex items-center justify-end gap-2 ">
+                  <span className="text-sm font-semibold text-amber-600 group-hover:text-amber-700">
+                    View
+                  </span>
+                  <ChevronRight className="w-5 h-5 text-amber-600 group-hover:translate-x-1 transition-transform" />
+                </div>
+          </div>
+        </button>
             {/* Trading Competition Card */}
             <button
               onClick={() => {
@@ -246,53 +293,7 @@ export function CampaignsPage() {
                 </div>
               </div>
             </button>
-            <button
-          onClick={() => setSearchParams({ campaign: "volume-league" })}
-          className="glass-card overflow-hidden text-left hover:shadow-2xl transition-all duration-300 group relative"
-        >
-          <div className="relative h-48 w-full overflow-hidden bg-gradient-to-br from-cyan-900 via-blue-900 to-indigo-900 flex items-center justify-center">
-            <div className="absolute inset-0 opacity-20">
-              {[...Array(6)].map((_, i) => (
-                <div key={i} className="absolute rounded-full border border-cyan-400/40" style={{ width: `${60 + i * 30}px`, height: `${60 + i * 30}px`, top: '50%', left: '50%', transform: 'translate(-50%,-50%)' }} />
-              ))}
-            </div>
-            <TrendingUp className="w-16 h-16 text-cyan-400 drop-shadow-lg" />
-            <div className="absolute top-4 right-4 bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold shadow-lg">
-              ACTIVE
-            </div>
-            <div className="absolute top-4 left-4 bg-cyan-500/20 backdrop-blur-sm text-cyan-200 px-3 py-1 rounded-full text-xs font-semibold border border-cyan-400/30">
-              Weekly Rewards
-            </div>
-          </div>
-          <div className="p-8">
-            <h3 className="text-2xl font-bold text-gray-900 mb-2">Volume League</h3>
-            <p className="text-gray-600 mb-6">Generate volume on BNB Chain, climb tier brackets, and earn weekly Gem distributions from the leaderboard</p>
-           <div className="flex flex-col sm:flex-row gap-2 sm:items-center justify-between mb-6">
-                  <div className="bg-white/60 backdrop-blur-sm rounded-xl p-3">
-                    <div className="text-xs text-gray-600 mb-1">
-                      Weekly Pool
-                    </div>
-                    <div className="font-bold text-base text-gray-900 flex items-center gap-1">
-                      $11,250 (<Gem className="w-4 h-4 text-purple-600" />
-                      2,250)
-                    </div>
-                  </div>
-                  <div className="bg-white/60 backdrop-blur-sm rounded-xl p-3">
-                    <div className="text-xs text-gray-600 mb-1">Duration</div>
-                    <div className="font-bold text-gray-900 flex items-center gap-1">
-                      <Calendar className="w-4 h-4 text-blue-600" />
-                      Jun 15 - Jul 15
-                    </div>
-                  </div>
-                </div>
-            <div className="flex items-center justify-end gap-2 ">
-                  <span className="text-sm font-semibold text-amber-600 group-hover:text-amber-700">
-                    View
-                  </span>
-                  <ChevronRight className="w-5 h-5 text-amber-600 group-hover:translate-x-1 transition-transform" />
-                </div>
-          </div>
-        </button>
+       
           </div>
         </div>
       ) : (

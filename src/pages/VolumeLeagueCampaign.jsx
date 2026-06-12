@@ -18,7 +18,9 @@ import {
   FileText,
   HelpCircle,
   BookOpen,
+  Plus,
 } from "lucide-react";
+import { Link } from "react-router";
 
 const TIERS = [
   {
@@ -78,31 +80,23 @@ const WEEKS = [
 const faqs = [
   {
     q: "Who can participate in Volume League?",
-    a: "Any user who generates volume on BNB Chain via AlloX — through the Binance Wallet Campaign tasks, Prime Picks bundles, or the Quick Portfolio Builder. Your wallet must be connected via Binance Wallet.",
+    a: "Any user who generates volume on BNB Chain, Base and Ethereum via AlloX, through the Binance Wallet Campaign tasks, Prime Picks bundles, or the Quick Portfolio Builder.",
   },
   {
     q: "How are tiers determined each week?",
-    a: "Your tier is based on your cumulative portfolio volume for that specific week: Bronze requires $5K+, Silver $25K+, Gold $50K+, and Diamond $100K+. You start fresh each week — hitting a higher tier one week doesn't lock you into it the next.",
+    a: "Your tier is based on your cumulative portfolio volume for that specific week: Bronze requires $5K+, Silver $25K+, Gold $50K+, and Diamond $100K+. You start fresh each week, hitting a higher tier one week doesn't lock you into it the next.",
   },
   {
     q: "How are gems distributed within each tier?",
-    a: "Gems are split equally among all users who qualify for that tier during the week. The more users in a tier, the smaller the individual share — so qualifying for a higher tier means a larger personal reward.",
-  },
-  {
-    q: "What happens if total campaign volume doesn't reach $100M?",
-    a: "Full rewards require the campaign to collectively reach $100M in total volume. If this threshold isn't met by July 15, the reward pool is scaled proportionally. For example, $50M in total volume would result in 50% of the advertised gem rewards being distributed.",
+    a: "Gems are split among all users who qualify for that tier during the week.",
   },
   {
     q: "When will I receive my gems?",
-    a: "Gems earned each week are tracked and accumulated. They are distributed after the campaign ends on July 15, 2026, and vest linearly over 6 months starting at ALLOX TGE. Unclaimed gems after 12 months post-TGE are forfeited.",
+    a: "Gems earned each week are tracked and accumulated.",
   },
   {
     q: "Does volume from multiple products stack?",
-    a: "Yes. Volume generated through Binance Wallet Campaign tasks, Prime Picks, and the Quick Portfolio Builder all count toward your weekly total on BNB Chain.",
-  },
-  {
-    q: "Can I participate with multiple wallets?",
-    a: "No. Each user may only participate with one verified Binance Wallet. Using multiple wallets will result in disqualification from all tiers.",
+    a: "Yes. Volume generated through Binance Wallet Campaign tasks, Prime Picks, and the Quick Portfolio Builder all count toward your weekly total.",
   },
   {
     q: "Is there a minimum to participate?",
@@ -189,6 +183,7 @@ export function VolumeLeagueCampaign() {
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [showFAQModal, setShowFAQModal] = useState(false);
+  const showWeekNotStartedPlaceholder = selectedWeek >= 1;
 
   const leaderboard = generateLeaderboard(selectedWeek + 1);
 
@@ -213,9 +208,7 @@ export function VolumeLeagueCampaign() {
               <Info size={17} className="text-gray-600" />
             </button>
           </div>
-          <p className="text-gray-500 mt-1 text-sm">
-            Jun 15 – Jul 15, 2026 · Weekly Gem distributions · BNB Chain
-          </p>
+         
         </div>
         <div className="flex items-center gap-2">
           <div className="glass-card px-4 py-2 bg-gradient-to-r from-cyan-500/20 to-blue-600/20 border-cyan-400/40">
@@ -302,12 +295,13 @@ export function VolumeLeagueCampaign() {
             <div className="text-2xl font-bold text-gray-900">
               {fmt(currentUser.thisWeekVolume)}
             </div>
-            <div className="text-xs text-gray-500 mt-0.5">This Week</div>
+            <div className="text-xs text-gray-500 mt-0.5">This Week's Volume</div>
           </div>
         </div>
 
-        <div className="mt-4 flex items-center justify-between p-3 bg-white/60 rounded-xl border border-cyan-200/40">
-          <span className="text-sm font-medium text-gray-700">
+        <div className="mt-4 flex flex-col md:flex-row gap-2 items-center justify-between p-3 bg-white/60 rounded-xl border border-cyan-200/40">
+        <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-gray-700">
             Estimated gems this week:
           </span>
           <div className="flex items-center gap-1.5">
@@ -316,6 +310,14 @@ export function VolumeLeagueCampaign() {
               {currentUser.estimatedGems.toLocaleString()} Gems
             </span>
           </div>
+        </div>
+         <Link
+                    to={"/"}
+                    className="btn-primary  flex items-center justify-center gap-2 text-sm"
+                  >
+                    <Plus size={16} />
+                    Create Portfolio
+                  </Link>
         </div>
         <p className="text-xs text-gray-400 mt-2">
           * Rank and estimated gems update daily. Final distribution confirmed
@@ -335,11 +337,7 @@ export function VolumeLeagueCampaign() {
               key={tier.label}
               className={`glass-card p-4 ${tier.bg} ${tier.border} border ${currentUser.tier.label === tier.label ? "ring-2 ring-cyan-400 ring-offset-1" : ""}`}
             >
-              {currentUser.tier.label === tier.label && (
-                <div className="text-xs font-bold text-cyan-600 mb-1">
-                  ← Your Tier
-                </div>
-              )}
+          
               <div
                 className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold mb-3 ${tier.badge}`}
               >
@@ -361,9 +359,7 @@ export function VolumeLeagueCampaign() {
             </div>
           ))}
         </div>
-        <p className="text-xs text-gray-500 mt-2">
-          * Gems split equally among all users in each tier per week.
-        </p>
+      
       </div>
 
       {/* Weekly Leaderboard */}
@@ -405,120 +401,139 @@ export function VolumeLeagueCampaign() {
         <div className="text-xs text-gray-500 mb-4 flex items-center gap-1.5">
           <Calendar size={12} />
           {WEEKS[selectedWeek].dateRange}
-          <span className="ml-1 px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full">
-            Upcoming
-          </span>
+          {selectedWeek === 0 ? (
+            <span className="ml-1 inline-flex items-center gap-1.5 px-2 py-0.5 bg-green-100 text-green-700 rounded-full">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+              Live
+            </span>
+          ) : (
+            <span className="ml-1 px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full">
+              Upcoming
+            </span>
+          )}
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-200">
-                <th className="text-left py-2.5 px-3 text-gray-500 font-semibold">
-                  #
-                </th>
-                <th className="text-left py-2.5 px-3 text-gray-500 font-semibold">
-                  Wallet
-                </th>
-                <th className="text-left py-2.5 px-3 text-gray-500 font-semibold">
-                  Portfolios
-                </th>
-                <th className="text-left py-2.5 px-3 text-gray-500 font-semibold">
-                  Volume
-                </th>
-                <th className="text-left py-2.5 px-3 text-gray-500 font-semibold">
-                  Tier
-                </th>
-                <th className="text-left py-2.5 px-3 text-gray-500 font-semibold">
-                  Gems (est.)
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {leaderboard.map((row) => (
-                <tr
-                  key={row.pos}
-                  className="hover:bg-white/60 transition-colors"
-                >
-                  <td className="py-3 px-3 w-10">
-                    <div className="flex items-center justify-center w-6">
-                      <PositionIcon pos={row.pos} />
-                    </div>
-                  </td>
-                  <td className="py-3 px-3 font-mono text-xs text-gray-700">
-                    {row.address}
-                  </td>
-                  <td className="py-3 px-3 text-gray-700 font-medium">
-                    {row.portfolios}
-                  </td>
-                  <td className="py-3 px-3 font-semibold text-gray-900">
-                    {fmt(row.volume)}
-                  </td>
-                  <td className="py-3 px-3">
-                    <span
-                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold ${row.tier.badge}`}
+        {showWeekNotStartedPlaceholder ? (
+          <div className="rounded-2xl border border-gray-200/80 bg-gradient-to-br from-gray-50 to-white p-8 md:p-10 text-center">
+            <div className="mx-auto w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center mb-4">
+              <Lock size={20} className="text-gray-500" />
+            </div>
+            <h4 className="text-lg font-bold text-gray-900">Week has not started</h4>
+            <p className="text-sm text-gray-500 mt-2 max-w-md mx-auto">
+              Leaderboard data for this week will appear once the week becomes active.
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left py-2.5 px-3 text-gray-500 font-semibold">
+                      #
+                    </th>
+                    <th className="text-left py-2.5 px-3 text-gray-500 font-semibold">
+                      Wallet
+                    </th>
+                    <th className="text-left py-2.5 px-3 text-gray-500 font-semibold">
+                      Portfolios
+                    </th>
+                    <th className="text-left py-2.5 px-3 text-gray-500 font-semibold">
+                      Volume
+                    </th>
+                    <th className="text-left py-2.5 px-3 text-gray-500 font-semibold">
+                      Tier
+                    </th>
+                    <th className="text-left py-2.5 px-3 text-gray-500 font-semibold">
+                      Gems
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {leaderboard.map((row) => (
+                    <tr
+                      key={row.pos}
+                      className="hover:bg-white/60 transition-colors"
                     >
-                      <div
-                        className={`w-1.5 h-1.5 rounded-full bg-gradient-to-br ${row.tier.color}`}
-                      />
-                      {row.tier.label}
-                    </span>
-                  </td>
-                  <td className="py-3 px-3">
-                    <div className="flex items-center gap-1">
-                      <Gem size={12} className="text-purple-500" />
-                      <span className="font-bold text-purple-700">
-                        {row.gems.toLocaleString()}
-                      </span>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                      <td className="py-3 px-3 w-10">
+                        <div className="flex items-center justify-center w-6">
+                          <PositionIcon pos={row.pos} />
+                        </div>
+                      </td>
+                      <td className="py-3 px-3 font-mono text-xs text-gray-700">
+                        {row.address}
+                      </td>
+                      <td className="py-3 px-3 text-gray-700 font-medium">
+                        {row.portfolios}
+                      </td>
+                      <td className="py-3 px-3 font-semibold text-gray-900">
+                        {fmt(row.volume)}
+                      </td>
+                      <td className="py-3 px-3">
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold ${row.tier.badge}`}
+                        >
+                          <div
+                            className={`w-1.5 h-1.5 rounded-full bg-gradient-to-br ${row.tier.color}`}
+                          />
+                          {row.tier.label}
+                        </span>
+                      </td>
+                      <td className="py-3 px-3">
+                        <div className="font-bold  text-gray-900 flex items-center ">
+                          ${row.gems * 5} (<Gem className="w-4 h-4 text-purple-600" />
+                          {row.gems.toLocaleString()})
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
 
-              {/* Current user row */}
-              <tr className="bg-cyan-50/80 border-t-2 border-cyan-300">
-                <td className="py-3 px-3">
-                  <div className="flex items-center justify-center w-6">
-                    <span className="text-cyan-700 text-sm font-bold">
-                      {currentUser.rank}
-                    </span>
-                  </div>
-                </td>
-                <td className="py-3 px-3 font-mono text-xs text-cyan-700 font-semibold">
-                  {currentUser.address} (you)
-                </td>
-                <td className="py-3 px-3 text-gray-700 font-medium">
-                  {currentUser.portfoliosCreated}
-                </td>
-                <td className="py-3 px-3 font-semibold text-gray-900">
-                  {fmt(currentUser.thisWeekVolume)}
-                </td>
-                <td className="py-3 px-3">
-                  <span
-                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold ${currentUser.tier.badge}`}
-                  >
-                    <div
-                      className={`w-1.5 h-1.5 rounded-full bg-gradient-to-br ${currentUser.tier.color}`}
-                    />
-                    {currentUser.tier.label}
-                  </span>
-                </td>
-                <td className="py-3 px-3">
-                  <div className="flex items-center gap-1">
-                    <Gem size={12} className="text-purple-500" />
-                    <span className="font-bold text-purple-700">
-                      {currentUser.estimatedGems.toLocaleString()}
-                    </span>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <p className="text-xs text-gray-400 mt-3 italic">
-          Estimated gem rewards. Final amounts confirmed after each week closes
-          and total volume is verified.
-        </p>
+                  {/* Current user row */}
+                  <tr className="bg-cyan-50/80 border-t-2 border-cyan-300">
+                    <td className="py-3 px-3">
+                      <div className="flex items-center justify-center w-6">
+                        <span className="text-cyan-700 text-sm font-bold">
+                          {currentUser.rank}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="py-3 px-3 font-mono text-xs text-cyan-700 font-semibold">
+                      {currentUser.address} (you)
+                    </td>
+                    <td className="py-3 px-3 text-gray-700 font-medium">
+                      {currentUser.portfoliosCreated}
+                    </td>
+                    <td className="py-3 px-3 font-semibold text-gray-900">
+                      {fmt(currentUser.thisWeekVolume)}
+                    </td>
+                    <td className="py-3 px-3">
+                      <span
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold ${currentUser.tier.badge}`}
+                      >
+                        <div
+                          className={`w-1.5 h-1.5 rounded-full bg-gradient-to-br ${currentUser.tier.color}`}
+                        />
+                        {currentUser.tier.label}
+                      </span>
+                    </td>
+                    <td className="py-3 px-3">
+                      <div className="flex items-center gap-1">
+                        <Gem size={12} className="text-purple-500" />
+                        <span className="font-bold text-purple-700">
+                          {currentUser.estimatedGems.toLocaleString()}
+                        </span>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p className="text-xs text-gray-400 mt-3 italic">
+              Estimated gem rewards. Final amounts confirmed after each week closes
+              and total volume is verified.
+            </p>
+          </>
+        )}
       </div>
 
       {/* ── FAQ Modal ── */}
@@ -531,7 +546,7 @@ export function VolumeLeagueCampaign() {
                   Frequently Asked Questions
                 </h3>
                 <p className="text-sm text-gray-500 mt-0.5">
-                  Volume League · BNB Chain
+                  Volume League
                 </p>
               </div>
               <button
@@ -558,7 +573,7 @@ export function VolumeLeagueCampaign() {
               <div>
                 <h3 className="text-xl font-bold">Terms & Conditions</h3>
                 <p className="text-sm text-gray-500 mt-0.5">
-                  Volume League · BNB Chain
+                  Volume League
                 </p>
               </div>
               <button
@@ -578,37 +593,14 @@ export function VolumeLeagueCampaign() {
                 <p className="text-sm text-gray-700 mb-3 leading-relaxed">
                   All users participating in any active AlloX campaign are
                   eligible to join Volume League. This includes participants
-                  from the Binance Wallet Campaign, The Allocation Race, Spring
-                  Series, WOD HODL, Prove Your Portfolio, Prime Picks, and the
+                  from the Binance Wallet Campaign, Prove Your Portfolio, Prime Picks, and the
                   Quick Portfolio Builder.
                 </p>
-                <p className="text-xs text-gray-500">
-                  Volume is tracked on BNB Chain. Wallets must be connected via
-                  Binance Wallet. Only one wallet per user is permitted.
-                </p>
+              
               </div>
 
-              {/* Vesting */}
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <Lock size={16} className="text-gray-600" />
-                  <h4 className="font-bold text-gray-900">Vesting Schedule</h4>
-                </div>
-                <ul className="space-y-2 text-sm text-gray-700">
-                  {[
-                    "All rewards vest linearly over 6 months starting at ALLOX TGE",
-                    "Weekly gem distributions accumulate and are locked until the campaign ends on July 15, 2026",
-                    "Vesting begins at TGE regardless of when during the campaign the gems were earned",
-                    "Unclaimed gems after 12 months post-TGE are permanently forfeited",
-                    "Early TGE does not accelerate vesting — the 6-month schedule remains fixed from the TGE date",
-                  ].map((item, i) => (
-                    <li key={i} className="flex items-start gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-gray-400 mt-1.5 flex-shrink-0" />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </div>
+          
+        
 
               {/* General Terms */}
               <div>
@@ -619,16 +611,15 @@ export function VolumeLeagueCampaign() {
                 <ul className="space-y-2.5 text-sm text-gray-700">
                   {[
                     "Participants must generate a minimum of $5,000 in portfolio volume in a given week to qualify for any tier reward",
-                    "Each tier's gem pool is split equally among all qualifying users in that tier for that week — the more users qualify, the smaller each individual share",
+                    "Each tier's gem pool is split among all qualifying users in that tier for that week",
                     "Volume resets to zero at the start of each week; your tier must be re-qualified every week",
                     "Volume from all eligible AlloX products (Prime Picks, Quick Portfolio Builder, Binance Wallet Campaign tasks) is aggregated toward the weekly total",
                     "Using multiple wallets or engaging in wash trading, bot activity, or any form of volume manipulation will result in permanent disqualification from all AlloX campaigns",
                     "AlloX reserves the right to adjust tier thresholds, reward amounts, or campaign duration at any time with reasonable notice",
                     "If the $100M minimum campaign volume threshold is not reached, the reward pool will be scaled proportionally to the actual volume achieved",
                     "AlloX's decision on reward eligibility, disqualification, and distribution is final",
-                    "Binance Wallet's standard Terms and Conditions apply in addition to these rules",
-                    "Participants from jurisdictions where participation is prohibited by applicable law are not eligible",
                     "AlloX is not responsible for network outages, wallet connectivity issues, or on-chain delays that may affect volume tracking during the campaign period",
+                    "All rewards vest linearly over 6 months starting at ALLOX TGE",
                   ].map((item, i) => (
                     <li key={i} className="flex items-start gap-2">
                       <div className="w-5 h-5 rounded-full border-2 border-gray-300 flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -661,7 +652,7 @@ export function VolumeLeagueCampaign() {
               {[
                 {
                   step: 1,
-                  text: "Connect your Binance Wallet and generate volume on BNB Chain through AlloX — via Prime Picks, Quick Portfolio Builder, or the Binance Wallet Campaign tasks.",
+                  text: "Connect your Binance Wallet and generate volume on BNB Chain through AlloX, via Prime Picks, Quick Portfolio Builder, or the Binance Wallet Campaign tasks.",
                 },
                 {
                   step: 2,
@@ -669,16 +660,10 @@ export function VolumeLeagueCampaign() {
                 },
                 {
                   step: 3,
-                  text: "At the end of each week, gems are distributed equally among all users in each tier. The higher the tier, the larger the weekly gem pool.",
+                  text: "At the end of each week, gems are distributed among all users in each tier. The higher the tier, the larger the weekly gem pool.",
                 },
-                {
-                  step: 4,
-                  text: "Gems accumulate across all 5 weeks and vest linearly over 6 months starting at ALLOX TGE.",
-                },
-                {
-                  step: 5,
-                  text: "If total campaign volume doesn't reach $100M, the reward pool scales down proportionally.",
-                },
+              
+           
               ].map(({ step, text }) => (
                 <div
                   key={step}
