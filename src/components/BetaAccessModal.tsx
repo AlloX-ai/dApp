@@ -21,7 +21,7 @@ const WALLET_OPTIONS = [
 
   {
     name: "MetaMask",
-    icon: "https://cdn.allox.ai/allox/wallets/metamaskConnect.svg",
+    icon: "https://cdn.allox.ai/allox/wallets/newMetamask.svg",
     type: "top",
     walletType: "metamask",
   },
@@ -221,7 +221,7 @@ export function BetaAccessModal({
                     <div className="flex-1">
                       <span className="font-medium block">Solana</span>
                       <span className="text-xs text-gray-500">
-                        MetaMask Solana Snap
+                        Solana in MetaMask
                       </span>
                     </div>
                   </button>

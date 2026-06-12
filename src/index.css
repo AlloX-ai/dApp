@@ -252,10 +252,10 @@ h6 {
   background: #0000001a;
 }
 
-:focus-visible {
+/* :focus-visible {
   outline-offset: 2px;
   outline: 2px solid #00000080;
-}
+} */
 
 @property --tw-translate-x {
   syntax: "*";

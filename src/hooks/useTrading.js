@@ -54,6 +54,27 @@ const getCompetitionId = (payload) => {
 	return null;
 };
 
+const resolveAllocationRaceCompetitionId = async () => {
+	const activeData = await apiCall("/competition/active");
+	const activeId = getCompetitionId(activeData);
+	if (activeId) {
+		return { competitionId: activeId, data: activeData };
+	}
+
+	const endedData = await apiCall("/competition/ended?page=1&limit=3");
+	const endedId = getCompetitionId(endedData);
+	if (!endedId) {
+		throw new Error("No Allocation Race competition found");
+	}
+
+	const picked = pickAllocationRaceCompetition(endedData?.competitions);
+	return {
+		competitionId: endedId,
+		data:
+			picked != null ? { ...endedData, competitions: [picked] } : endedData,
+	};
+};
+
 export function useTrading() {
 	const dispatch = useDispatch();
 	const trading = useSelector((state) => state.trading);
@@ -73,21 +94,7 @@ export function useTrading() {
 		setError(null);
 
 		try {
-			const data = await apiCall("/competition/active");
-			const competitionId = getCompetitionId(data);
-			const picked = pickAllocationRaceCompetition(data?.competitions);
-
-			if (!competitionId) {
-				throw new Error("No active competition found");
-			}
-
-			return {
-				competitionId,
-				data:
-					picked != null
-						? { ...data, competitions: [picked] }
-						: data,
-			};
+			return await resolveAllocationRaceCompetitionId();
 		} catch (err) {
 			setError(err?.message || "Failed to fetch active competition");
 			throw err;

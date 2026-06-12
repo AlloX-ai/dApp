@@ -23,10 +23,33 @@ import {
   connect,
   disconnect,
   getAccount,
+  getChainId,
   getConnections,
   watchAccount,
   watchConnections,
 } from "@wagmi/core";
+import {
+  isBinanceConnectorLike,
+  restoreBinanceSessionMarkerFromPersistence,
+} from "./utils/binanceWallet";
+import { subscribeWalletConnectForceConnect } from "./utils/walletConnectForceConnect";
+import { resolveSemanticWalletType } from "./utils/resolveSemanticWalletType";
+import {
+  clearBinanceWalletSession,
+  clearPersistedWalletProvider,
+  clearPersistedWalletType,
+  getPersistedWalletProvider,
+  getPersistedWalletType,
+  hasBinanceWalletSession,
+  isWalletConnectHandoffType,
+  markBinanceWalletSession,
+  persistWalletType,
+  resolveWalletTypeForPersistence,
+} from "./utils/walletPersistence";
+import {
+  connectViaWalletConnect,
+  usesWalletConnectModal,
+} from "./utils/wagmiWalletConnect";
 import {
   setAddress,
   setChainId,
@@ -60,6 +83,10 @@ import {
 import { store } from "./redux/store";
 import { PointsPage } from "./pages/Points";
 import { useWallet } from "@solana/wallet-adapter-react";
+import {
+  resolveSolanaWalletForConnect,
+  warmupMetaMaskSolanaIfSession,
+} from "./utils/initMetaMaskSolana.js";
 import { useSocial } from "./hooks/useSocial";
 import { CongratsModal } from "./components/CongratsModal";
 import { AIChatWidget } from "./components/AiChatWidget";
@@ -69,6 +96,8 @@ import { PrivyFundHubModal } from "./components/PrivyFundHubModal";
 import { MaintenancePage } from "./pages/MaintenancePage";
 import { TopPortfoliosPage } from "./pages/TopPortfoliosPage";
 import { WatchlistPage } from "./pages/WatchlistPage";
+import { PrimePicks } from "./pages/PrimePicks";
+import { persistBinanceBoosterAddrFromSearch } from "./utils/binanceCampaign";
 
 const MAINTENANCE_MODE = false;
 
@@ -76,6 +105,15 @@ const SOLANA_MAINNET_CHAIN_ID = 101;
 const PREFERRED_CHAIN_STORAGE_KEY = "walletPreferredChainId";
 const PRIVY_VERIFY_BASE_COOLDOWN_MS = 5000;
 const PRIVY_VERIFY_MAX_COOLDOWN_MS = 120000;
+
+const isRateLimitError = (error) => {
+  const status = Number(error?.status ?? error?.code);
+  if (status === 429) return true;
+  const message = String(
+    error?.message ?? error?.data?.error ?? "",
+  ).toLowerCase();
+  return message.includes("429") || message.includes("too many requests");
+};
 
 /** Avoid EVM (wagmi) and Solana (adapter) fighting for the same MetaMask session. */
 async function disconnectAllEvmWagmi() {
@@ -134,6 +172,7 @@ function PrivyEnsureBnbChain() {
 function LaunchAppLayout() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
   const wasConnectedRef = useRef(false);
   const prevAddressRef = useRef(undefined);
   const prevWalletTypeRef = useRef(undefined);
@@ -145,6 +184,10 @@ function LaunchAppLayout() {
     select: selectSolanaWallet,
     disconnect: disconnectSolana,
   } = useWallet();
+  const solanaWalletsRef = useRef(solanaWallets);
+  useEffect(() => {
+    solanaWalletsRef.current = solanaWallets;
+  }, [solanaWallets]);
 
   const {
     address,
@@ -170,6 +213,10 @@ function LaunchAppLayout() {
   const privyVerifyFailuresRef = useRef(0);
   const privyVerifyCooldownUntilRef = useRef(0);
 
+  useEffect(() => {
+    persistBinanceBoosterAddrFromSearch(location.search);
+  }, [location.search]);
+
   const attemptWalletAuthentication = useCallback(
     async ({
       source = "auto",
@@ -189,13 +236,13 @@ function LaunchAppLayout() {
 
       walletAuthInFlightRef.current = true;
       setIsWalletAuthPending(true);
-      const isBinanceWallet = walletType === "binance";
+      const isMobileWalletHandoff = isWalletConnectHandoffType(walletType);
       const toastId = "wallet-auth-flow";
 
       if (showLoadingToast) {
         toast.loading(
-          isBinanceWallet
-            ? "Waiting for Binance Wallet approval. Return to Chrome after approving the signature."
+          isMobileWalletHandoff
+            ? "Waiting for your wallet. After approving, return to this browser to finish."
             : "Waiting for wallet signature...",
           { id: toastId },
         );
@@ -299,8 +346,12 @@ function LaunchAppLayout() {
     if (walletType === "privy" || user?.authProvider === "privy") return;
     if (authTriggeredRef.current) return;
     authTriggeredRef.current = true;
-    attemptWalletAuthentication({ source: "auto" }).catch(() => {
-      authTriggeredRef.current = false;
+    attemptWalletAuthentication({ source: "auto" }).catch((error) => {
+      // On auth rate limit, hold the guard so we don't spam /auth/nonce.
+      // It will be reset by account/type changes or reconnect.
+      if (!isRateLimitError(error)) {
+        authTriggeredRef.current = false;
+      }
     });
   }, [
     isConnected,
@@ -332,11 +383,14 @@ function LaunchAppLayout() {
 
         if (
           shouldRetryAuth &&
-          (currentWallet.walletModal || currentWallet.walletType === "binance")
+          (currentWallet.walletModal ||
+            isWalletConnectHandoffType(currentWallet.walletType))
         ) {
           attemptWalletAuthentication({
             source: "resume",
-            showLoadingToast: currentWallet.walletType === "binance",
+            showLoadingToast: isWalletConnectHandoffType(
+              currentWallet.walletType,
+            ),
           }).catch(() => {});
         } else if (
           account.status === "connected" &&
@@ -462,6 +516,7 @@ function LaunchAppLayout() {
     dispatch(setChainId(null));
     dispatch(setIsConnected(false));
     dispatch(setWalletType(""));
+    clearPersistedWalletType();
     dispatch(setSessionSource(null));
     dispatch(setViewingHistorySessionId(null));
     dispatch(setCurrentMessages([]));
@@ -478,9 +533,10 @@ function LaunchAppLayout() {
   }, [user?.season1, user?.season1?.points, dispatch]);
 
   useEffect(() => {
-    if (user?.walletType && address && user?.address === address) {
-      dispatch(setWalletType(user.walletType));
-    }
+    if (!user?.walletType || !address || user?.address !== address) return;
+    // Backend often returns generic "evm" even for Binance MPC / WC sessions.
+    if (hasBinanceWalletSession() && user.walletType === "evm") return;
+    dispatch(setWalletType(user.walletType));
   }, [user?.walletType, user?.address, address, dispatch]);
 
   useEffect(() => {
@@ -554,18 +610,19 @@ function LaunchAppLayout() {
     ) {
       const isPhantom = option.isPhantom || option.walletType === "phantom";
       const searchName = isPhantom ? "phantom" : "metamask";
-      const solanaWallet = solanaWallets.find((w) =>
-        w.adapter?.name?.toLowerCase?.().includes(searchName),
-      );
-      if (!solanaWallet) {
-        toast.error(
-          isPhantom
-            ? "Phantom wallet not found. Install the Phantom browser extension."
-            : "MetaMask with Solana support not found. Install or enable MetaMask.",
-        );
-        return;
-      }
       try {
+        const solanaWallet = await resolveSolanaWalletForConnect(
+          () => solanaWalletsRef.current,
+          searchName,
+        );
+        if (!solanaWallet) {
+          toast.error(
+            isPhantom
+              ? "Phantom wallet not found. Install the Phantom browser extension."
+              : "MetaMask with Solana support not found. Install or enable MetaMask.",
+          );
+          return;
+        }
         await disconnectAllEvmWagmi();
         selectSolanaWallet(solanaWallet.adapter.name);
         await solanaWallet.adapter.connect();
@@ -586,48 +643,44 @@ function LaunchAppLayout() {
       console.warn("Solana disconnect before EVM:", e);
     }
 
+    if (usesWalletConnectModal(option)) {
+      if (option.walletType !== "binance") {
+        toast.info(
+          "Scan the QR code or choose your wallet in WalletConnect. When you return to this tab, we will continue.",
+          { id: "walletconnect-handoff" },
+        );
+      }
+      try {
+        await connectViaWalletConnect(option, (type) => {
+          dispatch(setWalletType(type));
+          dispatch(setSessionSource("wallet"));
+        });
+      } catch (err) {
+        console.error("WalletConnect connection error:", err);
+        toast.error("Failed to connect via WalletConnect. Please try again.");
+      }
+      return;
+    }
+
     const connector = allConnectors.find((c) =>
       c.name.toLowerCase().includes(option.name.toLowerCase()),
     );
 
-    if (connector && connector.name !== "WalletConnect") {
-      const isBinance =
-        option.walletType === "binance" || option.name === "Binance Wallet";
-      if (isBinance) {
-        toast.info(
-          "Continue in Binance Wallet. After connecting or signing, return to Chrome and we'll resume verification.",
-          { id: "binance-wallet-handoff" },
-        );
-      }
+    if (connector) {
       connect(wagmiClient, { connector })
         .then(() => {
-          dispatch(setWalletType(isBinance ? "binance" : "evm"));
+          clearBinanceWalletSession();
+          clearPersistedWalletProvider();
+          const type = option.walletType === "metamask" ? "metamask" : "evm";
+          dispatch(setWalletType(type));
+          persistWalletType(type);
           dispatch(setIsConnected(true));
           dispatch(setSessionSource("wallet"));
-          if (isBinance) {
-            setTimeout(() => getAccount(wagmiClient), 2000);
-          }
         })
         .catch((err) => {
           console.error("Wallet connection error:", err);
           toast.error("Failed to connect wallet. Please try again.");
         });
-    } else if (connector?.name === "WalletConnect") {
-      const wcConnector = allConnectors.find((c) => c.name === "WalletConnect");
-      if (wcConnector) {
-        connect(wagmiClient, { connector: wcConnector })
-          .then(() => {
-            dispatch(setWalletType("evm"));
-            dispatch(setIsConnected(true));
-            dispatch(setSessionSource("wallet"));
-          })
-          .catch((err) => {
-            console.error("WalletConnect connection error:", err);
-            toast.error(
-              "Failed to connect via WalletConnect. Please try again.",
-            );
-          });
-      }
     } else {
       toast.error(
         option.name +
@@ -685,7 +738,10 @@ function LaunchAppLayout() {
 
       <CheckinModal
         open={checkinModal}
-        onClose={() => dispatch(closeCheckinModal())}
+        onClose={() => {
+          dispatch(closeCheckinModal());
+          window.location.hash = "";
+        }}
         status={checkinStatus}
         claim={claimCheckin}
         fetchStatus={fetchCheckinStatus}
@@ -705,6 +761,10 @@ function BetaAccessLayout() {
     select: selectSolanaWallet,
     disconnect: disconnectSolanaAdapter,
   } = useWallet();
+  const solanaWalletsRef = useRef(solanaWallets);
+  useEffect(() => {
+    solanaWalletsRef.current = solanaWallets;
+  }, [solanaWallets]);
 
   const setWalletModalOpen = (nextValue) => {
     dispatch(setWalletModal(nextValue));
@@ -719,18 +779,19 @@ function BetaAccessLayout() {
     ) {
       const isPhantom = option.isPhantom || option.walletType === "phantom";
       const searchName = isPhantom ? "phantom" : "metamask";
-      const solanaWallet = solanaWallets.find((w) =>
-        w.adapter?.name?.toLowerCase?.().includes(searchName),
-      );
-      if (!solanaWallet) {
-        toast.error(
-          isPhantom
-            ? "Phantom wallet not found. Install the Phantom browser extension."
-            : "MetaMask with Solana support not found. Install or enable MetaMask.",
-        );
-        return;
-      }
       try {
+        const solanaWallet = await resolveSolanaWalletForConnect(
+          () => solanaWalletsRef.current,
+          searchName,
+        );
+        if (!solanaWallet) {
+          toast.error(
+            isPhantom
+              ? "Phantom wallet not found. Install the Phantom browser extension."
+              : "MetaMask with Solana support not found. Install or enable MetaMask.",
+          );
+          return;
+        }
         await disconnectAllEvmWagmi();
         selectSolanaWallet(solanaWallet.adapter.name);
         await solanaWallet.adapter.connect();
@@ -751,40 +812,42 @@ function BetaAccessLayout() {
       console.warn("Solana disconnect before EVM:", e);
     }
 
+    if (usesWalletConnectModal(option)) {
+      if (option.walletType !== "binance") {
+        toast.info(
+          "Scan the QR code or choose your wallet in WalletConnect. When you return to this tab, we will continue.",
+          { id: "walletconnect-handoff" },
+        );
+      }
+      try {
+        await connectViaWalletConnect(option, (type) => {
+          dispatch(setWalletType(type));
+          dispatch(setSessionSource("wallet"));
+        });
+      } catch (err) {
+        console.error("WalletConnect connection error:", err);
+        toast.error("Failed to connect via WalletConnect. Please try again.");
+      }
+      return;
+    }
+
     const connector = allConnectors.find((c) =>
       c.name.toLowerCase().includes(option.name.toLowerCase()),
     );
-    if (connector && connector.name !== "WalletConnect") {
-      const isBinance =
-        option.walletType === "binance" || option.name === "Binance Wallet";
+    if (connector) {
       connect(wagmiClient, { connector })
         .then(() => {
-          dispatch(setWalletType(isBinance ? "binance" : "evm"));
-          dispatch(setIsConnected(true));
-          dispatch(setWalletModal(false));
+          clearBinanceWalletSession();
+          clearPersistedWalletProvider();
+          const type = option.walletType === "metamask" ? "metamask" : "evm";
+          dispatch(setWalletType(type));
+          persistWalletType(type);
           dispatch(setSessionSource("wallet"));
         })
         .catch((err) => {
           console.error("Wallet connection error:", err);
           toast.error("Failed to connect wallet. Please try again.");
         });
-    } else if (connector?.name === "WalletConnect") {
-      const wcConnector = allConnectors.find((c) => c.name === "WalletConnect");
-      if (wcConnector) {
-        connect(wagmiClient, { connector: wcConnector })
-          .then(() => {
-            dispatch(setWalletType("evm"));
-            dispatch(setIsConnected(true));
-            dispatch(setWalletModal(false));
-            dispatch(setSessionSource("wallet"));
-          })
-          .catch((err) => {
-            console.error("WalletConnect connection error:", err);
-            toast.error(
-              "Failed to connect via WalletConnect. Please try again.",
-            );
-          });
-      }
     } else {
       toast.error(
         option.name +
@@ -811,6 +874,21 @@ function WalletSync() {
   const solanaActiveRef = useRef(false);
   const { authenticated, user: privyUser } = usePrivy();
   const { wallets: privyWallets, ready: privyWalletsReady } = useWallets();
+
+  useEffect(() => {
+    restoreBinanceSessionMarkerFromPersistence();
+    if (getPersistedWalletProvider() === "binance_wallet") {
+      markBinanceWalletSession();
+    }
+    const persisted = getPersistedWalletType();
+    if (persisted && !store.getState().wallet.walletType) {
+      dispatch(setWalletType(persisted));
+    }
+  }, [dispatch]);
+
+  useEffect(() => {
+    warmupMetaMaskSolanaIfSession();
+  }, []);
 
   // Eagerly restore Phantom only when NOT on login (per Phantom docs: use onlyIfTrusted for page load).
   // Skip on /login so logout doesn’t trigger reconnection and popup.
@@ -878,53 +956,83 @@ function WalletSync() {
     dispatch(setChainId(SOLANA_MAINNET_CHAIN_ID));
   }, [dispatch]);
 
-  // Watch account changes (EVM only; skip when stored user or Redux is Solana)
+  useEffect(() => subscribeWalletConnectForceConnect(wagmiClient), []);
+
+  // Watch account changes (EVM only; skip when Redux is Solana)
   useEffect(() => {
     let disconnectTimeoutId = null;
 
-    const unwatch = watchAccount(wagmiClient, (account) => {
-      const walletType = store.getState().wallet.walletType;
-      if (walletType === "solana") return;
+    const unwatch = watchAccount(wagmiClient, {
+      onChange(account) {
+        if (store.getState().wallet.walletType === "solana") return;
 
-      switch (account.status) {
-        case "connected":
-          if (disconnectTimeoutId) {
-            clearTimeout(disconnectTimeoutId);
-            disconnectTimeoutId = null;
-          }
-          if (account.address && account.chainId) {
-            dispatch(setAddress(account.address));
-            dispatch(setChainId(account.chainId));
-            dispatch(setIsConnected(true));
-            dispatch(setSessionSource("wallet"));
-          }
-          break;
-        case "reconnecting":
-          if (!isPrivySessionActive()) dispatch(setIsConnected(false));
-          break;
-        case "connecting":
-          if (!isPrivySessionActive() || !localStorage.getItem("authToken"))
-            dispatch(setIsConnected(false));
-          break;
-        case "disconnected":
-        default:
-          if (disconnectTimeoutId) clearTimeout(disconnectTimeoutId);
-          disconnectTimeoutId = setTimeout(() => {
-            disconnectTimeoutId = null;
-            if (isPrivySessionActive() || localStorage.getItem("authToken"))
-              return;
-            dispatch(setAddress(null));
-            dispatch(setIsConnected(false));
-            dispatch(setWalletType(""));
-          }, 400);
-          break;
-      }
+        switch (account.status) {
+          case "connected":
+            if (disconnectTimeoutId) {
+              clearTimeout(disconnectTimeoutId);
+              disconnectTimeoutId = null;
+            }
+            if (account.address) {
+              if (isBinanceConnectorLike(account.connector)) {
+                markBinanceWalletSession();
+              }
+              const resolvedType = resolveSemanticWalletType(
+                account.connector,
+                getPersistedWalletType(),
+              );
+              const typeToPersist =
+                resolveWalletTypeForPersistence(resolvedType);
+              const resolvedChainId =
+                account.chainId ?? getChainId(wagmiClient);
+              dispatch(setAddress(account.address));
+              if (resolvedChainId != null) {
+                dispatch(setChainId(resolvedChainId));
+              }
+              dispatch(setWalletType(typeToPersist));
+              persistWalletType(typeToPersist);
+              dispatch(setIsConnected(true));
+              dispatch(setSessionSource("wallet"));
+              if (typeof window !== "undefined") {
+                window.WALLET_TYPE = typeToPersist;
+              }
+              if (
+                !localStorage.getItem("authToken") &&
+                isWalletConnectHandoffType(resolvedType)
+              ) {
+                dispatch(setWalletModal(true));
+              }
+            }
+            break;
+          case "reconnecting":
+            if (!isPrivySessionActive()) dispatch(setIsConnected(false));
+            break;
+          case "connecting":
+            break;
+          case "disconnected":
+          default:
+            if (disconnectTimeoutId) clearTimeout(disconnectTimeoutId);
+            disconnectTimeoutId = setTimeout(() => {
+              disconnectTimeoutId = null;
+              if (isPrivySessionActive() || localStorage.getItem("authToken"))
+                return;
+              dispatch(setAddress(null));
+              dispatch(setIsConnected(false));
+              dispatch(setWalletType(""));
+              clearPersistedWalletType();
+              if (typeof window !== "undefined") {
+                window.WALLET_TYPE = null;
+              }
+            }, 400);
+            break;
+        }
+      },
     });
     return () => {
       if (disconnectTimeoutId) clearTimeout(disconnectTimeoutId);
       unwatch();
     };
   }, [dispatch]);
+
   // Watch connections (EVM only; Solana is synced via adapter above)
   useEffect(() => {
     let clearTimeoutId = null;
@@ -936,16 +1044,15 @@ function WalletSync() {
           clearTimeoutId = setTimeout(() => {
             clearTimeoutId = null;
             if (localStorage.getItem("authToken")) return;
-            if (store.getState().wallet.walletType !== "solana") {
-              dispatch(setAddress(null));
-              dispatch(setIsConnected(false));
-              dispatch(setWalletType(""));
-            }
             if (isPrivySessionActive()) return;
+            if (store.getState().wallet.walletType === "solana") return;
             dispatch(setAddress(null));
             dispatch(setIsConnected(false));
             dispatch(setWalletType(""));
-            window.WALLET_TYPE = null;
+            clearPersistedWalletType();
+            if (typeof window !== "undefined") {
+              window.WALLET_TYPE = null;
+            }
           }, 400);
         } else {
           if (
@@ -959,20 +1066,36 @@ function WalletSync() {
             clearTimeoutId = null;
           }
           const activeConnection = connections[0];
-          if (activeConnection.accounts[0] && activeConnection.chainId) {
-            dispatch(setWalletType("evm"));
+          console.log("activeConnection", activeConnection);
+          if (activeConnection.accounts[0]) {
+            if (isBinanceConnectorLike(activeConnection.connector)) {
+              markBinanceWalletSession();
+            }
+            const resolvedType = resolveSemanticWalletType(
+              activeConnection.connector,
+              getPersistedWalletType(),
+            );
+            const typeToPersist =
+              resolveWalletTypeForPersistence(resolvedType);
+            dispatch(setWalletType(typeToPersist));
+            persistWalletType(typeToPersist);
             dispatch(setAddress(activeConnection.accounts[0]));
-            dispatch(setChainId(activeConnection.chainId));
+            dispatch(
+              setChainId(activeConnection.chainId ?? getChainId(wagmiClient)),
+            );
             dispatch(setIsConnected(true));
             dispatch(setSessionSource("wallet"));
-            window.WALLET_TYPE = "metamask";
+            if (typeof window !== "undefined") {
+              window.WALLET_TYPE = typeToPersist;
+            }
+            if (
+              !localStorage.getItem("authToken") &&
+              isWalletConnectHandoffType(resolvedType)
+            ) {
+              dispatch(setWalletModal(true));
+            }
           }
-          if (activeConnection.connector.type === "binanceWallet") {
-            dispatch(setWalletType("evm"));
-            dispatch(setIsConnected(true));
-            dispatch(setSessionSource("wallet"));
-            window.WALLET_TYPE = "binance";
-          } else if (activeConnection.connector.name === "Phantom") {
+          if (activeConnection.connector.name === "Phantom") {
             const provider = window.phantom?.solana;
 
             if (!provider) return;
@@ -1004,10 +1127,6 @@ function WalletSync() {
               }
               // not trusted or rejected – don't show popup
             }
-          } else {
-            dispatch(setWalletType("evm"));
-            dispatch(setIsConnected(true));
-            dispatch(setSessionSource("wallet"));
           }
         }
       },
@@ -1062,8 +1181,8 @@ function App() {
   const { isAuthenticated } = useAuth();
 
   const [showModal, setShowModal] = useState(false);
-  const lastShown = localStorage.getItem("chatDate");
-  const count = parseInt(localStorage.getItem("chatCount") || "0", 10);
+  const lastShown = localStorage.getItem("alloxRacechatDate");
+  const count = parseInt(localStorage.getItem("alloxRaceChatCount") || "0", 10);
   useEffect(() => {
     const today = new Date().toDateString();
     // App only decides visibility; storage updates happen in CongratsModal after open.
@@ -1091,6 +1210,8 @@ function App() {
           <Route path="/top-portfolios" element={<TopPortfoliosPage />} />
           <Route path="/campaigns" element={<CampaignsPage />} />
           <Route path="/watchlist" element={<WatchlistPage />} />
+          <Route path="/prime-picks" element={<PrimePicks />} />
+
           <Route path="/rewards" element={<PointsPage />} />
 
           <Route path="/trending" element={<TradingPage />} />
@@ -1112,7 +1233,7 @@ function App() {
           address={address}
         />
       )}
-      {isAuthenticated && <AIChatWidget />}
+      {/* {isAuthenticated && <AIChatWidget />} */}
     </>
   );
 }
