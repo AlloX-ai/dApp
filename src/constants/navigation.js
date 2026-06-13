@@ -9,19 +9,21 @@ import {
   Users,
   Trophy,
   Eye,
-  Briefcase,
+  Briefcase,Gem
 } from "lucide-react";
 
 export const navigationTabs = [
   { id: "chat", label: "Build Portfolio", path: "/", Icon: MessageSquare },
   { id: "portfolio", label: "Portfolio", path: "/portfolio", Icon: PieChart },
-  { id: "campaigns", label: "Campaigns", path: "/campaigns", Icon: Flame },
+  { id: "season1", label: "Campaigns", path: "/campaigns", Icon: Flame },
   { id: "watchlist", label: "Watchlist", path: "/watchlist", Icon: Eye },
   { id: "rewards", label: "Rewards", path: "/rewards", Icon: Coins },
   { id: "referrals", label: "Referrals", path: "/referrals", Icon: Users },
 
   { id: "trading", label: "Trending", path: "/trending", Icon: TrendingUp },
   { id: "topportfolio", label: "Top Portfolios", path: "/top-portfolios", Icon: Trophy },
+  { id: "primepicks", label: "Prime Picks", path: "/prime-picks", Icon: Gem },
+
 
   { id: "staking", label: "Staking", path: "/staking", Icon: TrendingDown },
   { id: "history", label: "History", path: "/history", Icon: HistoryIcon },
@@ -44,6 +46,12 @@ export const portfolioSidebarNav = {
       path: "/top-portfolios",
       Icon: Trophy,
     },
+        {
+      id: "primepicks",
+      label: "Prime Picks",
+      path: "/prime-picks",
+      Icon: Gem,
+    },
     {
       id: "watchlist",
       label: "Watchlist",
@@ -57,6 +65,7 @@ export const portfolioSidebarNavIds = new Set([
   "portfolio",
   "watchlist",
   "topportfolio",
+  "primepicks"
 ]);
 
 export const isActivePath = (pathname, tabPath) => {
