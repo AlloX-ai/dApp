@@ -28,6 +28,18 @@ import {
   watchAccount,
   watchConnections,
 } from "@wagmi/core";
+import { subscribeWalletConnectForceConnect } from "./utils/walletConnectForceConnect";
+import { resolveSemanticWalletType } from "./utils/resolveSemanticWalletType";
+import {
+  clearPersistedWalletType,
+  getPersistedWalletType,
+  isWalletConnectHandoffType,
+  persistWalletType,
+} from "./utils/walletPersistence";
+import {
+  connectViaWalletConnect,
+  usesWalletConnectModal,
+} from "./utils/wagmiWalletConnect";
 import {
   isBinanceConnectorLike,
   restoreBinanceSessionMarkerFromPersistence,
@@ -1065,7 +1077,6 @@ function WalletSync() {
             clearTimeoutId = null;
           }
           const activeConnection = connections[0];
-          console.log("activeConnection", activeConnection);
           if (activeConnection.accounts[0]) {
             if (isBinanceConnectorLike(activeConnection.connector)) {
               markBinanceWalletSession();
