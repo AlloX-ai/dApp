@@ -3867,7 +3867,7 @@ export function ChatPage() {
                       <Gem size={14} className="text-white" strokeWidth={3} />
                     </div>
                     <span
-                      className={`text-sm font-semibold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent transition-all duration-500`}
+                      className={`text-sm font-semibold bg-linear-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent transition-all duration-500`}
                     >
                       Prime Picks
                     </span>
