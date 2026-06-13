@@ -1162,19 +1162,21 @@ export async function executePortfolioOnChain(
   // ── Step 1: Quote all positions ──
   update("QUOTE_START", { chain, sourceToken });
 
-  const quoteData = await apiCall(`${EXECUTION_API_BASE}/quote`, {
-    method: "POST",
-    body: JSON.stringify({
-      positions: positions.map((p) => ({
-        symbol: p.symbol,
-        contractAddress: p.contractAddress,
-        allocationUsd: p.allocationUsd,
-      })),
-      sourceToken,
-      chain,
-      totalInvestment: portfolioData.totalInvestment,
-    }),
-  });
+  const quoteData = execution.quote
+    ? execution.quote
+    : await apiCall(`${EXECUTION_API_BASE}/quote`, {
+        method: "POST",
+        body: JSON.stringify({
+          positions: positions.map((p) => ({
+            symbol: p.symbol,
+            contractAddress: p.contractAddress,
+            allocationUsd: p.allocationUsd,
+          })),
+          sourceToken,
+          chain,
+          totalInvestment: portfolioData.totalInvestment,
+        }),
+      });
 
   const quotedPositions = (quoteData.positions || []).filter((p) => !p.error);
   const failedPositions = (quoteData.positions || []).filter((p) => p.error);

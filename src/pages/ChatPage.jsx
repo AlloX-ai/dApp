@@ -14,7 +14,10 @@ import {
   Check,
   RefreshCcw,
   ChevronDown,
+  ChevronLeft,
   ChevronUp,
+  Gem,
+  Info,
 } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import { ChatBubble } from "../components/ChatBubble";
@@ -28,7 +31,7 @@ import {
   setChatStatus,
   requestBackendChatReset,
 } from "../redux/slices/chatSlice";
-import { setWalletModal } from "../redux/slices/walletSlice";
+import { setWalletModal, setChainId } from "../redux/slices/walletSlice";
 import {
   setPointsBalance,
   INITIAL_CLAIM_POINTS,
@@ -56,11 +59,13 @@ import { NavLink, useLocation, useNavigate } from "react-router";
 import getFormattedNumber from "../hooks/get-formatted-number";
 import { CongratsModal } from "../components/CongratsModal";
 import { toast } from "../utils/toast";
-import { getPublicClient } from "@wagmi/core";
+import { getAccount, getPublicClient } from "@wagmi/core";
+import { useAccount, useSwitchChain } from "wagmi";
 import { wagmiClient } from "../wagmiConnectors";
 import { erc20Abi, formatEther, formatUnits } from "viem";
 import { AnimatePresence, motion } from "motion/react";
 import ChatMoreInfoModal from "../components/ChatMoreInfoModal";
+import { SellPortfolioModal } from "../components/SellPortfolioModal";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CHAINS,
@@ -70,6 +75,38 @@ import {
   normalizeChain,
   sourceTokensFor,
 } from "../config/chains";
+import {
+  BINANCE_CAMPAIGN_AMOUNT_TIERS,
+  BINANCE_CAMPAIGN_CHAIN,
+  BINANCE_CAMPAIGN_GENERATE_PATH,
+  BINANCE_CAMPAIGN_MIN_AMOUNT_USD,
+  BINANCE_CAMPAIGN_SOURCE_TOKENS,
+  PRIME_PICKS_INCLUDED_TOKENS,
+  PRIME_PICKS_PORTFOLIO_SIZE,
+  buildBinanceExecutionFromGenerate,
+  buildBinanceGeneratePayload,
+  getBinanceMissingSelections,
+  getStoredBinanceBoosterAddr,
+  persistBinanceBoosterAddrFromSearch,
+  BINANCE_WALLET_ADDRESS_HELP_URL,
+  formatBinancePercent,
+  formatBinanceReceiveAmount,
+  parseBinanceGenerateResponse,
+} from "../utils/binanceCampaign";
+import {
+  getPrivyEmbedded,
+  switchPrivyEmbeddedToChain,
+} from "../utils/privyWalletUtils";
+import { isBinanceWalletConnection } from "../utils/binanceWallet";
+
+const BNB_CHAIN_SWITCH = {
+  chainId: 56,
+  chainHex: "0x38",
+  chainName: "BNB Chain",
+  rpcUrls: ["https://bsc-dataseed.binance.org"],
+  blockExplorerUrls: ["https://bscscan.com"],
+  nativeCurrency: { name: "BNB", symbol: "BNB", decimals: 18 },
+};
 
 function formatResetAt(resetAt) {
   if (resetAt == null || resetAt === "") return "";
@@ -206,8 +243,16 @@ export function ChatPage() {
   } = useAuth();
   const { wallets } = useWallets();
   const { sendTransaction: privySendTransaction } = useSendTransaction();
+  const { connector: wagmiConnector, isConnected: wagmiIsConnected } =
+    useAccount();
+  const { switchChainAsync } = useSwitchChain();
+  const activeConnector = useMemo(
+    () => wagmiConnector ?? getAccount(wagmiClient)?.connector ?? null,
+    [wagmiConnector],
+  );
 
   const speechBoxRef = useRef(null);
+  const chatScrollRef = useRef(null);
   const typingTimerRef = useRef(null);
   const typingMessageRef = useRef(null);
   const completedMessageIdsRef = useRef(new Set());
@@ -251,6 +296,8 @@ export function ChatPage() {
   // Quick portfolio wizard (form-based UX)
 
   const [showMoreInfoModal, setShowMoreInfoModal] = useState(false);
+  const [sellPortfolioModalOpen, setSellPortfolioModalOpen] = useState(false);
+  const [sellPortfolioTarget, setSellPortfolioTarget] = useState(null);
   const [lastBuildMode, setLastBuildMode] = useState("guided"); // "guided" | "quick"
   const [quickWizardOpen, setQuickWizardOpen] = useState(false);
   const [quickWizardStep, setQuickWizardStep] = useState(0); // 0..3
@@ -284,6 +331,90 @@ export function ChatPage() {
   const [quickBasket, setQuickBasket] = useState([]);
   const [quickPreviewMeta, setQuickPreviewMeta] = useState(null); // { chain, executionMode, positions... }
 
+  // Binance Campaign wizard (BNB Chain only; amount; narrative from backend)
+  const [binanceWizardOpen, setBinanceWizardOpen] = useState(false);
+  const [binanceError, setBinanceError] = useState("");
+  const [binanceIsGenerating, setBinanceIsGenerating] = useState(false);
+  const [binanceIsExecuting, setBinanceIsExecuting] = useState(false);
+  const [binanceForm, setBinanceForm] = useState({
+    amountUsd: null,
+    customAmountUsdText: "",
+    sourceToken: "USDT",
+  });
+  const [binanceBasket, setBinanceBasket] = useState([]);
+  const [binanceGenerateMeta, setBinanceGenerateMeta] = useState(null);
+  const [binanceQuote, setBinanceQuote] = useState(null);
+  const [binanceIsSwitchingChain, setBinanceIsSwitchingChain] = useState(false);
+
+  const binanceTargetChainId = chainIdFor(BINANCE_CAMPAIGN_CHAIN);
+  const binanceTargetChainLabel =
+    CHAINS[normalizeChain(BINANCE_CAMPAIGN_CHAIN)]?.label || "BNB Chain";
+  const binanceOnTargetChain =
+    isConnected && Number(walletChainId) === Number(binanceTargetChainId);
+  const binanceNeedsChainSwitch = isConnected && !binanceOnTargetChain;
+  const binanceCurrentChainLabel =
+    CHAIN_LIST.find((c) => c.chainId === Number(walletChainId))?.label ||
+    "another network";
+
+  const binanceMissingSelections = useMemo(
+    () => getBinanceMissingSelections(binanceForm),
+    [binanceForm],
+  );
+  const binanceCanGenerate = binanceMissingSelections.length === 0;
+
+  const [binanceBoosterAddr, setBinanceBoosterAddr] = useState(() =>
+    getStoredBinanceBoosterAddr(),
+  );
+
+  useEffect(() => {
+    persistBinanceBoosterAddrFromSearch(location.search);
+    setBinanceBoosterAddr(getStoredBinanceBoosterAddr());
+  }, [location.search]);
+
+  const hasActiveWalletSession = isConnected || wagmiIsConnected;
+  const activeConnectorId = activeConnector?.id ?? null;
+  const isBinanceWalletConnected = useMemo(
+    () =>
+      isBinanceWalletConnection({
+        connector: activeConnector,
+        walletType,
+        sessionSource,
+        isWalletConnected: hasActiveWalletSession,
+      }),
+    [
+      activeConnector,
+      activeConnectorId,
+      walletType,
+      sessionSource,
+      hasActiveWalletSession,
+      wagmiIsConnected,
+    ],
+  );
+  const showBinanceBoosterWalletWarning =
+    hasActiveWalletSession &&
+    !!binanceBoosterAddr &&
+    !!walletAddress &&
+    walletAddress.toLowerCase() !== binanceBoosterAddr;
+  const showBinanceCampaignIneligibleWarning =
+    hasActiveWalletSession &&
+    !isBinanceWalletConnected &&
+    !showBinanceBoosterWalletWarning;
+
+  const resetBinanceWizard = useCallback(() => {
+    setBinanceError("");
+    setBinanceIsGenerating(false);
+    setBinanceIsExecuting(false);
+    setBinanceIsSwitchingChain(false);
+    setBinanceForm({
+      amountUsd: null,
+      customAmountUsdText: "",
+      sourceToken: "USDT",
+    });
+    setBinanceBasket([]);
+    setBinanceGenerateMeta(null);
+    setBinanceQuote(null);
+  }, []);
+
   const resetQuickWizard = useCallback(() => {
     setQuickWizardStep(0);
     setQuickError("");
@@ -304,14 +435,47 @@ export function ChatPage() {
   }, []);
 
   const openQuickWizard = useCallback(() => {
+    setBinanceWizardOpen(false);
+    resetBinanceWizard();
     setLastBuildMode("quick");
     resetQuickWizard();
     setQuickWizardOpen(true);
-  }, [resetQuickWizard]);
+  }, [resetBinanceWizard, resetQuickWizard]);
 
   const closeQuickWizard = useCallback(() => {
     setQuickWizardOpen(false);
   }, []);
+
+  const handleQuickWizardBack = useCallback(() => {
+    setQuickWizardOpen(false);
+    resetQuickWizard();
+  }, [resetQuickWizard]);
+
+  const openBinanceWizard = useCallback(() => {
+    setQuickWizardOpen(false);
+    resetQuickWizard();
+    resetBinanceWizard();
+    setBinanceWizardOpen(true);
+  }, [resetBinanceWizard, resetQuickWizard]);
+
+  const closeBinanceWizard = useCallback(() => {
+    setBinanceWizardOpen(false);
+  }, []);
+
+  const handleBinanceWizardBack = useCallback(() => {
+    setBinanceWizardOpen(false);
+    resetBinanceWizard();
+  }, [resetBinanceWizard]);
+
+  const showQuickWizardBack =
+    quickBasket.length === 0 && !quickIsGenerating && !quickIsExecuting;
+  const showBinanceWizardBack =
+    binanceBasket.length === 0 && !binanceIsGenerating && !binanceIsExecuting;
+
+  const binanceSlippagePercent = useMemo(() => {
+    const parsed = parseFloat(chatSlippageSetting);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 0.5;
+  }, [chatSlippageSetting]);
 
   // Prove Portfolio "Create" → `/?qw=<id>` + sessionStorage handshake (survives StrictMode + replace state).
   const QUICK_WIZARD_INTENT_PARAM = "qw";
@@ -601,8 +765,10 @@ export function ChatPage() {
     if (prev != null && prev > 0 && len === 0) {
       setQuickWizardOpen(false);
       resetQuickWizard();
+      setBinanceWizardOpen(false);
+      resetBinanceWizard();
     }
-  }, [currentMessages.length, resetQuickWizard]);
+  }, [currentMessages.length, resetBinanceWizard, resetQuickWizard]);
 
   // Fire a backend-only reset without adding a user message to UI history.
   useEffect(() => {
@@ -1103,6 +1269,63 @@ export function ChatPage() {
     });
   }, []);
 
+  const getBinanceTokenExecutionUi = useCallback(
+    (symbol) => {
+      const sym = String(symbol || "").toUpperCase();
+      const currentSymbol = String(
+        executionState.currentSymbol || "",
+      ).toUpperCase();
+      const status = executionState.tokenStatuses?.[sym];
+      const isRunning = executionState.isExecuting || binanceIsExecuting;
+      const hasTrackedExecution =
+        isRunning || Object.keys(executionState.tokenStatuses || {}).length > 0;
+
+      if (!hasTrackedExecution) return null;
+
+      const isProcessing =
+        isRunning && (currentSymbol === sym || status === "processing");
+
+      if (isProcessing) {
+        return {
+          cardClass: "border-blue-200 bg-blue-50/90",
+          badgeClass:
+            "inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 bg-blue-100 border border-blue-200 px-2 py-1 rounded-full",
+          label: "Loading",
+          icon: <Loader2 className="w-3 h-3 animate-spin shrink-0" />,
+        };
+      }
+      if (status === "success") {
+        return {
+          cardClass: "border-green-200 bg-green-50/90",
+          badgeClass:
+            "inline-flex items-center gap-1.5 text-xs font-semibold text-green-700 bg-green-100 border border-green-200 px-2 py-1 rounded-full",
+          label: "Confirmed",
+          icon: <CheckCircle2 className="w-3 h-3 shrink-0" />,
+        };
+      }
+      if (status === "skipped") {
+        return {
+          cardClass: "border-red-200 bg-red-50/90",
+          badgeClass:
+            "inline-flex items-center gap-1.5 text-xs font-semibold text-red-700 bg-red-100 border border-red-200 px-2 py-1 rounded-full",
+          label: "Rejected",
+          icon: <X className="w-3 h-3 shrink-0" />,
+        };
+      }
+      if (isRunning) {
+        return {
+          cardClass: "border-gray-200/80 bg-white/80",
+          badgeClass:
+            "inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 bg-gray-50 border border-gray-200 px-2 py-1 rounded-full",
+          label: "Pending",
+          icon: null,
+        };
+      }
+      return null;
+    },
+    [binanceIsExecuting, executionState],
+  );
+
   const promptExecutionDecision = useCallback((promptData) => {
     return new Promise((resolve) => {
       executionPromptResolverRef.current = resolve;
@@ -1483,6 +1706,232 @@ export function ChatPage() {
     setShowWalletPrompt,
   ]);
 
+  const handleBinanceSwitchChain = useCallback(async () => {
+    if (!isConnected) {
+      dispatch(setWalletModal(true));
+      return;
+    }
+
+    const isPrivySession =
+      authUser?.authProvider === "privy" ||
+      sessionSource === "privy" ||
+      walletType === "privy";
+
+    try {
+      setBinanceIsSwitchingChain(true);
+      setBinanceError("");
+
+      if (isPrivySession) {
+        const embedded = getPrivyEmbedded(wallets);
+        if (!embedded) {
+          toast.error(
+            "Embedded wallet not ready. Refresh the page or sign in again.",
+          );
+          return;
+        }
+        await switchPrivyEmbeddedToChain(embedded, BNB_CHAIN_SWITCH.chainId);
+        dispatch(setChainId(BNB_CHAIN_SWITCH.chainId));
+        toast.success(`Switched to ${binanceTargetChainLabel}.`);
+        return;
+      }
+
+      if (!switchChainAsync) {
+        toast.error(
+          "Unable to switch chain. Please try reconnecting your wallet.",
+        );
+        return;
+      }
+      if (!activeConnector) {
+        toast.error("No wallet connected. Please connect an EVM wallet first.");
+        return;
+      }
+
+      try {
+        await switchChainAsync({ chainId: BNB_CHAIN_SWITCH.chainId });
+      } catch (error) {
+        if (error?.code === 4902) {
+          const provider = await activeConnector.getProvider();
+          await provider.request({
+            method: "wallet_addEthereumChain",
+            params: [
+              {
+                chainId: BNB_CHAIN_SWITCH.chainHex,
+                chainName: BNB_CHAIN_SWITCH.chainName,
+                rpcUrls: BNB_CHAIN_SWITCH.rpcUrls,
+                blockExplorerUrls: BNB_CHAIN_SWITCH.blockExplorerUrls,
+                nativeCurrency: BNB_CHAIN_SWITCH.nativeCurrency,
+              },
+            ],
+          });
+          await switchChainAsync({ chainId: BNB_CHAIN_SWITCH.chainId });
+        } else {
+          throw error;
+        }
+      }
+
+      dispatch(setChainId(BNB_CHAIN_SWITCH.chainId));
+      toast.success(`Switched to ${binanceTargetChainLabel}.`);
+    } catch (error) {
+      console.error("Binance campaign chain switch error:", error);
+      toast.error(`Failed to switch to ${binanceTargetChainLabel}.`);
+    } finally {
+      setBinanceIsSwitchingChain(false);
+    }
+  }, [
+    authUser?.authProvider,
+    activeConnector,
+    binanceTargetChainLabel,
+    dispatch,
+    isConnected,
+    sessionSource,
+    switchChainAsync,
+    walletType,
+    wallets,
+  ]);
+
+  const handleBinanceGenerate = useCallback(async () => {
+    setBinanceError("");
+    if (isReadOnly) return;
+    if (!isConnected) {
+      setShowWalletPrompt(true);
+      return;
+    }
+    if (messagesRemaining !== null && messagesRemaining <= 0) {
+      toast.error("You have no messages remaining. Try again later.");
+      return;
+    }
+    if (!binanceCanGenerate) {
+      setBinanceError(
+        `Please select: ${binanceMissingSelections.join(", ")} before generating.`,
+      );
+      return;
+    }
+    if (walletChainId !== chainIdFor(BINANCE_CAMPAIGN_CHAIN)) {
+      const targetChainLabel =
+        CHAINS[normalizeChain(BINANCE_CAMPAIGN_CHAIN)]?.label || "BNB Chain";
+      toast.error(
+        `Please switch your wallet to ${targetChainLabel} before continuing.`,
+      );
+      return;
+    }
+
+    try {
+      setBinanceIsGenerating(true);
+      setBinanceIsExecuting(false);
+
+      await ensureAuthenticated();
+
+      const response = await apiCall(BINANCE_CAMPAIGN_GENERATE_PATH, {
+        method: "POST",
+        body: JSON.stringify(buildBinanceGeneratePayload(binanceForm)),
+      });
+
+      const { basket, quote, meta } = parseBinanceGenerateResponse(response);
+
+      if (!basket || basket.length === 0) {
+        setBinanceError(
+          "Could not generate a token basket. Try again or adjust your inputs.",
+        );
+        return;
+      }
+      if (!quote) {
+        setBinanceError(
+          "Portfolio quote was not returned. Try again or adjust your inputs.",
+        );
+        return;
+      }
+
+      setBinanceGenerateMeta(meta);
+      setBinanceBasket(basket);
+      setBinanceQuote(quote);
+      setExecutionState((prev) => ({
+        ...prev,
+        isExecuting: false,
+        currentSymbol: null,
+        completed: 0,
+        total: 0,
+        error: null,
+        portfolioId: null,
+        tokenStatuses: {},
+      }));
+    } catch (e) {
+      if (e?.status === 401) logout();
+      setBinanceError(
+        e?.message ||
+          e?.data?.message ||
+          "Binance campaign portfolio generation failed. Try again.",
+      );
+    } finally {
+      setBinanceIsGenerating(false);
+    }
+  }, [
+    apiCall,
+    binanceCanGenerate,
+    binanceForm,
+    binanceMissingSelections,
+    ensureAuthenticated,
+    isConnected,
+    isReadOnly,
+    logout,
+    messagesRemaining,
+    setShowWalletPrompt,
+    walletChainId,
+  ]);
+
+  const handleBinanceConfirmAndExecute = useCallback(async () => {
+    setBinanceError("");
+    if (binanceBasket.length === 0 || !binanceQuote || !binanceGenerateMeta)
+      return;
+    if (isReadOnly) return;
+    if (!isConnected) {
+      setShowWalletPrompt(true);
+      return;
+    }
+    if (walletChainId !== chainIdFor(BINANCE_CAMPAIGN_CHAIN)) {
+      toast.error("Please switch your wallet to BNB Chain before executing.");
+      return;
+    }
+
+    const execution = buildBinanceExecutionFromGenerate({
+      meta: binanceGenerateMeta,
+      basket: binanceBasket,
+      quote: binanceQuote,
+    });
+    if (!execution) {
+      setBinanceError(
+        "Missing portfolio quote. Generate again before executing.",
+      );
+      return;
+    }
+
+    try {
+      setBinanceIsExecuting(true);
+      setBinanceIsGenerating(false);
+
+      await ensureAuthenticated();
+
+      await handleStartExecution(execution);
+    } catch (e) {
+      if (e?.status === 401) logout();
+      setBinanceError(
+        e?.message || e?.data?.message || "Execution failed. Please try again.",
+      );
+    } finally {
+      setBinanceIsExecuting(false);
+    }
+  }, [
+    binanceBasket,
+    binanceGenerateMeta,
+    binanceQuote,
+    ensureAuthenticated,
+    handleStartExecution,
+    isConnected,
+    isReadOnly,
+    logout,
+    setShowWalletPrompt,
+    walletChainId,
+  ]);
+
   const handleSendMessage = () => {
     if (isReadOnly || !message.trim()) return;
     const trimmed = String(message).trim();
@@ -1525,12 +1974,51 @@ export function ChatPage() {
     dispatch(setMessage(""));
   };
 
-  const handleStartNewChat = () => {
+  const resetChatExecutionUi = useCallback(() => {
+    setExecutionState({
+      isExecuting: false,
+      currentSymbol: null,
+      completed: 0,
+      total: 0,
+      error: null,
+      portfolioId: null,
+      tokenStatuses: {},
+    });
+    setExecutionPrompt(null);
+    executionPromptResolverRef.current = null;
+  }, []);
+
+  const scrollChatToMainView = useCallback(() => {
+    chatScrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
+  const handleStartNewChat = useCallback(() => {
     closeQuickWizard();
+    closeBinanceWizard();
+    resetQuickWizard();
+    resetBinanceWizard();
+    setSellPortfolioModalOpen(false);
+    setSellPortfolioTarget(null);
+    resetChatExecutionUi();
     dispatch(requestBackendChatReset());
     dispatch(setViewingHistorySessionId(null));
     dispatch(setCurrentMessages([]));
-  };
+    scrollChatToMainView();
+  }, [
+    closeBinanceWizard,
+    closeQuickWizard,
+    dispatch,
+    resetBinanceWizard,
+    resetChatExecutionUi,
+    resetQuickWizard,
+    scrollChatToMainView,
+  ]);
+
+  const handlePortfolioSellComplete = useCallback(async () => {
+    void queryClient.invalidateQueries({ queryKey: ["recentPortfolios"] });
+    handleStartNewChat();
+  }, [handleStartNewChat, queryClient]);
 
   const handleInputKeyDown = (event) => {
     if (event.key !== "Enter") return;
@@ -1836,8 +2324,17 @@ export function ChatPage() {
   }, [needsToClaimPoints, userDismissedClaimModal, hasAlreadyClaimed]);
 
   useEffect(() => {
-    scrollToBottom(); // Scroll to the bottom when messages update
-  }, [currentMessages, isThinking, typingMessageId]);
+    scrollToBottom();
+  }, [
+    currentMessages,
+    isThinking,
+    typingMessageId,
+    binanceWizardOpen,
+    binanceBasket,
+    binanceIsGenerating,
+    binanceIsExecuting,
+    executionState,
+  ]);
 
   useEffect(() => {
     if (isConnected && showWalletPrompt) {
@@ -2168,40 +2665,39 @@ export function ChatPage() {
             </div>
           </div>
         )}
-        <div className="flex gap-2">
-          {/* <NavLink
-            to={`/portfolio?portfolio=${portfolio?.id}`}
-            className="px-3 py-2 bg-white/80 border border-gray-200 rounded-xl text-xs font-medium hover:bg-white hover:border-gray-300 hover:shadow-md transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            View Portfolio
-          </NavLink>
-          <button
-            onClick={() => {
-              handleSuggestionClick(
-                lastBuildMode === "quick"
-                  ? "Build Quick Portfolio"
-                  : "Build a Portfolio",
-              );
-            }}
-            className="px-3 py-2 bg-white/80 border border-gray-200 rounded-xl text-xs font-medium hover:bg-white hover:border-gray-300 hover:shadow-md transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            Create another portfolio
-          </button> */}
+        <div className="flex flex-col gap-2">
           {safeOptions.length > 0 && (
-            <div className="border-t border-green-200/60">
-              <div className="flex flex-wrap gap-2">
-                {safeOptions.map((option, index) => (
-                  <button
-                    key={`${option.action}-${option.value}-${index}`}
-                    onClick={() => handleOptionClick(option)}
-                    disabled={isReadOnly}
-                    className="px-3 py-2 bg-white/80 border border-gray-200 rounded-xl text-xs font-medium hover:bg-white hover:border-gray-300 hover:shadow-md transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
-                  >
-                    {option.label || option.value || option.action}
-                  </button>
-                ))}
-              </div>
+            <div className="flex flex-wrap gap-2">
+              {safeOptions.map((option, index) => (
+                <button
+                  key={`${option.action}-${option.value}-${index}`}
+                  onClick={() => handleOptionClick(option)}
+                  disabled={isReadOnly}
+                  className="px-3 py-2 bg-white/80 border border-gray-200 rounded-xl text-xs font-medium hover:bg-white hover:border-gray-300 hover:shadow-md transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {option.label || option.value || option.action}
+                </button>
+              ))}
             </div>
+          )}
+          {(portfolio.id || portfolio.portfolioId) && (
+            <button
+              type="button"
+              onClick={() => {
+                const portfolioId = portfolio.id || portfolio.portfolioId;
+                setSellPortfolioTarget({
+                  type: "portfolio",
+                  portfolioId,
+                  title: portfolio.name || portfolio.title || "Portfolio",
+                  chain: portfolio.chain,
+                });
+                setSellPortfolioModalOpen(true);
+              }}
+              disabled={isReadOnly}
+              className="w-fit px-3 py-2 bg-white/80 border border-gray-200 rounded-xl text-xs font-medium hover:bg-white hover:border-emerald-200 hover:text-emerald-700 hover:shadow-md transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              Sell portfolio
+            </button>
           )}
         </div>
       </div>
@@ -3313,51 +3809,92 @@ export function ChatPage() {
           </div>
         </>
       )}
-      <div className="flex-1 flex flex-col overflow-y-auto">
-        {currentMessages.length === 0 && !quickWizardOpen && (
-          <div className="h-full flex items-center justify-center px-6">
-            <div className="text-center max-w-2xl relative">
-              <div className="mx-auto inline-flex items-center gap-2.5 px-5 py-2.5 bg-gradient-to-r from-green-500/15 to-emerald-500/15 border border-green-500/30 rounded-full mb-6 shadow-sm shadow-green-500/10 sm:fixed sm:top-25 sm:left-1/2 sm:-translate-x-1/2 sm:mb-0 sm:z-20">
-                <div className="flex items-center justify-center w-6 h-6 bg-green-500 rounded-full">
-                  <TrendingUp
-                    size={14}
-                    className="text-white"
-                    strokeWidth={3}
-                  />
+      <div ref={chatScrollRef} className="flex-1 flex flex-col overflow-y-auto">
+        {currentMessages.length === 0 &&
+          !quickWizardOpen &&
+          !binanceWizardOpen && (
+            <div className="h-full flex items-center justify-center px-6">
+              <div className="text-center max-w-2xl relative">
+                <div className="mx-auto inline-flex items-center gap-2.5 px-5 py-2.5 bg-gradient-to-r from-green-500/15 to-emerald-500/15 border border-green-500/30 rounded-full mb-6 shadow-sm shadow-green-500/10 sm:fixed sm:top-25 sm:left-1/2 sm:-translate-x-1/2 sm:mb-0 sm:z-20">
+                  <div className="flex items-center justify-center w-6 h-6 bg-green-500 rounded-full">
+                    <TrendingUp
+                      size={14}
+                      className="text-white"
+                      strokeWidth={3}
+                    />
+                  </div>
+                  <span className="text-sm font-semibold text-green-700">
+                    {pnl}% positive P&L
+                  </span>
                 </div>
-                <span className="text-sm font-semibold text-green-700">
-                  {pnl}% positive P&L
-                </span>
-              </div>
 
-              <h2 className="text-3xl font-bold mb-4">Hello, I'm AlloX</h2>
+                <h2 className="text-3xl font-bold mb-4">Hello, I'm AlloX</h2>
 
-              <p className="text-gray-600 mb-8">
-                I can help you discover, execute, and manage your portfolio.
-              </p>
-
-              <div className="mb-8 grid grid-cols-2 md:grid-cols-3 gap-2">
-                {[
-                  "Build Quick Portfolio",
-                  "Build a Portfolio - Guided",
-                  "Explain narratives",
-                  "Trending Tokens",
-                  "How should I invest $100?",
-                  "Start guided chat",
-                ].map((suggestion) => (
-                  <button
-                    key={suggestion}
-                    onClick={() => handleSuggestionClick(suggestion)}
+                <p className="text-gray-600 mb-6">
+                  I can help you discover, execute, and manage your portfolio.
+                </p>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-4">
+                  {/* <button
+                    type="button"
+                    onClick={() => {
+                      if (isReadOnly || messagesRemaining === 0) return;
+                      if (!isConnected) {
+                        setShowWalletPrompt(true);
+                        return;
+                      }
+                      openBinanceWizard();
+                    }}
                     disabled={isReadOnly || messagesRemaining === 0}
-                    className="px-3 sm:px-4 py-2 bg-white shadow border border-white text-xs sm:text-sm font-medium hover:bg-white/90 hover:shadow-lg hover:border hover:border-gray-200/50 transition-all duration-200 rounded-full disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-white"
+                    className="inline-flex items-center gap-2.5 px-5 py-2 bg-gradient-to-r from-orange-500/10 via-amber-500/10 to-yellow-500/10 border border-orange-500/20 rounded-full shadow-lg shadow-orange-500/5 backdrop-blur-sm overflow-hidden disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    {suggestion}
-                  </button>
-                ))}
+                    <div className="flex items-center justify-center w-6 h-6 transition-all duration-300">
+                      <img
+                        src={"https://cdn.allox.ai/allox/binance.svg"}
+                        alt=""
+                      />
+                    </div>
+                    <span
+                      className={`text-sm font-semibold bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent transition-all duration-500`}
+                    >
+                      Binance Campaign
+                    </span>
+                  </button> */}
+                  <NavLink
+                    to="/prime-picks"
+                    className="inline-flex items-center gap-2.5 px-5 py-2 bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-cyan-500/10 border border-purple-500/20 rounded-full shadow-lg shadow-purple-500/5 backdrop-blur-sm overflow-hidden"
+                  >
+                    <div className="flex items-center justify-center w-6 h-6 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full transition-all duration-300">
+                      <Gem size={14} className="text-white" strokeWidth={3} />
+                    </div>
+                    <span
+                      className={`text-sm font-semibold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent transition-all duration-500`}
+                    >
+                      Prime Picks
+                    </span>
+                  </NavLink>
+                </div>
+                <div className="mb-8 grid grid-cols-2 md:grid-cols-3 gap-2">
+                  {[
+                    "Build Quick Portfolio",
+                    "Build a Portfolio - Guided",
+                    "Explain narratives",
+                    "Trending Tokens",
+                    "How should I invest $100?",
+                    "Start guided chat",
+                  ].map((suggestion) => (
+                    <button
+                      key={suggestion}
+                      onClick={() => handleSuggestionClick(suggestion)}
+                      disabled={isReadOnly || messagesRemaining === 0}
+                      className="px-3 sm:px-4 py-2 bg-white shadow border border-white text-xs sm:text-sm font-medium hover:bg-white/90 hover:shadow-lg hover:border hover:border-gray-200/50 transition-all duration-200 rounded-full disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-white"
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
       </div>
 
       {isConnected && !isReadOnly && (
@@ -3904,16 +4441,530 @@ export function ChatPage() {
         </div>
       )}
 
-      {(currentMessages.length > 0 || quickWizardOpen) && (
+      {(currentMessages.length > 0 || quickWizardOpen || binanceWizardOpen) && (
         <div
           className={`py-5 px-3 sm:py-8 sm:px-6 max-w-250 mx-auto w-full ${isReadOnly ? "chat-padding-readonly" : "chat-padding"}`}
           ref={speechBoxRef}
         >
           <div className="flex items-start gap-8">
             <div className="flex-1 min-w-0 space-y-6">
+              {binanceWizardOpen && (
+                <>
+                  <ChatBubble type="ai">
+                    <div className="space-y-3 sm:space-y-4">
+                      {showBinanceWizardBack && (
+                        <button
+                          type="button"
+                          onClick={handleBinanceWizardBack}
+                          className="inline-flex items-center gap-1 text-sm font-medium text-gray-600 hover:text-gray-900 -ml-1"
+                        >
+                          <ChevronLeft size={18} />
+                          Back
+                        </button>
+                      )}
+                      <div className="flex flex-col sm:flex-row items-start justify-between gap-2 sm:gap-3">
+                        <div className="min-w-0">
+                          <h3 className="text-xl sm:text-lg font-bold leading-tight">
+                            Binance Wallet Campaign
+                          </h3>
+                          <div className="text-sm sm:text-xs text-gray-600 mt-1">
+                            Create a portfolio on BNB Chain to earn rewards
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-orange-50 border border-orange-200/80 text-xs text-orange-900">
+                          <img
+                            src="https://cdn.allox.ai/allox/networks/bnbIcon.svg"
+                            alt=""
+                            className="h-5 w-5"
+                          />
+                          <span className="font-medium">BNB Chain</span>
+                        </div>
+                      </div>
+
+                      {binanceError && binanceBasket.length === 0 && (
+                        <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                          {binanceError}
+                        </div>
+                      )}
+
+                      <div className="space-y-3 sm:space-y-4">
+                        <div className="rounded-2xl bg-white/70 border border-gray-200/60 p-3 sm:p-4 shadow-sm">
+                          <div className="text-sm font-semibold text-gray-900 mb-2">
+                            Choose your investment amount
+                          </div>
+
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
+                            {BINANCE_CAMPAIGN_AMOUNT_TIERS.map(
+                              ({ amountUsd }) => {
+                                const selected =
+                                  binanceForm.amountUsd === amountUsd &&
+                                  binanceForm.customAmountUsdText === "";
+                                return (
+                                  <button
+                                    key={amountUsd}
+                                    type="button"
+                                    onClick={() =>
+                                      setBinanceForm((p) => ({
+                                        ...p,
+                                        amountUsd,
+                                        customAmountUsdText: "",
+                                      }))
+                                    }
+                                    disabled={
+                                      binanceIsGenerating || binanceIsExecuting
+                                    }
+                                    className={
+                                      selected
+                                        ? "px-4 py-2.5 bg-gray-900 text-white border border-gray-900 rounded-xl text-sm font-semibold hover:bg-gray-800 shadow-sm"
+                                        : "px-4 py-2.5 bg-white/80 border border-gray-200 rounded-xl text-sm font-semibold hover:bg-white hover:border-gray-300"
+                                    }
+                                  >
+                                    ${amountUsd.toLocaleString("en-US")}
+                                  </button>
+                                );
+                              },
+                            )}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setBinanceForm((p) => ({
+                                  ...p,
+                                  amountUsd: null,
+                                  customAmountUsdText: "",
+                                }))
+                              }
+                              disabled={
+                                binanceIsGenerating || binanceIsExecuting
+                              }
+                              className={
+                                binanceForm.customAmountUsdText !== "" ||
+                                (binanceForm.amountUsd != null &&
+                                  !BINANCE_CAMPAIGN_AMOUNT_TIERS.some(
+                                    (t) =>
+                                      t.amountUsd === binanceForm.amountUsd,
+                                  ))
+                                  ? "px-4 py-2.5 bg-gray-900 text-white border border-gray-900 rounded-xl text-sm font-semibold hover:bg-gray-800 shadow-sm"
+                                  : "px-4 py-2.5 bg-white/80 border border-gray-200 rounded-xl text-sm font-semibold hover:bg-white hover:border-gray-300"
+                              }
+                            >
+                              Custom
+                            </button>
+                          </div>
+                          <label className="block text-sm text-gray-700 mb-2">
+                            Custom amount (USD)
+                          </label>
+                          <input
+                            type="number"
+                            min={BINANCE_CAMPAIGN_MIN_AMOUNT_USD}
+                            maxLength={8}
+                            value={binanceForm.customAmountUsdText}
+                            placeholder={`$ e.g. 750`}
+                            onChange={(e) => {
+                              const raw = e.target.value;
+                              setBinanceForm((p) => ({
+                                ...p,
+                                customAmountUsdText: raw,
+                                amountUsd:
+                                  raw.trim() === "" ? null : Number(raw),
+                              }));
+                            }}
+                            disabled={binanceIsGenerating || binanceIsExecuting}
+                            className="w-full px-4 py-3 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/20 bg-white/70"
+                          />
+                        </div>
+
+                        <div className="rounded-2xl bg-white/70 border border-gray-200/60 p-3 sm:p-4 shadow-sm">
+                          <div className="text-sm font-semibold text-gray-900 mb-2">
+                            Pay with
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {BINANCE_CAMPAIGN_SOURCE_TOKENS.map((symbol) => {
+                              const selected =
+                                binanceForm.sourceToken === symbol;
+                              const tokenMeta = sourceTokensFor(
+                                BINANCE_CAMPAIGN_CHAIN,
+                              ).find((t) => t.symbol === symbol);
+                              return (
+                                <button
+                                  key={symbol}
+                                  type="button"
+                                  onClick={() =>
+                                    setBinanceForm((p) => ({
+                                      ...p,
+                                      sourceToken: symbol,
+                                    }))
+                                  }
+                                  disabled={
+                                    binanceIsGenerating || binanceIsExecuting
+                                  }
+                                  className={
+                                    selected
+                                      ? "inline-flex items-center gap-2 px-4 py-2 bg-gray-900 text-white border border-gray-900 rounded-xl text-sm font-medium hover:bg-gray-800 shadow-sm"
+                                      : "inline-flex items-center gap-2 px-4 py-2 bg-white/80 border border-gray-200 rounded-xl text-sm font-medium hover:bg-white hover:border-gray-300"
+                                  }
+                                >
+                                  {tokenMeta?.logo ? (
+                                    <img
+                                      src={tokenMeta.logo}
+                                      alt=""
+                                      className="w-5 h-5"
+                                    />
+                                  ) : null}
+                                  {symbol}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl bg-white/70 border border-gray-200/60 p-3 sm:p-4 shadow-sm">
+                          <div className="text-sm font-semibold text-gray-900 mb-3">
+                            What&apos;s Included?
+                          </div>
+
+                          <div className="flex flex-wrap gap-1 mb-3">
+                            {PRIME_PICKS_INCLUDED_TOKENS.map((token) => (
+                              <div
+                                key={token.symbol}
+                                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-100 border border-gray-200/80"
+                              >
+                                <img
+                                  src={token.logo}
+                                  alt={token.symbol}
+                                  className="w-6 h-6"
+                                />
+
+                                <span className="text-sm font-medium text-gray-800">
+                                  {token.symbol}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="flex items-start gap-2 text-sm text-gray-600">
+                            <Info
+                              size={16}
+                              className="shrink-0 mt-0.5 text-gray-400"
+                            />
+                            <p>
+                              Your portfolio will include{" "}
+                              {PRIME_PICKS_PORTFOLIO_SIZE} randomly selected
+                              assets from the pool above.
+                            </p>
+                          </div>
+                        </div>
+
+                        {binanceNeedsChainSwitch && (
+                          <div className="flex items-start gap-2 text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+                            <AlertTriangle
+                              size={16}
+                              className="shrink-0 mt-0.5 text-amber-600"
+                            />
+                            <p>
+                              You&apos;re connected on{" "}
+                              {binanceCurrentChainLabel}. Switch to{" "}
+                              {binanceTargetChainLabel} to generate and execute
+                              this portfolio.
+                            </p>
+                          </div>
+                        )}
+
+                        {(binanceBasket.length === 0 ||
+                          binanceNeedsChainSwitch) && (
+                          <div className="flex flex-col sm:flex-row gap-2 justify-end pt-2 items-stretch sm:items-center">
+                            {binanceBasket.length === 0 &&
+                              !binanceCanGenerate &&
+                              !binanceNeedsChainSwitch && (
+                                <div className="italic mr-auto text-xs text-amber-700 rounded-xl px-3 py-2 flex items-center h-fit">
+                                  *Select {binanceMissingSelections.join(", ")}{" "}
+                                  to enable Generate
+                                </div>
+                              )}
+                            {binanceNeedsChainSwitch ? (
+                              <button
+                                type="button"
+                                onClick={() => void handleBinanceSwitchChain()}
+                                disabled={
+                                  binanceIsSwitchingChain ||
+                                  binanceIsGenerating ||
+                                  binanceIsExecuting
+                                }
+                                className="w-full sm:w-auto px-6 py-3 bg-orange-500 text-white border border-orange-600/30 rounded-2xl text-sm font-semibold hover:bg-orange-600 disabled:opacity-60 disabled:cursor-not-allowed"
+                              >
+                                {binanceIsSwitchingChain
+                                  ? "Switching..."
+                                  : `Switch to ${binanceTargetChainLabel}`}
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => void handleBinanceGenerate()}
+                                disabled={
+                                  binanceIsGenerating ||
+                                  binanceIsExecuting ||
+                                  !binanceCanGenerate
+                                }
+                                className="w-full sm:w-auto px-6 py-3 bg-gray-900 text-white border border-orange-500/30 rounded-2xl text-sm font-semibold hover:opacity-95 disabled:opacity-60 disabled:cursor-not-allowed"
+                              >
+                                {binanceIsGenerating
+                                  ? "Generating..."
+                                  : "Generate"}
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </ChatBubble>
+
+                  {binanceBasket.length > 0 && (
+                    <ChatBubble type="ai">
+                      <div className="space-y-4">
+                        <div>
+                          <div className="text-sm font-semibold text-gray-900">
+                            Your portfolio
+                          </div>
+                          {binanceGenerateMeta?.chain && (
+                            <div className="text-xs text-gray-600 mt-1">
+                              {binanceGenerateMeta.chain} · On-Chain Execution
+                              {binanceGenerateMeta.sourceToken
+                                ? ` · Pay with ${binanceGenerateMeta.sourceToken}`
+                                : ""}
+                            </div>
+                          )}
+                        </div>
+
+                        {binanceError && (
+                          <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                            {binanceError}
+                          </div>
+                        )}
+
+                        {executionState.error && (
+                          <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                            {executionState.error}
+                          </div>
+                        )}
+
+                        {binanceQuote?.summary && (
+                          <p className="text-sm text-gray-700">
+                            Got quotes for{" "}
+                            {binanceQuote.summary.quotedSuccessfully ??
+                              binanceBasket.length}{" "}
+                            of{" "}
+                            {binanceQuote.summary.totalPositions ??
+                              binanceBasket.length}{" "}
+                            tokens using{" "}
+                            {binanceGenerateMeta?.sourceToken || "USDT"}. Review
+                            the swaps before executing.
+                          </p>
+                        )}
+
+                        {(executionState.isExecuting || binanceIsExecuting) && (
+                          <div className="flex items-center gap-2 text-sm text-blue-800 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
+                            <Loader2 className="w-4 h-4 animate-spin shrink-0 text-blue-600" />
+                            <span>
+                              {executionState.currentSymbol
+                                ? `Processing ${executionState.currentSymbol} (${executionState.completed}/${executionState.total} done)`
+                                : executionState.total > 0
+                                  ? `Preparing swaps (${executionState.completed}/${executionState.total} done)`
+                                  : "Preparing on-chain execution..."}
+                            </span>
+                          </div>
+                        )}
+
+                        <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white/80 shadow-sm">
+                          <table className="w-full min-w-[520px] text-sm bg-gradient-to-br from-blue-50/80 to-purple-50/80 border border-blue-200/50">
+                            <thead>
+                              <tr className="border-b border-gray-200 bg-gray-50/80">
+                                <th className="px-4 py-3 text-left font-semibold text-gray-700">
+                                  Token
+                                </th>
+                                <th className="px-4 py-3 text-right font-semibold text-gray-700">
+                                  Allocation
+                                </th>
+                                <th className="px-4 py-3 text-right font-semibold text-gray-700">
+                                  You&apos;ll receive
+                                </th>
+                                <th className="px-4 py-3 text-right font-semibold text-gray-700">
+                                  Impact
+                                </th>
+                                <th className="px-4 py-3 text-right font-semibold text-gray-700">
+                                  Slippage
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {binanceBasket.map((token, idx) => {
+                                const execUi = getBinanceTokenExecutionUi(
+                                  token.symbol,
+                                );
+                                const impactNum = Number(token.priceImpact);
+                                const isHighImpact =
+                                  Number.isFinite(impactNum) && impactNum >= 5;
+
+                                return (
+                                  <tr
+                                    key={String(
+                                      token.id || `${token.symbol}-${idx}`,
+                                    )}
+                                    className={
+                                      execUi
+                                        ? `${execUi.cardClass} border-b last:border-0`
+                                        : "border-b border-gray-100 last:border-0 hover:bg-gray-50/50"
+                                    }
+                                  >
+                                    <td className="px-4 py-3">
+                                      <div className="flex items-center justify-between gap-3 min-w-0">
+                                        <span className="inline-flex items-center gap-2 min-w-0">
+                                          {token.logo ? (
+                                            <img
+                                              src={token.logo}
+                                              alt={token.symbol}
+                                              className="w-7 h-7 rounded-full bg-white border border-gray-200 object-cover shrink-0"
+                                            />
+                                          ) : (
+                                            <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-gray-100 border border-gray-200 shrink-0" />
+                                          )}
+                                          <span className="font-bold text-gray-900 truncate">
+                                            {token.symbol}
+                                          </span>
+                                        </span>
+                                        {execUi && (
+                                          <span
+                                            className={`${execUi.badgeClass} shrink-0`}
+                                          >
+                                            {execUi.icon}
+                                            {execUi.label}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </td>
+                                    <td className="px-4 py-3 text-right font-medium text-gray-900 tabular-nums">
+                                      {token.allocationUsd != null
+                                        ? `$${Number(token.allocationUsd).toFixed(2)}`
+                                        : "—"}
+                                    </td>
+                                    <td className="px-4 py-3 text-right font-medium text-gray-800 tabular-nums">
+                                      {token.quoteError
+                                        ? "—"
+                                        : formatBinanceReceiveAmount(
+                                            token.toTokenAmount,
+                                          )}
+                                    </td>
+                                    <td
+                                      className={`px-4 py-3 text-right font-medium tabular-nums ${
+                                        isHighImpact
+                                          ? "text-amber-700"
+                                          : "text-gray-800"
+                                      }`}
+                                    >
+                                      {token.quoteError
+                                        ? "—"
+                                        : formatBinancePercent(
+                                            token.priceImpact,
+                                          )}
+                                    </td>
+                                    <td className="px-4 py-3 text-right font-medium text-gray-800 tabular-nums">
+                                      {binanceSlippagePercent}%
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row gap-2 justify-end pt-2 items-stretch sm:items-center">
+                          <button
+                            type="button"
+                            onClick={() => void handleBinanceGenerate()}
+                            disabled={
+                              binanceIsGenerating ||
+                              binanceIsExecuting ||
+                              !binanceCanGenerate
+                            }
+                            className="w-full sm:w-auto px-5 py-3 bg-white/80 border border-gray-200 rounded-2xl text-sm font-semibold hover:bg-white disabled:opacity-60 disabled:cursor-not-allowed"
+                          >
+                            {binanceIsGenerating ? "Generating..." : "Shuffle"}
+                          </button>
+                          {binanceOnTargetChain && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                void handleBinanceConfirmAndExecute()
+                              }
+                              disabled={
+                                binanceIsGenerating ||
+                                binanceIsExecuting ||
+                                !binanceQuote
+                              }
+                              className="w-full sm:w-auto px-6 py-3 bg-gray-900 text-white border border-gray-900 rounded-2xl text-sm font-semibold hover:bg-gray-800 disabled:opacity-60 disabled:cursor-not-allowed"
+                            >
+                              {binanceIsExecuting
+                                ? "Executing..."
+                                : "Confirm & Execute"}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </ChatBubble>
+                  )}
+
+                  {showBinanceBoosterWalletWarning && (
+                    <div className="max-w-[80%] flex flex-col gap-2 text-xs bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3">
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle
+                          size={16}
+                          className="shrink-0 mt-0.5 text-red-700"
+                        />
+                        <p>
+                          The connected wallet isn&apos;t eligible for this
+                          campaign. Please switch to Binance MPC Wallet.
+                        </p>
+                      </div>
+                      <a
+                        href={BINANCE_WALLET_ADDRESS_HELP_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-red-800 underline underline-offset-2 hover:text-red-950 pl-6"
+                      >
+                        Can&apos;t find that address?
+                      </a>
+                    </div>
+                  )}
+
+                  {showBinanceCampaignIneligibleWarning && (
+                    <div className="max-w-[78%] flex flex-col gap-2 text-xs bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3">
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle
+                          size={16}
+                          className="shrink-0 mt-0.5 text-red-700"
+                        />
+                        <p>
+                          You can create a portfolio, but it won&apos;t be
+                          eligible for the Binance campaign rewards. Connect
+                          with Binance MPC Wallet to participate.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+
               {quickWizardOpen && (
                 <ChatBubble type="ai">
                   <div className="space-y-3 sm:space-y-4">
+                    {showQuickWizardBack && (
+                      <button
+                        type="button"
+                        onClick={handleQuickWizardBack}
+                        className="inline-flex items-center gap-1 text-sm font-medium text-gray-600 hover:text-gray-900 -ml-1"
+                      >
+                        <ChevronLeft size={18} />
+                        Back
+                      </button>
+                    )}
                     <div className="flex flex-col sm:flex-row items-start justify-between gap-2 sm:gap-3">
                       <div className="min-w-0">
                         <h3 className="text-xl sm:text-lg font-bold leading-tight">
@@ -4754,6 +5805,15 @@ export function ChatPage() {
           }}
         />
       )}
+      <SellPortfolioModal
+        isOpen={sellPortfolioModalOpen}
+        onClose={() => {
+          setSellPortfolioModalOpen(false);
+          setSellPortfolioTarget(null);
+        }}
+        target={sellPortfolioTarget}
+        onComplete={handlePortfolioSellComplete}
+      />
     </div>
   );
 }
