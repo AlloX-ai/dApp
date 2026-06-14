@@ -12,6 +12,7 @@ import { WalletModal } from "./components/WalletModal";
 import { LaunchSidebar } from "./components/LaunchSidebar";
 import { Header } from "./components/Header";
 import { ChatPage } from "./pages/ChatPage";
+import { ChatPage2 } from "./pages/ChatPage2";
 import { PortfolioPage } from "./pages/PortfolioPage";
 import { TradingPage } from "./pages/TradingPage";
 import { StakingPage } from "./pages/StakingPage";
@@ -1218,6 +1219,7 @@ function App() {
           <Route path="/staking" element={<StakingPage />} />
           <Route path="/history" element={<HistoryPage />} />
           <Route path="/referrals" element={<ReferralsPage />} />
+          <Route path="/bwcampaign" element={<ChatPage2 />} />
         </Route>
       </Routes>
       {showModal && (
