@@ -66,6 +66,7 @@ import { erc20Abi, formatEther, formatUnits } from "viem";
 import { AnimatePresence, motion } from "motion/react";
 import ChatMoreInfoModal from "../components/ChatMoreInfoModal";
 import { SellPortfolioModal } from "../components/SellPortfolioModal";
+import { CampaignSlider } from "../components/CampaignSlider";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CHAINS,
@@ -3813,9 +3814,9 @@ export function ChatPage() {
         {currentMessages.length === 0 &&
           !quickWizardOpen &&
           !binanceWizardOpen && (
-            <div className="h-full flex items-center justify-center px-6">
+            <div className="h-full flex sm:items-center justify-center px-6">
               <div className="text-center max-w-2xl relative">
-                <div className="mx-auto inline-flex items-center gap-2.5 px-5 py-2.5 bg-gradient-to-r from-green-500/15 to-emerald-500/15 border border-green-500/30 rounded-full mb-6 shadow-sm shadow-green-500/10 sm:fixed sm:top-25 sm:left-1/2 sm:-translate-x-1/2 sm:mb-0 sm:z-20">
+                <div className="mx-auto sm:inline-flex hidden  items-center gap-2.5 px-5 py-2.5 bg-gradient-to-r from-green-500/15 to-emerald-500/15 border border-green-500/30 rounded-full mb-6 shadow-sm shadow-green-500/10 sm:fixed sm:top-25 sm:left-1/2 sm:-translate-x-1/2 sm:mb-0 sm:z-20">
                   <div className="flex items-center justify-center w-6 h-6 bg-green-500 rounded-full">
                     <TrendingUp
                       size={14}
@@ -3827,6 +3828,19 @@ export function ChatPage() {
                     {pnl}% positive P&L
                   </span>
                 </div>
+
+                <CampaignSlider
+                  className="mb-5"
+                  disabled={isReadOnly || messagesRemaining === 0}
+                  onBinanceClick={() => {
+                    if (isReadOnly || messagesRemaining === 0) return;
+                    if (!isConnected) {
+                      setShowWalletPrompt(true);
+                      return;
+                    }
+                    openBinanceWizard();
+                  }}
+                />
 
                 <h2 className="text-3xl font-bold mb-4">Hello, I'm AlloX</h2>
 
@@ -3918,108 +3932,142 @@ export function ChatPage() {
         <aside className="w-60 shrink-0 hidden lg:block fixed right-7">
           <div className="sticky top-24">
             <AnimatePresence initial={false}>
-              {showRecentPortfoliosPanel && recentPortfolios.length > 0 && (
+              {(quickWizardOpen || binanceWizardOpen) && (
                 <motion.div
-                  key="recent-portfolios-card"
+                  key="wizard-campaign-slider"
                   initial={{ opacity: 0, y: 10, height: 0 }}
                   animate={{ opacity: 1, y: 0, height: "auto" }}
                   exit={{ opacity: 0, y: -16, height: 0 }}
                   transition={{ duration: 0.24, ease: "easeInOut" }}
                   className="overflow-hidden"
                 >
-                  <div className="glass-card p-4 border border-gray-200/50 bg-white/40">
-                    <div className="flex items-center justify-between gap-2 mb-3">
-                      <h3 className="text-sm font-bold text-gray-900">
-                        Recent portfolios
-                      </h3>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => setShowRecentPortfoliosPanel(false)}
-                          className="p-1 rounded-lg hover:bg-black/5 text-gray-500"
-                          aria-label="Hide recent portfolios"
-                        >
-                          <X size={16} />
-                        </button>
-                      </div>
-                    </div>
-
-                    {recentPortfoliosLoading ? (
-                      <div className="space-y-3">
-                        {[0, 1, 2].map((i) => (
-                          <div
-                            key={i}
-                            className="p-3 rounded-2xl border border-gray-200/60 bg-white/60 animate-pulse"
-                          >
-                            <div className="h-3 bg-gray-200/70 rounded w-2/3 mb-2" />
-                            <div className="h-2 bg-gray-200/60 rounded w-4/5 mb-2" />
-                            <div className="h-2 bg-gray-200/60 rounded w-1/2" />
-                          </div>
-                        ))}
-                      </div>
-                    ) : recentPortfolios.length > 0 ? (
-                      <div className="space-y-3">
-                        {recentPortfolios.map((p) => {
-                          const pid = p?.id;
-                          if (!pid) return null;
-                          const name = p?.name || "Portfolio";
-                          const displayId =
-                            String(pid).length > 12
-                              ? `${String(pid).slice(0, 6)}...${String(
-                                  pid,
-                                ).slice(-4)}`
-                              : String(pid);
-                          const totalValue =
-                            p?.totalCurrentValue ??
-                            p?.totalCurrentValueUsd ??
-                            p?.totalValue;
-
-                          return (
-                            <button
-                              key={String(pid)}
-                              type="button"
-                              disabled={messagesRemaining === 0}
-                              onClick={() =>
-                                sendChatMessage(
-                                  `Tell me more details about my portfolio with ID: ${pid}`,
-                                )
-                              }
-                              className="w-full text-left p-3 rounded-2xl border border-gray-200/60 bg-white/60 hover:bg-white/80 hover:border-gray-300 hover:shadow-md transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-                            >
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="min-w-0">
-                                  <div className="text-sm font-semibold text-gray-900 truncate">
-                                    {name}
-                                  </div>
-                                  <div className="text-[11px] text-gray-600 mt-1 truncate">
-                                    ID: {displayId}
-                                  </div>
-                                  {p?.riskProfile ? (
-                                    <div className="text-[11px] text-gray-600 mt-1">
-                                      Risk:{" "}
-                                      {String(p.riskProfile).replace(/_/g, " ")}
-                                    </div>
-                                  ) : null}
-                                </div>
-                              </div>
-
-                              {totalValue != null ? (
-                                <div className="mt-2 text-xs text-gray-700">
-                                  Value: {`$${Number(totalValue).toFixed(2)}`}
-                                </div>
-                              ) : null}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div className="text-xs text-gray-500">
-                        No portfolios yet.
-                      </div>
-                    )}
+                  <div className="glass-card p-3 border border-gray-200/50 bg-white/40">
+                    <h3 className="text-xs font-bold text-gray-900 mb-2">
+                      Campaigns
+                    </h3>
+                    <CampaignSlider
+                      variant="compact"
+                      disabled={isReadOnly || messagesRemaining === 0}
+                      onBinanceClick={() => {
+                        if (isReadOnly || messagesRemaining === 0) return;
+                        if (!isConnected) {
+                          setShowWalletPrompt(true);
+                          return;
+                        }
+                        openBinanceWizard();
+                      }}
+                    />
                   </div>
                 </motion.div>
               )}
+              {!quickWizardOpen &&
+                !binanceWizardOpen &&
+                showRecentPortfoliosPanel &&
+                recentPortfolios.length > 0 && (
+                  <motion.div
+                    key="recent-portfolios-card"
+                    initial={{ opacity: 0, y: 10, height: 0 }}
+                    animate={{ opacity: 1, y: 0, height: "auto" }}
+                    exit={{ opacity: 0, y: -16, height: 0 }}
+                    transition={{ duration: 0.24, ease: "easeInOut" }}
+                    className="overflow-hidden"
+                  >
+                    <div className="glass-card p-4 border border-gray-200/50 bg-white/40">
+                      <div className="flex items-center justify-between gap-2 mb-3">
+                        <h3 className="text-sm font-bold text-gray-900">
+                          Recent portfolios
+                        </h3>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => setShowRecentPortfoliosPanel(false)}
+                            className="p-1 rounded-lg hover:bg-black/5 text-gray-500"
+                            aria-label="Hide recent portfolios"
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {recentPortfoliosLoading ? (
+                        <div className="space-y-3">
+                          {[0, 1, 2].map((i) => (
+                            <div
+                              key={i}
+                              className="p-3 rounded-2xl border border-gray-200/60 bg-white/60 animate-pulse"
+                            >
+                              <div className="h-3 bg-gray-200/70 rounded w-2/3 mb-2" />
+                              <div className="h-2 bg-gray-200/60 rounded w-4/5 mb-2" />
+                              <div className="h-2 bg-gray-200/60 rounded w-1/2" />
+                            </div>
+                          ))}
+                        </div>
+                      ) : recentPortfolios.length > 0 ? (
+                        <div className="space-y-3">
+                          {recentPortfolios.map((p) => {
+                            const pid = p?.id;
+                            if (!pid) return null;
+                            const name = p?.name || "Portfolio";
+                            const displayId =
+                              String(pid).length > 12
+                                ? `${String(pid).slice(0, 6)}...${String(
+                                    pid,
+                                  ).slice(-4)}`
+                                : String(pid);
+                            const totalValue =
+                              p?.totalCurrentValue ??
+                              p?.totalCurrentValueUsd ??
+                              p?.totalValue;
+
+                            return (
+                              <button
+                                key={String(pid)}
+                                type="button"
+                                disabled={messagesRemaining === 0}
+                                onClick={() =>
+                                  sendChatMessage(
+                                    `Tell me more details about my portfolio with ID: ${pid}`,
+                                  )
+                                }
+                                className="w-full text-left p-3 rounded-2xl border border-gray-200/60 bg-white/60 hover:bg-white/80 hover:border-gray-300 hover:shadow-md transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <div className="text-sm font-semibold text-gray-900 truncate">
+                                      {name}
+                                    </div>
+                                    <div className="text-[11px] text-gray-600 mt-1 truncate">
+                                      ID: {displayId}
+                                    </div>
+                                    {p?.riskProfile ? (
+                                      <div className="text-[11px] text-gray-600 mt-1">
+                                        Risk:{" "}
+                                        {String(p.riskProfile).replace(
+                                          /_/g,
+                                          " ",
+                                        )}
+                                      </div>
+                                    ) : null}
+                                  </div>
+                                </div>
+
+                                {totalValue != null ? (
+                                  <div className="mt-2 text-xs text-gray-700">
+                                    Value: {`$${Number(totalValue).toFixed(2)}`}
+                                  </div>
+                                ) : null}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="text-xs text-gray-500">
+                          No portfolios yet.
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
             </AnimatePresence>
             {showChainBalancesPanel && (
               <div className="mt-3 glass-card p-4 border border-gray-200/50 bg-white/40">
