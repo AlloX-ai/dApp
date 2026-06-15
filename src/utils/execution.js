@@ -1,8 +1,10 @@
 import {
   getAccount,
+  getConnectorClient,
   getPublicClient,
   readContract as wagmiReadContract,
   sendTransaction as wagmiSendTransaction,
+  signTypedData as wagmiSignTypedData,
   waitForTransactionReceipt as wagmiWaitForTransactionReceipt,
 } from "@wagmi/core";
 import { encodeFunctionData } from "viem";
@@ -176,8 +178,8 @@ const showIosWalletHandoffToast = (state = "initial") => {
   if (!isIosBrowser()) return;
   const message =
     state === "resume"
-      ? "Returned from wallet. Keep Chrome open for 3-4 seconds so AlloX can resume the request, then switch back if Binance Wallet needs to reopen."
-      : "On iPhone/iPad, if Binance Wallet opens and the request appears stuck, return to Chrome for 3-4 seconds, then switch back to Binance Wallet.";
+      ? "Returned from your wallet. Keep this browser tab open for a few seconds so AlloX can resume, then switch back to the wallet app if needed."
+      : "On iPhone/iPad, if the wallet app opens and the request looks stuck, return to this browser for a few seconds, then switch back to the wallet app.";
   toast.info(message, {
     id: IOS_WALLET_HANDOFF_TOAST_ID,
     duration: 9000,
@@ -625,6 +627,73 @@ const waitForReceiptWithFallback = async ({
  * Used by the sell-status poll loop to detect on-chain failures independently
  * of the backend, so a reverted tx doesn't leave the UI spinning indefinitely.
  */
+/**
+ * EIP-712 signing via the active wagmi connector (WalletConnect / Binance / MetaMask).
+ * Do not use window.ethereum — it is often a different extension and returns
+ * "account/method has not been authorized" for WC-connected users.
+ */
+export async function signTypedDataV4ForConnectedWallet({
+  typedData,
+  userAddress,
+}) {
+  if (!typedData) {
+    throw new Error("Typed data is required for signing.");
+  }
+
+  const account = getAccount(wagmiClient);
+  if (!account.isConnected || !account.address) {
+    throw new Error(
+      "Wallet not connected. Connect your wallet (including WalletConnect) and try again.",
+    );
+  }
+
+  const connectedAddress = account.address;
+  const signerAddress =
+    userAddress &&
+    userAddress.toLowerCase() === connectedAddress.toLowerCase()
+      ? userAddress
+      : connectedAddress;
+
+  const payload = JSON.stringify(typedData);
+
+  if (
+    account.connector?.id === "wallet.binance.com" &&
+    typeof window !== "undefined" &&
+    window.binancew3w?.ethereum?.request
+  ) {
+    return window.binancew3w.ethereum.request({
+      method: "eth_signTypedData_v4",
+      params: [signerAddress, payload],
+    });
+  }
+
+  try {
+    const client = await getConnectorClient(wagmiClient, {
+      account: signerAddress,
+    });
+    if (client?.request) {
+      return client.request({
+        method: "eth_signTypedData_v4",
+        params: [signerAddress, payload],
+      });
+    }
+  } catch (connectorErr) {
+    try {
+      return await wagmiSignTypedData(wagmiClient, {
+        account: signerAddress,
+        domain: typedData.domain,
+        types: typedData.types,
+        primaryType: typedData.primaryType,
+        message: typedData.message,
+      });
+    } catch {
+      throw connectorErr;
+    }
+  }
+
+  throw new Error("Wallet does not support typed-data signing.");
+}
+
 export const checkTxStatus = async (hash, chain = "BSC") => {
   const chainId = chainIdFor(normalizeExecutionChain(chain));
   const client = getPublicClient(wagmiClient, { chainId });
@@ -1093,19 +1162,21 @@ export async function executePortfolioOnChain(
   // ── Step 1: Quote all positions ──
   update("QUOTE_START", { chain, sourceToken });
 
-  const quoteData = await apiCall(`${EXECUTION_API_BASE}/quote`, {
-    method: "POST",
-    body: JSON.stringify({
-      positions: positions.map((p) => ({
-        symbol: p.symbol,
-        contractAddress: p.contractAddress,
-        allocationUsd: p.allocationUsd,
-      })),
-      sourceToken,
-      chain,
-      totalInvestment: portfolioData.totalInvestment,
-    }),
-  });
+  const quoteData = execution.quote
+    ? execution.quote
+    : await apiCall(`${EXECUTION_API_BASE}/quote`, {
+        method: "POST",
+        body: JSON.stringify({
+          positions: positions.map((p) => ({
+            symbol: p.symbol,
+            contractAddress: p.contractAddress,
+            allocationUsd: p.allocationUsd,
+          })),
+          sourceToken,
+          chain,
+          totalInvestment: portfolioData.totalInvestment,
+        }),
+      });
 
   const quotedPositions = (quoteData.positions || []).filter((p) => !p.error);
   const failedPositions = (quoteData.positions || []).filter((p) => p.error);

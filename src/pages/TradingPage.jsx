@@ -24,7 +24,7 @@ export function TradingPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  const {  logout } = useAuth();
+  const { logout } = useAuth();
 
   const tokenSymbol = searchParams.get("token")?.trim();
   const narrativeId = searchParams.get("narrative")?.trim();
@@ -72,7 +72,7 @@ export function TradingPage() {
         throw err;
       }
     },
-    [ logout],
+    [logout],
   );
 
   const trendingQuery = useQuery({
@@ -379,7 +379,7 @@ export function TradingPage() {
           <div className="divide-y divide-gray-100">
             {trending.map((item, i) => (
               <TokenRow
-                key={item?.token?.symbol || item?.symbol || i}
+                key={item?.token?.symbol + i || item?.symbol + i || i}
                 item={item}
                 showChange
                 onTokenClick={goToToken}
@@ -408,7 +408,7 @@ export function TradingPage() {
           <div className="divide-y divide-gray-100">
             {topGainers.map((item, i) => (
               <TokenRow
-                key={item?.token?.symbol || item?.symbol || i}
+                key={item?.token?.symbol + i || item?.symbol + i || i}
                 item={item}
                 showChange
                 onTokenClick={goToToken}
@@ -437,7 +437,7 @@ export function TradingPage() {
           <div className="divide-y divide-gray-100">
             {topLosers.map((item, i) => (
               <TokenRow
-                key={item?.token?.symbol || item?.symbol || i}
+                key={item?.token?.symbol + i || item?.symbol + i || i}
                 item={item}
                 showChange
                 onTokenClick={goToToken}

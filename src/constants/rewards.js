@@ -7078,3 +7078,8028 @@ export function findSeason3RewardForWallet(walletAddress) {
     return a === w;
   });
 }
+
+
+
+export const allocationRaceRecords = [
+  {
+    "address": "0x1c774393ca7f3e4755ca3f8cd69e7d1430c6c96a",
+    "gems": 10000
+  },
+  {
+    "address": "0x45a5e25516191cd06c367a34136882c92adcaed2",
+    "gems": 5000
+  },
+  {
+    "address": "0x0d28f7c3bdb04516c643bccd5b03348cdba9a05f",
+    "gems": 3000
+  },
+  {
+    "address": "0x077e37a0c352d66948761979f6cb6280394e239d",
+    "gems": 1000
+  },
+  {
+    "address": "0x6bdbdbca55ee1afc8098147a20f4273615927d13",
+    "gems": 1000
+  },
+  {
+    "address": "0x528556618a6c20fd2be269dd59de62340b92a774",
+    "gems": 1000
+  },
+  {
+    "address": "0xe2c63987cff08608a2e984bf4b6baad3061c9843",
+    "gems": 1000
+  },
+  {
+    "address": "0xf0809bbefdc2cd980181001c37fc6fdddf665cad",
+    "gems": 1000
+  },
+  {
+    "address": "0x213f16b1d10ab62490003a4000b15aa5a1904e70",
+    "gems": 1000
+  },
+  {
+    "address": "0x30ddddf9894243e96229406cd9b5d1db26510590",
+    "gems": 1000
+  },
+  {
+    "address": "0x4a0afbb8b60ba760643400bb3b656aec2f59563b",
+    "gems": 400
+  },
+  {
+    "address": "0xd6086f3aa353e0e073018d2d6a00d2124e896f2c",
+    "gems": 400
+  },
+  {
+    "address": "0xf494d538c13cbd0f37b8c708efe52ce831b9f219",
+    "gems": 400
+  },
+  {
+    "address": "0x8e9726b0253583562a2a06f75c736d40be97144b",
+    "gems": 400
+  },
+  {
+    "address": "0x85392cfeff4e329102dfa824852ddcc8a71d9345",
+    "gems": 400
+  },
+  {
+    "address": "0xe37e51f4faafdc27e0c208c253f3d90897f35cf4",
+    "gems": 400
+  },
+  {
+    "address": "0x5e3fc2427765703671d9012c7523af1a3d59286d",
+    "gems": 400
+  },
+  {
+    "address": "0xc644681f2fc4dffcf88c6e246c1718623a7f67a8",
+    "gems": 400
+  },
+  {
+    "address": "0x44c1cf0b09a7210cebfb0c55ed73be65ae8fbbd7",
+    "gems": 400
+  },
+  {
+    "address": "0x2e1affa86616312c64816a4b91390a7407bf19b3",
+    "gems": 400
+  },
+  {
+    "address": "0xd52a72bf5e1ea685b3e4aa09fd1a0d9a0feb6bfe",
+    "gems": 400
+  },
+  {
+    "address": "0xa8964d819c57da93d792dde8bb97f8611ea294e7",
+    "gems": 400
+  },
+  {
+    "address": "0xc67b25b68eb9a5dd396efecef96334daca3f6c03",
+    "gems": 400
+  },
+  {
+    "address": "0xff1d6d0c6977ffa047cab6618bf8ed1f073bfd94",
+    "gems": 400
+  },
+  {
+    "address": "0x3954b72c1a2e12dd837a27aaeb04ccade494a958",
+    "gems": 400
+  },
+  {
+    "address": "0x01f939ccc18c3a6573b5b6432810309d0bf76fbd",
+    "gems": 200
+  },
+  {
+    "address": "0xb42a836a6697c2216266741c7b2e22eb74d668ae",
+    "gems": 200
+  },
+  {
+    "address": "0xffaeb9ae2bf8fc7887faf0256aca69198b0f24bc",
+    "gems": 200
+  },
+  {
+    "address": "0xa6f722a40098d090360504b67c765077f8f33061",
+    "gems": 200
+  },
+  {
+    "address": "0xd90341ccf737a0b638b07c9f5b61afae335e982d",
+    "gems": 200
+  },
+  {
+    "address": "0xa9a78c7f0ae422d004a827f0e362744bbec462aa",
+    "gems": 200
+  },
+  {
+    "address": "0x7ac7411e35a14dbbc4a4d69085c5f530e50dec10",
+    "gems": 200
+  },
+  {
+    "address": "0x2c09d49e969b17984e0e48c5216c7ce78bc2d95e",
+    "gems": 200
+  },
+  {
+    "address": "0xaacd4277c82ce8a4f53304cc9da4d6379bbd43c6",
+    "gems": 200
+  },
+  {
+    "address": "0xda2a19582825a77f27bd17008a7c6c967bd333cf",
+    "gems": 200
+  },
+  {
+    "address": "0x0f5be0f7c9bdf2c1146770532caeabf18f402363",
+    "gems": 200
+  },
+  {
+    "address": "0xd9cd74270a4016e4886ec35c629e47735115a18d",
+    "gems": 200
+  },
+  {
+    "address": "0x89fd913633ad9dba3bf10bb5f628d8ba6e105722",
+    "gems": 200
+  },
+  {
+    "address": "0xb80c759b4e571e9bf05abcfed5ac104a092d5e21",
+    "gems": 200
+  },
+  {
+    "address": "0x158c4e1528853619480a962ffb23095d67614b1d",
+    "gems": 200
+  },
+  {
+    "address": "0x6c003aabe2a1653e6fc356622d0d1c38a8b287fa",
+    "gems": 200
+  },
+  {
+    "address": "0x6f445de7c8e3b0668dc2a87ef68041e3482b6bd0",
+    "gems": 200
+  },
+  {
+    "address": "0x4faffe0adfb706fddb48abb4e79631b947694f19",
+    "gems": 200
+  },
+  {
+    "address": "0x68c1219e6ff714aad18b9e517d932ba34656eed9",
+    "gems": 200
+  },
+  {
+    "address": "0xf2c0e5406f085e7e5225d26d3c57321a18198364",
+    "gems": 200
+  },
+  {
+    "address": "0xf760a4fda80376bc6f39ca050a1946ed0ec6bd4d",
+    "gems": 200
+  },
+  {
+    "address": "0xa103200cfad0fd871774ad75ee26c26969910154",
+    "gems": 200
+  },
+  {
+    "address": "0x90c76f001d0ea733cd3cd0280b407f1e77a41916",
+    "gems": 200
+  },
+  {
+    "address": "0xe28047962a2d94f342eb9dd1e3b3271d3652886f",
+    "gems": 200
+  },
+  {
+    "address": "0xf2aa0e646f03af2efdf5c9260951d992168a34ff",
+    "gems": 200
+  },
+  {
+    "address": "0x592c6e0d80bf6a25fdbdca89deb2b5ea78091f1e",
+    "gems": 100
+  },
+  {
+    "address": "0xb499d627506b9861ae2e06b3762a313ce0cf27ac",
+    "gems": 100
+  },
+  {
+    "address": "0x92ef5dc9f1c5fc910ac40c92190af8dc8f72e8d2",
+    "gems": 100
+  },
+  {
+    "address": "0x9d6d72dc1d1e9f991d677d177d09f68dde056ea7",
+    "gems": 100
+  },
+  {
+    "address": "0x04a79bde2f807f7057478ac783a881fb5810df42",
+    "gems": 100
+  },
+  {
+    "address": "0x35cb16264017cc5777d4a839de4e038183ca8296",
+    "gems": 100
+  },
+  {
+    "address": "0x32aff53792a79c3a0d9253a4f5a259354502ff55",
+    "gems": 100
+  },
+  {
+    "address": "0xacc5ba812556286d67d64cb9c544cd286b5191d6",
+    "gems": 100
+  },
+  {
+    "address": "0x00f08526a45ca7b7c075ea24696f698629e8803c",
+    "gems": 100
+  },
+  {
+    "address": "0xdd88e27a79b4ae08fb80eebe34dae6b2324d6409",
+    "gems": 100
+  },
+  {
+    "address": "0xf40895018738977f4b40685c3c04c42ce6048ccc",
+    "gems": 100
+  },
+  {
+    "address": "0x8c52d4e58198db3ecef9dee315e108e5cbd055e9",
+    "gems": 100
+  },
+  {
+    "address": "0xc8ac3f1ddfbc7beaeb539a142227049bfcab9af7",
+    "gems": 100
+  },
+  {
+    "address": "0xe854ba5185f7571949255d93fa9064be51521951",
+    "gems": 100
+  },
+  {
+    "address": "0x098f890df15f91159b574d2af9a2ee7489366f98",
+    "gems": 100
+  },
+  {
+    "address": "0x34f5af20a8cdf642c8e563477945355789b5fad3",
+    "gems": 100
+  },
+  {
+    "address": "0xa9b2972540fa0e8c46f045f9aa33f69e99a23df9",
+    "gems": 100
+  },
+  {
+    "address": "0x4bbb70eabbd7c672a9ef521e84a9225c8d7a325a",
+    "gems": 100
+  },
+  {
+    "address": "0xe6905418476179244da47f10fe15643696ded32a",
+    "gems": 100
+  },
+  {
+    "address": "0xc774afa95d3842962e12c52893491f691945bc67",
+    "gems": 100
+  },
+  {
+    "address": "0xb470376b177a49e5211b4aa9cc4b8e991b4a2712",
+    "gems": 100
+  },
+  {
+    "address": "0xd842f60f9f707f44bc94c1b9c8aa33a708f08e40",
+    "gems": 100
+  },
+  {
+    "address": "0x75d42478c45973b2a056accc7fdc258b17b45bda",
+    "gems": 100
+  },
+  {
+    "address": "0x23dde31ffbfa7e47bb8bee803bfaa2b81bfcd4db",
+    "gems": 100
+  },
+  {
+    "address": "0x7ad2b473efb9535f3acf09eb5d7de3b9d78f3497",
+    "gems": 100
+  },
+  {
+    "address": "0xf4c13b05f51ca9090e7f80563f5ab95bbb739b83",
+    "gems": 100
+  },
+  {
+    "address": "0xdd2794708cd098575af73c82050b4694e97bb1e5",
+    "gems": 100
+  },
+  {
+    "address": "0x8db323f443ad6259312a515de4008f8e943daf8b",
+    "gems": 100
+  },
+  {
+    "address": "0x24b88af61acd4189f9382a4b879a25b4e439c8a5",
+    "gems": 100
+  },
+  {
+    "address": "0x1d11a817a2211f59e8085964fbb0f757bb19a51f",
+    "gems": 100
+  },
+  {
+    "address": "0xc0c8f0be5f11ae03cbe9053323c11f90fb41ee64",
+    "gems": 100
+  },
+  {
+    "address": "0x564e9f9baa6c6fcd31d23076220accc037616653",
+    "gems": 100
+  },
+  {
+    "address": "0xe80d841a722c2497eea7426bf01553888df1db01",
+    "gems": 100
+  },
+  {
+    "address": "0x49a069feabdd13440720abee22bea763e499d2fc",
+    "gems": 100
+  },
+  {
+    "address": "0x63f9cef63f68ac73f8d8cf0a30f9ab131d8b21c1",
+    "gems": 100
+  },
+  {
+    "address": "0xcc73b00b100a3c669e069cf1e4b58336351b1d9a",
+    "gems": 100
+  },
+  {
+    "address": "0x347820ace6bc8824b9d464c98b8e25bc8d56b98a",
+    "gems": 100
+  },
+  {
+    "address": "0x46595d92bb0f270ae0746bf86609e9e76645527e",
+    "gems": 100
+  },
+  {
+    "address": "0x27b6d620a30fb6d171ad7883603db1676d577b08",
+    "gems": 100
+  },
+  {
+    "address": "0xf35de4f1fec240a13e4fe192ce6f1388f351e218",
+    "gems": 100
+  },
+  {
+    "address": "0xdab8da9a7bd9fdff85fe24db307cc1dec7481133",
+    "gems": 100
+  },
+  {
+    "address": "0xe149335ae9492d724d02ea0d849da374a84bb0d6",
+    "gems": 100
+  },
+  {
+    "address": "0x1d3a1971416baf4813982bbbf75f0fa792a496ce",
+    "gems": 100
+  },
+  {
+    "address": "0xd98f67f1eb42dc10546ec9cbd96510b2d12672b4",
+    "gems": 100
+  },
+  {
+    "address": "0xd52c08fd987877b18f620d3fe113fef4d740886e",
+    "gems": 100
+  },
+  {
+    "address": "0x981232c5a0ba6c1ab8e6231fdba07185fdcadb86",
+    "gems": 100
+  },
+  {
+    "address": "0xf207f372379318bd0a7754e06807cf8422790c72",
+    "gems": 100
+  },
+  {
+    "address": "0x665f0c5fe979b2e3b43ffae0d8aedb6c457e6dc7",
+    "gems": 100
+  },
+  {
+    "address": "0x28b55c370b7d07fbe841824bf37424aef3341576",
+    "gems": 100
+  },
+  {
+    "address": "0x9a8acc60ceef31ad61739c989f4720917503269c",
+    "gems": 100
+  },
+  {
+    "address": "0x2e33285f7c98a1da382adbdbcc070b07d35f745e",
+    "gems": 50
+  },
+  {
+    "address": "0x1d48aba7eafd2ebf03939b7ca716a0acbe21d4b6",
+    "gems": 50
+  },
+  {
+    "address": "0x3c02f74030dfa26a8ce3e81ae006349db484f5c4",
+    "gems": 50
+  },
+  {
+    "address": "0xe1ac66ef6c639991ab96962b2df4bafe6dc51b9d",
+    "gems": 50
+  },
+  {
+    "address": "0xb39cb1a75c1c78908d90f48a8db2d7c1ba6978e3",
+    "gems": 50
+  },
+  {
+    "address": "0x8c6bdb98cbc87b362bec5420d5412dd5af034038",
+    "gems": 50
+  },
+  {
+    "address": "0x2cf252c94ac5d524e723af921424b5c5779c19f7",
+    "gems": 50
+  },
+  {
+    "address": "0x69bbf090c6835e6049db5a3cf82ada5b8df7e97d",
+    "gems": 50
+  },
+  {
+    "address": "0x7704f0440200d22cbd4773c808d8c86e0636b413",
+    "gems": 50
+  },
+  {
+    "address": "0xae280f1742afbe24c063590efbd0047bda87083a",
+    "gems": 50
+  },
+  {
+    "address": "0x317e3a6ab056a62aacc01e2d2041d56df8e6b242",
+    "gems": 50
+  },
+  {
+    "address": "0x58271f9e68485bac45f61c98d2142f01a32d9be1",
+    "gems": 50
+  },
+  {
+    "address": "0x523269479b10135aacb7ea41f4588bbeee96868b",
+    "gems": 50
+  },
+  {
+    "address": "0x8e1c918ead752a5c4278a8de9636c57df17f40b8",
+    "gems": 50
+  },
+  {
+    "address": "0xf9fa93817ace3f013e243c7ebe230eed7f368a93",
+    "gems": 50
+  },
+  {
+    "address": "0xd77f41c83f27eefb951ed78d7765bf5b976380da",
+    "gems": 50
+  },
+  {
+    "address": "0xef36fdcf5ac8f7b99c499b696598659a74e492fb",
+    "gems": 50
+  },
+  {
+    "address": "0x718fc41eceeebae282e00dc1c92023eeb7ecc4c5",
+    "gems": 50
+  },
+  {
+    "address": "0xdcdc3d4d0f61dc71ce2d1bd9df6a9db3209abf2a",
+    "gems": 50
+  },
+  {
+    "address": "0xc4b5e559b7baab425f79909b0a0c63947f08e761",
+    "gems": 50
+  },
+  {
+    "address": "0x43972a3089d844b3f8b902dac810f2643c9ad37c",
+    "gems": 50
+  },
+  {
+    "address": "0x7cc18be61e623b39295c24f5cc01213b56bbc72b",
+    "gems": 50
+  },
+  {
+    "address": "0x61aa293e35e445737de2b99256cabf8ea9385955",
+    "gems": 50
+  },
+  {
+    "address": "0xf8f6df70829c78a0a33fff9d05c90843221bf50e",
+    "gems": 50
+  },
+  {
+    "address": "0xe04d9821e4cf479a8ce92a18559df86ba6d3da6a",
+    "gems": 50
+  },
+  {
+    "address": "0x91db013fe7ed2f39340cdb52a7c9f8cc06ecf62e",
+    "gems": 50
+  },
+  {
+    "address": "0xdb3d6f0c55279fefb52af19e9aac2988efddc45f",
+    "gems": 50
+  },
+  {
+    "address": "0x1b95f36e527438e49364049cfd05dee77353f7d2",
+    "gems": 50
+  },
+  {
+    "address": "0xba47be622bc7d0435ddb893065a7f0b161935d89",
+    "gems": 50
+  },
+  {
+    "address": "0x38f88f25834fbdd9bf37d6ffbe6e3ea4b7903c94",
+    "gems": 50
+  },
+  {
+    "address": "0x7d98d1d4ba2d3e2760f49fa1ab33f32da4865af0",
+    "gems": 50
+  },
+  {
+    "address": "0x467d9b06b4070440ab9b195b546eb1602aa52c2d",
+    "gems": 50
+  },
+  {
+    "address": "0xd15cc494327034eb8ae11ef00af2cd3b638dc9db",
+    "gems": 50
+  },
+  {
+    "address": "0x90d959c7651cd267fa2fcb7bf479c4d49617b071",
+    "gems": 50
+  },
+  {
+    "address": "0xe0873574c385e11ff34a65bd1eb2165d9090a5e3",
+    "gems": 50
+  },
+  {
+    "address": "0xd92d7560d7d26a8b44577e171e736b682f64ffb7",
+    "gems": 50
+  },
+  {
+    "address": "0x8e19c6dba6919586364986658631ab769fa8c307",
+    "gems": 50
+  },
+  {
+    "address": "0x028c34298226f2fc43b677d1623812013e5894a8",
+    "gems": 50
+  },
+  {
+    "address": "0xe80dadcbaa8b0c7326d51b3ff83f655be294c9a6",
+    "gems": 50
+  },
+  {
+    "address": "0x03d6b435b5d3852d1517e46e19fac98c704424ee",
+    "gems": 50
+  },
+  {
+    "address": "0xfb21f8e8781212c94d60f0134398495c39cf4459",
+    "gems": 50
+  },
+  {
+    "address": "0xdbd83251b441d75292555f2dcb2b5ab9a36dbf85",
+    "gems": 50
+  },
+  {
+    "address": "0x71f7d7a6b3da2b3339324fb2c55fa3573d3cd57e",
+    "gems": 50
+  },
+  {
+    "address": "0xe75f3548f2d7b0288d25b3021fc50614575ccc9e",
+    "gems": 50
+  },
+  {
+    "address": "0xe5fd675b651e028a84511ee86f70c581b6ab6e03",
+    "gems": 50
+  },
+  {
+    "address": "0xbab99c695f3f43a2290219046cab646e2b920a6f",
+    "gems": 50
+  },
+  {
+    "address": "0xba4839a2d78a0334307fba37b7060f59f35e8ed7",
+    "gems": 50
+  },
+  {
+    "address": "0x8ba9c1fbf8159ee87410b4c4329675ba4a004ee3",
+    "gems": 50
+  },
+  {
+    "address": "0x944735de55458d1f139642e07636fd670a7a1e4d",
+    "gems": 50
+  },
+  {
+    "address": "0xe1c1673bf920ca2ac6f4bde5493a37b78844bd10",
+    "gems": 50
+  },
+  {
+    "address": "0x6abcce31e79a0810a9b302230d199ee52761054d",
+    "gems": 50
+  },
+  {
+    "address": "0x193c1bce408a2d399b59796217ce27a5331e369a",
+    "gems": 50
+  },
+  {
+    "address": "0xf04ef60e3ee06a17c1719f565d4bc242856ac2e7",
+    "gems": 50
+  },
+  {
+    "address": "0x97479acfc7b94028b6ec57df6518e24527e13968",
+    "gems": 50
+  },
+  {
+    "address": "0x5fc364925dc65a028bb101c2e20c7a431179872c",
+    "gems": 50
+  },
+  {
+    "address": "0xab1da42948bc9ef2d90189155ecca4a5224265e6",
+    "gems": 50
+  },
+  {
+    "address": "0xe30c0ec6aee81c3bc3d7b606f388f0063370d8ef",
+    "gems": 50
+  },
+  {
+    "address": "0x7a1c92916002209150a3640b30b0ba0488779801",
+    "gems": 50
+  },
+  {
+    "address": "0x6a214b26f7cec552ddd7c94b8c776b22550986c9",
+    "gems": 50
+  },
+  {
+    "address": "0x31ec9aff4c5be73e9873465674e5304b44960962",
+    "gems": 50
+  },
+  {
+    "address": "0x26fb3bea5c34194671d00b658e4f82575180b691",
+    "gems": 50
+  },
+  {
+    "address": "0x697cc793449c790550ac7dcb7abf09d0494449d2",
+    "gems": 50
+  },
+  {
+    "address": "0x67b39c27e49e9c6b1dc72c523a3f87b7754c890e",
+    "gems": 50
+  },
+  {
+    "address": "0x25f3264ea93a5c9b30fa703672d625b98609c530",
+    "gems": 50
+  },
+  {
+    "address": "0x1efced6e352761fc213fba847dabc69f1ad3d066",
+    "gems": 50
+  },
+  {
+    "address": "0xafefbe8156af709ffe7e1b321ca0ae1330a06434",
+    "gems": 50
+  },
+  {
+    "address": "0x90621777d55692cf763c79d7c083ac1d4be7cd51",
+    "gems": 50
+  },
+  {
+    "address": "0x7179986884ae86252a4feba172270475c1af1735",
+    "gems": 50
+  },
+  {
+    "address": "0x5eadb7b3adbe072961e3671096adf5da944c5f6f",
+    "gems": 50
+  },
+  {
+    "address": "0x8d82c0c64e448d00fb00dc068a5d8c8cae16d52b",
+    "gems": 50
+  },
+  {
+    "address": "0x081c6efa118ad04c2f549ae191556e39344cec02",
+    "gems": 50
+  },
+  {
+    "address": "0x18526d6e7c40dec6d6ba7d96cbc98b773dac201c",
+    "gems": 50
+  },
+  {
+    "address": "0xf837c78347162ecbade2388cad2a5f4b72e0ed28",
+    "gems": 50
+  },
+  {
+    "address": "0x67d8a3f0bb4ca14ea707bd89aeea63ae5e284bc3",
+    "gems": 50
+  },
+  {
+    "address": "0xeaa22db3524ef9d6ea41dee6ee0f619dfff3eb15",
+    "gems": 50
+  },
+  {
+    "address": "0x54c793982b904ae74dfc632e941b3542bae131d1",
+    "gems": 50
+  },
+  {
+    "address": "0xcc58442e44f35262c413047bed374bc6a2b921d1",
+    "gems": 50
+  },
+  {
+    "address": "0xde8e8b9e69a5c4bb87b09a781776b33abe46f4fd",
+    "gems": 50
+  },
+  {
+    "address": "0xe7c8f5f80a6872a98c444b5636a26fdc69e6de62",
+    "gems": 50
+  },
+  {
+    "address": "0x07d057e9b9c749edd07c51f48d0d6772b9799371",
+    "gems": 50
+  },
+  {
+    "address": "0x9956edff6c427a2be0b70837a9d981aaeb1ea76b",
+    "gems": 50
+  },
+  {
+    "address": "0xca1a8e6866b7648c3a1808521eca1bcb77c107fd",
+    "gems": 50
+  },
+  {
+    "address": "0x229534c0291732925fc97d04657abd41d1d7ee8a",
+    "gems": 50
+  },
+  {
+    "address": "0xa212ebf1798153cc663c4efe837088c6c58bcdbf",
+    "gems": 50
+  },
+  {
+    "address": "0xbc2c40059176ff4287f484a7e30f9387e8a6d22f",
+    "gems": 50
+  },
+  {
+    "address": "0x0ab31e5db13b7412ec3de08f92b4f1b9fda03752",
+    "gems": 50
+  },
+  {
+    "address": "0x57e03dd6dc394f6d3c70f68eae7f8c732cf01802",
+    "gems": 50
+  },
+  {
+    "address": "0xcf2864da75b1e7063014fc15984f5a0c5698dfd1",
+    "gems": 50
+  },
+  {
+    "address": "0x85302703db673cebc8c8fb83d0e13b2b5177149e",
+    "gems": 50
+  },
+  {
+    "address": "0x8c2d698bdfd0563a330da38fd8915e765eb81501",
+    "gems": 50
+  },
+  {
+    "address": "0xa55b43574ad3653624a6414f936d43e189be23ff",
+    "gems": 50
+  },
+  {
+    "address": "0x094d2678f45cf37868a224a948e056e5710c6ad4",
+    "gems": 50
+  },
+  {
+    "address": "0xfaca1025ba69c3a6dbb5b2ad33b2a4177842cdbd",
+    "gems": 50
+  },
+  {
+    "address": "0xf70b55f869f219c598f1cd3a1d41839a36d1a998",
+    "gems": 50
+  },
+  {
+    "address": "0x90adadda93ed487334c940f8493485f422328e92",
+    "gems": 50
+  },
+  {
+    "address": "0xf1d53d8d2f5d88ee5e55b63af0045857251633d3",
+    "gems": 50
+  },
+  {
+    "address": "0x57f9c3a224c24bcc07de8a694f36f3e9e5a8ac44",
+    "gems": 50
+  },
+  {
+    "address": "0xd4007dc09c338dcd2a3956ed1bf2fe7d5ec8bcdd",
+    "gems": 50
+  },
+  {
+    "address": "0x4ea6ff2fa12c28fea94c8447a5bc22bd6394e7fc",
+    "gems": 50
+  },
+  {
+    "address": "0xdf7e0812cffd3db38b2be5c274adcbcf8b6aff5e",
+    "gems": 50
+  },
+  {
+    "address": "0x098b1884d576fa047cbac92be0a85072ae26cdbe",
+    "gems": 20
+  },
+  {
+    "address": "0xf0cc1658321e0016dd1daab944e39dca8e069ac0",
+    "gems": 20
+  },
+  {
+    "address": "0x4a3e9f535a9f81e8152d1c9f729906ccfb20e9db",
+    "gems": 20
+  },
+  {
+    "address": "0x01376c334ef79ef00a7426de65d4f6fd22c0f5ba",
+    "gems": 20
+  },
+  {
+    "address": "0x33cda97b9172845e022c39d0fe448cc6b29c1017",
+    "gems": 20
+  },
+  {
+    "address": "0xae1746700390d589bb833969f7c9089942a17078",
+    "gems": 20
+  },
+  {
+    "address": "0xa9507e53e89c16a63279af26923bb9ddefdcc211",
+    "gems": 20
+  },
+  {
+    "address": "0x0e2b544b35fd0ec86b7366e5889102b417545f0c",
+    "gems": 20
+  },
+  {
+    "address": "0xcf1793eaea61bb08f31bec7db8e7aea70fc78b1c",
+    "gems": 20
+  },
+  {
+    "address": "0x06fc16e958cadf51b8b4490585b2eed2e03d15e3",
+    "gems": 20
+  },
+  {
+    "address": "0x185af14ce98e9fcc2fe3f509ebc14e465fa5fe85",
+    "gems": 20
+  },
+  {
+    "address": "0xabc1ff3a19d9461ade8b62e7a61c5e85a020a17e",
+    "gems": 20
+  },
+  {
+    "address": "0x9c56497d3d0d996532c811ba59b123f53ed867c5",
+    "gems": 20
+  },
+  {
+    "address": "0xffa497acbc701a4ba7e645b2c59760827c077206",
+    "gems": 20
+  },
+  {
+    "address": "0x4a5e63e364f2ce2e9b2d4bf4a9910649aa5d7d1e",
+    "gems": 20
+  },
+  {
+    "address": "0x517ed2acc99f6ad1578d1aebd94882dced8b52dc",
+    "gems": 20
+  },
+  {
+    "address": "0x3d4b860156a41361596bbabcf05ec7307dc1ed9c",
+    "gems": 20
+  },
+  {
+    "address": "0x860b6a1de2c7d871229dff9ac93b569de4b9d536",
+    "gems": 20
+  },
+  {
+    "address": "0xbc821bb67324b3d504843a412a4174cb294b1ab4",
+    "gems": 20
+  },
+  {
+    "address": "0x85237cbbe488f034c23b11f60ded19e822cbdd86",
+    "gems": 20
+  },
+  {
+    "address": "0x81e5f8515c173ab33a4b54abe60ce4ff053fd889",
+    "gems": 20
+  },
+  {
+    "address": "0xd373db8f7a1383819f61dc274536dc47ad12423d",
+    "gems": 20
+  },
+  {
+    "address": "0x9fc8154509ae5da4118b4c0ad5536e94a5c0155e",
+    "gems": 20
+  },
+  {
+    "address": "0xab09d6a0f4737dd92972116096608e82ab87d859",
+    "gems": 20
+  },
+  {
+    "address": "0x1fd7fba4a20fd83c5e21537dfc7f0014925681cb",
+    "gems": 20
+  },
+  {
+    "address": "0x0818f6e4060d052efabe504e707558f1b4a4b9ca",
+    "gems": 20
+  },
+  {
+    "address": "0xb10a46a4950aecc525ddec897c730271e779ea4f",
+    "gems": 20
+  },
+  {
+    "address": "0x50b2db1935e3cd53ef253e8c85dcde59fed9523d",
+    "gems": 20
+  },
+  {
+    "address": "0xc0871600d130e48f18945b0ec6497635103d4134",
+    "gems": 20
+  },
+  {
+    "address": "0x0c022b173a5267db4f2a907e1a817963d81ca9ac",
+    "gems": 20
+  },
+  {
+    "address": "0xf272b9bca8dabf69f2561c293648a2a3045e1a21",
+    "gems": 20
+  },
+  {
+    "address": "0xdf3eb5d53cd7481009d64f1760a1054f7f710df6",
+    "gems": 20
+  },
+  {
+    "address": "0xc21c4927e379785fa45b4a2ee762e532e3a5a49f",
+    "gems": 20
+  },
+  {
+    "address": "0x7ddf17ee8701f20d7c502e553eb6668346dbe5d7",
+    "gems": 20
+  },
+  {
+    "address": "0x8cca79fe709917474a9f1825dacff10f80fab2f4",
+    "gems": 20
+  },
+  {
+    "address": "0x481ad289a73b4956da072b0d381193eeb2ad9d21",
+    "gems": 20
+  },
+  {
+    "address": "0x77bde57fd0f02305000e290d6fc3437525b63724",
+    "gems": 20
+  },
+  {
+    "address": "0xdbe49903bfb14699f1e04b6f995ce4693cbd88c6",
+    "gems": 20
+  },
+  {
+    "address": "0x270ffc960ef217829c94cf1de1e79e28df771f58",
+    "gems": 20
+  },
+  {
+    "address": "0x8410835256d5ae16b2e66fb0739067fa62a2e8dd",
+    "gems": 20
+  },
+  {
+    "address": "0x8431e8c9411e6af0aff914a9adb5713d23436517",
+    "gems": 20
+  },
+  {
+    "address": "0x7e80e4fd7e3269bd7be184dcbc4af70f89accb80",
+    "gems": 20
+  },
+  {
+    "address": "0xe967a1cd48f7da6f9c1371c74afcf4a6191267d6",
+    "gems": 20
+  },
+  {
+    "address": "0xd0cf69a291d6e6cdcaf31af598d91301f4e1382b",
+    "gems": 20
+  },
+  {
+    "address": "0x04fe764dda0105625dbd1d094c113583495a9b57",
+    "gems": 20
+  },
+  {
+    "address": "0x60adba607876469dccc90dfbe913ee8c3eef9f8b",
+    "gems": 20
+  },
+  {
+    "address": "0x02b18045cf15141c21a480fd50affdf2ba949977",
+    "gems": 20
+  },
+  {
+    "address": "0x4f205de6821275ba926b0c1d665a675102c1d190",
+    "gems": 20
+  },
+  {
+    "address": "0x09ba0fdbf381a9d387e5f09a57f0b72b7d0face3",
+    "gems": 20
+  },
+  {
+    "address": "0x4f918696e8c55b63e2e4db16f9ac49f7d6815e53",
+    "gems": 20
+  },
+  {
+    "address": "0xfa3b3ebe0755171eee73ce45e6e35d62f4444a46",
+    "gems": 20
+  },
+  {
+    "address": "0x05bcaea07be8bbf9f4e0331288968dfae6bb6212",
+    "gems": 20
+  },
+  {
+    "address": "0x5ddfecc21d3025b9e35b237b58ad15a527f3fe96",
+    "gems": 20
+  },
+  {
+    "address": "0xa07254c1cc44c44f0b62c382092c5782293dfbce",
+    "gems": 20
+  },
+  {
+    "address": "0xc560991ceda4093caae8730f12f78da851513b91",
+    "gems": 20
+  },
+  {
+    "address": "0xc49cc9588d421e0b3e8c3813b5d49896111600b7",
+    "gems": 20
+  },
+  {
+    "address": "0x7874c08ace0531717c5dd7c1c8723ced24930140",
+    "gems": 20
+  },
+  {
+    "address": "0x51cececdc937c115efaf05617a48346a1aa47e40",
+    "gems": 20
+  },
+  {
+    "address": "0x1cedd2324f1a3bffaab7d5ee523f8f9a8d147fac",
+    "gems": 20
+  },
+  {
+    "address": "0x1f329870e28be9509722c7a59ef5119ead461fae",
+    "gems": 20
+  },
+  {
+    "address": "0xc2d2de97267b758677b3a08f3361fd28b5e751ab",
+    "gems": 20
+  },
+  {
+    "address": "0x637277ae626bb06d25b44b22e1061c3127d58e41",
+    "gems": 20
+  },
+  {
+    "address": "0xee16192eceed259d5bb6d0e717e8d88f5c04fb93",
+    "gems": 20
+  },
+  {
+    "address": "0x04006f3ba61918d3983d4a783b5fdbae224c51a1",
+    "gems": 20
+  },
+  {
+    "address": "0x9e2e66fd23c1ea90d6114b838c1f60cb317f867e",
+    "gems": 20
+  },
+  {
+    "address": "0x10cae9abbecbd3f79f15a3e8312454ce9e449513",
+    "gems": 20
+  },
+  {
+    "address": "0x8f8b8002962cdeec22f8fc844bf676d08f35f167",
+    "gems": 20
+  },
+  {
+    "address": "0xd89c6b8aeb71e33a5269900279747bbe65bbd0fc",
+    "gems": 20
+  },
+  {
+    "address": "0xcdca3dbcdf5e60e094392e2a0592a2dd432150e1",
+    "gems": 20
+  },
+  {
+    "address": "0x809b6bd2deca9de428e317dd03103f3c642f7d12",
+    "gems": 20
+  },
+  {
+    "address": "0xcf863d0115ac04cb770253e904350b6b8ea4502b",
+    "gems": 20
+  },
+  {
+    "address": "0x9ccb0f4f231ad82e2139d84b7db5a0668f179f90",
+    "gems": 20
+  },
+  {
+    "address": "0xa827ff967ae89a1f2b11a75a7f911718583d4bd9",
+    "gems": 20
+  },
+  {
+    "address": "0x784442750e85329e2eb09d0b82ad7dc67eba8d19",
+    "gems": 20
+  },
+  {
+    "address": "0x73eb4f0fe618541d214be5116f79c622661b1ab0",
+    "gems": 20
+  },
+  {
+    "address": "0x7ba410e40371c8f782791a997542c3b384997090",
+    "gems": 20
+  },
+  {
+    "address": "0x512c5e08f6671a1a21ed582038eff73c4b1f197f",
+    "gems": 20
+  },
+  {
+    "address": "0x539def941bb8e2d25ea606482e5835e7921c2296",
+    "gems": 20
+  },
+  {
+    "address": "0x1041e7971b78b679a5d23f0611f618faf568441f",
+    "gems": 20
+  },
+  {
+    "address": "0x6574ee67ba2255f3d544340a25a868ccd77e235c",
+    "gems": 20
+  },
+  {
+    "address": "0xd513fe2921da9ead21c5bfb77d68b836458cc421",
+    "gems": 20
+  },
+  {
+    "address": "0x44ac96c9bb71581b9bf992fb06899357f0ca0729",
+    "gems": 20
+  },
+  {
+    "address": "0x12cfd3cfe249e5049b38f084447f1c03e73df44b",
+    "gems": 20
+  },
+  {
+    "address": "0x2436df454a8bed09f0ebb5d5d13c2497c46ffd11",
+    "gems": 20
+  },
+  {
+    "address": "0x4059c1e80895b077d896ca50e58ebcfa3e9c9c6b",
+    "gems": 20
+  },
+  {
+    "address": "0xa15815c53e7b1413c20a8bc055db391b034aa25c",
+    "gems": 20
+  },
+  {
+    "address": "0x53daa1120264275ef38cfb6d6ea61ac227632ee3",
+    "gems": 20
+  },
+  {
+    "address": "0x0f5f98821cc88cce6b7549b07e66bfcc6221bad4",
+    "gems": 20
+  },
+  {
+    "address": "0x3de2e904066efca8e973809a985cdf233e1bf9b5",
+    "gems": 20
+  },
+  {
+    "address": "0xeaa930e5423ad709494899bd857ca9486d0a61d1",
+    "gems": 20
+  },
+  {
+    "address": "0xc0bb05f8475c74ea5bdb8623fae1ca9360cce1aa",
+    "gems": 20
+  },
+  {
+    "address": "0x1754af6d926f63bf08ed3e61ca454656f8dab85b",
+    "gems": 20
+  },
+  {
+    "address": "0x13f16e403c1393a6f68c49f61dedbbfb39e41001",
+    "gems": 20
+  },
+  {
+    "address": "0x7d080c3a0cd7d220023b3a8fa2aa0c0cca1d04f7",
+    "gems": 20
+  },
+  {
+    "address": "0xed42d03b5dfeb1531f6f0bf320c6103ec36712be",
+    "gems": 20
+  },
+  {
+    "address": "0xd8f1f615f28a113e689ec4d9837e50215135cec6",
+    "gems": 20
+  },
+  {
+    "address": "0x6a38572ea6f6315edf912b8dc20641803a033775",
+    "gems": 20
+  },
+  {
+    "address": "0x32115ad2d5f31a24bba6d7f34ea0b0b87b4e2234",
+    "gems": 20
+  },
+  {
+    "address": "0xd4c2820abd1b43269f5f1e94ef6cc564d808cd36",
+    "gems": 20
+  },
+  {
+    "address": "0x95e839e5a7dd1c41303719a1d7ceb70471e8073b",
+    "gems": 20
+  },
+  {
+    "address": "0x8eb34a95c796011a1cc7f8a35218d0a6975581ae",
+    "gems": 20
+  },
+  {
+    "address": "0xd0eade20ee6d82d624ac2929716e8a6ffcd0d533",
+    "gems": 20
+  },
+  {
+    "address": "0x9ccde9e54b7bf2a4ea9728f79b4ed3e3f0b9074f",
+    "gems": 20
+  },
+  {
+    "address": "0xdfc689c12752fb75861ffc3280a680a5dba7c2d1",
+    "gems": 20
+  },
+  {
+    "address": "0xbeb07fa21d2e208476568117d62f784e10ccc147",
+    "gems": 20
+  },
+  {
+    "address": "0x4766e1df01b9d043d55dc31979cbd26553979499",
+    "gems": 20
+  },
+  {
+    "address": "0x90b8047272a26a953775310135fd0fd47ecc7d55",
+    "gems": 20
+  },
+  {
+    "address": "0x4dee2156f3b2de15abaf4f824f3378bd7ac4835e",
+    "gems": 20
+  },
+  {
+    "address": "0x3dde6540e76cfcfceff892879692141e50c0a699",
+    "gems": 20
+  },
+  {
+    "address": "0xac33ce52f4f253dd9f5398a1277d1330818c79c0",
+    "gems": 20
+  },
+  {
+    "address": "0x55fa93d9aa30866be8e409106964eb69cbe06421",
+    "gems": 20
+  },
+  {
+    "address": "0xe603480e47f784da22e73d6a7ebf1b68ab45cb0d",
+    "gems": 20
+  },
+  {
+    "address": "0x2e89ef037830d9a636f1ed4d2952d1147759942e",
+    "gems": 20
+  },
+  {
+    "address": "0xa3ec05176a4ce13a3af9782c6151abe6eb510abf",
+    "gems": 20
+  },
+  {
+    "address": "0x3b140240874ac8584e06f7b8fb6b992e2348154b",
+    "gems": 20
+  },
+  {
+    "address": "0xe3ad539a56cdd8a89c83f3a27ac7135062fa1834",
+    "gems": 20
+  },
+  {
+    "address": "0xa35c150f74df81322e1d28943084e63c01eab1b4",
+    "gems": 20
+  },
+  {
+    "address": "0x863697b92d1ebb7e5bc92b01c668ca81e84eff38",
+    "gems": 20
+  },
+  {
+    "address": "0x44a5bb0be7606c863c02d5340ba68ce638208a1f",
+    "gems": 20
+  },
+  {
+    "address": "0x6185a3e8a243917e06e1ae81938ea7f0e9bd31a8",
+    "gems": 20
+  },
+  {
+    "address": "0xe8d876af5a7548acf8eff0906826c81d13637d0b",
+    "gems": 20
+  },
+  {
+    "address": "0x324e867cba445517098ed47bff2ef93037e9d983",
+    "gems": 20
+  },
+  {
+    "address": "0x7ffe62694d12f7461c0bad33a196616ba80f6107",
+    "gems": 20
+  },
+  {
+    "address": "0xa67aa13d07ae01300cb553de9f009fd4a2011f2a",
+    "gems": 20
+  },
+  {
+    "address": "0xc753f5bedb5a7e5f57b18689ac8f8f82f6750657",
+    "gems": 20
+  },
+  {
+    "address": "0x6965a1f2e49b1ff2c53fec1e8d0c3bc7f38650d9",
+    "gems": 20
+  },
+  {
+    "address": "0xf09a5d1565ca9efea6c4af0d4384c8ae79d6a59f",
+    "gems": 20
+  },
+  {
+    "address": "0x7b9420cc05c9150085f0ad7957ba380df9324e2d",
+    "gems": 20
+  },
+  {
+    "address": "0xa0079d63bb4e807cae9330a19b7bcf1d7b72d253",
+    "gems": 20
+  },
+  {
+    "address": "0x85653ceeeb76ed63d2594d296bd7a2433ebf3442",
+    "gems": 20
+  },
+  {
+    "address": "0x3afcb59559551b70aa84b322ff379dad30289847",
+    "gems": 20
+  },
+  {
+    "address": "0xd0598ca043b65ed882ae1f05c59d796e5d066494",
+    "gems": 20
+  },
+  {
+    "address": "0x420aa3baa1b5d8c2fdf69ad66f92c08cd155ab6d",
+    "gems": 20
+  },
+  {
+    "address": "0x39a034a0a7018fd17dc7d06ced7b5e128105c6e4",
+    "gems": 20
+  },
+  {
+    "address": "0xbf70e5ebd9c0a26db59584a6dc90329fe5a849d4",
+    "gems": 20
+  },
+  {
+    "address": "0xff0a1cac62c29cfdd041dd456c8d0ed5ed495cff",
+    "gems": 20
+  },
+  {
+    "address": "0xbc87e8372d545aedd56c797af2d7b026c624a36f",
+    "gems": 20
+  },
+  {
+    "address": "0xc1fd32fbfbc91b16e38116c7a9219609365a422e",
+    "gems": 20
+  },
+  {
+    "address": "0x8cba8c74f53c856974a0a0e42cafc570cc340b04",
+    "gems": 20
+  },
+  {
+    "address": "0xfbeb0fce1232d7b9c04de620443479aa3f39cf3a",
+    "gems": 20
+  },
+  {
+    "address": "0xb9bc179c3e8d7991b6a4a5205ed2d4968d4d9d79",
+    "gems": 20
+  },
+  {
+    "address": "0x606df2fad374c4da52a83d4f289d5bf5ec307395",
+    "gems": 20
+  },
+  {
+    "address": "0xb37758b672493af8d6be279292cf41c2c5727f5c",
+    "gems": 20
+  },
+  {
+    "address": "0x473c1792053241e1143691120fa2c5b0536f5f84",
+    "gems": 20
+  },
+  {
+    "address": "0x773c693356f6efacef36a351e59176c19372088b",
+    "gems": 20
+  },
+  {
+    "address": "0x33898714b083cd19c5bd2edf798044c80657596e",
+    "gems": 20
+  },
+  {
+    "address": "0x2281f946d6382bf76c9b5e30d7b7bb40c1ef766a",
+    "gems": 20
+  },
+  {
+    "address": "0xd4c80a95785537b3245c06efcb80230ce92f902a",
+    "gems": 20
+  },
+  {
+    "address": "0x31953acd14ff58d9ac21680938c7725461cac6f7",
+    "gems": 20
+  },
+  {
+    "address": "0x95e58a0124e2d2b25882c405aa1679586f732cbd",
+    "gems": 20
+  },
+  {
+    "address": "0x667a5e5b47e9bceb43ca6f79992d8fa9781be8e4",
+    "gems": 20
+  },
+  {
+    "address": "0xfc4eb5f5ee6e707a59e05d8fcc553c509f382606",
+    "gems": 20
+  },
+  {
+    "address": "0x3769b78dc7c2723e1e5529f311219ee0d0a09d56",
+    "gems": 20
+  },
+  {
+    "address": "0xeeff211262b4cb31122ffcf1217b5c73f77d9bd9",
+    "gems": 20
+  },
+  {
+    "address": "0x5f80bfee3da67136e720e633d5c45e05743b2c53",
+    "gems": 20
+  },
+  {
+    "address": "0x5e485b26d0fff45da22691b7323b8cf33ee43430",
+    "gems": 20
+  },
+  {
+    "address": "0x53aeb994edeae90673ae3cee61edc2ec9d153993",
+    "gems": 20
+  },
+  {
+    "address": "0x80675bced60cc38c6b25a1546eacf5268ae8fd2c",
+    "gems": 20
+  },
+  {
+    "address": "0xa9b71f4bd27460972a91c5311df3c94e8adb7628",
+    "gems": 20
+  },
+  {
+    "address": "0x151a18f00540d03119534d2c890b45c3a4ff6d9f",
+    "gems": 20
+  },
+  {
+    "address": "0xd7c0f707d0c99dbf8b8e2cc2440b28a0d40c63db",
+    "gems": 20
+  },
+  {
+    "address": "0x159bccc9c4d9ec5c109a405c930a27729f7814f5",
+    "gems": 20
+  },
+  {
+    "address": "0xa4b2f4782d0018b90193c474e8d2056968d2ea1b",
+    "gems": 20
+  },
+  {
+    "address": "0x29e22059f26e13e1e359e71c8fed70e7b5bfa0a0",
+    "gems": 20
+  },
+  {
+    "address": "0x3e9891597460c2927fbf379407d2f2b28a6484a3",
+    "gems": 20
+  },
+  {
+    "address": "0xd3ae570a7ccde8cac3c860e94a1828e0d028804c",
+    "gems": 20
+  },
+  {
+    "address": "0xd9320a1b2ee0fc1eebb455803515d758a6c0e153",
+    "gems": 20
+  },
+  {
+    "address": "0x2efaff2d98860a14ea4ac95eec82f3671019eef8",
+    "gems": 20
+  },
+  {
+    "address": "0xb58c7be5b17d2a72cf38a3d2694751ffea667891",
+    "gems": 20
+  },
+  {
+    "address": "0x51df5a5caf615e7b01112ab3d8862c904b4892eb",
+    "gems": 20
+  },
+  {
+    "address": "0x82a66e6bf43676bfdc0117940bb7a7f7014f4e7c",
+    "gems": 20
+  },
+  {
+    "address": "0x9d16de5ca25f16fb482bdbed2cd04dd10f172ead",
+    "gems": 20
+  },
+  {
+    "address": "0xdc790dfe5f446574d18c83406b71ab07bba39a13",
+    "gems": 20
+  },
+  {
+    "address": "0x3331f769f247755d16ee5906b0959aa3bc085336",
+    "gems": 20
+  },
+  {
+    "address": "0x47407884ecd9a22d5b2b4f145b97f2c5283288ee",
+    "gems": 20
+  },
+  {
+    "address": "0x76a5a7910d9640f7940e527477eb9393fcbf26e7",
+    "gems": 20
+  },
+  {
+    "address": "0x18eea15eb2d5310fa1e317f449b7159b802a7d25",
+    "gems": 20
+  },
+  {
+    "address": "0xca560e4929a32543c9d053a17aa0928b6e026713",
+    "gems": 20
+  },
+  {
+    "address": "0x3ea64ccb3a76a3edf3caa2eb66addd9cff0cdaba",
+    "gems": 20
+  },
+  {
+    "address": "0x75796ede8d61e5f312d572cd7f7878292ea483ae",
+    "gems": 20
+  },
+  {
+    "address": "0x768475bcc5748a1709eeab000fa16a049bf4c6ce",
+    "gems": 20
+  },
+  {
+    "address": "0xff48b800811f3ad34c0eb0cc53446ba9520fc2fd",
+    "gems": 20
+  },
+  {
+    "address": "0x8a6e15709b6fb71df6c1022562cb1bdca0cda148",
+    "gems": 20
+  },
+  {
+    "address": "0x4a231fa80d01c96fffbe17eaced96304e35b8249",
+    "gems": 20
+  },
+  {
+    "address": "0xfdf9db72168d25085f56ca3b710f3d3fc756ee93",
+    "gems": 20
+  },
+  {
+    "address": "0xc38e8b9ab54a0e27a333da0b56629e6ae66e0f02",
+    "gems": 20
+  },
+  {
+    "address": "0xbede50aa6764c453d65e767993c5031cd87317ae",
+    "gems": 20
+  },
+  {
+    "address": "0xec8ca87615a520a0f5bda2bb92af822120f5b61c",
+    "gems": 20
+  },
+  {
+    "address": "0x645c2e5c154ee328ed3f3b13f6be510650eece5f",
+    "gems": 20
+  },
+  {
+    "address": "0x9cc0ac8c08eeceaa360f7ae7f0fa3e02e7d9dce0",
+    "gems": 20
+  },
+  {
+    "address": "0x27299aa553eecbf9914e5da1ef0e66de21e66e95",
+    "gems": 20
+  },
+  {
+    "address": "0xaa6a04b42fcd953496a4789d724060bb23fd0692",
+    "gems": 20
+  },
+  {
+    "address": "0xa7380a13703ba8e06994fad9794c65a3b6a96faa",
+    "gems": 20
+  },
+  {
+    "address": "0x070b5e91a5251d63d7d75a7018d879e0a6fce687",
+    "gems": 20
+  },
+  {
+    "address": "0xe359f3984f4255b7c66aa03646a98fc037336e27",
+    "gems": 20
+  },
+  {
+    "address": "0x60e542a4db178b0e763bfc58b5b0699fcaa7857f",
+    "gems": 20
+  },
+  {
+    "address": "0x473ee9db3514fa2746543a06d2e90925fa968993",
+    "gems": 20
+  },
+  {
+    "address": "0x47dd670e99b6ebf351978304ea7db738d22efc4b",
+    "gems": 20
+  },
+  {
+    "address": "0xd6a563b54a865ef81ee2a2515987b14d0f322b00",
+    "gems": 20
+  },
+  {
+    "address": "0x352140cf2aa2d24faf89309f1e314a8e93d08b5b",
+    "gems": 20
+  },
+  {
+    "address": "0xb2e0dd66555a0606fb7674d732332934fe3142c3",
+    "gems": 20
+  },
+  {
+    "address": "0xd2b9ab5f3794fb39318b6a33ddea993d5fa7037a",
+    "gems": 20
+  },
+  {
+    "address": "0x368af04b6d2f79a5ebec5c7be44bfc26ec6a0414",
+    "gems": 20
+  },
+  {
+    "address": "0xcc31489e2f084a1d4c87116342170fbef52ec9e8",
+    "gems": 20
+  },
+  {
+    "address": "0x6d4718085fe314806eac3137965fc6e411ad76ce",
+    "gems": 20
+  },
+  {
+    "address": "0xa2c43e803e93113c213ee0e19cbccdb93240bb20",
+    "gems": 20
+  },
+  {
+    "address": "0x9f88e7ee6a06f308193ccdee1900970e3bd344f7",
+    "gems": 20
+  },
+  {
+    "address": "0xc1f8825df09d95f94aef0296ce3b75c5916a16cd",
+    "gems": 20
+  },
+  {
+    "address": "0xf28d9a825f5dfbadfb69bd3aa6c5bf5e094a4a15",
+    "gems": 20
+  },
+  {
+    "address": "0xabe500ecb8eba3d4d84c98916f5ba4e75c3bea00",
+    "gems": 20
+  },
+  {
+    "address": "0x61c5b2997377f51407ade0a5eea9cc9336180775",
+    "gems": 20
+  },
+  {
+    "address": "0x2648ca89e65ff5c02f24b4e44e61a832ae42e793",
+    "gems": 20
+  },
+  {
+    "address": "0xe667c3faef44f36b49d9a256e7f9ed63c9abaea1",
+    "gems": 20
+  },
+  {
+    "address": "0xdb72650de387c4b71ba51a293f01cd2b81644b43",
+    "gems": 20
+  },
+  {
+    "address": "0xd901552c03804caed7c23f652b78b560facb7f6f",
+    "gems": 20
+  },
+  {
+    "address": "0x04cb27ee0e4049f4fdff7420ff11583ec98b1d75",
+    "gems": 20
+  },
+  {
+    "address": "0x80854d6e3e0532634420e1a381f8e9cb8400061d",
+    "gems": 20
+  },
+  {
+    "address": "0x1796b4a28ed5045e3e61c2ad65e6155daee901d3",
+    "gems": 20
+  },
+  {
+    "address": "0x5136f0fb31bf57041e5a8fdcf5c0aadadff8d03c",
+    "gems": 20
+  },
+  {
+    "address": "0xda6d5bdef4c676d8b2d1ab3d2dbd3fb1ffb6765d",
+    "gems": 20
+  },
+  {
+    "address": "0x3e9be554d3f3de3c42ad0b9c1a173182ab57e308",
+    "gems": 20
+  },
+  {
+    "address": "0xc252013a164c56a5c69b0b8547a478b5cc8677df",
+    "gems": 20
+  },
+  {
+    "address": "0x8a7e25ecadba83ee2740b8a93ef271924d86c129",
+    "gems": 20
+  },
+  {
+    "address": "0x05de433e770d9aa1ef11ae68c2dc277572f63da6",
+    "gems": 20
+  },
+  {
+    "address": "0x86998d22ff5d334ded601b970f011015b13cd312",
+    "gems": 20
+  },
+  {
+    "address": "0x1f3c7b8812226d4f9085768a077d780c180efa29",
+    "gems": 20
+  },
+  {
+    "address": "0x5818dee3df7fee3a9ffa929e6f5cf11fc0285db2",
+    "gems": 20
+  },
+  {
+    "address": "0x32091a5173ab213da80bcd633a38035bd612f49d",
+    "gems": 20
+  },
+  {
+    "address": "0x54d105d1f8b58c09a92be767eab539625e7524e4",
+    "gems": 20
+  },
+  {
+    "address": "0xa4cdcfa829c2caa354b73d774752323baee77768",
+    "gems": 20
+  },
+  {
+    "address": "0x8340779952f3845a2b9096f768a1e5a322f0f957",
+    "gems": 20
+  },
+  {
+    "address": "0xf9a237c6cbb6efe099c38ce6f165a47b8f8af5fe",
+    "gems": 20
+  },
+  {
+    "address": "0x1a4d8e837c2ec6a681aac670e49c1d0b3edb3cd3",
+    "gems": 20
+  },
+  {
+    "address": "0xafe5518669ebc3c8a269417815deebe687027ec3",
+    "gems": 20
+  },
+  {
+    "address": "0xe9b7fdcec9fedbf3e145be6d7be75828595138c4",
+    "gems": 20
+  },
+  {
+    "address": "0x34c3559ae1c25773064fdaa9f9e3867710ca3ca4",
+    "gems": 20
+  },
+  {
+    "address": "0x9c5e93001e09a96abdac26acbac1824a16fe78e9",
+    "gems": 20
+  },
+  {
+    "address": "0xc5231d3a67075c099f95596c84361ff2e2eaf595",
+    "gems": 20
+  },
+  {
+    "address": "0x1297ff64f8022e74c6ba7b58293903a17f33b52d",
+    "gems": 20
+  },
+  {
+    "address": "0x2d5569c5b49e5b3d34b85428f08710f93cc3586a",
+    "gems": 20
+  },
+  {
+    "address": "0xb16addbeea37a43bff23bc68966b8ffe84954a1a",
+    "gems": 20
+  },
+  {
+    "address": "0x3c75c85f5f500fb96ecabff7dd6506a1d6a39296",
+    "gems": 20
+  },
+  {
+    "address": "0x0dcae8f2f60cf17b000707ef36477aca31ad2fe7",
+    "gems": 20
+  },
+  {
+    "address": "0xd8f4cc67eb20babde9fd5bb3af9f482516f04b43",
+    "gems": 20
+  },
+  {
+    "address": "0xd6f8aa4b47a701fc65bec7dd53c2ef3897d4125e",
+    "gems": 20
+  },
+  {
+    "address": "0xef18eb618b176c3bb407cb6cb93057ce2949b243",
+    "gems": 20
+  },
+  {
+    "address": "0x1df8f5ed6cf9446c22f35f2f9787932345106cc6",
+    "gems": 20
+  },
+  {
+    "address": "0x22c3c50f04c5c0d656014354bd00c32990cf80d2",
+    "gems": 20
+  },
+  {
+    "address": "0x4c51baa89e4c3cb98859453f90c32e2bfa5f5c1b",
+    "gems": 20
+  },
+  {
+    "address": "0xc529e5dd1021eca75d943ba4d7174509c37fbe3d",
+    "gems": 20
+  },
+  {
+    "address": "0x317eab39a98ba3a4e497d2e15901d7d4bdd7794f",
+    "gems": 20
+  },
+  {
+    "address": "0xd4f34c58dcd657d381e2dc0760774b7fd8ca15e3",
+    "gems": 20
+  },
+  {
+    "address": "0x138864542a4a5a08bc2e0960475fd25f19a90194",
+    "gems": 20
+  },
+  {
+    "address": "0xc69dc62c1ad09abbcaabf3fec370712fdef674f4",
+    "gems": 20
+  },
+  {
+    "address": "0xca4e2a04f21e8a0736eb11a8fa692fe059a791ba",
+    "gems": 20
+  },
+  {
+    "address": "0xda81da9e3fd9769a6e29ac2b14e5f286d517f040",
+    "gems": 20
+  },
+  {
+    "address": "0x97d49697afb2e33677ca6411ec29de7bc7db9f3c",
+    "gems": 20
+  },
+  {
+    "address": "0x4cc6e61f7fff421645e96df0c1344fab072c74f2",
+    "gems": 20
+  },
+  {
+    "address": "0x0bb6cf4ce31abcffea32a4ebf9bc3202ebcf2a93",
+    "gems": 20
+  },
+  {
+    "address": "0xea12e4d660268ea7709325d029d731ccd2777684",
+    "gems": 20
+  },
+  {
+    "address": "0x8bbe48f92f3f335f7169ad37d6b73f2a5f078e82",
+    "gems": 20
+  },
+  {
+    "address": "0xc673e4ee091ce8cc4a0406124d7ce051d14d83a8",
+    "gems": 20
+  },
+  {
+    "address": "0xee30910964a7722f5ba49764c65ff55f2e62b389",
+    "gems": 20
+  },
+  {
+    "address": "0xe8b456159bdba66b7079040d43a959642856fd3c",
+    "gems": 20
+  },
+  {
+    "address": "0x16ce08c6e20972fe2da9f7ce901fa72245773603",
+    "gems": 20
+  },
+  {
+    "address": "0xc97826ad06ceccfd5ee282c17e5175cb4a7cfbb5",
+    "gems": 20
+  },
+  {
+    "address": "0x8cfa47ae73e416c1ea177e8bbd16fd544f8a626f",
+    "gems": 20
+  },
+  {
+    "address": "0x57b9d73bea531c4113666b0d28c6e3c68d02ed5c",
+    "gems": 20
+  },
+  {
+    "address": "0xb7adf12b11d62e170d1fb6ac0a09b05fad4c638d",
+    "gems": 20
+  },
+  {
+    "address": "0x27838a05cc0e724b8a71f854b36cbd38b4b7b416",
+    "gems": 20
+  },
+  {
+    "address": "0x7b9911c3398ced13ddf636b55eb82da9c92b8c91",
+    "gems": 20
+  },
+  {
+    "address": "0x8fb1e71a5240c05ccd3eb97ac9f20e58152a9b29",
+    "gems": 20
+  },
+  {
+    "address": "0x628f8e47ebdf6e8b91a9d602a8b9b6744c4c90b5",
+    "gems": 20
+  },
+  {
+    "address": "0x979fd1d5555e5881cddc4f0f829882fc502367d0",
+    "gems": 20
+  },
+  {
+    "address": "0xb7bd79920fa616b89032c2169961efe7bd48c511",
+    "gems": 20
+  },
+  {
+    "address": "0xbfe30605ac0a19d0397ef7114386565b236255f4",
+    "gems": 20
+  },
+  {
+    "address": "0x5e027f951e7a4015cbb1585b63e2d59a875ab554",
+    "gems": 20
+  },
+  {
+    "address": "0xdcc2166acdc4484ce17a38d1fcb9a4d32408a830",
+    "gems": 20
+  },
+  {
+    "address": "0xd4123e790020cc0ed9f108b82936c974de7750cf",
+    "gems": 20
+  },
+  {
+    "address": "0x804b17c667ac28e9b76d08fdcfca5a2b40d20386",
+    "gems": 20
+  },
+  {
+    "address": "0xc11f6095d8cb32e8a1f3b00fc8a2e257d06c2bd9",
+    "gems": 20
+  },
+  {
+    "address": "0xa7b8411285ae623a2f0c4d9bb0c67c8b50b3ef04",
+    "gems": 20
+  },
+  {
+    "address": "0x4d600b11b2bb087e5a272e8fc9ddfd719ee0c327",
+    "gems": 20
+  },
+  {
+    "address": "0x0c2985bf5b142a916800d729ba7a3a784a97d240",
+    "gems": 20
+  },
+  {
+    "address": "0xc964fe214b35c7707bfa1e17242b9694539302ad",
+    "gems": 20
+  },
+  {
+    "address": "0x50edec743625e86d432203ef49180cb323ba3a37",
+    "gems": 20
+  },
+  {
+    "address": "0x9039c9f679b86662c811e887fcfca03505a6c9a8",
+    "gems": 20
+  },
+  {
+    "address": "0xc4c8ddaf5896e461d612b558298d3d3f29407772",
+    "gems": 20
+  },
+  {
+    "address": "0xf5c45871baeccfdf6485e8d0e88d31e6ea0e777d",
+    "gems": 20
+  },
+  {
+    "address": "0x8361a58bb0b957968476a8c474912cf40ce2e672",
+    "gems": 20
+  },
+  {
+    "address": "0x16d60f9109ad24f4093f3bd61da4fd558554930f",
+    "gems": 20
+  },
+  {
+    "address": "0x8b4e899a8adea31a2dc7c22536c3fd95eb250460",
+    "gems": 20
+  },
+  {
+    "address": "0xcd05ec0ebfa95c8d6d7a2ab541f7909c9a134f32",
+    "gems": 20
+  },
+  {
+    "address": "0xb01eeb6cc8ef1a0ffffe8f32c890532a5c4573ab",
+    "gems": 20
+  },
+  {
+    "address": "0x080f74b7e13aa496f727bb7ea920fe203d1b97a4",
+    "gems": 20
+  },
+  {
+    "address": "0x2933b4757b4e5f303abe304dfd87af64a791bb35",
+    "gems": 20
+  },
+  {
+    "address": "0x4b6f6f887e41216bcf48060b08f37444fdb0271b",
+    "gems": 20
+  },
+  {
+    "address": "0x0310e291f5c0ad2f9050b5debb6633517c720ae1",
+    "gems": 20
+  },
+  {
+    "address": "0x97efa7f220c892a9dc371e09fed29fca1e63d259",
+    "gems": 20
+  },
+  {
+    "address": "0x925312ad6f500bc1e55a0c6fb4497ab61fd7841e",
+    "gems": 20
+  },
+  {
+    "address": "0xd5b6f1aea90a08ba3c35f444e15118e471199124",
+    "gems": 10
+  },
+  {
+    "address": "0x348009f5f0cf8649e281bc9ff744164da6422703",
+    "gems": 10
+  },
+  {
+    "address": "0x8da4a26b4feb990ff79c4938ef392b4f75417e43",
+    "gems": 10
+  },
+  {
+    "address": "0xb609320f77b6fdafc487b4df7696dd537aff87b4",
+    "gems": 10
+  },
+  {
+    "address": "0x5edb70296a438797aa5fe80d44f2453a28a329e7",
+    "gems": 10
+  },
+  {
+    "address": "0x18a65a4c5f9ef2e2add6c2dfc6039a0d194e6548",
+    "gems": 10
+  },
+  {
+    "address": "0x014e4ba5e3c1f46f6b26b3a586e27e5d695f7088",
+    "gems": 10
+  },
+  {
+    "address": "0x7dd270e54650284b68e4dd454decfa4e121be869",
+    "gems": 10
+  },
+  {
+    "address": "0x32139ad332210cc45a0d2b54b7a8c485cbea92f5",
+    "gems": 10
+  },
+  {
+    "address": "0xbd9675d4235aaeea94e34fb1992f682b0a994d7b",
+    "gems": 10
+  },
+  {
+    "address": "0xc88e158e61c8b8664c48f96c4ba1b8129ed45d6e",
+    "gems": 10
+  },
+  {
+    "address": "0x61898ee587808b0689da3285cd026c743253b83c",
+    "gems": 10
+  },
+  {
+    "address": "0xed6e41d1544f37615219dda1e2732a4c7e2229cf",
+    "gems": 10
+  },
+  {
+    "address": "0x73648d15c237324afb4c0e20cdeef96aac951adf",
+    "gems": 10
+  },
+  {
+    "address": "0xf1cea1adb9a10aa60eca2b2045fc5db1fbec7668",
+    "gems": 10
+  },
+  {
+    "address": "0xe20c900b7c9d1a48c0cc93f23184083f32e848b9",
+    "gems": 10
+  },
+  {
+    "address": "0xa5f057e2fb1c8ab28f9edad1d9c9d090865a277b",
+    "gems": 10
+  },
+  {
+    "address": "0xdb7530957b09be12ea5cc8e851178f2c73e725ac",
+    "gems": 10
+  },
+  {
+    "address": "0x5e650ad28e572d129da11fb3990c3fc2b3ecf0b3",
+    "gems": 10
+  },
+  {
+    "address": "0xd761fde6ac886dcb4b04df5e52aa2f161ceb4a3a",
+    "gems": 10
+  },
+  {
+    "address": "0xeb3a53f4b407c12109fea953faf8d2841112d46a",
+    "gems": 10
+  },
+  {
+    "address": "0x24b9be0e548fcbcf1718847b63f4b05f0a7f459c",
+    "gems": 10
+  },
+  {
+    "address": "0xbf6b02e89474e41b636bd466b98b1000624fe6a6",
+    "gems": 10
+  },
+  {
+    "address": "0x19e3b67f422e15401807c8f80186251eeb96e513",
+    "gems": 10
+  },
+  {
+    "address": "0xe646f5e5b32f4f163e960e7295267f2911f440fe",
+    "gems": 10
+  },
+  {
+    "address": "0x70444526901ce95635cfbbbbe160ecdd97ce7265",
+    "gems": 10
+  },
+  {
+    "address": "0xf407e1d98bd3041f993c586662c6cc37cf442db1",
+    "gems": 10
+  },
+  {
+    "address": "0xb343eaa5ea173688aebd7fc392905bcb791483a1",
+    "gems": 10
+  },
+  {
+    "address": "0x5d59a98a078ad5d4c579923b79476d390be53a8b",
+    "gems": 10
+  },
+  {
+    "address": "0x46bdb771fddf3b370e2d3ef756115d615a1e0442",
+    "gems": 10
+  },
+  {
+    "address": "0x6628460870675243b0e77192bef696b6b4cc0e8f",
+    "gems": 10
+  },
+  {
+    "address": "0x955ff129f261a0fbe87bd5b976ebfb9d51e9c639",
+    "gems": 10
+  },
+  {
+    "address": "0xe8b389d8cec47dcf2407c92894ef213ea0b700c9",
+    "gems": 10
+  },
+  {
+    "address": "0x3a578d17a8265f40a5d3f981fe4332dd9c5d2a7d",
+    "gems": 10
+  },
+  {
+    "address": "0x0e82dd5e282ddf31ebaa2adb7323f25a52c7140a",
+    "gems": 10
+  },
+  {
+    "address": "0xaa041e57938906441b8bf8ea17c77ca7df4028ce",
+    "gems": 10
+  },
+  {
+    "address": "0x1e60351e032528b7f6a2c0c35663bb8bd5ae2bef",
+    "gems": 10
+  },
+  {
+    "address": "0x9860891eebdec1774a522943ed3788181922e007",
+    "gems": 10
+  },
+  {
+    "address": "0xf72d76f7a353f11c9edd825f284483f7ab2bb2e2",
+    "gems": 10
+  },
+  {
+    "address": "0x2d69ffdeaf7ca223ea6b4842ade960063df546cc",
+    "gems": 10
+  },
+  {
+    "address": "0xdb10293a0966bd0a9af58e0496ed6c8aa131b5b4",
+    "gems": 10
+  },
+  {
+    "address": "0x2037e470385f8ade37009fd7df3e7dd9cc145766",
+    "gems": 10
+  },
+  {
+    "address": "0x4e2f9096d2a366cac87d31ed093abb1c66b96fc1",
+    "gems": 10
+  },
+  {
+    "address": "0x915b3a68616ea5b497eb4256d11113eae4c29ab8",
+    "gems": 10
+  },
+  {
+    "address": "0x463e405c635b591e1f30552d52f11e8f00b85208",
+    "gems": 10
+  },
+  {
+    "address": "0xa6260f907114c490e9f0d4f19889e26d9e51d026",
+    "gems": 10
+  },
+  {
+    "address": "0x20cf2ffa8b7ba31dfbffcb3bc80159bb99cbcab8",
+    "gems": 10
+  },
+  {
+    "address": "0x31e5cb88f930eea26aad38b1df89dc603b6a2c85",
+    "gems": 10
+  },
+  {
+    "address": "0x4a5c3116c64bb91afefd2595db4fdc063c1bfc84",
+    "gems": 10
+  },
+  {
+    "address": "0xa7e56eed18e8fd9eb3440f6fff7e4507733cae76",
+    "gems": 10
+  },
+  {
+    "address": "0x728f9b461643cbf284fd1f8205fd35f85a80fd7c",
+    "gems": 10
+  },
+  {
+    "address": "0x9d166c358399e804bd52a8ecbc62bcf16f3a5771",
+    "gems": 10
+  },
+  {
+    "address": "0x32f24e0ed85d1b7017ff17977ed5799ad9e84134",
+    "gems": 10
+  },
+  {
+    "address": "0xfcd201ec257a48b5899c580c3ca16f4a05622404",
+    "gems": 10
+  },
+  {
+    "address": "0x3318940de3edc6d3a678735b579edc8e6bcd0305",
+    "gems": 10
+  },
+  {
+    "address": "0xcec27b74e46802369298b67c334ef32ebe90016e",
+    "gems": 10
+  },
+  {
+    "address": "0xab2c095bdf75ae1fe097ce473ff9546bcd74a855",
+    "gems": 10
+  },
+  {
+    "address": "0xeafe08ac6c345b5c0ce6e1244b11efa37b6b47dd",
+    "gems": 10
+  },
+  {
+    "address": "0x8d37153ad61f1dfeb4a47196e623f40c830290f5",
+    "gems": 10
+  },
+  {
+    "address": "0x6729a574197151fa386f1d590cb70403ae8715d8",
+    "gems": 10
+  },
+  {
+    "address": "0xc3482caa4463ab109f506cd2279cc84552732a9e",
+    "gems": 10
+  },
+  {
+    "address": "0x6e4b23496b9c63a89690a5f58c5276a4d4310567",
+    "gems": 10
+  },
+  {
+    "address": "0xc836e2b93c50443a526e3e8e112ccac4e7af0d89",
+    "gems": 10
+  },
+  {
+    "address": "0x6f3584e3cbfa549f5c411b876574bc33ceaacfc9",
+    "gems": 10
+  },
+  {
+    "address": "0xf5ad28d03f1aa71470e571aafae9250d1445c4e6",
+    "gems": 10
+  },
+  {
+    "address": "0xe122c91ef6e184848c700cb697840bf7fd12162a",
+    "gems": 10
+  },
+  {
+    "address": "0x1dffff759bd718d609c5252cd7fbaa9276ef33c4",
+    "gems": 10
+  },
+  {
+    "address": "0x8c031c3746b56aa21ef1bce335a7560f415c6717",
+    "gems": 10
+  },
+  {
+    "address": "0x9f08dea5a62f9ea0ba7f2af598d0ce0da6e2c046",
+    "gems": 10
+  },
+  {
+    "address": "0x3481851280dcc82f32d40f440cf6f4dc4677ab53",
+    "gems": 10
+  },
+  {
+    "address": "0xac4780fd1ddc42f9664fd97ccff531ccda17ce53",
+    "gems": 10
+  },
+  {
+    "address": "0xc09a6efb9b117a807012a5d46d6801fdfa0306dc",
+    "gems": 10
+  },
+  {
+    "address": "0x84dd98e04d12f37eaae05f6b183a64141ee1d655",
+    "gems": 10
+  },
+  {
+    "address": "0xbb55e28ac1f4ba69bbaf4705562adf138fb07d9b",
+    "gems": 10
+  },
+  {
+    "address": "0x32c3549c60dc292390e972acb22e6ce8f68030c2",
+    "gems": 10
+  },
+  {
+    "address": "0xf9ed5c07e8dc1f25aaace38d7bf8c308acd94c7c",
+    "gems": 10
+  },
+  {
+    "address": "0xf1fa44918d1cb805881b6f2decd547b47e7f59db",
+    "gems": 10
+  },
+  {
+    "address": "0x80cb64c0e101355405f0878e9eb7c337dd431de7",
+    "gems": 10
+  },
+  {
+    "address": "0x8ad0dcf612a66cfd1f4e10c874039ab2cbb64457",
+    "gems": 10
+  },
+  {
+    "address": "0xc5a471414c52e5e16060b4a3b677659167b15f17",
+    "gems": 10
+  },
+  {
+    "address": "0x1424d97e509944045044fa0effad4bf20cdad38e",
+    "gems": 10
+  },
+  {
+    "address": "0x68703317ac360b6e14cd357dba7e7bf7e38fef78",
+    "gems": 10
+  },
+  {
+    "address": "0xda66cc0e4d33cabc60bc1d4cce6eb1ce557b3b0c",
+    "gems": 10
+  },
+  {
+    "address": "0x8ddfcf56e4792ca61c088b9816db52e69f756744",
+    "gems": 10
+  },
+  {
+    "address": "0xbbcfbcc23d67dfab08aac682b85a820fa453f935",
+    "gems": 10
+  },
+  {
+    "address": "0x9b5602d672ba36ce4d22c75b37a3e53c044ba0f5",
+    "gems": 10
+  },
+  {
+    "address": "0x543488e2f2b5dfe6b02d32e8ac4e347a1413996b",
+    "gems": 10
+  },
+  {
+    "address": "0xbaf831e2d5b2e343643ab7f4df17eeb621a1d190",
+    "gems": 10
+  },
+  {
+    "address": "0x2ff188d81f06549b47bd110d6f587fe74b6db591",
+    "gems": 10
+  },
+  {
+    "address": "0xf2e6c7b696ca3327518d872943d2114e517615ed",
+    "gems": 10
+  },
+  {
+    "address": "0x3df0b06be83ee286d191ce5e3995be6befbfe3ae",
+    "gems": 10
+  },
+  {
+    "address": "0x0d6727c9c6a349aa025e237f031140e833e26457",
+    "gems": 10
+  },
+  {
+    "address": "0xa3240f04483ce48ab5664c47ac27bca8daef4b34",
+    "gems": 10
+  },
+  {
+    "address": "0x304577166a66103469a14d3c487d35b42e27b689",
+    "gems": 10
+  },
+  {
+    "address": "0xfdde949fe808015b6154647faba8097223d8dbd9",
+    "gems": 10
+  },
+  {
+    "address": "0x83fc2fc26a42b2a0e6650a8c88075426997d45f8",
+    "gems": 10
+  },
+  {
+    "address": "0x3db0c0bf5166916d37d540e6f5d149a84165fded",
+    "gems": 10
+  },
+  {
+    "address": "0x2b2e85ddeb4ca7d1193336c401944981739d5e75",
+    "gems": 10
+  },
+  {
+    "address": "0x187a2d4d5d4284ae9ee9a5a788d07d532715840e",
+    "gems": 10
+  },
+  {
+    "address": "0x4b4881eb007b90e13a70560706ef395a143c20af",
+    "gems": 10
+  },
+  {
+    "address": "0xb742710b2a962f597ae882a0182d47bd382d3d55",
+    "gems": 10
+  },
+  {
+    "address": "0xfefeb63deb318c033d6323ca6382cd2d374e5653",
+    "gems": 10
+  },
+  {
+    "address": "0x8a470049c5af5247eeb8e1122ab93431b5c02e4c",
+    "gems": 10
+  },
+  {
+    "address": "0xce7c70be88d68c0b0a9dcd856ed0b0134410a94d",
+    "gems": 10
+  },
+  {
+    "address": "0xbe5609cb77acaa01f78e9a6baf1f13d2e9c32810",
+    "gems": 10
+  },
+  {
+    "address": "0xd43ef118bc1e27e59c92b65110306847ed328252",
+    "gems": 10
+  },
+  {
+    "address": "0x7bf259c6ee7b00434d76aabbd8b1e61fbaf10b9b",
+    "gems": 10
+  },
+  {
+    "address": "0xba957e75bb3790100fc09eceacf198c9bcbc972e",
+    "gems": 10
+  },
+  {
+    "address": "0x9766c31b93ee9424f7312ccc6c6b7e66e89e77b0",
+    "gems": 10
+  },
+  {
+    "address": "0xedd05dfc97918d554cf2e19f90a89498e8f9eb15",
+    "gems": 10
+  },
+  {
+    "address": "0xb01224b8be2bdcdeb4d9eb8ed1172a7c2fc7f01a",
+    "gems": 10
+  },
+  {
+    "address": "0xbdb973b8bf87d1347e182b8b0ccdbf11cbf82c06",
+    "gems": 10
+  },
+  {
+    "address": "0x08d8c2556e7f1c2989e769109f635ad4d4dce282",
+    "gems": 10
+  },
+  {
+    "address": "0xe39d0efb7122293d6d79e52b13ff2c1d2cd969fc",
+    "gems": 10
+  },
+  {
+    "address": "0xb5cf4e52cc6838921cae92f2340bdf967790887f",
+    "gems": 10
+  },
+  {
+    "address": "0x5f4df64fcd4e94a96fce130ac5f7b389304b60a7",
+    "gems": 10
+  },
+  {
+    "address": "0xd6d7a13dcf0ff765745e90195476e6ae18b446f8",
+    "gems": 10
+  },
+  {
+    "address": "0x1b0ccc4c5e655adebd830c15d717af81efe7c873",
+    "gems": 10
+  },
+  {
+    "address": "0x670e9630afc92f34a5b63dfd3ce7325b1d493421",
+    "gems": 10
+  },
+  {
+    "address": "0xd8967080f428c37e181b5d871370e118d50c5563",
+    "gems": 10
+  },
+  {
+    "address": "0x4fabb5da133533609a904c030647cc961beb2648",
+    "gems": 10
+  },
+  {
+    "address": "0xf8618aaf3cc0e9eb39ba143400faf4977cf8f479",
+    "gems": 10
+  },
+  {
+    "address": "0x7ef660c1fedcb83e6e897bec3e77cded47779411",
+    "gems": 10
+  },
+  {
+    "address": "0x28136d6f830ba6c638076b1bdbd9753c25cf92a0",
+    "gems": 10
+  },
+  {
+    "address": "0x11bd2c17567040b35a34d60f972adb009b81ddc8",
+    "gems": 10
+  },
+  {
+    "address": "0xdcf04ee418ee5aac5b1a5de0edda56938583b896",
+    "gems": 10
+  },
+  {
+    "address": "0xbb5085804a1e6977ad8ce860ebecc15a69091afc",
+    "gems": 10
+  },
+  {
+    "address": "0x71677bdd8b6b3b890f1d66ba8f9d0ae311349f11",
+    "gems": 10
+  },
+  {
+    "address": "0xc648487a19461ba11935032484f182de3404cadf",
+    "gems": 10
+  },
+  {
+    "address": "0x122bc595d180ed1efecfb10c810bf51869dc2df1",
+    "gems": 10
+  },
+  {
+    "address": "0x242862b79eaa36340a144e79a07b9518f0238497",
+    "gems": 10
+  },
+  {
+    "address": "0xa415727f3e525bb26b8996f1a29011fa90c45e45",
+    "gems": 10
+  },
+  {
+    "address": "0x3669aa17458968ea9ed4ad28d5b69d54526e2ee7",
+    "gems": 10
+  },
+  {
+    "address": "0x142f6a4855003de3654125f95f91f2bffea25237",
+    "gems": 10
+  },
+  {
+    "address": "0x94e3a7d591f7160a7dbaf77876a7b8baae49b785",
+    "gems": 10
+  },
+  {
+    "address": "0x0fbc70f5421a9a823297aff8eb55e15bd9941c6f",
+    "gems": 10
+  },
+  {
+    "address": "0x6c898d42b2d05ded922f9d45176bfb6824e53f80",
+    "gems": 10
+  },
+  {
+    "address": "0x3400c6033088395ca7ff1bea9a3e817f34c23a69",
+    "gems": 10
+  },
+  {
+    "address": "0x20d502194cb1f680d52c1eec746ff944d12765b8",
+    "gems": 10
+  },
+  {
+    "address": "0xeccc4195798013d7582dd148149688778ac5c844",
+    "gems": 10
+  },
+  {
+    "address": "0x8fb7b6ce09c2f6e714d84f2b0ce95a68fb54b0ae",
+    "gems": 10
+  },
+  {
+    "address": "0xbac4ff36ba43c4cc850869e496e57a786343308d",
+    "gems": 10
+  },
+  {
+    "address": "0xa5675e7998b8b434d38a608fd3c60f1fbdff9b7f",
+    "gems": 10
+  },
+  {
+    "address": "0xda496ee9e9542f3e2f9cf9e61f5a423b22e17b70",
+    "gems": 10
+  },
+  {
+    "address": "0x848206edbbd690a31b7501b28aeccd6ec703e90b",
+    "gems": 10
+  },
+  {
+    "address": "0xbd05745fcbc719557254a7c45f64c72254981d94",
+    "gems": 10
+  },
+  {
+    "address": "0x6f9f16a4867dc86a1f70f70012dfe4651932582b",
+    "gems": 10
+  },
+  {
+    "address": "0x8991569ffedea08fbd271e167a9eaff2f046dd00",
+    "gems": 10
+  },
+  {
+    "address": "0x08f476cea876013cfbd3bfcadf201849cf5e97d1",
+    "gems": 10
+  },
+  {
+    "address": "0x88385f948d97e702fea88a0a0295cbc09d8eaf13",
+    "gems": 10
+  },
+  {
+    "address": "0xd06893cc26397dfad7b8b6050ce73220ce7843da",
+    "gems": 10
+  },
+  {
+    "address": "0xb6bb89c3db38ea62ca891a3da184ae3dfdfba951",
+    "gems": 10
+  },
+  {
+    "address": "0x0015a2130a88c670e1c08bdada905331b005688f",
+    "gems": 10
+  },
+  {
+    "address": "0xff0c31bb746ec2af582fc29803ee4f7de2fbb78c",
+    "gems": 10
+  },
+  {
+    "address": "0xaa53bbf0fe7f64113d3f595efde837e3907ccc6b",
+    "gems": 10
+  },
+  {
+    "address": "0x49c0b48dbaff13d77692970cd192f924c4a0f6ed",
+    "gems": 10
+  },
+  {
+    "address": "0x40ab041d0687e5e631442cbb6d86ef7f8b8fee2c",
+    "gems": 10
+  },
+  {
+    "address": "0x0077b9a4acd25b46738c457b4ed78556bf62b2f8",
+    "gems": 10
+  },
+  {
+    "address": "0x772682fac6ab661167404d46a1f3a3a855e67872",
+    "gems": 10
+  },
+  {
+    "address": "0xa0c55a36840a371736b073c6551d2a96a872b626",
+    "gems": 10
+  },
+  {
+    "address": "0xa7668a9b8fc8f569a50ce3efe02939bbc6099d71",
+    "gems": 10
+  },
+  {
+    "address": "0xcfe7137452922bc09106a03526ec5ddf1f57bbea",
+    "gems": 10
+  },
+  {
+    "address": "0xa3a9a9ae14eef58692b8e5357914f4c595f41450",
+    "gems": 10
+  },
+  {
+    "address": "0x1325d7ca95b32097d570c423dc7115cac8266e99",
+    "gems": 10
+  },
+  {
+    "address": "0x185d77947a3ce5dcf81a0819701daa579c9111d5",
+    "gems": 10
+  },
+  {
+    "address": "0xa3ccc7f4b8df693975ce08080faec3451a2ccb32",
+    "gems": 10
+  },
+  {
+    "address": "0x8adf2f15f1b2d37e7ae9d0a5be09e902ba0615f3",
+    "gems": 10
+  },
+  {
+    "address": "0x782ea443a3487b94d98a43b50adb6e8781220e43",
+    "gems": 10
+  },
+  {
+    "address": "0x6fac261f06d75993a8a5097db0d21ea1ca1eee16",
+    "gems": 10
+  },
+  {
+    "address": "0x8d0e2892afdb9c689e08c6b08a4a8a79ce4ce872",
+    "gems": 10
+  },
+  {
+    "address": "0x060324737a7d6de30bcfe1ba4a6784bf9c1ef5da",
+    "gems": 10
+  },
+  {
+    "address": "0x5eb5c82dc283fb5eca8e54e280dce9f9b26fd4ca",
+    "gems": 10
+  },
+  {
+    "address": "0xecc1d45f82be1516c6b5c8317f457dd6268365bb",
+    "gems": 10
+  },
+  {
+    "address": "0x3ac34998bbbee75908f00e0f80df28db28c45f8a",
+    "gems": 10
+  },
+  {
+    "address": "0xaf393cde8364e52c2a357d09ee771d00b17e1e6d",
+    "gems": 10
+  },
+  {
+    "address": "0x5604d6e941eafd80f7c334f457bc17d0698ffb20",
+    "gems": 10
+  },
+  {
+    "address": "0x4d7a87e706b96921fd453a87b35fa322d160b582",
+    "gems": 10
+  },
+  {
+    "address": "0x1682aa25620c5a282425fdcbf30dcbb670ed321c",
+    "gems": 10
+  },
+  {
+    "address": "0x5783130b4ce41bd356f04e46460670c0d9fb8629",
+    "gems": 10
+  },
+  {
+    "address": "0x30fd71b27972a8777805aa592a4d7961699abf8d",
+    "gems": 10
+  },
+  {
+    "address": "0xb4cbb238110d305d97197467e6dbb32d87f381ea",
+    "gems": 10
+  },
+  {
+    "address": "0x20a8002948d66bc1507dbe6cd5db8e9c582cd792",
+    "gems": 10
+  },
+  {
+    "address": "0xb3705ded77bee95fa6761b4b3c34a278606c5855",
+    "gems": 10
+  },
+  {
+    "address": "0x9696c7c3f867f67c588802a1a03845ee4b41cea8",
+    "gems": 10
+  },
+  {
+    "address": "0x9889884ed2f54170858cd21a0bf3b98d4224c248",
+    "gems": 10
+  },
+  {
+    "address": "0x11408be8e53ae8140b66839d199e604b41a729da",
+    "gems": 10
+  },
+  {
+    "address": "0x94d59a1d9155a507d65346977d6bc7bba8261cfe",
+    "gems": 10
+  },
+  {
+    "address": "0x565888b4464b23c0c8f6218e8b87d7cc514b8f34",
+    "gems": 10
+  },
+  {
+    "address": "0xb2c85d02ca25746d25a2174f978b11d848638a6d",
+    "gems": 10
+  },
+  {
+    "address": "0x7d759bd15855067ca24c420c4cc1334a8509c4cd",
+    "gems": 10
+  },
+  {
+    "address": "0x07437b9cac8beae4a1e116619848df05a43b01c2",
+    "gems": 10
+  },
+  {
+    "address": "0xf4ea1cd3d278d9918f43051b7d4fd3f22d27c10e",
+    "gems": 10
+  },
+  {
+    "address": "0xf024d0ed628be7270206c02e0282c5a215ed6a79",
+    "gems": 10
+  },
+  {
+    "address": "0x531318c4f8df8bfd822319991ffeb099bebda194",
+    "gems": 10
+  },
+  {
+    "address": "0xbb601e86cc7062a40b37d2d49e142451440dfb45",
+    "gems": 10
+  },
+  {
+    "address": "0xbba8d5120be809a66565e0ac75bb04d7322dc164",
+    "gems": 10
+  },
+  {
+    "address": "0xf614948fc60e4f1b721c263b531114a495e657e0",
+    "gems": 10
+  },
+  {
+    "address": "0xc049d3a333df85043abfdae2f0b37df176374f8e",
+    "gems": 10
+  },
+  {
+    "address": "0x4fb769bf6bcfdebdbef0591962fede6188cd964c",
+    "gems": 10
+  },
+  {
+    "address": "0x18a65f4a79592c3d2fc786c2168ffeb4e02ba64d",
+    "gems": 10
+  },
+  {
+    "address": "0xebcc2bcdde30d381f8595d2acef31a9dbc09fb45",
+    "gems": 10
+  },
+  {
+    "address": "0x46cc1da63196d36948bad33164ce54b276ec7646",
+    "gems": 10
+  },
+  {
+    "address": "0x2bc22dcbfed6ab4480550c413befe7348f064c2f",
+    "gems": 10
+  },
+  {
+    "address": "0x2714a37581ccf02c6854634ba0d9df0c7914a3d5",
+    "gems": 10
+  },
+  {
+    "address": "0xb486d14e60f393e7fae77fd5f486e1a5f8a002fc",
+    "gems": 10
+  },
+  {
+    "address": "0x974760fca305fb1daa04ada7ee71d2e7ffaeaef9",
+    "gems": 10
+  },
+  {
+    "address": "0xd76a1130a0f8c8c16ad3630da1a5a08709568ea7",
+    "gems": 10
+  },
+  {
+    "address": "0xf19cb4c8a3c9c587fe8b4dd6a51f8935185c294c",
+    "gems": 10
+  },
+  {
+    "address": "0x16a1579bd01ee7c3f05239044aad6937bd17e48e",
+    "gems": 10
+  },
+  {
+    "address": "0xe1bd61bd19709d63c76e2199ea00fa3d5be2027b",
+    "gems": 10
+  },
+  {
+    "address": "0xa401d578d1ac45a6f317d1d1ebd25b18e8bb2c14",
+    "gems": 10
+  },
+  {
+    "address": "0x0e15055c449be1f37c6a9a8c398ddd779fc30497",
+    "gems": 10
+  },
+  {
+    "address": "0x6da628074fda061f367b9ac9e39219d371087f91",
+    "gems": 10
+  },
+  {
+    "address": "0xee415cc38769f799e09623c2d0bad58102bce35f",
+    "gems": 10
+  },
+  {
+    "address": "0xf2c2dbc40560cadeb16a8ea76203db4fbddfc0fa",
+    "gems": 10
+  },
+  {
+    "address": "0x7ccae610d3dc0b54a49b90647be77171fac67400",
+    "gems": 10
+  },
+  {
+    "address": "0x0701c1a4bb669b4fa0a09267fed27fc5f9914814",
+    "gems": 10
+  },
+  {
+    "address": "0xec87030763f0c6637e95c668d8d578311cebe91a",
+    "gems": 10
+  },
+  {
+    "address": "0xbf385cab68f21872af559cfe08a42679d4d6743b",
+    "gems": 10
+  },
+  {
+    "address": "0xab8dc78ecd5b7bee3f2deeca10bc527a5e2ee623",
+    "gems": 10
+  },
+  {
+    "address": "0x5fbfeba7a2be0fed5ef60ccf565523fb235a4c47",
+    "gems": 10
+  },
+  {
+    "address": "0xc54cf1644591c2e90a48efb3abf27448ad1cab9d",
+    "gems": 10
+  },
+  {
+    "address": "0xd5d6db5e22c621d2078b8818822033af8db20958",
+    "gems": 10
+  },
+  {
+    "address": "0x36090a5b1fce3c9d8be2175d5e9f4b88ab8afccb",
+    "gems": 10
+  },
+  {
+    "address": "0xc1a8147c762df585183227f6152117f3cf4264f9",
+    "gems": 10
+  },
+  {
+    "address": "0x680b64b119bda6094bfaffa49b1897cd262d446c",
+    "gems": 10
+  },
+  {
+    "address": "0xaa00d0fd18e4174132603e79bdfebc03a7771057",
+    "gems": 10
+  },
+  {
+    "address": "0xf9ca718aca31871312ebe7b167d4bc0e867127b9",
+    "gems": 10
+  },
+  {
+    "address": "0xe9cb17e1e01a928d2a2021a1cd67c18da608b01c",
+    "gems": 10
+  },
+  {
+    "address": "0xe898b0d4db62861eb8166186e341016400ca1ae7",
+    "gems": 10
+  },
+  {
+    "address": "0x50731fd496052273096e6833af43c8f6f851ff9c",
+    "gems": 10
+  },
+  {
+    "address": "0x4a2b8a5609729b3f21e75692a3b7078a9bcb88c7",
+    "gems": 10
+  },
+  {
+    "address": "0xb49a088252e6589306df0396a1369f7ddabb0389",
+    "gems": 10
+  },
+  {
+    "address": "0x35bc9d08a885ac525c709bd1224a53e210cf12dc",
+    "gems": 10
+  },
+  {
+    "address": "0x50fb5bbdf0d7ba4086656abf15121199dca8c002",
+    "gems": 10
+  },
+  {
+    "address": "0x29d8e130979a040b3f37f46332ddce8acb06d1e9",
+    "gems": 10
+  },
+  {
+    "address": "0xa49bb93b69ebc4dab4f496e4473470174cb6d5bb",
+    "gems": 10
+  },
+  {
+    "address": "0xce63c59edf58706b8a6c02a3a182ec4c3d81499e",
+    "gems": 10
+  },
+  {
+    "address": "0xf96a3fdab0afe029c4ad5c8141600149f09a3ff4",
+    "gems": 10
+  },
+  {
+    "address": "0x6c65ca9b35991c4dc14a19be3b87054312b640c5",
+    "gems": 10
+  },
+  {
+    "address": "0x26d5d6a627760ebfb501df440ce7a8ed88020c11",
+    "gems": 10
+  },
+  {
+    "address": "0x6fe3787ab81bf5942be9033d83627406dd8f4640",
+    "gems": 10
+  },
+  {
+    "address": "0xe8d9f0455109634c23c053297f167c39e7c4dfd4",
+    "gems": 10
+  },
+  {
+    "address": "0x056dbc20c83f1d5ed5ae8bc410a04c5bf5bdaa39",
+    "gems": 10
+  },
+  {
+    "address": "0x6926f6ff0918fa7a078c3b194999512f047c52e3",
+    "gems": 10
+  },
+  {
+    "address": "0xd0905e44903f3683511af71f47cb954dfd139b61",
+    "gems": 10
+  },
+  {
+    "address": "0xac5bd0662f325ef267bbe308449fad224cd00107",
+    "gems": 10
+  },
+  {
+    "address": "0x73f5c4ae141f9491f5c669f896cd14db3961490f",
+    "gems": 10
+  },
+  {
+    "address": "0x53438b36fc946eedd1d9de7ff29ba77eecaaa580",
+    "gems": 10
+  },
+  {
+    "address": "0x08ce6c31272950067bea7812b34e59316924a646",
+    "gems": 10
+  },
+  {
+    "address": "0xc192a2d0e120888c54ec24c09653f8151aa976e0",
+    "gems": 10
+  },
+  {
+    "address": "0x77d05e084b00b6044f2a49bf336ae99b4f1d2410",
+    "gems": 10
+  },
+  {
+    "address": "0x91d8e77a49315025c27393073cea9261fd138362",
+    "gems": 10
+  },
+  {
+    "address": "0x974fb5f406948fe2aa0ee4df488ceabc0234536d",
+    "gems": 10
+  },
+  {
+    "address": "0xe14d358fed0196176e4f40dc07fb8a5984e937e2",
+    "gems": 10
+  },
+  {
+    "address": "0x1afb872e535e6c5dbc8f60aba47e04a5718e1a28",
+    "gems": 10
+  },
+  {
+    "address": "0x72f70b61e8bb1415cd1d4736231537b50c43066b",
+    "gems": 10
+  },
+  {
+    "address": "0x855e5c88dc8d2b2e8256117ad9088116322daadc",
+    "gems": 10
+  },
+  {
+    "address": "0x7c82a3e4a55652686338a210d667f62b8e3b4cf3",
+    "gems": 10
+  },
+  {
+    "address": "0xbe0bd0d47a121bd3c72e0efae6e95e335e0553d4",
+    "gems": 10
+  },
+  {
+    "address": "0x8f5be2457513634cdadba1fc37beed8dd3fefafe",
+    "gems": 10
+  },
+  {
+    "address": "0x9a1cb696992dd42ffbc30bf87fce092e17f7ff9e",
+    "gems": 10
+  },
+  {
+    "address": "0xc2c9c7c95c083ae620c10b454e8723d02d0a1312",
+    "gems": 10
+  },
+  {
+    "address": "0x0d5ae291381670511b4896d13701ea77c918730d",
+    "gems": 10
+  },
+  {
+    "address": "0x39b4e59f7ce5f90cf94b8dabebdc86c0b208d79f",
+    "gems": 10
+  },
+  {
+    "address": "0x81ede0b52f50288497a24f60caf15d6d6d1cfa6e",
+    "gems": 10
+  },
+  {
+    "address": "0x491d11db8a6d1e789217a35714c6033c1615120f",
+    "gems": 10
+  },
+  {
+    "address": "0x5813ecbe470463f1beba89c5fe98a5152fcb20b4",
+    "gems": 10
+  },
+  {
+    "address": "0x3ffa6f025416f1da05d441e9c6dc196627a825ef",
+    "gems": 10
+  },
+  {
+    "address": "0xb163ae248aa3e59b50a8f1c25c49cd9ab4f0a5db",
+    "gems": 10
+  },
+  {
+    "address": "0xddaf1e85bc8dc15c133e07ca160e3729d6db5238",
+    "gems": 10
+  },
+  {
+    "address": "0x5e571d92e013ed359389899fc69bfea584c6ad05",
+    "gems": 10
+  },
+  {
+    "address": "0xa097dd4da9b4585f33d18827fda696f4189a00bb",
+    "gems": 10
+  },
+  {
+    "address": "0x4753ec3262e02a9f2b8e93943c86a4634595b6bf",
+    "gems": 10
+  },
+  {
+    "address": "0x55aadac465b5dd5092a9618326c4962cf94b5ffe",
+    "gems": 10
+  },
+  {
+    "address": "0x6c9a515e96ccda3e93cff9292a20aaa76c6ac800",
+    "gems": 10
+  },
+  {
+    "address": "0xa285b977fd63b919dfb0cdf2e67c0258b6eb1c6a",
+    "gems": 10
+  },
+  {
+    "address": "0x8f1f629fa0a554ad2a6b9c0c26302b62b92e8095",
+    "gems": 10
+  },
+  {
+    "address": "0x51d956361ee816c00d87809516803988a9096f82",
+    "gems": 10
+  },
+  {
+    "address": "0xebb7b29e2c83ac2edd8937328143e5e3a9317b75",
+    "gems": 10
+  },
+  {
+    "address": "0x550529521009e098e9dc7d22e8cb54cf20071bc7",
+    "gems": 10
+  },
+  {
+    "address": "0x6999b278b01d8d9be5e5523a3d5d270977efcc8a",
+    "gems": 10
+  },
+  {
+    "address": "0x5422777ffcc90d5f457fbc6c76d83e197c767ffb",
+    "gems": 10
+  },
+  {
+    "address": "0x15655414785e9111ba1567278e0e62cc242ca468",
+    "gems": 10
+  },
+  {
+    "address": "0x8a0f9abf6e24206106b5d0895f3c39022c57df22",
+    "gems": 10
+  },
+  {
+    "address": "0x97ebed0b23c817ae0236ae886822e1db07b6dfdb",
+    "gems": 10
+  },
+  {
+    "address": "0x3b09e15efcb132a607741505e9052c18e877c3b1",
+    "gems": 10
+  },
+  {
+    "address": "0x330773aaa75d5c569464f0325a4f56673669016a",
+    "gems": 10
+  },
+  {
+    "address": "0xe4fc3fceb267b269794bf79e35c9502d451f0795",
+    "gems": 10
+  },
+  {
+    "address": "0x928cbac711fd01cf4b87387783036b99b0a67026",
+    "gems": 10
+  },
+  {
+    "address": "0x78456b1a9c0d56908cbd9680ffb47a5e50f47a6b",
+    "gems": 10
+  },
+  {
+    "address": "0x323b738ed6e1553f978b9ed707726ae8af62689c",
+    "gems": 10
+  },
+  {
+    "address": "0x0b9e37ddbe78d326b709e3540f940fd1332f2a19",
+    "gems": 10
+  },
+  {
+    "address": "0x72a85cd869f28bbc0d978cf2596cb04f1826021c",
+    "gems": 10
+  },
+  {
+    "address": "0x3a6e95eca45d337f11e011d4b724e0fc986de256",
+    "gems": 10
+  },
+  {
+    "address": "0x4b53fbc8c032d55131edb343e5ece9789e38bace",
+    "gems": 10
+  },
+  {
+    "address": "0x5b5dceb7bb9903570c627c9784142137eee6a4a6",
+    "gems": 10
+  },
+  {
+    "address": "0x785b3f2ef450ba415661ae5889f23238ab79c47d",
+    "gems": 10
+  },
+  {
+    "address": "0x0af3ea5cfe5844bd960097d40de8302963555d39",
+    "gems": 10
+  },
+  {
+    "address": "0x24c1edbc6c1cb5e1f1d36352659554d8cce746e8",
+    "gems": 10
+  },
+  {
+    "address": "0x3759debbf89d075cbdd9d5985bfc557b6970181d",
+    "gems": 10
+  },
+  {
+    "address": "0xe60592d33b6599699abb2295ec68d38bd7d9cce4",
+    "gems": 10
+  },
+  {
+    "address": "0x3f8c1b64a38945844923fa3c33e6d9eb05855593",
+    "gems": 10
+  },
+  {
+    "address": "0x46bfbf6dd576243b448ea54d7a2d22866beb4b4c",
+    "gems": 10
+  },
+  {
+    "address": "0xe819726b6010c8cc9ffbd0935023d1fa483df9b1",
+    "gems": 10
+  },
+  {
+    "address": "0x821b06240e38e620d64124ad3589dc6068411f5d",
+    "gems": 10
+  },
+  {
+    "address": "0xde06ae540b9de89639aafc68abbe1f3c8b544140",
+    "gems": 10
+  },
+  {
+    "address": "0xfdccdf144c3ef48c7091d8c0f3bebcc73c5a8fe9",
+    "gems": 10
+  },
+  {
+    "address": "0xf8421c357b90794d288b033a387338aeb0162850",
+    "gems": 10
+  },
+  {
+    "address": "0xbd9c67124d827099ecfb9afa134a716288683b67",
+    "gems": 10
+  },
+  {
+    "address": "0xbdbc8f86b8756825ed8e124ce9a05f75ed8c69e6",
+    "gems": 10
+  },
+  {
+    "address": "0xcfa6200618b18239349a8e01fe104dc2c48fe484",
+    "gems": 10
+  },
+  {
+    "address": "0xb56847e7bafc078bf1380dae8b61a33e3a998838",
+    "gems": 10
+  },
+  {
+    "address": "0x2c2bb192b3f89e5712ad6f0cfd14108dd9344f84",
+    "gems": 10
+  },
+  {
+    "address": "0x4c5351277554a995c14e694655bfb3826dc7b7b7",
+    "gems": 10
+  },
+  {
+    "address": "0xfb1ca6e35d26bc7adb7cce733d752bc387f5d991",
+    "gems": 10
+  },
+  {
+    "address": "0x7ad4062387120abd36f6697cb45fe044363ea99f",
+    "gems": 10
+  },
+  {
+    "address": "0x07f0fb24972bca818fa24ca9183bc89606efd4a3",
+    "gems": 10
+  },
+  {
+    "address": "0x3080b5bd422520f7e4131897f09ce4bf4ba2c59e",
+    "gems": 10
+  },
+  {
+    "address": "0x69a0b9b0e8461507b88071a18a187a55b075e9ec",
+    "gems": 10
+  },
+  {
+    "address": "0x097ac37ecb1a62e657f9df2a0d33f152fea2e394",
+    "gems": 10
+  },
+  {
+    "address": "0xe56ab5256f87c0cfa5727fb119ae4eca30dabc6a",
+    "gems": 10
+  },
+  {
+    "address": "0x643e9d8963e3b207326bd0ec9062ac8dd6a4b7be",
+    "gems": 10
+  },
+  {
+    "address": "0xee26ec7a2e1712378b43c6e793621439e09b06b4",
+    "gems": 10
+  },
+  {
+    "address": "0x5aee4eef9def4f045639764bd3c852c10a1abf03",
+    "gems": 10
+  },
+  {
+    "address": "0x6fe85c51eb69e43237d4a269d4df5f02e266b1e7",
+    "gems": 10
+  },
+  {
+    "address": "0xaa6ff6559092228aae08198f159df8e7f0bfc3c7",
+    "gems": 10
+  },
+  {
+    "address": "0x3dcd9e258be01fa4de8a4eddcfe5ee1f87d33b9e",
+    "gems": 10
+  },
+  {
+    "address": "0x861ca5267ec1cdd58421f1f85f534dfe1b53deb0",
+    "gems": 10
+  },
+  {
+    "address": "0x9c85fb13e2f7d0ae54e8c4a60cf6290b2a6c5716",
+    "gems": 10
+  },
+  {
+    "address": "0xa98036fd200231a99cae4c73046369134d66efa9",
+    "gems": 10
+  },
+  {
+    "address": "0x52dfadc200629b7398f2c150b2f97fe6fb2af460",
+    "gems": 10
+  },
+  {
+    "address": "0x0feae7241f529e887c20f159cd073a236df5cc60",
+    "gems": 10
+  },
+  {
+    "address": "0xd55e1536e0257e75c9300475f06b2c1f83202639",
+    "gems": 10
+  },
+  {
+    "address": "0xeaa9df8c6bf283d214db82c7286caf9a36d7d351",
+    "gems": 10
+  },
+  {
+    "address": "0xaf47c8f72cd6a1c110562ecb42cbb52103933d67",
+    "gems": 10
+  },
+  {
+    "address": "0xd87c2bba8da7cfdd6b2c1f5bc50beec2d5c007c1",
+    "gems": 10
+  },
+  {
+    "address": "0x846baec998984b52473057edb10251068b291fb8",
+    "gems": 10
+  },
+  {
+    "address": "0x323b38578cf4ddcbed78552eadd3a7d41fcd7efe",
+    "gems": 10
+  },
+  {
+    "address": "0xb9f1b754403e25244ef43ef99453ab3bf3409f49",
+    "gems": 10
+  },
+  {
+    "address": "0x47ad31a03821c57985f35c6c17c50102423c1464",
+    "gems": 10
+  },
+  {
+    "address": "0xaf3b8c49dda0d79abe1f6ea668632ebffb54eab9",
+    "gems": 10
+  },
+  {
+    "address": "0x14c5b823d2652871f49c5d85ff6a5c1b8b100faf",
+    "gems": 10
+  },
+  {
+    "address": "0x5cedfd2c6d0e09dbf54ec1fe82134f8602e21c33",
+    "gems": 10
+  },
+  {
+    "address": "0x88d76397547342b0bf3d877f5569dc953996990e",
+    "gems": 10
+  },
+  {
+    "address": "0x9e6e8952e47fd90d300497ccfecc34964ab2f911",
+    "gems": 10
+  },
+  {
+    "address": "0xd72d03ead69fcaa75234e84c22b2ef167c4543d1",
+    "gems": 10
+  },
+  {
+    "address": "0x264b4134eab5cb575b16f25b27208e0e04ac5595",
+    "gems": 10
+  },
+  {
+    "address": "0xe808c5a4ae100cdf639366033399e87722874bf6",
+    "gems": 10
+  },
+  {
+    "address": "0x3dbf1be4d75730deb55a6314ec660da348d198dd",
+    "gems": 10
+  },
+  {
+    "address": "0x41e74be45a4139eee186858918d38807ea091182",
+    "gems": 10
+  },
+  {
+    "address": "0xcf4eb8f3663a3abdf798e092be13fe0e1597887b",
+    "gems": 10
+  },
+  {
+    "address": "0x47298297ad4174182efb4a71ee46668cbb298a0e",
+    "gems": 10
+  },
+  {
+    "address": "0x715bdb37ea0e557710aa27f2ff23f570d5ea67a8",
+    "gems": 10
+  },
+  {
+    "address": "0xecfc74ab22f56166db2947ed6e3ccfe4115c4920",
+    "gems": 10
+  },
+  {
+    "address": "0x1a88ca8785168c8929e7728a4c044bf56566f8d9",
+    "gems": 10
+  },
+  {
+    "address": "0xc3132b78a22cd10f7f1f3dc191f6394b5aad2878",
+    "gems": 10
+  },
+  {
+    "address": "0x823c5b8cb0f21e601a7e9153c36c5a3ead42b26c",
+    "gems": 10
+  },
+  {
+    "address": "0x663d8e85a0d030325c9967ac621bba6853674a6e",
+    "gems": 10
+  },
+  {
+    "address": "0x054ab6c9afdd42ff19a5037da9524415cf83d729",
+    "gems": 10
+  },
+  {
+    "address": "0x6e036b129bee1aa743460909583dc61073279f04",
+    "gems": 10
+  },
+  {
+    "address": "0xdb152969e4ae581d7e3d0974491491b2df3f5765",
+    "gems": 10
+  },
+  {
+    "address": "0x062992db2ce782b35fa3efe5991d158372850fac",
+    "gems": 10
+  },
+  {
+    "address": "0x0a4ad8b605c62b82ca87a59d7aadf622ecafe765",
+    "gems": 10
+  },
+  {
+    "address": "0x0a87ba2618e39991291f3c65681dce7c784fcd6d",
+    "gems": 10
+  },
+  {
+    "address": "0xf46f7e197b218da1f86e61ed12d4936b6b649c1c",
+    "gems": 10
+  },
+  {
+    "address": "0xfe30ae4fb2521cec1e3568fd85f4c86dab58abb5",
+    "gems": 10
+  },
+  {
+    "address": "0x7db9121ba5b0caac2fa014cc79fd4f70d34c5518",
+    "gems": 10
+  },
+  {
+    "address": "0x0361739563b2a2eef09cf3f810c62137e637fc53",
+    "gems": 10
+  },
+  {
+    "address": "0xf6968a8e6375d876a9d533017a99e59028d8d68a",
+    "gems": 10
+  },
+  {
+    "address": "0xa085e9807ce6574fea1d8cd4f9ebb8d6ebf99c4f",
+    "gems": 10
+  },
+  {
+    "address": "0xbd9d9515babef4118626fee8854e7e9a237db951",
+    "gems": 10
+  },
+  {
+    "address": "0xfddee24dc25f79422f6c9703c845f68fe89d09a4",
+    "gems": 10
+  },
+  {
+    "address": "0xdac0d3b9af85130022541be5013905a21bd40ae5",
+    "gems": 10
+  },
+  {
+    "address": "0x95fdb369db90d30efafe173c08df9db5c4a03dac",
+    "gems": 10
+  },
+  {
+    "address": "0x8977dcc3d94e183358e51085a33d4d6b655089c3",
+    "gems": 10
+  },
+  {
+    "address": "0x0001e7ab08a976bea4ffa235f03171ba0baf432e",
+    "gems": 10
+  },
+  {
+    "address": "0x641d35a5cb1595dddcd8657bc9a84792bd6fb69b",
+    "gems": 10
+  },
+  {
+    "address": "0x2f0663b84d574deafb3c56cb04d590cafee11c19",
+    "gems": 10
+  },
+  {
+    "address": "0x20a7208a466d75f5f8deb4ca059fb2728035f627",
+    "gems": 10
+  },
+  {
+    "address": "0x21d4d594394a15827d59bc5b47acc347e0ad162a",
+    "gems": 10
+  },
+  {
+    "address": "0xf2894e2964e5c03b78d5720c0ad0f07480198a12",
+    "gems": 10
+  },
+  {
+    "address": "0x6ced58faa34d76b8c718a13e525d97774907487d",
+    "gems": 10
+  },
+  {
+    "address": "0xd7b6eb5d3aee2c80960f4c8ab9ed666360cc1b6d",
+    "gems": 10
+  },
+  {
+    "address": "0x6ac7f35442c8fd961acb9ee6e17ea1965348f019",
+    "gems": 10
+  },
+  {
+    "address": "0x15826ff007eb5a0a5d626db23aef8561abb6ff9b",
+    "gems": 10
+  },
+  {
+    "address": "0x43a8325676935ff5ebc1f80dc9ee14c3170cf74f",
+    "gems": 10
+  },
+  {
+    "address": "0x750a526faccc9ac34cf147e6f7ee746d5b7ddd6a",
+    "gems": 10
+  },
+  {
+    "address": "0x0ef1ba96782dee4ca8fb9aad6a50fb057abab415",
+    "gems": 10
+  },
+  {
+    "address": "0x1ac993abc9df1a05b16d542882f0e2dd8c03856a",
+    "gems": 10
+  },
+  {
+    "address": "0x14c940bc760c7ff1052fbf74ec94fb3f230016cf",
+    "gems": 10
+  },
+  {
+    "address": "0xf76f78a6f3d6a5b79149c19f454b3b8ead35fe2d",
+    "gems": 10
+  },
+  {
+    "address": "0xa908420c45b1f8a816a2badd6eed744377e02c34",
+    "gems": 10
+  },
+  {
+    "address": "0x0532b6e1a2be82a8e746cc2b9b8ef82ada05518f",
+    "gems": 10
+  },
+  {
+    "address": "0xf8548a1b038aec5e57884871adafca26d28e6e61",
+    "gems": 10
+  },
+  {
+    "address": "0x64c20256f4a771548b97c8f051fd2c86ca559729",
+    "gems": 10
+  },
+  {
+    "address": "0xcffa180e02a39187a2702a8c0237de18f05077c8",
+    "gems": 10
+  },
+  {
+    "address": "0x07aee8dcb0dec2614a008e18a543869bd1d77498",
+    "gems": 10
+  },
+  {
+    "address": "0x8734e1d02b91b7687c845fa5489a3596379c943d",
+    "gems": 10
+  },
+  {
+    "address": "0xf0ed03e3b10aac95abbe593d191cf7c150f13b2b",
+    "gems": 10
+  },
+  {
+    "address": "0xde9a1742452e252df31d25412fdcbad4e1f2eb82",
+    "gems": 10
+  },
+  {
+    "address": "0x5676a5b47e8c4e69ed2ead995da733d22ebe390d",
+    "gems": 10
+  },
+  {
+    "address": "0xb5ac53a23525841b4e2786218024193f33b0e05a",
+    "gems": 10
+  },
+  {
+    "address": "0x786b8c7d67fc43674db5ba7db5de61bb77127f6d",
+    "gems": 10
+  },
+  {
+    "address": "0x5f48c7e93d8b63656612476116bbfc11be73bbe6",
+    "gems": 10
+  },
+  {
+    "address": "0xc5923fb957b097a4a2caa1972fb5e4f57c02e7ae",
+    "gems": 10
+  },
+  {
+    "address": "0x499fdb3ad866bf292413612a552a6c16199dda40",
+    "gems": 10
+  },
+  {
+    "address": "0x8e14c44ab1dd6808c023388d07bfeac1251b2bea",
+    "gems": 10
+  },
+  {
+    "address": "0x35d05d9bd8a4ce4642942ef12ae085b4ccb56e95",
+    "gems": 10
+  },
+  {
+    "address": "0x0fa2aae7213a919b78aa20f3a5f1d4fd0a550265",
+    "gems": 10
+  },
+  {
+    "address": "0xe50a9241f81b548347f46499e4ab502bf7a5dd41",
+    "gems": 10
+  },
+  {
+    "address": "0x37be06d742e76b0e1ab06b358e742397731f7bce",
+    "gems": 10
+  },
+  {
+    "address": "0x10c32aff59bf790ace3b78fe09214455b2581739",
+    "gems": 10
+  },
+  {
+    "address": "0x40ea3b06d32edb3805ea0d4a31b09d5a21450d22",
+    "gems": 10
+  },
+  {
+    "address": "0x05a93dd11d5408695267528087da3332d275789f",
+    "gems": 10
+  },
+  {
+    "address": "0x91008d79d2774bd58b847e945374509f39b95e8e",
+    "gems": 10
+  },
+  {
+    "address": "0x7b27669c7c8440764f4a02edef50b4e672727cde",
+    "gems": 10
+  },
+  {
+    "address": "0xc40967ff4398aee6c01a205aa967d3007dcc0922",
+    "gems": 10
+  },
+  {
+    "address": "0x7de9b0141d4884f11bfdc12c423ab8a827227c1f",
+    "gems": 10
+  },
+  {
+    "address": "0x464fa87e060e4cedc51484abfe9f13426b9c34f5",
+    "gems": 10
+  },
+  {
+    "address": "0xc0a8a2b140401b9bdd88d5d16f56c0f377f32f76",
+    "gems": 10
+  },
+  {
+    "address": "0x4598d58fa0a3350a512c584b03ece8bbd579fc5b",
+    "gems": 10
+  },
+  {
+    "address": "0x67c0e7005c507e084d7118be3f021294a9a86cb6",
+    "gems": 10
+  },
+  {
+    "address": "0xcbf7ddb16ce8de37f0d9fcb225fe1db780688f9f",
+    "gems": 10
+  },
+  {
+    "address": "0x3e5a607267a56b06ac831043366171e31612e544",
+    "gems": 10
+  },
+  {
+    "address": "0x634aeb503031f0b179fb662ad61bf15a4e57f7aa",
+    "gems": 10
+  },
+  {
+    "address": "0x0fadd95c84344efc47ff8a6f69d05d12ec7e3dbd",
+    "gems": 10
+  },
+  {
+    "address": "0x889633de23a43d4444c1755d9175defd3f97d714",
+    "gems": 10
+  },
+  {
+    "address": "0xb000d059810b216b2e15d489349333d85dd8f3c9",
+    "gems": 10
+  },
+  {
+    "address": "0xfa089d414a066c15a62490c15d637ea13d186560",
+    "gems": 10
+  },
+  {
+    "address": "0x9db74b37056df206e941b9c9fda0cad7db9665de",
+    "gems": 10
+  },
+  {
+    "address": "0x5c0bc52c05e23af7d50d5bdceb7e786fd538094a",
+    "gems": 10
+  },
+  {
+    "address": "0x77f00727ad3a7dd580d4ce13da9d357dcddd02ef",
+    "gems": 10
+  },
+  {
+    "address": "0x13476614727fc0694030d62ba55ab5ac04b21d02",
+    "gems": 10
+  },
+  {
+    "address": "0xaa6be3dab63f6f694f1fe273391a21c668939702",
+    "gems": 10
+  },
+  {
+    "address": "0xa823bb180f21003b0d8909d070af91018af3d67a",
+    "gems": 10
+  },
+  {
+    "address": "0xc5442adf4d4e9218ae0bc9b6b1f2fdb083c41a4e",
+    "gems": 10
+  },
+  {
+    "address": "0x814999e814f04aba7ed2033974629beb5f97bdef",
+    "gems": 10
+  },
+  {
+    "address": "0x64c0645a31d48a3022a1f440c1b1c3692c856090",
+    "gems": 10
+  },
+  {
+    "address": "0xb7cb8105c5dcb18f131bb9ce74ac350fda2ee8a7",
+    "gems": 10
+  },
+  {
+    "address": "0x14c844cafc91f4e0ee0d051ee58419443841c2d9",
+    "gems": 10
+  },
+  {
+    "address": "0xd82774f24145e270a01c029806f4ed6450731772",
+    "gems": 10
+  },
+  {
+    "address": "0x7f14d98c8d90573e58c6be404e85c8cd016ac634",
+    "gems": 10
+  },
+  {
+    "address": "0x7d51db3e7f0ef9d43ba489d688010ccdb5933b5d",
+    "gems": 10
+  },
+  {
+    "address": "0xe9d86338711c5c6d51d40edca0c8adc51f8fd028",
+    "gems": 10
+  },
+  {
+    "address": "0x5ab9bff9f6ba5ba195e49307c8c8427131c69eee",
+    "gems": 10
+  },
+  {
+    "address": "0x031972436125bcf06f62dd2289f6c34b3e9efa79",
+    "gems": 10
+  },
+  {
+    "address": "0x7a240c53cc836d5ab7abba00a1ba7a85806acf7e",
+    "gems": 10
+  },
+  {
+    "address": "0x89ce837a6f2f7eb0f4d9789b1da47e1db0f8735f",
+    "gems": 10
+  },
+  {
+    "address": "0x790f93af6e942d93c4a13ad3af9637a4c22490c8",
+    "gems": 10
+  },
+  {
+    "address": "0x4e007987684d3fb34209cb9915c127e59a687432",
+    "gems": 10
+  },
+  {
+    "address": "0x2abab726935372269c59fe7bf6eca50c96a1daba",
+    "gems": 10
+  },
+  {
+    "address": "0x7a7e050939afd40d52e5e5c2dd1454125acda2df",
+    "gems": 10
+  },
+  {
+    "address": "0x383e6b94e1ae3bc372d5aaec14bd610c16596bfb",
+    "gems": 10
+  },
+  {
+    "address": "0xe2055ea7e16c77a24cd221e86ddfd863b082ae8b",
+    "gems": 10
+  },
+  {
+    "address": "0x4977a5e83581c1aaa5fcaf0444f1a85e936f34aa",
+    "gems": 10
+  },
+  {
+    "address": "0xb10b7e7771e6bee044bdd7aa77e3846b4a2b591a",
+    "gems": 10
+  },
+  {
+    "address": "0x49431f7deaa548a8b695f7ce1e4e78703c763455",
+    "gems": 10
+  },
+  {
+    "address": "0x05a1868fd532de06aebd82cbfbb9bc7918a77504",
+    "gems": 10
+  },
+  {
+    "address": "0x39fa10a081727c41400c64e473135dbbdc341c71",
+    "gems": 10
+  },
+  {
+    "address": "0xc4174d3b6278c54b0eb40696783d8ef9ab2e9322",
+    "gems": 10
+  },
+  {
+    "address": "0x4afb7517800393bff587e8cc8551bc970d4650c5",
+    "gems": 10
+  },
+  {
+    "address": "0xff5954802352b6c47e3624341abd5f6b465fc778",
+    "gems": 10
+  },
+  {
+    "address": "0x1fb5104e2b0a15bafaa7304130f54dbded4b1b7f",
+    "gems": 10
+  },
+  {
+    "address": "0xe682c1fbdbfffe4cdd2bd600403a28adc12f3743",
+    "gems": 10
+  },
+  {
+    "address": "0xd7d1bc63be43f0d4c0bc3d42cc407c02a63e8c4d",
+    "gems": 10
+  },
+  {
+    "address": "0xa98cc75bb58487fe133dd10e12b6df3536056e31",
+    "gems": 10
+  },
+  {
+    "address": "0x6892ad4360e8f798687bae3f94aed8e4356c4a6a",
+    "gems": 10
+  },
+  {
+    "address": "0x80a7baac0048083fb587c69bed85567d9444a699",
+    "gems": 10
+  },
+  {
+    "address": "0x8d254828ac13224aaaf77ac5bf53359199278540",
+    "gems": 10
+  },
+  {
+    "address": "0xc3c2ce3e3d3bbcebdfa303164928691331c9e188",
+    "gems": 10
+  },
+  {
+    "address": "0x70708701cdf8c8bd4a4831b94618deb79d6c3243",
+    "gems": 10
+  },
+  {
+    "address": "0x351fac9c86a87576cd531275edbcf08d18e00a6b",
+    "gems": 10
+  },
+  {
+    "address": "0x2b4c58407aa91f3434e74e011b96b65c8dd980b2",
+    "gems": 10
+  },
+  {
+    "address": "0xec5aba081075e278ff1972b092d6a7edd0820c59",
+    "gems": 10
+  },
+  {
+    "address": "0x0ce1e813ef404997cf4d34b2afee797c89b2bf6f",
+    "gems": 10
+  },
+  {
+    "address": "0x1db02f8e619dc4d4a477ff1ef6c80ab7ca9df601",
+    "gems": 10
+  },
+  {
+    "address": "0x62bd06b2c47b6bec03c981ca20b3facb51cae10d",
+    "gems": 10
+  },
+  {
+    "address": "0x4e69c4bc99fa700c7d2b4df5753c83c28ec1ae8d",
+    "gems": 10
+  },
+  {
+    "address": "0xe7d8769cb7ba17b08d24d2b08ad7488bebfcccde",
+    "gems": 10
+  },
+  {
+    "address": "0x79b89ce635bd77a250eb3f4f4287e4f2e315aa28",
+    "gems": 10
+  },
+  {
+    "address": "0x418cca00bef5bdbec1cf097cb8210d6fd82cf579",
+    "gems": 10
+  },
+  {
+    "address": "0xab1789ef3fd2e098047c913accce507460d941f4",
+    "gems": 10
+  },
+  {
+    "address": "0x75ca7b2b852099927ea80823f0fc6831ee2bfc71",
+    "gems": 10
+  },
+  {
+    "address": "0x15e6628f625a3ee7a76b6af36eadf4daadba13a6",
+    "gems": 10
+  },
+  {
+    "address": "0x97f584136beaa758b230a55d4e8419f89f571544",
+    "gems": 10
+  },
+  {
+    "address": "0xac0465cb1c054a295747e8c96d2647d656959689",
+    "gems": 10
+  },
+  {
+    "address": "0xe304fa2c919acf71e57e831bfc5c516668e3c03e",
+    "gems": 10
+  },
+  {
+    "address": "0x336522e49cb2a526c1776659523dd88ef04c263b",
+    "gems": 10
+  },
+  {
+    "address": "0x5ddb78a31557d20d1dad6ca808e595fc0fbf8a98",
+    "gems": 10
+  },
+  {
+    "address": "0xcdc95a558714cf53ac3a8dade393b976f645e232",
+    "gems": 10
+  },
+  {
+    "address": "0xcc86d2bcf48446f6b64235aed768a8064115ef32",
+    "gems": 10
+  },
+  {
+    "address": "0xcede6d3d436497331807efa609bbba4273f7c14c",
+    "gems": 10
+  },
+  {
+    "address": "0xa8ae0d5e25afde76b73c7556f9fcb9818c68d189",
+    "gems": 10
+  },
+  {
+    "address": "0x6304fbd419249e20ceea535d8ac44f357d0f267a",
+    "gems": 10
+  },
+  {
+    "address": "0x4f31acf90439d2eb312aeaa7a66a106c8e206f40",
+    "gems": 10
+  },
+  {
+    "address": "0xbc31988f090bcecc597b3148b401ad460ef39cea",
+    "gems": 10
+  },
+  {
+    "address": "0x0b784b6b3e2b6a6ffbde97ec7b3d010966a85da2",
+    "gems": 10
+  },
+  {
+    "address": "0xfe3db42d9b27dd01ec8144f4e42657812a0250ee",
+    "gems": 10
+  },
+  {
+    "address": "0xffa8b19fe9a30d846cc02b54930d70ac6eb42133",
+    "gems": 10
+  },
+  {
+    "address": "0x405fbf6a5a161d3663b957cc230ea98a28435e5d",
+    "gems": 6
+  },
+  {
+    "address": "0x698640d07a2cd2287659fabf0ee34cf31ed06743",
+    "gems": 6
+  },
+  {
+    "address": "0x18a5a536b914b116933393b3c6d9bd019c66b0f0",
+    "gems": 6
+  },
+  {
+    "address": "0x27dd379c394bbd6d3f9b8cdbc144dc01b70a4cec",
+    "gems": 6
+  },
+  {
+    "address": "0x32acb706639618abf44ee0bde5347896309700ca",
+    "gems": 6
+  },
+  {
+    "address": "0x298f3dab3918ca2bfe90dd3132c44236cda9016d",
+    "gems": 6
+  },
+  {
+    "address": "0x5a9951c792bf4c1cf11f55afc63116eeb2b08661",
+    "gems": 6
+  },
+  {
+    "address": "0x867bb6b0085d346acfbf23f44dfe819a48e8e58a",
+    "gems": 6
+  },
+  {
+    "address": "0xb1aebda48a78b21973b637a9352117ef44b867ae",
+    "gems": 6
+  },
+  {
+    "address": "0x2dc4749fd4f6b5f79283193341188c288ca3efb4",
+    "gems": 6
+  },
+  {
+    "address": "0x7ef059bceeae65232ddd16110fa4dad1a3939dc4",
+    "gems": 6
+  },
+  {
+    "address": "0xfb3a6ae9246f81cbb872268b62ded7648d46cc0e",
+    "gems": 6
+  },
+  {
+    "address": "0x442d80e46ba759c1502c124f62d1d6e1c7759359",
+    "gems": 6
+  },
+  {
+    "address": "0xac0a7a89d520ed6a81331bd614c61ab3115c848c",
+    "gems": 6
+  },
+  {
+    "address": "0x9f81e749da3457f1dc3942a37aa8195da3331f81",
+    "gems": 6
+  },
+  {
+    "address": "0xdee22c7c079cb3ec63a759b7fd55dd075039e054",
+    "gems": 6
+  },
+  {
+    "address": "0xdf32feee6c3ff72fe4ca1f0996bbadf051868fae",
+    "gems": 6
+  },
+  {
+    "address": "0x07163dd2ee0552048f880a0a13c433fe2563f261",
+    "gems": 6
+  },
+  {
+    "address": "0xdeb07e189ac42e653ca6880dbe4ec0880f4bab58",
+    "gems": 6
+  },
+  {
+    "address": "0x9882fde1dfeee928d878408b810467209b5832ae",
+    "gems": 6
+  },
+  {
+    "address": "0x387870ef0ed3ea8504bb4ff94750c1fb3863b0b5",
+    "gems": 6
+  },
+  {
+    "address": "0xffd41160a1abe866def3ec75ac97f9b6cb5cbaab",
+    "gems": 6
+  },
+  {
+    "address": "0x80a5b04f276b74fec4c2983abd0a7d3506e66e7e",
+    "gems": 6
+  },
+  {
+    "address": "0x1ea1b68b061a217e8d1f69e6cac2ee933507e89b",
+    "gems": 6
+  },
+  {
+    "address": "0x1c76e6c43ded8981cc709a1805338d790daed163",
+    "gems": 6
+  },
+  {
+    "address": "0x9042995f035dda7d92e0328fc71464a84a779798",
+    "gems": 6
+  },
+  {
+    "address": "0x188c6d6520d5906b9de6bf2892d514a9f41ba159",
+    "gems": 6
+  },
+  {
+    "address": "0xc9298618464ecd63a1c479fe8374585843e198bd",
+    "gems": 6
+  },
+  {
+    "address": "0x346f76b1529cd5628353097c755f69ebc184b029",
+    "gems": 6
+  },
+  {
+    "address": "0xd1d1e0fe03a1a6ff3934c5ae58d7fe11761054b0",
+    "gems": 6
+  },
+  {
+    "address": "0x87a765f771fae4dd065856372cb18d85517df847",
+    "gems": 6
+  },
+  {
+    "address": "0x7d4566376bd12672a7119992a20986f9ae063bbc",
+    "gems": 6
+  },
+  {
+    "address": "0xfde19ff71ee2598db4525b3e0634a0c56ba2cccc",
+    "gems": 6
+  },
+  {
+    "address": "0x652b5fe7d8ab08ed0c1d9f9aacf3e6604f519a2c",
+    "gems": 6
+  },
+  {
+    "address": "0x5d9034f506e9edee1bd8667d37dadd9a047109c8",
+    "gems": 6
+  },
+  {
+    "address": "0x8448a800a5adf71b60d58d2ee00f2bb9f0942d00",
+    "gems": 6
+  },
+  {
+    "address": "0xd8ba54241a18a2e6f38fb14e7064569cb4cf64c2",
+    "gems": 6
+  },
+  {
+    "address": "0xb6d216841b20ace371c11fea6f71a58d818ea6d6",
+    "gems": 6
+  },
+  {
+    "address": "0xb9531904fc6a8a0c4cdbbcd96daafaa630ab1779",
+    "gems": 6
+  },
+  {
+    "address": "0x7e3a4d1c0d026f2c52f22ae307be181888319bbf",
+    "gems": 6
+  },
+  {
+    "address": "0x5878aa5d412a4d7e57e415911ceb2e6e43269367",
+    "gems": 6
+  },
+  {
+    "address": "0x8bde65423ed7fa6b91daa682fb8a82d2dc9db1d5",
+    "gems": 6
+  },
+  {
+    "address": "0x4c5e446f144bed9c43fb127e87d9c87a9a34c0e2",
+    "gems": 6
+  },
+  {
+    "address": "0x16eeb75c5f01386340ad2d1a9ec8be634ce9d527",
+    "gems": 6
+  },
+  {
+    "address": "0x05e2f92cf3520e994e66bc0d3469a9f947600389",
+    "gems": 6
+  },
+  {
+    "address": "0x3c26385971910f26fb43ac4b66c73146ebb0d6b5",
+    "gems": 6
+  },
+  {
+    "address": "0x4ec02ff50abd3e1adef7b9c783452e59efd5e985",
+    "gems": 6
+  },
+  {
+    "address": "0xa2da479f2fc070b7967f728a3bb439243949c701",
+    "gems": 6
+  },
+  {
+    "address": "0x62b71d16bb47bf4f314f0648e87f6486a44293a1",
+    "gems": 6
+  },
+  {
+    "address": "0x07bb18ba4a7b92f97e2d598dae9c5b1cff614978",
+    "gems": 6
+  },
+  {
+    "address": "0x2d8537fce3597aebdb85bf3c760eefd053e493fc",
+    "gems": 6
+  },
+  {
+    "address": "0x3349481c746ac31b2b0d8488e367801e42629ed3",
+    "gems": 6
+  },
+  {
+    "address": "0x076d3b02456bc2d85c9f310f18d52311f0f96c70",
+    "gems": 6
+  },
+  {
+    "address": "0xa663476db25d41e7527c2b87586e35a6c7654d93",
+    "gems": 6
+  },
+  {
+    "address": "0xc3155ac5ff01bbf6cc091a505f08e51b7bc3ae8d",
+    "gems": 6
+  },
+  {
+    "address": "0xd0bf223ace2ee2554db7a944dfc2d8469ff374f8",
+    "gems": 6
+  },
+  {
+    "address": "0x66d0c64a17b9090db786ed1fa732d3b290263829",
+    "gems": 6
+  },
+  {
+    "address": "0x6505a383a0255b8a1858092faa0ec6fc5776aa95",
+    "gems": 6
+  },
+  {
+    "address": "0xa903d5ae351761ae112bf9e1ba3ef9e961e41e91",
+    "gems": 6
+  },
+  {
+    "address": "0xeb1a0fcf4fcbe6d6439ac7ba33bf4d978091bba7",
+    "gems": 6
+  },
+  {
+    "address": "0x2b04cf3f1fbbf170310417e0b9efe010082aac83",
+    "gems": 6
+  },
+  {
+    "address": "0x0b81d11fdea695f5701ca364de3764ba4ca9fae2",
+    "gems": 6
+  },
+  {
+    "address": "0x02f5c738e76cbabedb92e6d1f71ecf65d1a62e0b",
+    "gems": 6
+  },
+  {
+    "address": "0xf9dbd79ab2232603b0be94106f519a12b40167cc",
+    "gems": 6
+  },
+  {
+    "address": "0x85b07459e0cbfed16d0fc06939a97c58c32b2a45",
+    "gems": 6
+  },
+  {
+    "address": "0x9b90691aebca30cfcf0aeccfefa245a6b7fdc458",
+    "gems": 6
+  },
+  {
+    "address": "0xf702aebb2868253f017a078b60b54283b47fd68b",
+    "gems": 6
+  },
+  {
+    "address": "0xb06339cc90d9e39f522ee622483ef67ae8a7f953",
+    "gems": 6
+  },
+  {
+    "address": "0xceae242a8699eab935922ce9e3847bf9bf21f5a8",
+    "gems": 6
+  },
+  {
+    "address": "0x990237c6eeabc04c8ef2f14bcb325f33fd17fc38",
+    "gems": 6
+  },
+  {
+    "address": "0xd39334f170612a2030de718da7514c62509aae2f",
+    "gems": 6
+  },
+  {
+    "address": "0x04fc05327aa32bbb4cfa4f5929dbb5261b23ea5e",
+    "gems": 6
+  },
+  {
+    "address": "0xaf2dc318913f552ab7141b3a5e1dca7215919087",
+    "gems": 6
+  },
+  {
+    "address": "0x94c02b2a3c684dd91030fa9a25cc76a34afa1cee",
+    "gems": 6
+  },
+  {
+    "address": "0xcc6c9204d550df3a34048e2fdf62ac8118be482a",
+    "gems": 6
+  },
+  {
+    "address": "0xedf21158a6954af8a5e3c66d88294812391a33a9",
+    "gems": 6
+  },
+  {
+    "address": "0x417b097046c42b83d10edb951d0608ddfaeb30ef",
+    "gems": 6
+  },
+  {
+    "address": "0xb4f197608b18bb312ec4bfa0ad402e63f1b87192",
+    "gems": 6
+  },
+  {
+    "address": "0x6d8155c2cf1674ad5cc34ce50da584a538acf15b",
+    "gems": 6
+  },
+  {
+    "address": "0x0899a71f2629a3d388cdaee340af0c8cb39e15b9",
+    "gems": 6
+  },
+  {
+    "address": "0xa3ad947255c3c0a4b3aefc1844cb88841aa3789f",
+    "gems": 6
+  },
+  {
+    "address": "0xe1dc4c11ad7e2a7d92e2f5892168322da6b0bb29",
+    "gems": 6
+  },
+  {
+    "address": "0x5187e04737dda021ebcf6728db961ebb16c02c17",
+    "gems": 6
+  },
+  {
+    "address": "0x9e461e97199645d0efdeebce80c6463d0d2d5e63",
+    "gems": 6
+  },
+  {
+    "address": "0xa7e02a033e736030351dfa6ef3ffaa19dd32274f",
+    "gems": 6
+  },
+  {
+    "address": "0xa5937a0fdf660a12171aef11b9da26c0f5803cef",
+    "gems": 6
+  },
+  {
+    "address": "0x448b0a4786df26eda3d38c0faa6b02b51b9a9d2b",
+    "gems": 6
+  },
+  {
+    "address": "0xd6e6b41892d24e4ee89d8024069ec351c913b8f5",
+    "gems": 6
+  },
+  {
+    "address": "0xf71467de5990bfe67dc3fd795385dc997a4b5d6d",
+    "gems": 6
+  },
+  {
+    "address": "0x8cb8f79a231b6b2797f2e213ef265f03dd74744f",
+    "gems": 6
+  },
+  {
+    "address": "0x313def4297344c7c2c820e87d28de67bb5768ab2",
+    "gems": 6
+  },
+  {
+    "address": "0x840bc068fd1e9e9ebb6f25630f313884cfe18530",
+    "gems": 6
+  },
+  {
+    "address": "0x16d13cae531be56c335b5cc09a7d47759203a5b4",
+    "gems": 6
+  },
+  {
+    "address": "0xa8be591dfd4fc63fef604c8a9063407c3d35c032",
+    "gems": 6
+  },
+  {
+    "address": "0x55bf710496dc1f7dfcd10b9d4920ea3cac00a6a4",
+    "gems": 6
+  },
+  {
+    "address": "0xe7fa71984e524035356c014443a5a810afce3f83",
+    "gems": 6
+  },
+  {
+    "address": "0xb719642c976ba70cc566560bc9d0f0bf5dbc3b67",
+    "gems": 6
+  },
+  {
+    "address": "0xd7462179119e2453edb279ed89144b6dbc2b9c3a",
+    "gems": 6
+  },
+  {
+    "address": "0x8625ad1a9a8c7667aacc35c4643d6d2ed89a249e",
+    "gems": 6
+  },
+  {
+    "address": "0xc1e6321fffc9bc1273945dc5aaec19f5e08cffed",
+    "gems": 6
+  },
+  {
+    "address": "0x18a871a25f0459471a119e8a54446db1a75ea324",
+    "gems": 6
+  },
+  {
+    "address": "0xa711d785f45696d59a0bea459ed1cfdf52e06829",
+    "gems": 6
+  },
+  {
+    "address": "0x7ed89c743f8b903e3dc8f4a642235d1cac2ab431",
+    "gems": 6
+  },
+  {
+    "address": "0x737cad20b8dea236a7c29c2c3b5a4f83edfd76d4",
+    "gems": 6
+  },
+  {
+    "address": "0x3b3e75eb5797709b3742080bd3248bbd00be584d",
+    "gems": 6
+  },
+  {
+    "address": "0x09d9fb04fbb5b9e0e4d9aec5d4016cfd48f177f3",
+    "gems": 6
+  },
+  {
+    "address": "0xa7485bb751f4b41a6c00df15c6d127d45fb3d874",
+    "gems": 6
+  },
+  {
+    "address": "0x4fdf47da76dca34e3a292a977b6fc6b8edd1b3b9",
+    "gems": 6
+  },
+  {
+    "address": "0x8d28a0b9d0abe419aefdd97465a51f3a60069830",
+    "gems": 6
+  },
+  {
+    "address": "0x9e51308cff26ef3a2526d3c853b5f5298e4ae28e",
+    "gems": 6
+  },
+  {
+    "address": "0x1ed0f7c95857a2b8f93aa19ea192f1c42ad227b9",
+    "gems": 6
+  },
+  {
+    "address": "0x5afc8fe9dda30b96411a1061d5d89ca8d3cf8351",
+    "gems": 6
+  },
+  {
+    "address": "0x3104288400d9f8c026d54d43d63d4313b411ec4e",
+    "gems": 6
+  },
+  {
+    "address": "0x41f63f526791c0d1befabb8f3eedecb390043218",
+    "gems": 6
+  },
+  {
+    "address": "0x034eb4fb7aa4241dde41131e12e81b2c03d09eb4",
+    "gems": 6
+  },
+  {
+    "address": "0x1acc4c280e785c6a83735519b91c7516a1a5d8a2",
+    "gems": 6
+  },
+  {
+    "address": "0xee0865ef483e952acdb8f68d17e32936e018b097",
+    "gems": 6
+  },
+  {
+    "address": "0x3446474455d0eadcb729bea5852c9abd1c31c5ed",
+    "gems": 6
+  },
+  {
+    "address": "0xb5259355f9bde7e7499495a6e2aa4854e7a4ab4e",
+    "gems": 6
+  },
+  {
+    "address": "0x6f750bd2ec46604c03d34af48b84a9cf70b26863",
+    "gems": 6
+  },
+  {
+    "address": "0x5354fee28490ad16e6a2d06b9684c22218e82e82",
+    "gems": 6
+  },
+  {
+    "address": "0xdf68f745d21360511e7ffdeced5d0b14899e8b54",
+    "gems": 6
+  },
+  {
+    "address": "0x9c8d90cfa681f477c2d36387b490cca17dc7db1f",
+    "gems": 6
+  },
+  {
+    "address": "0xd1992bd158f539b7c8dd93bd0e1a06cda7b0a08a",
+    "gems": 6
+  },
+  {
+    "address": "0x6cf89a2d25e7453329e28c82d8c98566dab63370",
+    "gems": 6
+  },
+  {
+    "address": "0x1e464b1c651d80ecfbfe5771660622692e879215",
+    "gems": 6
+  },
+  {
+    "address": "0xdfdf22344340e5245d01b7506801f07ee3a12852",
+    "gems": 6
+  },
+  {
+    "address": "0xa2c64170800409f450baa17321add7b2bde0b4c0",
+    "gems": 6
+  },
+  {
+    "address": "0x78c641c477fa3853f997ece0ef1f5c5f66acbd1f",
+    "gems": 6
+  },
+  {
+    "address": "0x4ede62b83f5fa4700a274567370441292acf534e",
+    "gems": 6
+  },
+  {
+    "address": "0x03e13a8fa0feaf8c29958af978db87c7e2d50d3a",
+    "gems": 6
+  },
+  {
+    "address": "0x0b9c0bd74d3aa06ac2c195fc878d2f612795d10b",
+    "gems": 6
+  },
+  {
+    "address": "0xdd6c5fed9b6ca7bfc8a36e75038764da1e9fa40a",
+    "gems": 6
+  },
+  {
+    "address": "0xde37260c9fd9d3b9345e341ab6bc7a3908018d08",
+    "gems": 6
+  },
+  {
+    "address": "0x9ec499209cfa77ed78e3861f7dffa48c719cee55",
+    "gems": 6
+  },
+  {
+    "address": "0xe4c049018b74080af1e70cb908dad0179880efa5",
+    "gems": 6
+  },
+  {
+    "address": "0x9eb892a91a949a98178b7119b6f791c70cd755e4",
+    "gems": 6
+  },
+  {
+    "address": "0x5ea6721a5c77fc6d51ee664ec772a9bfedd7d5c5",
+    "gems": 6
+  },
+  {
+    "address": "0xa1da2318ecbe4cb619ec93d68fa5233cacfaa628",
+    "gems": 6
+  },
+  {
+    "address": "0x41ad33163113e8f0986b8fa5dd338512fb2f75f2",
+    "gems": 6
+  },
+  {
+    "address": "0xeb197fa606d693c391f8598b5fbd052651523cb8",
+    "gems": 6
+  },
+  {
+    "address": "0xaab7afdda47faee9db28e558a0b811baa65ae76c",
+    "gems": 6
+  },
+  {
+    "address": "0x6fdcb076b559976a8d585e006b073e1982e8a47a",
+    "gems": 6
+  },
+  {
+    "address": "0x4fae57d843ea63a3bc3664ca853e1359dbe74642",
+    "gems": 6
+  },
+  {
+    "address": "0x64cdfc40d0862ce407ba4ec54984939152b46076",
+    "gems": 6
+  },
+  {
+    "address": "0x4d85ddbb627375d8a4f2f6534d200811d993eab0",
+    "gems": 6
+  },
+  {
+    "address": "0xd2be078a2b36dd7fd6b5294eedb2202e8822ebb1",
+    "gems": 6
+  },
+  {
+    "address": "0x649925077570b4d95637123f3802ee6a1f8164f5",
+    "gems": 6
+  },
+  {
+    "address": "0xee7073343764a3157b647851067ae573a906b906",
+    "gems": 6
+  },
+  {
+    "address": "0xbc9f516179d28d74fc14fc78095f3032cc364cc7",
+    "gems": 6
+  },
+  {
+    "address": "0xaf2c12f393e9326f6562ed4dd7eb4d1c4c1e4c5c",
+    "gems": 6
+  },
+  {
+    "address": "0x460006e992600b822e493f715c811deb262d58a1",
+    "gems": 6
+  },
+  {
+    "address": "0x0151235ed77a0e7c5589ec1b5a81e472c9acd4ba",
+    "gems": 6
+  },
+  {
+    "address": "0x6b111c47aaafc2cd1aa8d8a28412d473303d819d",
+    "gems": 6
+  },
+  {
+    "address": "0x56b2a8d5c1691fe4e925b64b5537e8df4b0e1336",
+    "gems": 6
+  },
+  {
+    "address": "0x44ab455b100328d145a2c7b6925a3997f4cc917e",
+    "gems": 6
+  },
+  {
+    "address": "0x1b26a9b87bcbd9cb96d1b3e3d38b286bdc3ea429",
+    "gems": 6
+  },
+  {
+    "address": "0x1c53d2f3ba1477522ba8563a51cd0390f71ad960",
+    "gems": 6
+  },
+  {
+    "address": "0xe526210ecea1ce63922c1cafd94ec0e566e70b85",
+    "gems": 6
+  },
+  {
+    "address": "0x2b012342b11774a44f81f0967ba88c2b2400fec1",
+    "gems": 6
+  },
+  {
+    "address": "0x81044717f0e17dbf4d1f59362d65f9657154570b",
+    "gems": 6
+  },
+  {
+    "address": "0x6d20f7241aaf73b0db66536521278a5849678f84",
+    "gems": 6
+  },
+  {
+    "address": "0x47fd50500a6193046eb6d26bb9d805adaec645a6",
+    "gems": 6
+  },
+  {
+    "address": "0x8754cfb19d8f95e1f29d4da61b10ac55f7ccc917",
+    "gems": 6
+  },
+  {
+    "address": "0xbda6d20956f1c91c43ea4ccf1701b9841633bcf3",
+    "gems": 6
+  },
+  {
+    "address": "0x0fab822814b6e16b12ccb9943b610334b59bcce1",
+    "gems": 6
+  },
+  {
+    "address": "0x94db6b19b1caec80427f18dd67b874696f08b6c5",
+    "gems": 6
+  },
+  {
+    "address": "0x9fc7037957614f540436d56b0220bb8705d14c24",
+    "gems": 6
+  },
+  {
+    "address": "0xe9f073a1847509a4034859bf420cdb56f991adf8",
+    "gems": 6
+  },
+  {
+    "address": "0x9c33f09d1e6c431a96eab54087a04831c34c7ed1",
+    "gems": 6
+  },
+  {
+    "address": "0xaf1edc3f383fdf1f98d0be9abef01035ab59f112",
+    "gems": 6
+  },
+  {
+    "address": "0xe32164b710952898b17c62f5b9c7449cd7563335",
+    "gems": 6
+  },
+  {
+    "address": "0x33771b26199eb1fcd56cc221640a631dc9191529",
+    "gems": 6
+  },
+  {
+    "address": "0xfaf4806765bd98383a90d8e2952f9adc7d94ca7c",
+    "gems": 6
+  },
+  {
+    "address": "0x960cef6132e1cef1279a868761cec2d986b79ea5",
+    "gems": 6
+  },
+  {
+    "address": "0xe5e4f9785aadeb1967b4cf55e6b76b3abe10cb1d",
+    "gems": 6
+  },
+  {
+    "address": "0x5f4842559a01c7fdc228c5a753a7139699950451",
+    "gems": 6
+  },
+  {
+    "address": "0x3be6dd1905f200825333dfecb8bc2378b7ea1a34",
+    "gems": 6
+  },
+  {
+    "address": "0x42162a0b30ed8739e1922c838b07a5b1f7f6b360",
+    "gems": 6
+  },
+  {
+    "address": "0x4b47491e0faeecf5b725108bf1e02eb213e6eda7",
+    "gems": 6
+  },
+  {
+    "address": "0x0f44807dc2d5442eb47f044e8b7dabab62c714ce",
+    "gems": 6
+  },
+  {
+    "address": "0xbbed0da910695c8beb03fa490c9173924293ad80",
+    "gems": 6
+  },
+  {
+    "address": "0x2d9888924e428f765c1238803f68772c7c7cdad8",
+    "gems": 6
+  },
+  {
+    "address": "0xa305a2194f7fae895abcab50bc003ed2204ffca1",
+    "gems": 6
+  },
+  {
+    "address": "0x325545c0913e0d72339ed595c2cc8c47b75aede0",
+    "gems": 6
+  },
+  {
+    "address": "0xf4705aa3f943047937c0f7099e9a4854496ce9bb",
+    "gems": 6
+  },
+  {
+    "address": "0x0659cfd0ee57fad2cb17facfea498893c41d9362",
+    "gems": 6
+  },
+  {
+    "address": "0xd2ad05a4f9a9e87371e637fc0062fec727f93638",
+    "gems": 6
+  },
+  {
+    "address": "0xfa385de0f2e6c9f7b5616182adf8ac54d87d391e",
+    "gems": 6
+  },
+  {
+    "address": "0x2ff1e9034ff3f7420eac7197cc6e145bbbce59c8",
+    "gems": 6
+  },
+  {
+    "address": "0x15ff95ba9eba607f2d5fe2b09306c3ebf64d6a9f",
+    "gems": 6
+  },
+  {
+    "address": "0x19df4480d3e1cf9ea58ab2f4814837cf0b3de8e6",
+    "gems": 6
+  },
+  {
+    "address": "0x2a7ec9831d5cf108185f64430584abac976edd1b",
+    "gems": 6
+  },
+  {
+    "address": "0x019a5d308d8cb8189252f4e263ca27d322c90869",
+    "gems": 6
+  },
+  {
+    "address": "0x786cd71a0af1cb9da43f8550577a3099dfeece3c",
+    "gems": 6
+  },
+  {
+    "address": "0x85ace8c3f368e38679cdf3efedc35b158eca43cc",
+    "gems": 6
+  },
+  {
+    "address": "0xd750d6e1c9858b99fa234ef1dd8cb53ad6893a33",
+    "gems": 6
+  },
+  {
+    "address": "0x235798e3ee3770577115653c9946b8ccdd5ca504",
+    "gems": 6
+  },
+  {
+    "address": "0xe6e4b308f55a859e61f2f464a7777df18671619a",
+    "gems": 6
+  },
+  {
+    "address": "0xfa54c33fea8ec7dac7f911dac2a5bafe99b34357",
+    "gems": 6
+  },
+  {
+    "address": "0x17b445ebfae4d54ea2d1b83541a16e9578aa7ce1",
+    "gems": 6
+  },
+  {
+    "address": "0x723d2d8c32dab6ac0ac085bc5a723b3b60fdebde",
+    "gems": 6
+  },
+  {
+    "address": "0x16c4715c9c0fd855b4dd328f16198da9df0e0b15",
+    "gems": 6
+  },
+  {
+    "address": "0x524dbcea5119bb711bdc31432870c66def77df63",
+    "gems": 6
+  },
+  {
+    "address": "0x279c8283b77ad47c65ddf74a7f4d38ef7506b1f0",
+    "gems": 6
+  },
+  {
+    "address": "0x8be6175a6aad610dd8a56b6012d494216159806f",
+    "gems": 6
+  },
+  {
+    "address": "0xfe8f732ee790e0005d16f33bb48bb180071d7fd3",
+    "gems": 6
+  },
+  {
+    "address": "0xcab90e38c48e6de709248bf5a20166dc3d703d05",
+    "gems": 6
+  },
+  {
+    "address": "0xc4b495b05b905ec78166d086531690805ab7985f",
+    "gems": 6
+  },
+  {
+    "address": "0xade6307f73c42e579fb53e16385e8e66ee9520c0",
+    "gems": 6
+  },
+  {
+    "address": "0xcb70ad91e9dc4e6df2986b3e3a6d093598aabe5d",
+    "gems": 6
+  },
+  {
+    "address": "0xa5942f8e1b37cf98b7046dd824478f6da5e0ed02",
+    "gems": 6
+  },
+  {
+    "address": "0x69428d83877936037a9bfe6a6c93e733658e6e76",
+    "gems": 6
+  },
+  {
+    "address": "0x4875b339053cff8c36e70ce4e29e487e7b2ad02e",
+    "gems": 6
+  },
+  {
+    "address": "0xf8579956fd721933ebec17dce8156b188fb9b650",
+    "gems": 6
+  },
+  {
+    "address": "0x5b0a8881ea1ec30300c8cc1037f6388199c06c47",
+    "gems": 6
+  },
+  {
+    "address": "0xc2671bf698f10b7b1fb3dbfe78aec11e694d2f2e",
+    "gems": 6
+  },
+  {
+    "address": "0xe8d092dd399cf83d01fc572288c42722dc17744f",
+    "gems": 6
+  },
+  {
+    "address": "0xee2c2805a57c03f728c4431eb09f9e8fddeab860",
+    "gems": 6
+  },
+  {
+    "address": "0x96b2c13c9914e5e563d0958ea657f9f5d53dce10",
+    "gems": 6
+  },
+  {
+    "address": "0x4dd6ab1fc02e309f98f3ed182aae8e91c76be895",
+    "gems": 6
+  },
+  {
+    "address": "0xe3ec66f2625b5898603485fdc33ae8aa3ffac778",
+    "gems": 6
+  },
+  {
+    "address": "0x83c95f97451aafc972ab13635e1f635967657080",
+    "gems": 6
+  },
+  {
+    "address": "0x3a17e40e0ae4009f6a22db5769f97a3982c69f2b",
+    "gems": 6
+  },
+  {
+    "address": "0xa3c90684f4261e51e53974f52b0cd5f9583b478f",
+    "gems": 6
+  },
+  {
+    "address": "0x28f1f83bcabbd1fe8cb7c8922e90648f95102bc1",
+    "gems": 6
+  },
+  {
+    "address": "0x5569e36445215bcc6b0e7454f7f9f1cb8bf25922",
+    "gems": 6
+  },
+  {
+    "address": "0x1f5430313a624daf9e95f2471665d9a521b7e06c",
+    "gems": 6
+  },
+  {
+    "address": "0x3e5698ee08c622993b83f5186b63bf7e9bd44ced",
+    "gems": 6
+  },
+  {
+    "address": "0x386538c5af583d85f8400850ef99445f7080dddb",
+    "gems": 6
+  },
+  {
+    "address": "0x1b8853954ce7cb035561a7d29ca66b6e4fea8c73",
+    "gems": 6
+  },
+  {
+    "address": "0x54adddb870ee5fd4e4ed7cf1309a3ab077a76855",
+    "gems": 6
+  },
+  {
+    "address": "0xeed2021074091bc8fa4e6906ba7c2793d8e0e77a",
+    "gems": 6
+  },
+  {
+    "address": "0xf42045cd6856527e92c18c0026baf49df96f9731",
+    "gems": 6
+  },
+  {
+    "address": "0xbea5145b11ae86b6fa5fd9c79eb510468f54e8b3",
+    "gems": 6
+  },
+  {
+    "address": "0xe6bc9c31c0ac945f03a79776da0751f3d46f7cac",
+    "gems": 6
+  },
+  {
+    "address": "0x657c79bec8dcd761cd5aa8c0419ea59e1515ec1b",
+    "gems": 6
+  },
+  {
+    "address": "0x9dfa413cf7616c39597fdb1541a8dc491e32ec10",
+    "gems": 6
+  },
+  {
+    "address": "0x2639b27f21faf33d83f0834f486a7797100d8cfd",
+    "gems": 6
+  },
+  {
+    "address": "0xfa95d0d69fd2c1f2dcbf86757db4f91f24871a8f",
+    "gems": 6
+  },
+  {
+    "address": "0xe23c6812e3aeedd7e746073c01290c766b8445d8",
+    "gems": 6
+  },
+  {
+    "address": "0xe03cf4c91b36826d70b7311b9dce0df0614f11d3",
+    "gems": 6
+  },
+  {
+    "address": "0xbd767fb77214220a52c1959acffed536c8f20584",
+    "gems": 6
+  },
+  {
+    "address": "0x6e53070b24eb2a1bc4a54395f74c24e1b8d2e29b",
+    "gems": 6
+  },
+  {
+    "address": "0x545b52b0925f56953cad7c732c073aa8829aea84",
+    "gems": 6
+  },
+  {
+    "address": "0x9d80523e5c1307cca05b24fc016412cea185d322",
+    "gems": 6
+  },
+  {
+    "address": "0x0a798a7df2a196e1d30de0f36d87dcdece21f680",
+    "gems": 6
+  },
+  {
+    "address": "0xfcd1d6ae59b9df2a14f137a59adbfadbe6994def",
+    "gems": 6
+  },
+  {
+    "address": "0x90ff77de0b54ccc5173f0332c6ffbf6c49f58eb3",
+    "gems": 6
+  },
+  {
+    "address": "0x91095876767bed6929919be8f1b352ef3398266b",
+    "gems": 6
+  },
+  {
+    "address": "0x8691b6cb49b5e0c5fdc252b5078235a6a2333317",
+    "gems": 6
+  },
+  {
+    "address": "0x563c7315e3744a6d85ff3d0c769e74ef6e8fa6d6",
+    "gems": 6
+  },
+  {
+    "address": "0xc2c7329b974639669a87e6351a204c93ac3f0f92",
+    "gems": 6
+  },
+  {
+    "address": "0x9ccdd96e0f3a05d347f3e52f3b34b6beb91e4e56",
+    "gems": 6
+  },
+  {
+    "address": "0x91d050e5001d38ff5e54048aeff2e356e78f01ad",
+    "gems": 6
+  },
+  {
+    "address": "0x53b0bb3f3d0c39572a357c5dc7f48f5f28845575",
+    "gems": 6
+  },
+  {
+    "address": "0xd49673d732f526aa5e39390aeb4fd9a9b1d38699",
+    "gems": 6
+  },
+  {
+    "address": "0x62d4d77d9c137ae65fa31ba80e2943f217c7492a",
+    "gems": 6
+  },
+  {
+    "address": "0xa1007597cd9be854215f45c3aa2d74f7b268104f",
+    "gems": 6
+  },
+  {
+    "address": "0x645b9647530bb476f958e7c24c8f95c4109bb630",
+    "gems": 6
+  },
+  {
+    "address": "0x981fb2e8aac0bf3328c0822994ffb429ef513b4f",
+    "gems": 6
+  },
+  {
+    "address": "0xe6640447de3d56c54ddbc83b87ada6b2a9f5f9fa",
+    "gems": 6
+  },
+  {
+    "address": "0x26212e2e0b8da80c418d43560da973eb59de8842",
+    "gems": 6
+  },
+  {
+    "address": "0xfe8b1b2dd54aad8c2754289f9242ac37c0e47449",
+    "gems": 6
+  },
+  {
+    "address": "0xf6c687f96a61fab92e40a8d8dbf051898faa4a89",
+    "gems": 6
+  },
+  {
+    "address": "0x2c17705c170be2181ce75eba91f5cf46e6b62899",
+    "gems": 6
+  },
+  {
+    "address": "0xff3468b09110e309d7fe0040cae07004c3ff8f4e",
+    "gems": 6
+  },
+  {
+    "address": "0x30382294037a7cb2bb92ecb3ce22349ba9784ede",
+    "gems": 6
+  },
+  {
+    "address": "0x63306e64272a486c5af98fd6908c9ab80b2093a2",
+    "gems": 6
+  },
+  {
+    "address": "0x2c18ad2ffa535944fb013e00799fd3b50b60d0a8",
+    "gems": 6
+  },
+  {
+    "address": "0x581babba8f38dcd46c11a2090b686cc4d4fd6996",
+    "gems": 6
+  },
+  {
+    "address": "0xbaa7b93c1e6173660c4595e1eb586ab67aa11060",
+    "gems": 6
+  },
+  {
+    "address": "0xb0ba843b3ec92f46e9936502352adf620c7811c7",
+    "gems": 6
+  },
+  {
+    "address": "0xcd12a26e0eb108fc75d45ad1aadbf75e456baf52",
+    "gems": 6
+  },
+  {
+    "address": "0x84a6b0c091c57313e3350b1c9d59472517f60d41",
+    "gems": 6
+  },
+  {
+    "address": "0xb0fe9c4e6f70f321a447aaa5eb1ec4bd30d3cd63",
+    "gems": 6
+  },
+  {
+    "address": "0xe6af6bd4c9ae3b4ec881cf5024cce220b8709434",
+    "gems": 6
+  },
+  {
+    "address": "0xe70d3f9bf0a918e740b600c3e022bd94d15e004e",
+    "gems": 6
+  },
+  {
+    "address": "0xb8741f96fe89c2c5d7c8ef9de36880211645ffb3",
+    "gems": 6
+  },
+  {
+    "address": "0xe78d725f89f909f2caa1f0046227d201f6319581",
+    "gems": 6
+  },
+  {
+    "address": "0xcb85bdf1f5cd5dd143347511bb357511efff3373",
+    "gems": 6
+  },
+  {
+    "address": "0x7e3e090771ff46ef72d8bd5dd82c6004d9b8fe87",
+    "gems": 6
+  },
+  {
+    "address": "0xe45185f46858aa2fceb20ab72f31f8fb3080a8c3",
+    "gems": 6
+  },
+  {
+    "address": "0x3a82bc3c44d695ade4532810c8967c1ce37ebd4a",
+    "gems": 6
+  },
+  {
+    "address": "0x43b4c73e96f056243e8944aa441802aea70a78d7",
+    "gems": 6
+  },
+  {
+    "address": "0xe68821a0fe1b9241203e680e6859ea778d6ca2bc",
+    "gems": 6
+  },
+  {
+    "address": "0xb344bf167a7f8a45be6818c1322092e38b689416",
+    "gems": 6
+  },
+  {
+    "address": "0x6310d0ad15c12a42d278e1234d3b087e140aeaa0",
+    "gems": 6
+  },
+  {
+    "address": "0x2382793375a1294dc5b0a803521c8800a454b053",
+    "gems": 6
+  },
+  {
+    "address": "0x6c0ed4d772b994b5fbcaf258734140f3f9c794f3",
+    "gems": 6
+  },
+  {
+    "address": "0x29970f90001f8186a105027a32315d5f5f61df05",
+    "gems": 6
+  },
+  {
+    "address": "0x5418de29cc0448280bf4db261dbd3bdb75288245",
+    "gems": 6
+  },
+  {
+    "address": "0x53a14f597785489e4c81dc3961427886ea6e8e46",
+    "gems": 6
+  },
+  {
+    "address": "0x745e94db1ad99fe0cec04e21e9a9ce17a2ccff0a",
+    "gems": 6
+  },
+  {
+    "address": "0x749969cbfbb5d327b52d78f1cdb17ce8273d6946",
+    "gems": 6
+  },
+  {
+    "address": "0x0d587a4df0bec6d31f592f829112d17b6da2c6fc",
+    "gems": 6
+  },
+  {
+    "address": "0xd0fcf6ed907a7fa0be97d83776cc0eb2f8c86745",
+    "gems": 6
+  },
+  {
+    "address": "0x1cd126880be8b95ca65664db8dbf5dbab42097bb",
+    "gems": 6
+  },
+  {
+    "address": "0x7c332f3155108f318883cb529e618825631aa603",
+    "gems": 6
+  },
+  {
+    "address": "0x3b8e484761ffde30aaa892cc6fb64e40b3852215",
+    "gems": 6
+  },
+  {
+    "address": "0xd7309808d7e420f0a1991847274dc8d8e85e8d6b",
+    "gems": 6
+  },
+  {
+    "address": "0xc37d322e61d3556b0105b1a4e997e3e2286b3d07",
+    "gems": 6
+  },
+  {
+    "address": "0x1e5e032e3935b0c365d377c5f63ab86c7611a98b",
+    "gems": 6
+  },
+  {
+    "address": "0x330eb4b494e55955c27383e3553f78f533b706c4",
+    "gems": 6
+  },
+  {
+    "address": "0x96c3b47206ec6907dc6e8a63b5a903e03c6eb6e6",
+    "gems": 6
+  },
+  {
+    "address": "0x5a2f798b968fbda78f8e65eaa4e560a7d56ea625",
+    "gems": 6
+  },
+  {
+    "address": "0x35c338bc17441106e290bd1139765c0906fd25bf",
+    "gems": 6
+  },
+  {
+    "address": "0x29ef399c3c00c2165531e1e13c4e5284d6cd0d11",
+    "gems": 6
+  },
+  {
+    "address": "0xba18deceb6457a7450b5d00b2c903ec2f37e7001",
+    "gems": 6
+  },
+  {
+    "address": "0x8d4d1aea029275439ff00063e70beb02c3b4a77b",
+    "gems": 6
+  },
+  {
+    "address": "0x760964ef10ad03f39430a459ec229557df8d1f24",
+    "gems": 6
+  },
+  {
+    "address": "0x366f0b3ae5a5fa429ebe6225c6691923c68cf36c",
+    "gems": 6
+  },
+  {
+    "address": "0x11a4478d55fdeecd4fde2715208a6b01aed9d00d",
+    "gems": 6
+  },
+  {
+    "address": "0x36563fb6de53efa606174a80207f639fb040e0c0",
+    "gems": 6
+  },
+  {
+    "address": "0x1e82eef17f075fe1a31e9b8dd4b97d612d0489b9",
+    "gems": 6
+  },
+  {
+    "address": "0x9862fa09c67c501b408b95023ab6f71f4537d994",
+    "gems": 6
+  },
+  {
+    "address": "0x57d806a77ff6614cc3490b8fccc043ad1ba8f64d",
+    "gems": 6
+  },
+  {
+    "address": "0x3cb87053d1300b9ce667dd643b129cbb8cb1a81b",
+    "gems": 6
+  },
+  {
+    "address": "0xbfd0c541943df90573741bec60eb43331e3619b1",
+    "gems": 6
+  },
+  {
+    "address": "0x030a89d805df9bcc09632735fa4d34eb51538150",
+    "gems": 6
+  },
+  {
+    "address": "0xd916e6a6998be867e0cf7fb0e1d6c5ac510e1309",
+    "gems": 6
+  },
+  {
+    "address": "0xb481c09ad00127239b04bdf28c1788d80c696f66",
+    "gems": 6
+  },
+  {
+    "address": "0xaa4437f7d3882e4ccd2d5bbe567271cd55effa7c",
+    "gems": 6
+  },
+  {
+    "address": "0x05cb5a5d6379d180339fc0cd0b2ab5091afa125f",
+    "gems": 6
+  },
+  {
+    "address": "0xcc157959f7c0ff8ca5fccf8bbe75304bf8ce4aad",
+    "gems": 6
+  },
+  {
+    "address": "0x060dbefdee980d1f035a443965811221cb07bbdf",
+    "gems": 6
+  },
+  {
+    "address": "0xd3f17fdfff456098bb017734a1ede906ebf3ecf6",
+    "gems": 6
+  },
+  {
+    "address": "0xd237306591201ec42a8eea09c2c38bbe7ffaa4c8",
+    "gems": 6
+  },
+  {
+    "address": "0x9e4214f5697257076b9c88b9e62907de779da2b0",
+    "gems": 6
+  },
+  {
+    "address": "0x1730be95f4a82fdbc2ac665ae3c2c9b72febfaa8",
+    "gems": 6
+  },
+  {
+    "address": "0x75d6f2835f59ba7b446d26cb945c7249d1870486",
+    "gems": 6
+  },
+  {
+    "address": "0x309a36d63685f6b9890c182231972bfb11faed41",
+    "gems": 6
+  },
+  {
+    "address": "0x9583d09bc5cf85ea2f870afc156329da4d596c8e",
+    "gems": 6
+  },
+  {
+    "address": "0xdbbdfc13dcf84dbd5c8a59d29a4fff4cc85d5637",
+    "gems": 6
+  },
+  {
+    "address": "0x06750ea3d5b54fdf937a85cac8904a886e39bb42",
+    "gems": 6
+  },
+  {
+    "address": "0xd759bd169f11cadcb80d24cc9d1210b12618e3cb",
+    "gems": 6
+  },
+  {
+    "address": "0x7cd74e70488d0d2d246938d84f0252e767ca4d28",
+    "gems": 6
+  },
+  {
+    "address": "0x09a93ea6e0e2f2cab8059da3864ed4113a88f7d6",
+    "gems": 6
+  },
+  {
+    "address": "0x1b31fce5355c8779fb8de66bd950832d8f36546f",
+    "gems": 6
+  },
+  {
+    "address": "0x54892a4b9e622acd3a6de1da88ecdcb94bd34d65",
+    "gems": 6
+  },
+  {
+    "address": "0x505dd3a97b65b7d6a5335bbf01ec253acd488738",
+    "gems": 6
+  },
+  {
+    "address": "0xd9f57bf917443f4e630c20938d2c8f6156d2f663",
+    "gems": 6
+  },
+  {
+    "address": "0xdc941c68a912755fad4fd8d5ab2f1a16898bd8b3",
+    "gems": 6
+  },
+  {
+    "address": "0xdb74c50aac6e39e381d7f627884ccc46533b39ac",
+    "gems": 6
+  },
+  {
+    "address": "0xbeb87e34bcb5d37139fc9f6968fa95473d147fa7",
+    "gems": 6
+  },
+  {
+    "address": "0x6b28ef84b727eb1615116b9e4fc4bb87eba3750b",
+    "gems": 6
+  },
+  {
+    "address": "0x40cadc1e44d1a92249d6bedf6259a5cecf81390a",
+    "gems": 6
+  },
+  {
+    "address": "0xab8f5a2d872278f598d13ccf58d56a209a1dfc76",
+    "gems": 6
+  },
+  {
+    "address": "0xa519f11264566049c446ef9dbfe94bb4d4d5e90e",
+    "gems": 6
+  },
+  {
+    "address": "0x4c30195afe5fac21f016bf2499410c91dd8b8d31",
+    "gems": 6
+  },
+  {
+    "address": "0x0db2a5a3cbb8dadbe307bfc7dd647de2db597927",
+    "gems": 6
+  },
+  {
+    "address": "0x183965f4a91f1c0c88bb0d5ae54c7edc37ee3c8e",
+    "gems": 6
+  },
+  {
+    "address": "0x3d66870eac70c9f116f4f6888dcfc4582c322a75",
+    "gems": 6
+  },
+  {
+    "address": "0xf7f9bda6aa90cc7a4b5c38d6030701092936c441",
+    "gems": 6
+  },
+  {
+    "address": "0xf1831e40738d61275bf8a049b8bc8f88049647d3",
+    "gems": 6
+  },
+  {
+    "address": "0xbc41a45f1a90cc304671aee57a56c4a9546073eb",
+    "gems": 6
+  },
+  {
+    "address": "0xd1d6d65fece2c0fc997d140567b7336714e178c9",
+    "gems": 6
+  },
+  {
+    "address": "0x5145ff7ce562b3174f13640b755f093953a737c4",
+    "gems": 6
+  },
+  {
+    "address": "0x6f117a38715ab62fcfb8d220cb7c325002672c17",
+    "gems": 6
+  },
+  {
+    "address": "0x12ea73e2c8364f00ea124b0cbf5a73b3410503c8",
+    "gems": 6
+  },
+  {
+    "address": "0x594ba24d8a2e821e7857e04ed6e369c06117cf92",
+    "gems": 6
+  },
+  {
+    "address": "0x4e51e70d6246268f0f5b668f40cd6c37ca0e6e49",
+    "gems": 6
+  },
+  {
+    "address": "0x4f31b55bcbde908318189df6507503a8fe3f242c",
+    "gems": 6
+  },
+  {
+    "address": "0x3d80376b1bef152f5724582008b25187d6ef077f",
+    "gems": 6
+  },
+  {
+    "address": "0xaafcacca45bacf19e39911c648e2a660942251ac",
+    "gems": 6
+  },
+  {
+    "address": "0xf57c1fc0624fe7f5afaa51f2a5901a1b29567f37",
+    "gems": 6
+  },
+  {
+    "address": "0x2caf1b3e194c3a6ab234708efad3176556457eff",
+    "gems": 6
+  },
+  {
+    "address": "0x01b6a3469e999420047e69a6631ebd32c09cb432",
+    "gems": 6
+  },
+  {
+    "address": "0x144593850e7caeed568263fedd914256cab577ae",
+    "gems": 6
+  },
+  {
+    "address": "0x3cd82c2f8db884aa3162fb3fb53691cf90d1bc55",
+    "gems": 6
+  },
+  {
+    "address": "0x5ac08064424d7c7994a68d349a9af361af66caac",
+    "gems": 6
+  },
+  {
+    "address": "0x2f6bacc08b4da14b4f0b835ff9ed05276c02f29d",
+    "gems": 6
+  },
+  {
+    "address": "0xd4821a13ab7172b7c9180e4bf427009a6d3b2cf9",
+    "gems": 6
+  },
+  {
+    "address": "0xa378361dc710884b2848aa04cb19132ea7e966ff",
+    "gems": 6
+  },
+  {
+    "address": "0x7f7f8676ed858d046adbe016eb43527b2ac52a33",
+    "gems": 6
+  },
+  {
+    "address": "0xd56ae7b304c7043c4b08f868153db628981af1b5",
+    "gems": 6
+  },
+  {
+    "address": "0xc9b53a79bbd2a8c48e35f3acdffa0d13a625ee61",
+    "gems": 6
+  },
+  {
+    "address": "0x0326b4b950198ff42f0d9af518c3a5bc224312fb",
+    "gems": 6
+  },
+  {
+    "address": "0xb8796f06d37815c67dd15ef1e705b2a02fde8ab0",
+    "gems": 6
+  },
+  {
+    "address": "0x6429b11e28a3066fd532a8e524d9a53bd16f0004",
+    "gems": 6
+  },
+  {
+    "address": "0x3505dce7f585ce36fc9b702620e33ae6995c79b8",
+    "gems": 6
+  },
+  {
+    "address": "0x209fbbff0a1cb51c83afdc15d0d134bd8b2225a8",
+    "gems": 6
+  },
+  {
+    "address": "0x99c9a6cecbede67520f2820cdef985bdc1e8998f",
+    "gems": 6
+  },
+  {
+    "address": "0x9eb45b0cbb031da78a4e4ef645392aff3076c552",
+    "gems": 6
+  },
+  {
+    "address": "0x133f6da756bd3a2961c809cf24e2757ec19df9a1",
+    "gems": 6
+  },
+  {
+    "address": "0xfbc0f0952de9b1e573566a2216904d475a7433bc",
+    "gems": 6
+  },
+  {
+    "address": "0x750436eacb3aa5b9a01083e72bb8a914ae15561c",
+    "gems": 6
+  },
+  {
+    "address": "0x26456103cf6b7b1fe4c721b2e19727e1a53712fb",
+    "gems": 6
+  },
+  {
+    "address": "0x0a9d866f2e4e2366bec0aef02205cdc8e7fd9ccb",
+    "gems": 6
+  },
+  {
+    "address": "0xc80ec4fdfa2a3b7faed8153952305adc29082268",
+    "gems": 6
+  },
+  {
+    "address": "0x85c5511cc078c812ae0092b241f945cbd5a9866f",
+    "gems": 6
+  },
+  {
+    "address": "0x16a6c20d238582255e477dd876a8e4674cbc2fd8",
+    "gems": 6
+  },
+  {
+    "address": "0xb2f029296c16f4f581780115eb8284bfb273bc14",
+    "gems": 6
+  },
+  {
+    "address": "0xfc09c72f3c40771dc8567a498d3dea2eb4fa3432",
+    "gems": 6
+  },
+  {
+    "address": "0x56aa9050c1bfd1c0b2d7e4cb286171abc16ad972",
+    "gems": 6
+  },
+  {
+    "address": "0x462352e2c11b6730e415dcd55a82c49ca350a3ea",
+    "gems": 6
+  },
+  {
+    "address": "0xfa26a243225045e0fd95294ef56bb581372ec9f5",
+    "gems": 6
+  },
+  {
+    "address": "0xfa2fded94a15c6e334211ba6d5a62c8151a3a478",
+    "gems": 6
+  },
+  {
+    "address": "0x4802ad33facc1e4aa9c705875a5c850c10e10a54",
+    "gems": 6
+  },
+  {
+    "address": "0x9288fe7e5385f44f89102ffebdb03f6a2c6f69c1",
+    "gems": 6
+  },
+  {
+    "address": "0xeaefa5291a026478707603d075efa036ec9b7ffb",
+    "gems": 6
+  },
+  {
+    "address": "0x0d94fae05cdbb1fa3e549f3ec8b625d9a2209492",
+    "gems": 6
+  },
+  {
+    "address": "0xdfd9fec1fe4ba70e777c40fe72ab5291906f6857",
+    "gems": 6
+  },
+  {
+    "address": "0xddbe0b6c4c043f92bd43c6115c076b9a2e32c273",
+    "gems": 6
+  },
+  {
+    "address": "0x490425e8a7a0e3f3be76fa066fb6e82d56ebaaf4",
+    "gems": 6
+  },
+  {
+    "address": "0x1998f800355ee93304c0117b9638e9d637a757b7",
+    "gems": 6
+  },
+  {
+    "address": "0xbc1a527e293cf4500ecd52b6c62b2608224ef4b7",
+    "gems": 6
+  },
+  {
+    "address": "0x08d172a69fe0027c0125b3ead89e264c0299d12d",
+    "gems": 6
+  },
+  {
+    "address": "0x2ebcecb02febf3df9a753b31362ababd5f126087",
+    "gems": 6
+  },
+  {
+    "address": "0xe6e13a448223bd11956e3d2eb630b2a8cdc03f19",
+    "gems": 6
+  },
+  {
+    "address": "0x496163b198d1f8d7a8bfe2fa26dec81cdd8628d3",
+    "gems": 6
+  },
+  {
+    "address": "0x724f24ced6f3be91482e85b8c9c07ca02ad65f46",
+    "gems": 6
+  },
+  {
+    "address": "0x743a1761a4f2b063a144579b5ab931bde2330403",
+    "gems": 6
+  },
+  {
+    "address": "0x12f674375995ebc8bb223c90598b077936c84d03",
+    "gems": 6
+  },
+  {
+    "address": "0x0575bd912b2e7129cc1e89c00a2bbe6772fda009",
+    "gems": 6
+  },
+  {
+    "address": "0xe8d6b16eb312e42ad080d2066f8b131aadc3e028",
+    "gems": 6
+  },
+  {
+    "address": "0x06449dbe213d1314c36fcbc433afb34ff287b24c",
+    "gems": 6
+  },
+  {
+    "address": "0x18bdceef4b6362bdfcac24a3f2f1e71b2afa286a",
+    "gems": 6
+  },
+  {
+    "address": "0xb5063f6f921ce6062e05cbfb05e6e70a640d1c88",
+    "gems": 6
+  },
+  {
+    "address": "0x02fec93a77166bb38eaa00434bd7e81c54e488ac",
+    "gems": 6
+  },
+  {
+    "address": "0x0ac07c29572ba484391436eff7ff7ef2b3fd5af1",
+    "gems": 6
+  },
+  {
+    "address": "0xbe6466b534d1f69fdf4b154ffa386a4efabeca16",
+    "gems": 6
+  },
+  {
+    "address": "0x519421a52ea1038b6b19694a160f9e9ea98cb3e8",
+    "gems": 6
+  },
+  {
+    "address": "0xa302100aa4fd1c57a5e99bf7d7ad69db21c11188",
+    "gems": 6
+  },
+  {
+    "address": "0x606d4d5bf9059563251d9b2574d07a7ae131eb7d",
+    "gems": 6
+  },
+  {
+    "address": "0xbf91cb62458c93739dd7f769951bea2ed4972ff5",
+    "gems": 6
+  },
+  {
+    "address": "0xd157030c07d5a3464ed5092838a0ec7a7b479259",
+    "gems": 6
+  },
+  {
+    "address": "0x8b039d0e8d0c8c98a681483e01806a9e06c3faae",
+    "gems": 6
+  },
+  {
+    "address": "0x24cbcc856c3a699b4a0cd97df2ba38067d7ab6d2",
+    "gems": 6
+  },
+  {
+    "address": "0x7fecf9a2517f0521998822302802e1e596009a6f",
+    "gems": 6
+  },
+  {
+    "address": "0xa7b7c52970bd9f1a1682c3ad932a925ab18998a2",
+    "gems": 6
+  },
+  {
+    "address": "0xbad8a85dd0a48d3afdbdcdec6fe611cfc4bc3cd2",
+    "gems": 6
+  },
+  {
+    "address": "0xc300eb2d1865af69d950db4499c310c92e771631",
+    "gems": 6
+  },
+  {
+    "address": "0xb927d32680da7d3ce48f1d1820b7b52458b8a413",
+    "gems": 6
+  },
+  {
+    "address": "0xbe719770cb577e4e8ab273c0abc5a84e7a180833",
+    "gems": 6
+  },
+  {
+    "address": "0x74bfc698530580777022e608e60989ad24ad61de",
+    "gems": 6
+  },
+  {
+    "address": "0x1e950e23ebb50a269e08676022c91cdb64c5215a",
+    "gems": 6
+  },
+  {
+    "address": "0x6633f8cc1ad9100b37a4879d2ceb25d724843063",
+    "gems": 6
+  },
+  {
+    "address": "0xcf461165155d0979aff96a6a7c036bdd9a64a953",
+    "gems": 6
+  },
+  {
+    "address": "0x57683f738e989bc169c85064f7c357ba0cc72c7d",
+    "gems": 6
+  },
+  {
+    "address": "0x680803cbff884cc370819eb219f150308dfeb4ab",
+    "gems": 6
+  },
+  {
+    "address": "0x78af60afa4faa8695b0830e0b728126b7a41d0bd",
+    "gems": 6
+  },
+  {
+    "address": "0x9cc27697e65307991de210def30cba57ff3e7b0b",
+    "gems": 6
+  },
+  {
+    "address": "0x2e2c83b0fd4a2cf0c5bcd934f0ef70aa37dea875",
+    "gems": 6
+  },
+  {
+    "address": "0xabda77621cb577302968ef0bb680543254df0f89",
+    "gems": 6
+  },
+  {
+    "address": "0x3a344f642ecdb9545b1546f263138e675dda0a33",
+    "gems": 6
+  },
+  {
+    "address": "0x64ddd7e043c1f47935504eb576bd255a91651e82",
+    "gems": 6
+  },
+  {
+    "address": "0xa42836c582589e8659c18a05757e410c45e59cbf",
+    "gems": 6
+  },
+  {
+    "address": "0x67f52279d59ebcce7d7374e98a88fa416c97d0dd",
+    "gems": 6
+  },
+  {
+    "address": "0xb2bfd73a8ca323de4ad9636e9729d02c7ab6a73c",
+    "gems": 6
+  },
+  {
+    "address": "0xe52e720948ce129cafcf894b3fe5ef87abf6695c",
+    "gems": 6
+  },
+  {
+    "address": "0xaaf3de8b310a01e004fa58abd20feeee22972621",
+    "gems": 6
+  },
+  {
+    "address": "0xe53cac39ca0106cd0f7df610c40ad619572d2523",
+    "gems": 6
+  },
+  {
+    "address": "0x10d86feb519f4a0f641a8f4eda28d0bd2e490990",
+    "gems": 6
+  },
+  {
+    "address": "0xeb26930bbcb5414cf28df59f37e4c28c1eeea69c",
+    "gems": 6
+  },
+  {
+    "address": "0x48a685532aeef26c56b4491a619bd33d457efec7",
+    "gems": 6
+  },
+  {
+    "address": "0x7aa10be537360ba9e37ba5f87d1764b976b5760f",
+    "gems": 6
+  },
+  {
+    "address": "0xa3685cbbda18c720d10eb97df11215660f6af816",
+    "gems": 6
+  },
+  {
+    "address": "0x79bd84cbda653473bbdafdf90596b711f240bbd8",
+    "gems": 6
+  },
+  {
+    "address": "0xa3a3cd0800abc4e12aa879f30aca117c4b4d2b87",
+    "gems": 6
+  },
+  {
+    "address": "0x95e0bc1a961216b5a321ffbd9eb0532df8ef6b55",
+    "gems": 6
+  },
+  {
+    "address": "0x8fd066902a0b08611bd348ce6960d9c77f20d264",
+    "gems": 6
+  },
+  {
+    "address": "0x4ded9f93ebbc21050b6c816019b2cea60e859e4f",
+    "gems": 6
+  },
+  {
+    "address": "0xcce82314503f6bef0f20079cd557b1603c346b13",
+    "gems": 6
+  },
+  {
+    "address": "0x95d2bb8fe735f85ec3f044c169108231e90e8da2",
+    "gems": 6
+  },
+  {
+    "address": "0x26073b2458075a358a1e19fe03443922f1c2d723",
+    "gems": 6
+  },
+  {
+    "address": "0x6292c8607432ac965952338625784d1deace0afb",
+    "gems": 6
+  },
+  {
+    "address": "0xcc95d976ce6d6057617604819da7084fd4691ac5",
+    "gems": 6
+  },
+  {
+    "address": "0x951926e71ed711ce342c1d7a2d0e2fa1707aa455",
+    "gems": 6
+  },
+  {
+    "address": "0x92b1c7f682bea2c2e8b81fc1260f815df0ef5696",
+    "gems": 6
+  },
+  {
+    "address": "0x5685071a17188fe05cbbbfc83382db27f5f2791b",
+    "gems": 6
+  },
+  {
+    "address": "0x61c9132fc6a9e61dd6e6079e74f1ec66f67c55f2",
+    "gems": 6
+  },
+  {
+    "address": "0x5c456087fb851b76ccd8f6d92970b1b5dc8a2a16",
+    "gems": 6
+  },
+  {
+    "address": "0x90160772ffd074dedb9342084df28d953905899c",
+    "gems": 6
+  },
+  {
+    "address": "0x1a828fa105ed00f8f9e98672accf1136454dbd1e",
+    "gems": 6
+  },
+  {
+    "address": "0x886c69b672c4c96d477ba8df3661ba6cca696838",
+    "gems": 6
+  },
+  {
+    "address": "0xae27cfcca36376b59972441bc007f2398e8b28e3",
+    "gems": 6
+  },
+  {
+    "address": "0x29cc3d243d14485e5c0106b6502103633f88ab2a",
+    "gems": 6
+  },
+  {
+    "address": "0xbdb2a6fd96395c03c3b6409c25e10b5351e3ec96",
+    "gems": 6
+  },
+  {
+    "address": "0xd61b2977b4f6f1f3450bacf3e32b5e1ea23563ac",
+    "gems": 6
+  },
+  {
+    "address": "0xe9b6c00dd8b8cc5ac216aa120f5986dc2407f09d",
+    "gems": 6
+  },
+  {
+    "address": "0x44e715c3dee78cafa0c408165f24cdd994e46fea",
+    "gems": 6
+  },
+  {
+    "address": "0xc110d023173ee746fafd6f123496d4d22800934f",
+    "gems": 6
+  },
+  {
+    "address": "0x220f104c60fc84536d63689450566f510b181c52",
+    "gems": 6
+  },
+  {
+    "address": "0x475ce34fc2fd02bb3fea238bdf589d2dcdcca10a",
+    "gems": 6
+  },
+  {
+    "address": "0xf1a5cc8ec1a16b02fa07e1f1bec8a2af17eb2288",
+    "gems": 6
+  },
+  {
+    "address": "0x1dab8fc7d39be22b3503f8619dd37945ec8aae1f",
+    "gems": 6
+  },
+  {
+    "address": "0x2e12894a752ac215033b32ecf30d550f759b2022",
+    "gems": 6
+  },
+  {
+    "address": "0x02d63c74ba86b9ea2ec120dbe20aee6499eaf955",
+    "gems": 6
+  },
+  {
+    "address": "0xceed2d14149d39a606c6860cbc205b4b035fc65a",
+    "gems": 6
+  },
+  {
+    "address": "0xd53697079725ec6207d227ad9a0d9a7d991c353c",
+    "gems": 6
+  },
+  {
+    "address": "0x919126c1c3e5b64934db94d927c910d0dcc422d6",
+    "gems": 6
+  },
+  {
+    "address": "0xc176c6e536d939a93d8536d1b1c90e79d1d5ceef",
+    "gems": 6
+  },
+  {
+    "address": "0x51e0be1ba1a1f4e495cafcb534fa7b73ac528183",
+    "gems": 6
+  },
+  {
+    "address": "0x8e85d5f68aea871963caa1d640b1e629d41e57fe",
+    "gems": 6
+  },
+  {
+    "address": "0xb84ab5940b9df3ddc04e339d6c3a722cda22d771",
+    "gems": 6
+  },
+  {
+    "address": "0x6e22c999681b9ba6925a36e008a33b45a9e632ad",
+    "gems": 6
+  },
+  {
+    "address": "0x5ad92327517a4872376bfc4064143709e07f10ce",
+    "gems": 6
+  },
+  {
+    "address": "0x5e41a8f47060d4dd98ccc32dbf3a9c9e6e0e57b7",
+    "gems": 6
+  },
+  {
+    "address": "0x9a652de7e16cca881ded099cec506e4123fb7d2d",
+    "gems": 6
+  },
+  {
+    "address": "0x7ace41b3351ff1502975de3331f1e848fc6c1a67",
+    "gems": 4
+  },
+  {
+    "address": "0x319a5214384a956256bfcdb4535c05ce7037e9d0",
+    "gems": 4
+  },
+  {
+    "address": "0x9347e39b2fb3db67bdf023884c3dc89ba291e598",
+    "gems": 4
+  },
+  {
+    "address": "0x2d8ce75f4f3d6c6e6e2b02a23f3b8576f8c66f7d",
+    "gems": 4
+  },
+  {
+    "address": "0x79e3cf9d500915ca80f8baca7753c623cadf6fb0",
+    "gems": 4
+  },
+  {
+    "address": "0xf940ae52c3a3859f34dae479abd80a8e755e96e2",
+    "gems": 4
+  },
+  {
+    "address": "0x7bdb33a63faeb4a3309ee3477cf12cf23190d263",
+    "gems": 4
+  },
+  {
+    "address": "0x5977f3bf65497011453c19c635bf1574974e4c11",
+    "gems": 4
+  },
+  {
+    "address": "0x152ecb8f813441f3bf33111ef9b41404637d65df",
+    "gems": 4
+  },
+  {
+    "address": "0x747e26f45b28599f0140541ab014dd9651bd7836",
+    "gems": 4
+  },
+  {
+    "address": "0xaf042f74cbaed26d59b1aa85ea81bd4cfb26c6f6",
+    "gems": 4
+  },
+  {
+    "address": "0xdd6ea406848c1b41b327f83bbbbfec5b2e486e62",
+    "gems": 4
+  },
+  {
+    "address": "0x035690b6f39c31181d11b25e1041c860f7afdaf9",
+    "gems": 4
+  },
+  {
+    "address": "0xc241aba3042fadd0e8a97d4721f8d6f604532a30",
+    "gems": 4
+  },
+  {
+    "address": "0x0db47194080eae9a55ef4ee1649d947097c92b55",
+    "gems": 4
+  },
+  {
+    "address": "0x72b739fc8fa28c08742052384d2f84a63c0e5563",
+    "gems": 4
+  },
+  {
+    "address": "0x2e0e73c9c21b2e81ddecb52d1510e563c631fac9",
+    "gems": 4
+  },
+  {
+    "address": "0x4e3f1601526df72d7bc072222cb4cccacfd71c3d",
+    "gems": 4
+  },
+  {
+    "address": "0xeb9e337dc60609186571ce887689865706e1a052",
+    "gems": 4
+  },
+  {
+    "address": "0x1e246f5f86e791234d820f42f4badf6310438e48",
+    "gems": 4
+  },
+  {
+    "address": "0x8fb6733909da5fe1d648f415c788c1cbc167372a",
+    "gems": 4
+  },
+  {
+    "address": "0xa5809716ad25ab77b39d60c6274183b08055046d",
+    "gems": 4
+  },
+  {
+    "address": "0x837ce5c589d4e7c962a77a26f6eb9ae163d9a454",
+    "gems": 4
+  },
+  {
+    "address": "0x5c01d0d8a4b7a72de455f3216952e8ce648658ce",
+    "gems": 4
+  },
+  {
+    "address": "0x57b4deb8ea3ee7c8e648e9c74f0825b04e74d578",
+    "gems": 4
+  },
+  {
+    "address": "0x530bb469f24486e0abb6fec0e4d2e222413e04f1",
+    "gems": 4
+  },
+  {
+    "address": "0xb3e35b2b042ea9212dd91f6bed349ee90a40e3ce",
+    "gems": 4
+  },
+  {
+    "address": "0x8d75cb7ddeaee1df63372638f19dd47ae500e6ea",
+    "gems": 4
+  },
+  {
+    "address": "0xe97a9bb9cabae7bc90c5570d2092652f247670d1",
+    "gems": 4
+  },
+  {
+    "address": "0x31f07b4e8479a6ab8c8c5b8e8b42b8799bd76c59",
+    "gems": 4
+  },
+  {
+    "address": "0x55a141fc1b54db67b4349cd6a8eb9a8894136e6e",
+    "gems": 4
+  },
+  {
+    "address": "0x469dbe106f1b80473b5fc72c7bd1be44ccef32b4",
+    "gems": 4
+  },
+  {
+    "address": "0x7fc44b0d4fc5d05b12e01e2c7a2b5c93bfb27048",
+    "gems": 4
+  },
+  {
+    "address": "0x8ee3b258bb6b030ad962bda624e91680f9f37762",
+    "gems": 4
+  },
+  {
+    "address": "0x8f554241fe5f7fae89a332e17277113d11f2a724",
+    "gems": 4
+  },
+  {
+    "address": "0x96e77369965f60af17593960215bd6f7a6b4900d",
+    "gems": 4
+  },
+  {
+    "address": "0xbb37a3d1a17c301b805d355e58fab8f9457e0a6d",
+    "gems": 4
+  },
+  {
+    "address": "0xa9d821671460a764d216d17d1cc76f4121f10472",
+    "gems": 4
+  },
+  {
+    "address": "0x1889f6a141900e6bc47da2cfc5d202811a8724f8",
+    "gems": 4
+  },
+  {
+    "address": "0xfab068e642e6de2d01e0f0c4fef2c41181838748",
+    "gems": 4
+  },
+  {
+    "address": "0x38ab779f5cb6a806c2e97ba0132986974a511eb1",
+    "gems": 4
+  },
+  {
+    "address": "0xfafe99ab3991416266e9520f3ec521b5d44cae29",
+    "gems": 4
+  },
+  {
+    "address": "0x6d4854eb8141195533b2d087b53dc6cd6782269a",
+    "gems": 4
+  },
+  {
+    "address": "0x27f6450c8999ed1ac745b78bbe54d349a6bd8f9c",
+    "gems": 4
+  },
+  {
+    "address": "0xa6e4a99479299ec2d54903a76d30a42d1c3cc470",
+    "gems": 4
+  },
+  {
+    "address": "0xee0b47feb5c018cd34e474c4fe7cccbf7c7db3ed",
+    "gems": 4
+  },
+  {
+    "address": "0x400184db55c236e6f64801f43dcd8016502db232",
+    "gems": 4
+  },
+  {
+    "address": "0x5955ae85571b36ad51936ca77c4dcfb019dc3ca1",
+    "gems": 4
+  },
+  {
+    "address": "0x021c7c47a92a4c33a363bd5ac185bc10f396924f",
+    "gems": 4
+  },
+  {
+    "address": "0x7e4da5ef5d256a7774626be6b0cbef3ab1d57204",
+    "gems": 4
+  },
+  {
+    "address": "0x788d1bc125a0b156b71da3a855c4db9d6238a155",
+    "gems": 4
+  },
+  {
+    "address": "0x32aed08e0be63b686a64fa211be64a9912b9913d",
+    "gems": 4
+  },
+  {
+    "address": "0x3f6a3dc6ae03eeec2c5fd6ddb8cc7d7130f2d9ab",
+    "gems": 4
+  },
+  {
+    "address": "0x88e7afe91486d147ab5a99193e6a357c7807f24b",
+    "gems": 4
+  },
+  {
+    "address": "0x7c5e53d5a8622580e68a86d0a484f126d240c593",
+    "gems": 4
+  },
+  {
+    "address": "0xace8c4fb424618c66cfaf7c3bf0d2f18a034eec3",
+    "gems": 4
+  },
+  {
+    "address": "0x61feaad4cbd2a1b1a014773e9c8f2952ab867424",
+    "gems": 4
+  },
+  {
+    "address": "0x316053d2d15a2c210f386ee15b7e0a0ffab2bcda",
+    "gems": 4
+  },
+  {
+    "address": "0xaa7687ed4aac8e655c7195ce16128d52d90ec932",
+    "gems": 4
+  },
+  {
+    "address": "0xa0244ea1e84c2308efad83cab5c915e77c34da55",
+    "gems": 4
+  },
+  {
+    "address": "0xfc25047a94f1446f669d7ce95fbd2b35f41f8162",
+    "gems": 4
+  },
+  {
+    "address": "0x394ada1acbf594fa2838c459e59b0c9ed8114deb",
+    "gems": 4
+  },
+  {
+    "address": "0x08788bb6f5ae22958fd9ed38cbfac01eab81f4bf",
+    "gems": 4
+  },
+  {
+    "address": "0x6e06c55bf2ed92e7eef12cdbcf30ce00a4f23d2c",
+    "gems": 4
+  },
+  {
+    "address": "0xae53f42242fa475e90b6535d47075621a57c7d4f",
+    "gems": 4
+  },
+  {
+    "address": "0x4d48aa0849264e080736d5c412fb4b86fa58104e",
+    "gems": 4
+  },
+  {
+    "address": "0xd4b8a8fac04392c66a68f09eadfe80329ac81166",
+    "gems": 4
+  },
+  {
+    "address": "0x7f69842ee5f2150ec137478c820458b875eb1d72",
+    "gems": 4
+  },
+  {
+    "address": "0x9e735c3193602a33229669aa29520d0ef3a738a0",
+    "gems": 4
+  },
+  {
+    "address": "0x9123a2ea97a368ca5d04fa1e3a3c9fc385bc4cb0",
+    "gems": 4
+  },
+  {
+    "address": "0xaf1a224af279966e9e847152466785f95603f689",
+    "gems": 4
+  },
+  {
+    "address": "0x3da2d54cb698fd9b0d931499f5d25bc93fd606f5",
+    "gems": 4
+  },
+  {
+    "address": "0xb6525075a3f7225a9ad4243da0f520f9932298aa",
+    "gems": 4
+  },
+  {
+    "address": "0xe4ab5efd9df540d04999e2f4e90d41c32669935f",
+    "gems": 4
+  },
+  {
+    "address": "0x3332d5d456accc0c8c8b69ad80ccfad6f63eea01",
+    "gems": 4
+  },
+  {
+    "address": "0x69ac076391ca11c9ae1f89c6dfdf0ba285ad9c1a",
+    "gems": 4
+  },
+  {
+    "address": "0x39fd9dbf52ca1c8aa442894be0a23759fa7f7950",
+    "gems": 4
+  },
+  {
+    "address": "0xe5c13868eb7ebdc31ab82637f69d86510587d901",
+    "gems": 4
+  },
+  {
+    "address": "0xc6cb846488fa6e670737c1c76c41a6371a5a4813",
+    "gems": 4
+  },
+  {
+    "address": "0xe81954d92e46c9d1582a28b4e1efc28a50ba6eb0",
+    "gems": 4
+  },
+  {
+    "address": "0x2f7bca1872d9bbb7e0fe07b0d48e640d1a3594fc",
+    "gems": 4
+  },
+  {
+    "address": "0x107a7a1fa09eb11dbd6daede916554c8b0e2147d",
+    "gems": 4
+  },
+  {
+    "address": "0x065301a877de5eedad9d9e9b0b9d1f6edb18ebda",
+    "gems": 4
+  },
+  {
+    "address": "0x955c9c1c0fdf16c39a14a972a8da48312382c6c4",
+    "gems": 4
+  },
+  {
+    "address": "0xa14da7b33b47b97d0641a664f855dc82f6b39a84",
+    "gems": 4
+  },
+  {
+    "address": "0xf51fb196f9c21800943b4957f7a5ff349553e9fa",
+    "gems": 4
+  },
+  {
+    "address": "0xd4552b88cbb63fc4ef758581924ece0f87d7fbdb",
+    "gems": 4
+  },
+  {
+    "address": "0x44ee15735c0e53f7b84b0079829449bdc77b37ba",
+    "gems": 4
+  },
+  {
+    "address": "0xdc89914f4f76baa3bcc5c23e7ae5d1292efd9b7e",
+    "gems": 4
+  },
+  {
+    "address": "0x4028571ae07f3af78bddebb7761b3e6989eb8d90",
+    "gems": 4
+  },
+  {
+    "address": "0x14ced26222446bd0914baa5b92221c8c05efc2ac",
+    "gems": 4
+  },
+  {
+    "address": "0xf623e8ed23232c46b732fa4f59df42ef7b7cde29",
+    "gems": 4
+  },
+  {
+    "address": "0x3c51a41d4b71e5cfa6b7a0f74f1ca3803bc5bfce",
+    "gems": 4
+  },
+  {
+    "address": "0x5ac2aed2424e18ba1563222523c7ddcb5141b776",
+    "gems": 4
+  },
+  {
+    "address": "0x5889b1c85e74e4b68cc16924518187587880a713",
+    "gems": 4
+  },
+  {
+    "address": "0x4e11c5b451db71c66316f46d5f9e36c927d2cf71",
+    "gems": 4
+  },
+  {
+    "address": "0xdcaf94dfd2432e7966727bc70bfd2a26de7becb6",
+    "gems": 4
+  },
+  {
+    "address": "0x57e98a62d20a55d6ff0e8d34f64088d514b1eb95",
+    "gems": 4
+  },
+  {
+    "address": "0x376f7b6b6ed8aec4ad27d6eaadad74a1136fcdbd",
+    "gems": 4
+  },
+  {
+    "address": "0x2af1776124eb9f25371d747289dec3a086d529f9",
+    "gems": 4
+  },
+  {
+    "address": "0x6c9150f4c00debb0aa35fa391eccda72722cb6f2",
+    "gems": 4
+  },
+  {
+    "address": "0x27b8e7a768a97ccead99fae8c0c2aa6e9eac9f23",
+    "gems": 4
+  },
+  {
+    "address": "0xf4fc3d98f430e462228c86bbc92939a3e058e094",
+    "gems": 4
+  },
+  {
+    "address": "0x064c41f3112402e34e668013352b320e39d48f9a",
+    "gems": 4
+  },
+  {
+    "address": "0x7f9da65429ea6e7f2000ec0499f230a4f128acbb",
+    "gems": 4
+  },
+  {
+    "address": "0xa332d73dee6ec1c08de768edc5906317728ed134",
+    "gems": 4
+  },
+  {
+    "address": "0xdb5776db36e1af748e58bc4e4c796224c2dae34a",
+    "gems": 4
+  },
+  {
+    "address": "0x143a6a43b9c3803cdb44ac0e34c43b14087308fd",
+    "gems": 4
+  },
+  {
+    "address": "0x063eb2dda00b5cf8a37252805ccc70db7ccb82dc",
+    "gems": 4
+  },
+  {
+    "address": "0xdafcbfd7a5c8d8e520d98f19a784a636cf7c9ed2",
+    "gems": 4
+  },
+  {
+    "address": "0x2e62412dc43ec69ad7998545c084474781e32002",
+    "gems": 4
+  },
+  {
+    "address": "0x450e216210e5d4b234bbb7454e91d6add7d9ec89",
+    "gems": 4
+  },
+  {
+    "address": "0xc12de175b8cb419f51d6e0a1c160016b96b8c579",
+    "gems": 4
+  },
+  {
+    "address": "0xc05048637954edd2424756c431c3367fccc1d469",
+    "gems": 4
+  },
+  {
+    "address": "0x919b260588730966138c17e2126b0ea5de007b5f",
+    "gems": 4
+  },
+  {
+    "address": "0xa2ef0b9fd3998515e6c93fb8d991f8ac8b2028d0",
+    "gems": 4
+  },
+  {
+    "address": "0x13ad0b3efdf03e75b1a8679e316db0fdd364c732",
+    "gems": 4
+  },
+  {
+    "address": "0x4fad4389f55d7166671783ccff72fe5b694616f9",
+    "gems": 4
+  },
+  {
+    "address": "0xa9ccd65d5b3c802c9e2b0010d2fb6427c013d116",
+    "gems": 4
+  },
+  {
+    "address": "0x57f58141533a5f10e61bf77ac067a67502258989",
+    "gems": 4
+  },
+  {
+    "address": "0xf1fdbf3716167f590399e50924ecb9954256a3e4",
+    "gems": 4
+  },
+  {
+    "address": "0x47f8db6640b10961aa5e1d12d202415dd4f73c52",
+    "gems": 4
+  },
+  {
+    "address": "0xd99f398d82d94fbd6e688f87616f08b1ad549e20",
+    "gems": 4
+  },
+  {
+    "address": "0xbf118df4b158f74b23fecf09f869c565c824b99e",
+    "gems": 4
+  },
+  {
+    "address": "0x177410d3f905564660af8c3c25429e724a9a02a6",
+    "gems": 4
+  },
+  {
+    "address": "0xd3b62103ecbd7e43f7058ae59ea83a85f173c7f9",
+    "gems": 4
+  },
+  {
+    "address": "0x6397fb70cd2482feb6edce1180500406980e8a0e",
+    "gems": 4
+  },
+  {
+    "address": "0x718a7e0f99fab27fdf4df6dfcc5e781eddda4be2",
+    "gems": 4
+  },
+  {
+    "address": "0x2d8f6e706584c013f721f9417e06c280fa8fa8ef",
+    "gems": 4
+  },
+  {
+    "address": "0x5a8079a6aaada184ab0b81352dec5333846faa05",
+    "gems": 4
+  },
+  {
+    "address": "0x4aa12d3ce014ffbab27db6bcfd8ac86f63f681c5",
+    "gems": 4
+  },
+  {
+    "address": "0x9d785f7435e4c0ee3b528f988576b307426fa253",
+    "gems": 4
+  },
+  {
+    "address": "0xc2c29d050a9afab2a19b46611a12fce80da04008",
+    "gems": 4
+  },
+  {
+    "address": "0xddc35d7e511f1de9d2521373acc01a06bad2bf1b",
+    "gems": 4
+  },
+  {
+    "address": "0xa599956e476461e1385b0e818ee61b61a2a6f343",
+    "gems": 4
+  },
+  {
+    "address": "0x7fd2595cbbaf0d01995301da19b42e6f37d259d0",
+    "gems": 4
+  },
+  {
+    "address": "0x9ba9cf60e66863bd8590e316ce5e3fdb6265ff45",
+    "gems": 4
+  },
+  {
+    "address": "0x2886d09aab4a078fe35b32a91a9b02c0efb2d484",
+    "gems": 4
+  },
+  {
+    "address": "0x20420a1428c3cfad41c62a83338e39b26a74046a",
+    "gems": 4
+  },
+  {
+    "address": "0xac40d71f0ec46c9702e3170ba34be4e376dcea3e",
+    "gems": 4
+  },
+  {
+    "address": "0xaa6c0acf499c79b80909822e58bc2239369f691f",
+    "gems": 4
+  },
+  {
+    "address": "0xfa39a06e08dfda7332c430cb59f830ca11e23bc8",
+    "gems": 4
+  },
+  {
+    "address": "0x3a6d92b1956892483ee60c91b7ab31f0e9920679",
+    "gems": 4
+  },
+  {
+    "address": "0x867c346f27825dde25bc0bc3ccf5efa81ead2ff8",
+    "gems": 4
+  },
+  {
+    "address": "0xefefb6574ca2b6625af705d99a938d93bb81fe2c",
+    "gems": 4
+  },
+  {
+    "address": "0xc93daea21d8dd417ab40eb706caeb10a0a13af81",
+    "gems": 4
+  },
+  {
+    "address": "0x0ce97f286588c436b48683a346a3cd5409c8e8c5",
+    "gems": 4
+  },
+  {
+    "address": "0x55a387ae2e91249c670d61cc8d0553a9bd743114",
+    "gems": 4
+  },
+  {
+    "address": "0x4fe11432f4e631c3a26bde950f133afe1ec01014",
+    "gems": 4
+  },
+  {
+    "address": "0x8001d9e786f7bc5ce44c0e90fbd40c1c77266a09",
+    "gems": 4
+  },
+  {
+    "address": "0x83b97de6b0bb3a201c100b3b364328d8e4c36ee7",
+    "gems": 4
+  },
+  {
+    "address": "0x27997c1b02cc477712ef4b2f640bfb09d27cf85a",
+    "gems": 4
+  },
+  {
+    "address": "0xfcbb2bb4906ad26f9f557f8d46d4ac258dc88b57",
+    "gems": 4
+  },
+  {
+    "address": "0xf6b6332adf66add0413426ccf46b62548daf454b",
+    "gems": 4
+  },
+  {
+    "address": "0x0b5b48be584c580cce907d96d91ce415eff101c4",
+    "gems": 4
+  },
+  {
+    "address": "0x011c4aba6eafb300986b8cd23ede1b0b7c6c39e4",
+    "gems": 4
+  },
+  {
+    "address": "0xfd23bc85392cd482c3e451392d11829b7cde9576",
+    "gems": 4
+  },
+  {
+    "address": "0x414901de61f4c801348a663760f42485f136c8e6",
+    "gems": 4
+  },
+  {
+    "address": "0xc5384578640d8571019600241212e3521cb1e39d",
+    "gems": 4
+  },
+  {
+    "address": "0x04b84e7e24acbb7508ff3b19392558347f856133",
+    "gems": 4
+  },
+  {
+    "address": "0xa4fe379580e5f368215aa61656432a46cfbef153",
+    "gems": 4
+  },
+  {
+    "address": "0x5c9a35a8eb317fbaf4377983ab394d0321726d59",
+    "gems": 4
+  },
+  {
+    "address": "0x86941fbd2c1e64855fb03dac2a1b1b113d571905",
+    "gems": 4
+  },
+  {
+    "address": "0x6e97df6ea9433811a91efb032a386901e9a7da5e",
+    "gems": 4
+  },
+  {
+    "address": "0x623b124aa9b76d8f6500f5e9e3a27b81cdb4e7c4",
+    "gems": 4
+  },
+  {
+    "address": "0x91b035e24e0665e57f39cfbca24db5cafe624776",
+    "gems": 4
+  },
+  {
+    "address": "0x020706fcb0b2d8357d04140890f758b0f7841203",
+    "gems": 4
+  },
+  {
+    "address": "0xd1409070ee161b598077ded7e9c809de13a95b05",
+    "gems": 4
+  },
+  {
+    "address": "0x0b7774fd37432b7c0ecc01bf63fdc0274edee537",
+    "gems": 4
+  },
+  {
+    "address": "0x32028d9a52aa5cf08f1890f2322a434eb5c29884",
+    "gems": 4
+  },
+  {
+    "address": "0x8ebe9bbe6620c16df647ef0f05009bf85206f05b",
+    "gems": 4
+  },
+  {
+    "address": "0xef2d14ca26d5ae7f2871b45829533be830fcbb6f",
+    "gems": 4
+  },
+  {
+    "address": "0x4cf8e571ca4f2ac001c8a9b75bfb0d7faf719bff",
+    "gems": 4
+  },
+  {
+    "address": "0x09fa619759c6bdb803068c1055ddabf219a8ab12",
+    "gems": 4
+  },
+  {
+    "address": "0x645371e66a27ef3f587f4e3aa2f31fb74791e1dd",
+    "gems": 4
+  },
+  {
+    "address": "0x0cc03e796a0530add9617c3862d9543673b0de04",
+    "gems": 4
+  },
+  {
+    "address": "0xf98ab0e1517dd4d50810a4ccc5f3753638e3adf4",
+    "gems": 4
+  },
+  {
+    "address": "0x6b80189168b9697f22e5c4b31be9f7b0f55480e2",
+    "gems": 4
+  },
+  {
+    "address": "0xed7ab7b9982b262310984c15c0d7c4f9fd837051",
+    "gems": 4
+  },
+  {
+    "address": "0x138f1f95801c15ed36f7e01131aac8f9439770f4",
+    "gems": 4
+  },
+  {
+    "address": "0x0c86fec2fffba741192993ac7f4055f3243aa449",
+    "gems": 4
+  },
+  {
+    "address": "0x70545dce4cf67221f7451309b49a9542410256a3",
+    "gems": 4
+  },
+  {
+    "address": "0x02adfcf717854cab2b169133e73ed15ae7c6ece7",
+    "gems": 4
+  },
+  {
+    "address": "0xcb5f9e8de6f36c4748dcfed52a3bab03f4f3a49e",
+    "gems": 4
+  },
+  {
+    "address": "0x4d2ac7a7386f2500862033c7ba1c5bf1d1840d5c",
+    "gems": 4
+  },
+  {
+    "address": "0xe93547ac485414575270fe1e6dc886cda26ee58e",
+    "gems": 4
+  },
+  {
+    "address": "0xe56f9935792765f8e78370101dab2aa428b379d2",
+    "gems": 4
+  },
+  {
+    "address": "0xb4403f7d4c64e3b580bd634c503aca9270fc4c99",
+    "gems": 4
+  },
+  {
+    "address": "0x28a086f5d874e17e64cc53d62b60b1bec21acdf8",
+    "gems": 4
+  },
+  {
+    "address": "0x01b314b117665c3ed7c77f1679504556ad58a5d9",
+    "gems": 4
+  },
+  {
+    "address": "0x43a3a9f013d2a92c7271c3a854ff1c398e4ff747",
+    "gems": 4
+  },
+  {
+    "address": "0x5d3a747c983f26809c841d576b9c2a744e2a0988",
+    "gems": 4
+  },
+  {
+    "address": "0x71d79249151a470449e7af5a9907eee675926bfa",
+    "gems": 4
+  },
+  {
+    "address": "0xbcc431944a75fb87ad67b3247e6850792627cc47",
+    "gems": 4
+  },
+  {
+    "address": "0xe2b89ce9d9704615a1d8cbc0fc8505776d7946f8",
+    "gems": 4
+  },
+  {
+    "address": "0xb3271829feeb814b336b66afc23d64b6cbc6f8a7",
+    "gems": 4
+  },
+  {
+    "address": "0x3e5b4627f5a48c4f24a60884a5dc1eac18f00a51",
+    "gems": 4
+  },
+  {
+    "address": "0xa84fccf61eebbb6063c06817639698786dc51549",
+    "gems": 4
+  },
+  {
+    "address": "0x67821c4f46cf3c2589ccd380fa2973dec3d67743",
+    "gems": 4
+  },
+  {
+    "address": "0x37f5f99c913e58e09a52ab9d1e9eddba802ba684",
+    "gems": 4
+  },
+  {
+    "address": "0x76c9961195e0f0942ac5ae377a955c788dce293b",
+    "gems": 4
+  },
+  {
+    "address": "0x7f0b2cb58cbd40932bcd769721445dcf1598052e",
+    "gems": 4
+  },
+  {
+    "address": "0x981443c2dc06606705c64657d14f1cc4c9c38653",
+    "gems": 4
+  },
+  {
+    "address": "0x69f6e092202212324de3917f9ef8a42aea41f2b5",
+    "gems": 4
+  },
+  {
+    "address": "0x004791f71c5b0000a08ee5f9fbfd01f29ab0bbbb",
+    "gems": 4
+  },
+  {
+    "address": "0x465cf784327cc2f581808ecc53492ab0b5477414",
+    "gems": 4
+  },
+  {
+    "address": "0x11fe36021222da12c24f42bf3c1fbfa22e321c9f",
+    "gems": 4
+  },
+  {
+    "address": "0x066a386c3a775ff80d321a955325a7fe613c2c20",
+    "gems": 4
+  },
+  {
+    "address": "0x9b4742aaf4b375cfea6f6a8cfea3bb020170336f",
+    "gems": 4
+  },
+  {
+    "address": "0xc09bd5ec7daec07804e15f0a1813bd11c527079d",
+    "gems": 4
+  },
+  {
+    "address": "0x7b0ee48fc6563ca7a894246c3483c1df0c2591fa",
+    "gems": 4
+  },
+  {
+    "address": "0x380f09a54aae988b084514efcb99b2b26427ea52",
+    "gems": 4
+  },
+  {
+    "address": "0xe66af5802053e8330e4d2752d12caf7535b8de6e",
+    "gems": 4
+  },
+  {
+    "address": "0x66cfb1f318a04a398dbb440df8e0c6794c10c9a6",
+    "gems": 4
+  },
+  {
+    "address": "0x3e02cec2e6e05242ae4a6d52391cc0b4622d1eb7",
+    "gems": 4
+  },
+  {
+    "address": "0x6cc27e2b8c630298f7cf906fa2aa338184f8a90f",
+    "gems": 4
+  },
+  {
+    "address": "0x5efdd6bae293710cc95a2108a9c9315b1887ae62",
+    "gems": 4
+  },
+  {
+    "address": "0x9a61a51aaafa2b45f44a42a122690cee8b8de016",
+    "gems": 4
+  },
+  {
+    "address": "0x33b440771fbab3ce2af7a5f3327192622612d5b6",
+    "gems": 4
+  },
+  {
+    "address": "0x0ea1619e13415fb15233a3119c88db71a73bb2a6",
+    "gems": 4
+  },
+  {
+    "address": "0xf3282d2aa066a992457f8dfd4f1b1ace8c3a8266",
+    "gems": 4
+  },
+  {
+    "address": "0x006978529349950fcb6478e83e07dc452bdf0669",
+    "gems": 4
+  },
+  {
+    "address": "0x3a02bbf0a4a7a40fc92aa004607d18432c030ef9",
+    "gems": 4
+  },
+  {
+    "address": "0xec57ba648fdea8e44e3a8190b67d04e73a5bf978",
+    "gems": 4
+  },
+  {
+    "address": "0x965c749aea1993309e151d2acf7362d4963a1c13",
+    "gems": 4
+  },
+  {
+    "address": "0x65579e30d8c061061dfa94997eedf0862211c6f1",
+    "gems": 4
+  },
+  {
+    "address": "0xac0919203c71023bd2bb146ae6d3645f87b6c024",
+    "gems": 4
+  },
+  {
+    "address": "0xad0eb266aed2c1c5b081d05d625d3eabda318537",
+    "gems": 4
+  },
+  {
+    "address": "0x3b1702800382c1095ce62ea96e0f1684e8a67e5c",
+    "gems": 4
+  },
+  {
+    "address": "0x83b2b4682ea422dea49c3bfe9aa41fa38becc30b",
+    "gems": 4
+  },
+  {
+    "address": "0x43512d349e78d9ab0c0cf73d391c3e8d3d077570",
+    "gems": 4
+  },
+  {
+    "address": "0xf4f22b7655cd367280cb7a376f80561ad0839912",
+    "gems": 4
+  },
+  {
+    "address": "0x89d25f5087fdbd12a2bbb1215eedd6e34ceaaab4",
+    "gems": 4
+  },
+  {
+    "address": "0xd99d4c40d7f7cae273856ff60849a83e1373630f",
+    "gems": 4
+  },
+  {
+    "address": "0xf967fd95e67ab420cfc7ecb85e14a8cca0b57c31",
+    "gems": 4
+  },
+  {
+    "address": "0x25f104c4e16b1725a2b148c232d791e339c751a6",
+    "gems": 4
+  },
+  {
+    "address": "0x57a38fca0d1d4fcbfa7e77a8b38a72f927297600",
+    "gems": 4
+  },
+  {
+    "address": "0x831df22569456a5495deaba331081a043f934ebf",
+    "gems": 4
+  },
+  {
+    "address": "0x806268eb7218f87550446e11fecd22d35cac4669",
+    "gems": 4
+  },
+  {
+    "address": "0x19c0254b905936de40917b410423057363f7e241",
+    "gems": 4
+  },
+  {
+    "address": "0xcc3d03c1ebc4ac717558fa8a78d0e0f888dd0cb3",
+    "gems": 4
+  },
+  {
+    "address": "0xa7346ed65e2d99376e1967cb308347fffaa5815e",
+    "gems": 4
+  },
+  {
+    "address": "0xe8b4d30e8baf8d538d4f139f5ac54b396018ac05",
+    "gems": 4
+  },
+  {
+    "address": "0x54b5a9218d7e580a87209e504217c4a8e945e7de",
+    "gems": 4
+  },
+  {
+    "address": "0x45077a457d0eab65e093176c40d7db541d2345c7",
+    "gems": 4
+  },
+  {
+    "address": "0x3ed3cad99d53f1403b7c98935594f1f31e6d2888",
+    "gems": 4
+  },
+  {
+    "address": "0x185e8daf0fac9a93aaa557d242d00b14a75b591a",
+    "gems": 4
+  },
+  {
+    "address": "0xe36d992642555833e70e62dd6a60f846a8df7cb1",
+    "gems": 4
+  },
+  {
+    "address": "0xb3316640f15a982b124a3cdb06313d109e5c5129",
+    "gems": 4
+  },
+  {
+    "address": "0xa176decaae0569579272a3153bfd9c0eb7b6458d",
+    "gems": 4
+  },
+  {
+    "address": "0x244cf5d355b2cff2f29f059e038e11c432a1d639",
+    "gems": 4
+  },
+  {
+    "address": "0x1b22eda88881a1c12c84e1f936b700d43fac1bc7",
+    "gems": 4
+  },
+  {
+    "address": "0x586bc714dc50956ab952f70aa8c914db98d3e68a",
+    "gems": 4
+  },
+  {
+    "address": "0x60eadd8368fe206d0f33b196e8a401fa985b21a5",
+    "gems": 4
+  },
+  {
+    "address": "0xb0961eb67b5f324df7761a8fd21cd8965b2eb703",
+    "gems": 4
+  },
+  {
+    "address": "0x4bf3e6898e1268fa2932c4a0ddec22c87512dbff",
+    "gems": 4
+  },
+  {
+    "address": "0xb3091a8c447b37d2de0ba25a6cb482ee0faeae91",
+    "gems": 4
+  },
+  {
+    "address": "0x221dbdcd99d44021dd727393b247325b4da1e526",
+    "gems": 4
+  },
+  {
+    "address": "0x1945acc401c77ad6652bf5160394015d602a804c",
+    "gems": 4
+  },
+  {
+    "address": "0x7a7625ed689c0a768ecbd19f1aa65f524416ef43",
+    "gems": 4
+  },
+  {
+    "address": "0x1194001fd9b35df311c4316f8303de4405c7904a",
+    "gems": 4
+  },
+  {
+    "address": "0xdb79d5cabf95456946f191f770a5b1707e2e7423",
+    "gems": 4
+  },
+  {
+    "address": "0xf49391b3d590babe38a93bdd6f875ef00d1dc4d4",
+    "gems": 4
+  },
+  {
+    "address": "0xc4c948208c0343c1a413fc70798e72ee7642ab6b",
+    "gems": 4
+  },
+  {
+    "address": "0x73b1601ab7ac34b8e5cc5dc87a7d413d5d6ad056",
+    "gems": 4
+  },
+  {
+    "address": "0x9e08065cc79c723b0659e422f0275f23edfc3148",
+    "gems": 4
+  },
+  {
+    "address": "0xf1f12cbf9acf75271428b060ba65d0b2a341125b",
+    "gems": 4
+  },
+  {
+    "address": "0x185abe501d0ec7e1328c2d00148f860a326f07db",
+    "gems": 4
+  },
+  {
+    "address": "0x83ba76913a078b15b13bba8bc587206e7fd7d590",
+    "gems": 4
+  },
+  {
+    "address": "0x361288ff8d8fe85831cbe7b61d885d7c7394dc99",
+    "gems": 4
+  },
+  {
+    "address": "0x1bafa021b181c0e34edfc4a70068b0ba1622d605",
+    "gems": 4
+  },
+  {
+    "address": "0x945cbda555ff332061f920da27fa33afe8e4bb94",
+    "gems": 4
+  },
+  {
+    "address": "0x2401d9a3768b09d62d10da44f413eef40cab6a87",
+    "gems": 4
+  },
+  {
+    "address": "0xd4c0684df1987758f8a37d8b10d2cba02b6da5be",
+    "gems": 4
+  },
+  {
+    "address": "0x7e7e56d5405f05113f6ffbd5be687f6617b1e8ea",
+    "gems": 4
+  },
+  {
+    "address": "0xedd6a6e60fc285bf08206cc224954bad60090aed",
+    "gems": 4
+  },
+  {
+    "address": "0x6df49903a05bea822e2e29e21ea8769407318289",
+    "gems": 4
+  },
+  {
+    "address": "0x30bdb56b69746635f18a01bdd1b029d56418c35a",
+    "gems": 4
+  },
+  {
+    "address": "0x909b88b53c291c50252c097d20f6e2d6ce956be7",
+    "gems": 4
+  },
+  {
+    "address": "0x6cf8b2fa5c1357eb12aa050b647ae102536fe85c",
+    "gems": 4
+  },
+  {
+    "address": "0xd612234be68c6bc218b97054d8fb0b2d90d2be9e",
+    "gems": 4
+  },
+  {
+    "address": "0x7e56ef590d5f62564908214ff879379758bdfa5b",
+    "gems": 4
+  },
+  {
+    "address": "0x95bd5e5ef60d4e68029b03a492cecba04b6de6e0",
+    "gems": 4
+  },
+  {
+    "address": "0x0d48f07e0a08185952d45dfe45f9b93117bff0d9",
+    "gems": 4
+  },
+  {
+    "address": "0xc063953ac38e22ea3d52e7f700d4f8473eb7b2af",
+    "gems": 4
+  },
+  {
+    "address": "0xda843b038a015c175e4738f9b323074e23f2af67",
+    "gems": 4
+  },
+  {
+    "address": "0x819a70ae8cbde590231dafa4afc5e6cbb7f7a32e",
+    "gems": 4
+  },
+  {
+    "address": "0xc2628ca44e1821f2789227c7b0b9647d54ee7834",
+    "gems": 4
+  },
+  {
+    "address": "0x4c3b2345f41a664cbab9d8bc040f18af391833e8",
+    "gems": 4
+  },
+  {
+    "address": "0x56e8b0390e0df8d777f33c377f2e737decb6b9a8",
+    "gems": 4
+  },
+  {
+    "address": "0x650931f0e1f9aa9f8c538e8abc741164cf53a968",
+    "gems": 4
+  },
+  {
+    "address": "0xa2d69810b16148427a081ed48ca665aae8e2d5fa",
+    "gems": 4
+  },
+  {
+    "address": "0xff015d7e49f50316dfcc1426f7a758a7673e9ea5",
+    "gems": 4
+  },
+  {
+    "address": "0x4bdb0681f9ed6716bc47a9f8820c33758fc707e3",
+    "gems": 4
+  },
+  {
+    "address": "0x529a16f33c43b31e8a2ec7a0c88081e480b62a5a",
+    "gems": 4
+  },
+  {
+    "address": "0xc05f94e03fd8c5c24cf9ee2c6a57cac5a7c5161b",
+    "gems": 4
+  },
+  {
+    "address": "0xcb820328bfe64917168305e83ddc1fb44c6bfead",
+    "gems": 4
+  },
+  {
+    "address": "0x96162b81ab6787422f13aedc60f85fee87c8ee62",
+    "gems": 4
+  },
+  {
+    "address": "0x640da16d884e4819bdc99b48c619804b46379dcb",
+    "gems": 4
+  },
+  {
+    "address": "0xc85c1c57a676d5e52fcb43552be9c9c0c0a37f11",
+    "gems": 4
+  },
+  {
+    "address": "0x5f7bffb7af2f25e4d8b76cf72ea6f1a0e5f4ee90",
+    "gems": 4
+  },
+  {
+    "address": "0xf8924ca5ff001aff1afee0cb4aa7e30a2e566a05",
+    "gems": 4
+  },
+  {
+    "address": "0xaeff12fe148afd9d666d018e9a617af6acc02853",
+    "gems": 4
+  },
+  {
+    "address": "0x66ba20837ff853b7e8a17727c404d51bccba5cef",
+    "gems": 4
+  },
+  {
+    "address": "0xfd73a4317bede9eb49f2e6dcb2c2a53c6283ad87",
+    "gems": 4
+  },
+  {
+    "address": "0xf26fd393b179ba0d3584d8e4af9edf1c1d9af414",
+    "gems": 4
+  },
+  {
+    "address": "0x6e9019d53a6c3806c0348445d3022f4ad11982d4",
+    "gems": 4
+  },
+  {
+    "address": "0x5bcef8cdbf0ab5a961142d3240307f3ccb7a0064",
+    "gems": 4
+  },
+  {
+    "address": "0x94f99b23f0bf1601b84aa6812c1c61acb02b5ccf",
+    "gems": 4
+  },
+  {
+    "address": "0x218899c5bae1fb5377a6afb873b89fbb69e0b468",
+    "gems": 4
+  },
+  {
+    "address": "0x6e588dc0c03340f7998a7b8c5d85f4cf5d5aa0dc",
+    "gems": 4
+  },
+  {
+    "address": "0x367a24cb33c4f5d4d4f1e2e14f3752a1b1a786a4",
+    "gems": 4
+  },
+  {
+    "address": "0x70c7723f493d138596bc8e9e8c825491cd0a555b",
+    "gems": 4
+  },
+  {
+    "address": "0xbbb95408eaa2565c2bdd14d48f124891b88b4a19",
+    "gems": 4
+  },
+  {
+    "address": "0x1f3ed94647b207e8235bbf0ea6ea1d986ecc1b2f",
+    "gems": 4
+  },
+  {
+    "address": "0xe98824d06ef29d05593b7fbf1fd39287ead4428d",
+    "gems": 4
+  },
+  {
+    "address": "0x2cea65f397419dbb9ff9d1f00d11428e750f2afc",
+    "gems": 4
+  },
+  {
+    "address": "0x43c1b773a16e3d4fa5a9cd31fffea4a74603d363",
+    "gems": 4
+  },
+  {
+    "address": "0xf61691603e1484e88b291814807256e69e504652",
+    "gems": 4
+  },
+  {
+    "address": "0xf6544fd8cc7384e179cc54b3f11fae01e59e8917",
+    "gems": 4
+  },
+  {
+    "address": "0xe51a728cb15e40b7e664e8d5c4afecb1488f899e",
+    "gems": 4
+  },
+  {
+    "address": "0x838f5f82fb8e377a67e2e8ec484830d7c8047f66",
+    "gems": 4
+  },
+  {
+    "address": "0xe2bb61cdb1f27a7ff1373f8834e74985bd2e706f",
+    "gems": 4
+  },
+  {
+    "address": "0xfb7af8c7d6d133279f408ebc469a064d8c70eaa2",
+    "gems": 4
+  },
+  {
+    "address": "0x2e44503c63965fabd5f686d402349e60385c2104",
+    "gems": 4
+  },
+  {
+    "address": "0xe9e1c44078a2cad8b4a145fe84e46a62aec78851",
+    "gems": 4
+  },
+  {
+    "address": "0x6299c318d1529dc60d79fccfa1b4de85e4b14cc6",
+    "gems": 4
+  },
+  {
+    "address": "0x17dd30feec5edcb598cdceadc1470cd90e6ccbba",
+    "gems": 4
+  },
+  {
+    "address": "0xa666131c7bf9d8871d5d7c3bdb3df23f47ba4634",
+    "gems": 4
+  },
+  {
+    "address": "0x61d299304046552418abeff8538a30021f5858a0",
+    "gems": 4
+  },
+  {
+    "address": "0x10b010313d80cea8f1c62b2ca8e2cfe13910b7ab",
+    "gems": 4
+  },
+  {
+    "address": "0x94bfdedbee0e4c3dc99686fe71e49af87df7427a",
+    "gems": 4
+  },
+  {
+    "address": "0x7bf5598336c50e2ab44198d5530ae1cce8c1cbcc",
+    "gems": 4
+  },
+  {
+    "address": "0x808a172bae157709e4b90f516808242f33884269",
+    "gems": 4
+  },
+  {
+    "address": "0x6c2e9053bc8d0a6fdb72f076e555c747673e3862",
+    "gems": 4
+  },
+  {
+    "address": "0x09cfcfac64a396a2d1d91333b4c9776a6e2ca63c",
+    "gems": 4
+  },
+  {
+    "address": "0x3ad2e86226fca8efd50e11ffb1d91748284f590a",
+    "gems": 4
+  },
+  {
+    "address": "0x728052acd93d7a66164b11774456b96e1561a756",
+    "gems": 4
+  },
+  {
+    "address": "0xb3c3724c09bf99027b15712a9d575b494f59944c",
+    "gems": 4
+  },
+  {
+    "address": "0x0b918aab5ad93fc3fc87cbdea4fbd9553fec8241",
+    "gems": 4
+  },
+  {
+    "address": "0x61181eaac01120ad3d0f23df4e28293edd1c457a",
+    "gems": 4
+  },
+  {
+    "address": "0xe6568b538899c58a5ce8ec26adc79b756c1daecb",
+    "gems": 4
+  },
+  {
+    "address": "0x2adcf8a929e8255a8d36fad3371bd99febc2e0c6",
+    "gems": 4
+  },
+  {
+    "address": "0x67f61070b2d5d68eab5a0d2fd1c00162070e841a",
+    "gems": 4
+  },
+  {
+    "address": "0x308310be2cb9585d61d40931b5c81b52813f339d",
+    "gems": 4
+  },
+  {
+    "address": "0xba6768d0eeddee2a5538d81a9a24c6d054edb3a8",
+    "gems": 4
+  },
+  {
+    "address": "0xbba3920c8e3a8d15e6de634f6e4430c8d2075a6c",
+    "gems": 4
+  },
+  {
+    "address": "0xd2fb0afe78267671cb892c0b7ab834588e84f429",
+    "gems": 4
+  },
+  {
+    "address": "0x9e38beef4f1afbd007f1629be766faefdbf310e0",
+    "gems": 4
+  },
+  {
+    "address": "0x69953d43385a1fe3b95d4d0900b83c640f5cf5fc",
+    "gems": 4
+  },
+  {
+    "address": "0x8cf511d487c2b04122d6754697f11e563080660c",
+    "gems": 4
+  },
+  {
+    "address": "0x6b49af8ef87af7e7fe7914a07c813db399242d53",
+    "gems": 4
+  },
+  {
+    "address": "0x7f61eee59b0f9ac14ae4d629f4ce0b01acfa951c",
+    "gems": 4
+  },
+  {
+    "address": "0xa0a491de5f15dec19cce9ad4202d60838d3ae78c",
+    "gems": 4
+  },
+  {
+    "address": "0x11035dc7d105503023c0f8710a1cd24abf89d15d",
+    "gems": 4
+  },
+  {
+    "address": "0xae5e7cd603291044af3ae4e11736692c29159228",
+    "gems": 4
+  },
+  {
+    "address": "0x8771a946c65f2da3e8c69e68e2c343b06de077dc",
+    "gems": 4
+  },
+  {
+    "address": "0xc8d4274f9b8764d444d9e3083153fa7f53870478",
+    "gems": 4
+  },
+  {
+    "address": "0x7a23fcc7b9cf352ddfea1b8dcdaf82b2510989df",
+    "gems": 4
+  },
+  {
+    "address": "0xc158c99643431c4ed2764a545fec32914fd91653",
+    "gems": 4
+  },
+  {
+    "address": "0x8b0f22e00a53eb064a5e59ebd28e780ff5d88127",
+    "gems": 4
+  },
+  {
+    "address": "0x012f9da2c72a79c2eb37b5e2e32a92dff976a0a8",
+    "gems": 4
+  },
+  {
+    "address": "0xf13c388cf2f3a8d84d36e6af54f59db4c073150f",
+    "gems": 4
+  },
+  {
+    "address": "0xbeac1506e1530959597820ccf82c77eebfc17648",
+    "gems": 4
+  },
+  {
+    "address": "0x1319346deeb144d0fb6f1afc0f0a629b46ad783c",
+    "gems": 4
+  },
+  {
+    "address": "0x9d8dab574002a9eede7dfc9bef9c01d90f6dca33",
+    "gems": 4
+  },
+  {
+    "address": "0xca4f5a7e6d8658e7f6c2e7ca01bc6df305d76ab8",
+    "gems": 4
+  },
+  {
+    "address": "0xa5fbd5d1de732be6dece4b7a77b1d5362587c0ec",
+    "gems": 4
+  },
+  {
+    "address": "0x018031acf8d46ac6feb08baeb3bffc062afa9dd1",
+    "gems": 4
+  },
+  {
+    "address": "0x00137a6fb31db545f4a202b4d53b7c836a815090",
+    "gems": 4
+  },
+  {
+    "address": "0x08e3290bca5350e1bf39eaf3958dd6afabc08a6c",
+    "gems": 4
+  },
+  {
+    "address": "0xac4a9d4278ee6f21e17386e5f48c935d80c61b3d",
+    "gems": 4
+  },
+  {
+    "address": "0xd259b7889e7cf342a239dca1f9180d3d31132026",
+    "gems": 4
+  },
+  {
+    "address": "0x6ce74feb6e2382232ca833613d63c75c9449e402",
+    "gems": 4
+  },
+  {
+    "address": "0x84bae82f8863495bd24e933618172299e8a822b1",
+    "gems": 4
+  },
+  {
+    "address": "0x40121dbd2f88288731d442d02f43867ae3a9b626",
+    "gems": 4
+  },
+  {
+    "address": "0x1a586011fce671221762e8f6163604d6193e474d",
+    "gems": 4
+  },
+  {
+    "address": "0x963d9ec3edf90b8f958e4d59bba35b0cff989366",
+    "gems": 4
+  },
+  {
+    "address": "0x6427c5221edf7f8c8c6ddb8f0bbb8325d509b743",
+    "gems": 4
+  },
+  {
+    "address": "0xcf5eb6eaae245275b78bc58c6ec11b76afaf2d5f",
+    "gems": 4
+  },
+  {
+    "address": "0x1d209e68822a0c7ad19074cad9151737ff1a9d66",
+    "gems": 4
+  },
+  {
+    "address": "0xb96e4a9bf78a75f8154396580e3794283ffbd363",
+    "gems": 4
+  },
+  {
+    "address": "0xfced429e6f852501e79a06afb8c97794e00c3c41",
+    "gems": 4
+  },
+  {
+    "address": "0x049756a5e2ed4f2f519b3f8e8f5dabe40fbdbfbf",
+    "gems": 4
+  },
+  {
+    "address": "0x21d4dc2a9fecab3762892fad1518c3ef754db5c7",
+    "gems": 4
+  },
+  {
+    "address": "0xddce55d3b6dfcd8503412d663a708bdf70ce7361",
+    "gems": 4
+  },
+  {
+    "address": "0x22adcc770ae0aac967c7f36fd7ab74f24586ac56",
+    "gems": 4
+  },
+  {
+    "address": "0x838069aa393c01fbb667f620cc41bb0c0c5a67cd",
+    "gems": 4
+  },
+  {
+    "address": "0x38173bcaa0855dc69d8b292c89d56de4f36a09ec",
+    "gems": 4
+  },
+  {
+    "address": "0x5d9d7ed496565564c8748b79090e3ae01e150312",
+    "gems": 4
+  },
+  {
+    "address": "0x9c49b13eb36a75a748640ff4b5caafc2ad3eba52",
+    "gems": 4
+  },
+  {
+    "address": "0x3ee98a4a83a09bddb311a4a9e9eb38e59452ef9c",
+    "gems": 4
+  },
+  {
+    "address": "0x55210a8b272032cfe58659e5dab23b641429f037",
+    "gems": 4
+  },
+  {
+    "address": "0x5e407d21a5745608fd8e4c141262e94690f23fed",
+    "gems": 4
+  },
+  {
+    "address": "0x94e735f741c773798f6b2c819f5b1382257490d7",
+    "gems": 4
+  },
+  {
+    "address": "0xb423126f53af4463904cab93c28e2f6a0fbaf5a5",
+    "gems": 4
+  },
+  {
+    "address": "0x27f742de39b89e917f3f33d58d9c829740bc5673",
+    "gems": 4
+  },
+  {
+    "address": "0xf8fd71e75a28225afa7373eac7a1a72473dff817",
+    "gems": 4
+  },
+  {
+    "address": "0xdf60da7f0996c6c07dab0497efc895c30ea66ed5",
+    "gems": 4
+  },
+  {
+    "address": "0x14f04f9c78badbf76e077f0f185fda2e51a7b78b",
+    "gems": 4
+  },
+  {
+    "address": "0x933f2067a485651885703f93bd0f9d7b53e26297",
+    "gems": 4
+  },
+  {
+    "address": "0x6c857b353f17276f19df1f05641253e994a393f7",
+    "gems": 4
+  },
+  {
+    "address": "0xde09c9c6147f213ae6df38ca863caaac83deb5ef",
+    "gems": 4
+  },
+  {
+    "address": "0x43a0797d592d81c13eaa5cd3b948336e14b56920",
+    "gems": 4
+  },
+  {
+    "address": "0xad4c0334b526dc80b228aafc69a0e8d7d8747eef",
+    "gems": 4
+  },
+  {
+    "address": "0xc645d71af3489f3f954fcc637df1e11b223455d8",
+    "gems": 4
+  },
+  {
+    "address": "0x869775201d9a7a8fd2594693db5199dc7e81a3de",
+    "gems": 4
+  },
+  {
+    "address": "0x35d2560e52bbb7c41404e58f4da42e25282d08b9",
+    "gems": 4
+  },
+  {
+    "address": "0x318945b33fd28f5eb791c7f34d269bf118311b80",
+    "gems": 4
+  },
+  {
+    "address": "0xd5782b72cf6ef0aac2f6ee32a0bc01eb28d960cb",
+    "gems": 4
+  },
+  {
+    "address": "0xe665ffe5652512b3bb40ef94d2196ea5c0ed725c",
+    "gems": 4
+  },
+  {
+    "address": "0x4d11acd58cb1469fba63a82857dd40702fb219fd",
+    "gems": 4
+  },
+  {
+    "address": "0xc9f7079741a0029ff6a12400482738431f91807b",
+    "gems": 4
+  },
+  {
+    "address": "0xfe9de681229bc8a45645bfec245c1db9acc78be9",
+    "gems": 4
+  },
+  {
+    "address": "0xcfb08e7c0711efdfbaddb5ce6c4f63c44ad4e984",
+    "gems": 4
+  },
+  {
+    "address": "0xe1ccc37983c22efcb5bc8ecd77501695a736da6a",
+    "gems": 4
+  },
+  {
+    "address": "0xbdc39e075848daf26155f25b4f9038bd4bbd5ff5",
+    "gems": 4
+  },
+  {
+    "address": "0xa582271ebda919423ac6a41cf498b517ae6c7c82",
+    "gems": 4
+  },
+  {
+    "address": "0x3898f9754c26abf8212a7dcef19dbbe012bdb287",
+    "gems": 4
+  },
+  {
+    "address": "0xdb11e6fde84e80d85f865724ababb4cd28b2df83",
+    "gems": 4
+  },
+  {
+    "address": "0x45ea8993255bb1c4e4b116751b46b492de1eeb41",
+    "gems": 4
+  },
+  {
+    "address": "0x17c829931a7605f14d60b1821b3c66f3a705e1a7",
+    "gems": 4
+  },
+  {
+    "address": "0xf3bb56680da9eff69ba9f3d4b4b3a402f4a792d5",
+    "gems": 4
+  },
+  {
+    "address": "0xfe1e532e146dd57dc49e36afeaac516b54ede819",
+    "gems": 4
+  },
+  {
+    "address": "0x344ef80f1890376810971bd373755f967a0ad097",
+    "gems": 4
+  },
+  {
+    "address": "0x253bfcc946b72e27ca2fb97ac64a63f4a0fb233f",
+    "gems": 4
+  },
+  {
+    "address": "0xe15387a8456129cf8fe0ac08cb90c978c4694f6e",
+    "gems": 4
+  },
+  {
+    "address": "0xabe1aed5d18f9dbfa3155e9d8d869be7b761d217",
+    "gems": 4
+  },
+  {
+    "address": "0x77aca6a28cb0d4ea3924ed5f822b947a500cf318",
+    "gems": 4
+  },
+  {
+    "address": "0x132900ec607875cc7e97b4f06d856fe279b7392f",
+    "gems": 4
+  },
+  {
+    "address": "0x071d5fb045d7a25a0f7bb4dfef4209f5abe9932e",
+    "gems": 4
+  },
+  {
+    "address": "0x3fa65827fa07d484df6eb80dda138e7104c6c5c5",
+    "gems": 4
+  },
+  {
+    "address": "0xb287d8fa6fc7b27ee19ecc0926c6405b7573bda4",
+    "gems": 4
+  },
+  {
+    "address": "0x2e86b5048f34016c1345d8f1df0ad7e04641f73b",
+    "gems": 4
+  },
+  {
+    "address": "0x0c92f1e8235920f503ec30f6c73f809356bbdd1c",
+    "gems": 4
+  },
+  {
+    "address": "0x706ef120c587d2f3174212721ed6b22adfd85c8f",
+    "gems": 4
+  },
+  {
+    "address": "0xc272f5dc56b6ef478711ddafc3ccb256f35874a6",
+    "gems": 4
+  },
+  {
+    "address": "0x37630f7662c7e4c3268d9255e8cd0598901403ea",
+    "gems": 4
+  },
+  {
+    "address": "0x18ed92b2395ed205a6ccd3d99fc3cd07539d36d2",
+    "gems": 4
+  },
+  {
+    "address": "0x4315e504d0ba7f5ff21c0b299a1297c9319179f2",
+    "gems": 4
+  },
+  {
+    "address": "0x3a451b41e1c10740699df0066895f0c54d505566",
+    "gems": 4
+  },
+  {
+    "address": "0x82cec0d0997c7d9ad4925cd2e1e1172cd5e9a09a",
+    "gems": 4
+  },
+  {
+    "address": "0xd81b8331c9932d0edbffd2d34454cd56a080939e",
+    "gems": 4
+  },
+  {
+    "address": "0x870ca1ded9bd730517b471ff304e5a15004f9c81",
+    "gems": 4
+  },
+  {
+    "address": "0x853f6b43fc26130395ef6aedbc11378aa4f9b17b",
+    "gems": 4
+  },
+  {
+    "address": "0x4c9d3a1695eba154c0b3c33bfa17999c02eedeb2",
+    "gems": 4
+  },
+  {
+    "address": "0xce798d094eaba91abd6289ac40a029b2c33625a6",
+    "gems": 4
+  },
+  {
+    "address": "0xf1acf5ac170bec75ad512077b040798254b2db7b",
+    "gems": 4
+  },
+  {
+    "address": "0xc2a6ac1c2611fbbe424ad96fe150506c9805953a",
+    "gems": 4
+  },
+  {
+    "address": "0x10db717f01e0d6d6a689465d5d2d230e539a98e8",
+    "gems": 4
+  },
+  {
+    "address": "0x302741e1ed51ad87ebdd181370d7a170d61aab48",
+    "gems": 4
+  },
+  {
+    "address": "0x855ad1229a37fffc4e7b0cb3943178c16fb2ca44",
+    "gems": 4
+  },
+  {
+    "address": "0x8e8d3189342e7ab334c4a7fdf88cb8a5138d6cff",
+    "gems": 4
+  },
+  {
+    "address": "0xe3d523902ae58970604e558c661f3cf7ab3fbe29",
+    "gems": 4
+  },
+  {
+    "address": "0xbcfb6e12df1163208f5dfc1b686309a6bb4f62df",
+    "gems": 4
+  },
+  {
+    "address": "0x30374bf6250d0259f09d008fe994bccbba46e6fd",
+    "gems": 4
+  },
+  {
+    "address": "0xc82a30591438af78478182a708be87e6977816f1",
+    "gems": 4
+  },
+  {
+    "address": "0x0493b66ac10cb82bb482c40c12aa1dc64aa06c78",
+    "gems": 4
+  },
+  {
+    "address": "0x8768cf5dd4377624c17b338a2077ce4ab81f1694",
+    "gems": 4
+  },
+  {
+    "address": "0xa8d6b9d47e91d9a369c7cede2a9bc5713b8fb02b",
+    "gems": 4
+  },
+  {
+    "address": "0x63d00e92750532a83b129d5b22f2264486ad5179",
+    "gems": 4
+  },
+  {
+    "address": "0xdc207bf547430b4c16acd546577ce3014bf0fe94",
+    "gems": 4
+  },
+  {
+    "address": "0xf8d1073be7a3bc21eee081c37dab0e43f8b648e1",
+    "gems": 4
+  },
+  {
+    "address": "0x659ccd3c22902443edd59ba5a1aba950965c56a9",
+    "gems": 4
+  },
+  {
+    "address": "0x85a5ea8a493a1c7db52e0906c5c5faab4d531e24",
+    "gems": 4
+  },
+  {
+    "address": "0x501a0b55abbaefc5e0b4327a8f0c93f7365d02b6",
+    "gems": 4
+  },
+  {
+    "address": "0xd28d346ecd552cfd78fbc6008fc5283d1c888240",
+    "gems": 4
+  },
+  {
+    "address": "0x045825b5685e0a86cd193f6c9982eee157438d2f",
+    "gems": 4
+  },
+  {
+    "address": "0x19ba45723a48a2e4d195592f9ec54d4b455bfb95",
+    "gems": 4
+  },
+  {
+    "address": "0x0fc93ded5889efe382fbc76d8cbc0abcc8754022",
+    "gems": 4
+  },
+  {
+    "address": "0x070d452faa3dd429b94feebf3de330f24ca0919a",
+    "gems": 4
+  },
+  {
+    "address": "0xf500707f54c290a7ed44ef6ee864a1e45a06df1d",
+    "gems": 4
+  },
+  {
+    "address": "0xe6a5e9ef2ed50a04274218b2f532e12396c69d3b",
+    "gems": 4
+  },
+  {
+    "address": "0xaf407ee36b52669234b882a6ea5a64957615a473",
+    "gems": 4
+  },
+  {
+    "address": "0x1ae61e1af1dffe0f62006a35c91c78dfbbe4d1d1",
+    "gems": 4
+  },
+  {
+    "address": "0xec760a75218183b242ff8e690763f864fb00b476",
+    "gems": 4
+  },
+  {
+    "address": "0xd7b92d4eab52197da1d9613077565ddbfe5926e4",
+    "gems": 4
+  },
+  {
+    "address": "0x204e8c11cedc2d64f6a0db69929f6e3b0e92b745",
+    "gems": 4
+  },
+  {
+    "address": "0x89e46f7330f89bc3a597021833ee3a0ed5e8a572",
+    "gems": 4
+  },
+  {
+    "address": "0xdc8030fd9d1f159bd396d895ec262b26d48bce67",
+    "gems": 4
+  },
+  {
+    "address": "0x9f994c050f5272f79c51a26347f99628f4e505a1",
+    "gems": 4
+  },
+  {
+    "address": "0xf16fea004196c2873fc532c45e32b6d8492958e2",
+    "gems": 4
+  },
+  {
+    "address": "0x57781e4741ec585a2237cb468bdccad00f036241",
+    "gems": 4
+  },
+  {
+    "address": "0x1ad0c6c23bc2b49e7c3fc31d675d31b8f2de4d57",
+    "gems": 4
+  },
+  {
+    "address": "0x2f1cd57ffcb3d7ea760b49de389ab7eeca701d22",
+    "gems": 4
+  },
+  {
+    "address": "0x338460b3af6615705bcc2eb6b9e726f0c814fade",
+    "gems": 4
+  },
+  {
+    "address": "0x5fdd3beb8fb705f17ae82747cd2843ba95a87943",
+    "gems": 4
+  },
+  {
+    "address": "0xfe22daed2c72516185c040efcefa24545c0b7a92",
+    "gems": 4
+  },
+  {
+    "address": "0x6c2bd86a79598a748fa4759686c7bfb88dce9c1b",
+    "gems": 4
+  },
+  {
+    "address": "0x28f2c8014aa051ec7c4a50ab1c7a68dd81038b6a",
+    "gems": 4
+  },
+  {
+    "address": "0x8fc409dbe1dc4fc7268ca612699aba81e24dc42a",
+    "gems": 4
+  },
+  {
+    "address": "0x3531822a9469983ffb69c9a126ec5b30f9d79072",
+    "gems": 4
+  },
+  {
+    "address": "0x740e6a8dbf97dea853a27137c21498e67bec84c5",
+    "gems": 4
+  },
+  {
+    "address": "0xd2e73ebdbb73fe74922506c9596567d00b8b422a",
+    "gems": 4
+  },
+  {
+    "address": "0x444029bddb1614d57aaf634d6c614f6d4e67f2bc",
+    "gems": 4
+  },
+  {
+    "address": "0x49da242cbbf3a5346834f590e4dfff05bb58df78",
+    "gems": 4
+  },
+  {
+    "address": "0x4fddab472ae1a80f65b9c2928026a95577be7762",
+    "gems": 4
+  },
+  {
+    "address": "0xeaa553e9c37b936ba69eb75fa79ff844741d04eb",
+    "gems": 4
+  },
+  {
+    "address": "0x145c1d5f6c6af4c55f5121cff43e990ceda52e54",
+    "gems": 4
+  },
+  {
+    "address": "0xf350f7a4a3d56b44f4d27e400c98f3e6bde44e37",
+    "gems": 4
+  },
+  {
+    "address": "0x4c1D7B0863df9B3A21aA626adDA86D787135526A",
+    "gems": 4
+  }
+]
+
+
+/** EVM: case-insensitive. Solana / other non-hex: exact match (Base58 is case-sensitive). */
+export function findAllocationRaceRewardForWallet(walletAddress) {
+  if (!walletAddress || typeof walletAddress !== "string") return undefined;
+  const w = walletAddress.trim();
+  const isEvm = /^0x[a-fA-F0-9]{40}$/.test(w);
+  return allocationRaceRecords.find((entry) => {
+    const a = entry.address;
+    if (!a || typeof a !== "string") return false;
+    if (isEvm && /^0x[a-fA-F0-9]{40}$/.test(a)) {
+      return a.toLowerCase() === w.toLowerCase();
+    }
+    return a === w;
+  });
+}
