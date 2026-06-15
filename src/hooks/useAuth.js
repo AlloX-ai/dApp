@@ -13,6 +13,10 @@ import { setWalletType } from "../redux/slices/walletSlice";
 import { persistWalletType, getPersistedWalletType } from "../utils/walletPersistence";
 import { resolveWalletProvider } from "../utils/resolveWalletProvider";
 import { runPrivyLogoutBridge } from "../auth/privyLogoutBridge";
+import {
+  clearStoredReferralCode,
+  getStoredReferralCode,
+} from "../utils/referral";
 import { toast } from "../utils/toast";
 
 // Simple in-module singleton so all `useAuth` hook instances
@@ -168,8 +172,7 @@ export async function completePrivyAuth(privyToken) {
   if (!privyToken) {
     throw new Error("Missing Privy token");
   }
-  const ref =
-    typeof window !== "undefined" ? localStorage.getItem("allox_ref") : null;
+  const ref = getStoredReferralCode();
   const res = await fetch(`${getApiUrl()}/auth/privy-verify`, {
     method: "POST",
     credentials: "include",
@@ -197,11 +200,7 @@ export async function completePrivyAuth(privyToken) {
   }
   setGlobalToken(data.token);
   if (ref) {
-    try {
-      localStorage.removeItem("allox_ref");
-    } catch (e) {
-      console.error(e);
-    }
+    clearStoredReferralCode();
   }
   const resolvedProvider =
     data.authProvider != null
@@ -367,10 +366,7 @@ export const useAuth = () => {
         persistedWalletType: getPersistedWalletType(),
       });
 
-      const referralCode =
-        typeof window !== "undefined"
-          ? localStorage.getItem("allox_ref") || undefined
-          : undefined;
+      const referralCode = getStoredReferralCode() || undefined;
 
       const verifyRes = await apiCall("/auth/verify", {
         method: "POST",
@@ -389,11 +385,7 @@ export const useAuth = () => {
       // Always persist user with walletType and address so session restore and guards work after navigate
       setGlobalToken(verifyRes.token);
       if (referralCode) {
-        try {
-          localStorage.removeItem("allox_ref");
-        } catch (e) {
-          console.error(e);
-        }
+        clearStoredReferralCode();
       }
       // Wallet-based login — clear any stale Privy marker a previous session
       // might have left behind in localStorage.

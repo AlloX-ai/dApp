@@ -63,6 +63,7 @@ import { completePrivyAuth } from "./hooks/useAuth";
 import { useCheckin } from "./hooks/useCheckin";
 import { CheckinModal } from "./components/CheckinModal";
 import { getApiUrl, getApi2Url } from "./utils/api";
+import { captureReferralFromUrl } from "./utils/referral";
 
 import { Toaster } from "sonner";
 import { toast } from "./utils/toast";
@@ -1209,11 +1210,8 @@ function App() {
   }, [lastShown, count, isAuthenticated]);
 
   useEffect(() => {
-    const url = new URL(window.location.href);
-    const ref = url.searchParams.get("ref");
-    if (!ref) return;
-    const normalizedRef = ref.toLowerCase();
-    localStorage.setItem("allox_ref", normalizedRef);
+    const normalizedRef = captureReferralFromUrl();
+    if (!normalizedRef) return;
 
     fetch(
       `${getApiUrl()}/referral/track?ref=${encodeURIComponent(normalizedRef)}`,

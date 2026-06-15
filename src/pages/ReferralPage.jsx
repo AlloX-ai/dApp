@@ -24,6 +24,7 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import FAQReferralModal from "../components/FaqReferralModal";
 import { apiCall } from "../utils/api";
+import { buildShareUrl } from "../utils/referral";
 import { useAuth } from "../hooks/useAuth";
 import { setWalletModal } from "../redux/slices/walletSlice";
 
@@ -81,9 +82,9 @@ export function ReferralsPage() {
   });
 
   const referralCode = dashboard?.referralCode ?? null;
-  const baseReferralLink =
-    dashboard?.referralLink ??
-    (referralCode ? `https://lorenadev.dyp.finance/?ref=${referralCode}` : "");
+  const baseReferralLink = dashboard?.referralLink
+    ? buildShareUrl(dashboard.referralLink)
+    : "";
 
   const breakdown = dashboard?.stats?.breakdown ?? {};
   const totalGems = asNumber(dashboard?.stats?.totalGemsEarned);
@@ -320,7 +321,7 @@ export function ReferralsPage() {
     if (!selectedPool || !referralCode) return baseReferralLink;
     const pool = STAKING_POOLS.find((p) => p.id === selectedPool);
     if (!pool) return baseReferralLink;
-    return `https://allox.ai/stake?pool=${pool.id}&ref=${referralCode}`;
+    return `${window.location.origin}/stake?pool=${pool.id}&r=${referralCode}`;
   };
 
   const handleDownloadCSV = () => {
@@ -853,13 +854,13 @@ export function ReferralsPage() {
 
             {/* Info Buttons - Top Right */}
             <div className="flex gap-2">
-              <button
+              {/* <button
                 onClick={() => setShowBenefitsModal(true)}
                 className="bg-white rounded-full hover:bg-gray-200 transition-colors px-3 py-2  transition-colors flex items-center gap-2 text-xs whitespace-nowrap"
               >
                 <Info size={14} className="text-blue-600" />
                 <span className="font-medium">Program Benefits</span>
-              </button>
+              </button> */}
               <button
                 onClick={() => setShowTiersModal(true)}
                 className="bg-white rounded-full hover:bg-gray-200 transition-colors px-3 py-2  transition-colors flex items-center gap-2 text-xs whitespace-nowrap"
