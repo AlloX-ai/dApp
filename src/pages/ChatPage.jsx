@@ -98,6 +98,8 @@ import {
   switchPrivyEmbeddedToChain,
 } from "../utils/privyWalletUtils";
 import { isBinanceWalletConnection } from "../utils/binanceWallet";
+import { BinanceCampaignCheckinNotice } from "../components/BinanceCampaignCheckinNotice";
+import { useBinanceCampaignCheckin } from "../hooks/useBinanceCampaignCheckin";
 
 const BNB_CHAIN_SWITCH = {
   chainId: 56,
@@ -399,6 +401,10 @@ export function ChatPage() {
     hasActiveWalletSession &&
     !isBinanceWalletConnected &&
     !showBinanceBoosterWalletWarning;
+
+  const isBinanceCampaignRoute = location.pathname === "/bwcampaign";
+  const { shouldShowCampaignCheckin, progress: binanceCampaignCheckinProgress } =
+    useBinanceCampaignCheckin();
 
   const resetBinanceWizard = useCallback(() => {
     setBinanceError("");
@@ -3833,6 +3839,17 @@ export function ChatPage() {
                 <p className="text-gray-600 mb-6">
                   I can help you discover, execute, and manage your portfolio.
                 </p>
+                {isBinanceCampaignRoute && (
+                  <div className="max-w-xl mx-auto mb-6 text-left">
+                    <BinanceCampaignCheckinNotice
+                      progress={
+                        shouldShowCampaignCheckin
+                          ? binanceCampaignCheckinProgress
+                          : null
+                      }
+                    />
+                  </div>
+                )}
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-4">
                   {/* <button
                     type="button"
@@ -4480,6 +4497,14 @@ export function ChatPage() {
                           <span className="font-medium">BNB Chain</span>
                         </div>
                       </div>
+
+                      <BinanceCampaignCheckinNotice
+                        progress={
+                          shouldShowCampaignCheckin
+                            ? binanceCampaignCheckinProgress
+                            : null
+                        }
+                      />
 
                       {binanceError && binanceBasket.length === 0 && (
                         <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
