@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import FAQReferralModal from "../components/FaqReferralModal";
-import { api2Call } from "../utils/api";
+import { apiCall } from "../utils/api";
 import { useAuth } from "../hooks/useAuth";
 import { setWalletModal } from "../redux/slices/walletSlice";
 
@@ -83,7 +83,7 @@ export function ReferralsPage() {
   const referralCode = dashboard?.referralCode ?? null;
   const baseReferralLink =
     dashboard?.referralLink ??
-    (referralCode ? `https://allox.ai/r/${referralCode}` : "");
+    (referralCode ? `https://lorenadev.dyp.finance/?ref=${referralCode}` : "");
 
   const breakdown = dashboard?.stats?.breakdown ?? {};
   const totalGems = asNumber(dashboard?.stats?.totalGemsEarned);
@@ -160,9 +160,9 @@ export function ReferralsPage() {
     setDashboardError("");
     try {
       const [me, listData, boardData] = await Promise.all([
-        api2Call("/referral/me"),
-        api2Call(`/referral/list?page=${listPage}&limit=${REF_LIST_LIMIT}`),
-        api2Call("/referral/leaderboard?limit=50"),
+        apiCall("/referral/me"),
+        apiCall(`/referral/list?page=${listPage}&limit=${REF_LIST_LIMIT}`),
+        apiCall("/referral/leaderboard?limit=50"),
       ]);
       setDashboard(me);
       const { regs, actions } = mapRefereesToUi(listData?.referees);
@@ -182,7 +182,7 @@ export function ReferralsPage() {
 
   const reloadListPage = async (page) => {
     try {
-      const listData = await api2Call(
+      const listData = await apiCall(
         `/referral/list?page=${page}&limit=${REF_LIST_LIMIT}`,
       );
       const { regs, actions } = mapRefereesToUi(listData?.referees);
@@ -253,7 +253,7 @@ export function ReferralsPage() {
     setSubmittingCode(true);
     setCodeError("");
     try {
-      await api2Call("/referral/code", {
+      await apiCall("/referral/code", {
         method: "POST",
         body: JSON.stringify({ code }),
       });
@@ -273,7 +273,7 @@ export function ReferralsPage() {
     setClaiming(true);
     setClaimError("");
     try {
-      await api2Call("/referral/claim", {
+      await apiCall("/referral/claim", {
         method: "POST",
         body: JSON.stringify({ code }),
       });
@@ -398,7 +398,7 @@ export function ReferralsPage() {
     let cancelled = false;
     (async () => {
       try {
-        const me = await api2Call("/referral/me");
+        const me = await apiCall("/referral/me");
         if (cancelled) return;
         setDashboard(me);
         if (me?.referralCode) setIsActivated(true);
@@ -979,7 +979,6 @@ export function ReferralsPage() {
               <h3 className="font-bold text-sm mb-3">Your Referral Link</h3>
               {referralCode ? (
                 <>
-                
                   <div className="flex gap-2">
                     <input
                       type="text"
@@ -994,7 +993,7 @@ export function ReferralsPage() {
                       {copied ? <Check size={14} /> : <Copy size={14} />}
                       {copied ? "Copied" : "Copy"}
                     </button>
-                  </div> 
+                  </div>
                   <p className="text-xs text-gray-600 my-2">
                     Share this link with your network. When someone creates a
                     portfolio with $100+ investment, you earn instantly.

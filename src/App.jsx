@@ -1216,14 +1216,14 @@ function App() {
     localStorage.setItem("allox_ref", normalizedRef);
 
     fetch(
-      `${getApi2Url()}/referral/track?ref=${encodeURIComponent(normalizedRef)}`,
+      `${getApiUrl()}/referral/track?ref=${encodeURIComponent(normalizedRef)}`,
       {
         credentials: "include",
       },
     ).catch(() => {});
 
     fetch(
-      `${getApi2Url()}/referral/check/${encodeURIComponent(normalizedRef)}`,
+      `${getApiUrl()}/referral/check/${encodeURIComponent(normalizedRef)}`,
       {
         credentials: "include",
       },
