@@ -1066,7 +1066,7 @@ function WalletSync() {
             clearTimeoutId = null;
           }
           const activeConnection = connections[0];
-          console.log("activeConnection", activeConnection);
+          
           if (activeConnection.accounts[0]) {
             if (isBinanceConnectorLike(activeConnection.connector)) {
               markBinanceWalletSession();

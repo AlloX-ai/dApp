@@ -293,6 +293,8 @@ export function ChatPage() {
   });
   const [executionPrompt, setExecutionPrompt] = useState(null);
   const executionPromptResolverRef = useRef(null);
+  const mobileTopPanelRef = useRef(null);
+  const [mobileTopPanelHeight, setMobileTopPanelHeight] = useState(60);
 
   // Quick portfolio wizard (form-based UX)
 
@@ -1090,6 +1092,52 @@ export function ChatPage() {
   const showChainBalancesPanel =
     !isSolanaWalletSession &&
     SUPPORTED_ONCHAIN_CHAIN_IDS.includes(Number(walletChainId));
+  const showMobileCampaigns =
+    currentMessages.length === 0 && !quickWizardOpen && !binanceWizardOpen;
+  const showMobileTopPanels =
+    isConnected && !isReadOnly && (showMobileCampaigns || showChainBalancesPanel);
+  const mobilePanelExpanded =
+    showMobileCampaigns &&
+    showChainBalancesPanel &&
+    !isBalancesCollapsed;
+  const mobilePanelMinHeight = mobilePanelExpanded ? "min-h-[220px]" : "";
+
+  const handleBinanceCampaignClick = useCallback(() => {
+    if (isReadOnly || messagesRemaining === 0) return;
+    if (!isConnected) {
+      setShowWalletPrompt(true);
+      return;
+    }
+    openBinanceWizard();
+  }, [
+    isConnected,
+    isReadOnly,
+    messagesRemaining,
+    openBinanceWizard,
+  ]);
+
+  useEffect(() => {
+    const node = mobileTopPanelRef.current;
+    if (!node || !showMobileTopPanels) {
+      setMobileTopPanelHeight(0);
+      return undefined;
+    }
+
+    const updateHeight = () => {
+      setMobileTopPanelHeight(node.offsetHeight);
+    };
+
+    updateHeight();
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [
+    chainBalances.rows.length,
+    isBalancesCollapsed,
+    showChainBalancesPanel,
+    showMobileCampaigns,
+    showMobileTopPanels,
+  ]);
 
   const renderChainBalancesContent = (compact = false) => {
     if (!isConnected) {
@@ -3745,67 +3793,85 @@ export function ChatPage() {
 
   return (
     <div className="flex-1 flex flex-col">
-      {isConnected && !isReadOnly && showChainBalancesPanel && (
+      {showMobileTopPanels && (
         <>
           <div
-            className={
-              isBalancesCollapsed ? "h-15 lg:hidden" : "h-15 lg:hidden"
-            }
+            className="lg:hidden"
+            style={{ height: mobileTopPanelHeight || undefined }}
           />
-          <div className="fixed top-20 left-0 right-0 z-30 px-3 sm:px-6 lg:hidden">
-            <div className="mx-auto w-full max-w-250">
-              <div className="glass-card border border-gray-200/50 bg-white/85 p-3 shadow-md backdrop-blur-lg">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <h3 className="truncate text-sm font-bold text-gray-900">
-                      {chainBalances.chainLabel} balances
-                    </h3>
-                    {!isBalancesCollapsed && chainBalances.rows.length > 0 && (
-                      <p className="mt-1 text-[11px] text-gray-500">
-                        Swipe to view all tokens
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex shrink-0 items-center gap-1">
-                    {!isBalancesCollapsed && (
-                      <button
-                        type="button"
-                        onClick={() => void chainBalancesQuery.refetch()}
-                        disabled={
-                          !isConnected ||
-                          isReadOnly ||
-                          !showChainBalancesPanel ||
-                          chainBalancesQuery.isFetching
-                        }
-                        className="rounded-full p-1.5 text-gray-500 hover:bg-black/5 hover:text-green-600 disabled:opacity-50"
-                        aria-label="Refresh balances"
-                      >
-                        <RefreshCcw className="h-4 w-4" />
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => setIsBalancesCollapsed((p) => !p)}
-                      className="rounded-full p-1.5 text-gray-500 hover:bg-black/5 hover:text-gray-700"
-                      aria-label={
-                        isBalancesCollapsed
-                          ? "Expand balances"
-                          : "Collapse balances"
-                      }
-                    >
-                      {isBalancesCollapsed ? (
-                        <ChevronDown className="h-4 w-4" />
-                      ) : (
-                        <ChevronUp className="h-4 w-4" />
-                      )}
-                    </button>
+          <div
+            ref={mobileTopPanelRef}
+            className="fixed top-20 left-0 right-0 z-30 px-3 sm:px-6 lg:hidden"
+          >
+            <div className="mx-auto w-full max-w-250 space-y-3">
+              {showMobileCampaigns && (
+                <div
+                  className={`glass-card flex flex-col border border-gray-200/50 bg-white/85 p-3 shadow-md backdrop-blur-lg ${mobilePanelMinHeight}`}
+                >
+                  <h3 className="text-sm font-bold text-gray-900">Campaigns</h3>
+                  <div className="mt-3 flex-1">
+                    <CampaignSlider
+                      matchedHeight
+                      disabled={isReadOnly || messagesRemaining === 0}
+                      onBinanceClick={handleBinanceCampaignClick}
+                    />
                   </div>
                 </div>
+              )}
 
-                {!isBalancesCollapsed && (
-                  <div className="mt-3">{renderChainBalancesContent(true)}</div>
-                )}
-              </div>
+              {showChainBalancesPanel && (
+                <div
+                  className={`glass-card flex flex-col border border-gray-200/50 bg-white/85 p-3 shadow-md backdrop-blur-lg ${mobilePanelMinHeight}`}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <h3 className="truncate text-sm font-bold text-gray-900">
+                        {chainBalances.chainLabel} balances
+                      </h3>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      {!isBalancesCollapsed && (
+                        <button
+                          type="button"
+                          onClick={() => void chainBalancesQuery.refetch()}
+                          disabled={
+                            !isConnected ||
+                            isReadOnly ||
+                            !showChainBalancesPanel ||
+                            chainBalancesQuery.isFetching
+                          }
+                          className="rounded-full p-1.5 text-gray-500 hover:bg-black/5 hover:text-green-600 disabled:opacity-50"
+                          aria-label="Refresh balances"
+                        >
+                          <RefreshCcw className="h-4 w-4" />
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setIsBalancesCollapsed((p) => !p)}
+                        className="rounded-full p-1.5 text-gray-500 hover:bg-black/5 hover:text-gray-700"
+                        aria-label={
+                          isBalancesCollapsed
+                            ? "Expand balances"
+                            : "Collapse balances"
+                        }
+                      >
+                        {isBalancesCollapsed ? (
+                          <ChevronDown className="h-4 w-4" />
+                        ) : (
+                          <ChevronUp className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  {!isBalancesCollapsed && (
+                    <div className="mt-3 flex-1">
+                      {renderChainBalancesContent()}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </>
@@ -3815,7 +3881,7 @@ export function ChatPage() {
           !quickWizardOpen &&
           !binanceWizardOpen && (
             <div className="h-full flex sm:items-center justify-center px-6">
-              <div className="text-center max-w-2xl relative">
+              <div className="text-center max-w-4xl w-full relative">
                 <div className="mx-auto sm:inline-flex hidden  items-center gap-2.5 px-5 py-2.5 bg-gradient-to-r from-green-500/15 to-emerald-500/15 border border-green-500/30 rounded-full mb-6 shadow-sm shadow-green-500/10 sm:fixed sm:top-25 sm:left-1/2 sm:-translate-x-1/2 sm:mb-0 sm:z-20">
                   <div className="flex items-center justify-center w-6 h-6 bg-green-500 rounded-full">
                     <TrendingUp
@@ -3828,26 +3894,37 @@ export function ChatPage() {
                     {pnl}% positive P&L
                   </span>
                 </div>
+                <div className="relative hidden lg:flex flex-col gap-3 sm:-top-14 top-auto">
+                  <h3 className="font-bold text-xl text-gray-900 flex items-center gap-2">
+                    <div
+                      className={`relative events-page-status-tag-live px-2 flex items-center justify-center gap-0`}
+                    >
+                      <div
+                        className="pulsatingDot"
+                        style={{
+                          width: 7,
+                          height: 7,
+                          marginRight: 5,
+                        }}
+                      ></div>
 
-                <CampaignSlider
-                  className="mb-5"
-                  disabled={isReadOnly || messagesRemaining === 0}
-                  onBinanceClick={() => {
-                    if (isReadOnly || messagesRemaining === 0) return;
-                    if (!isConnected) {
-                      setShowWalletPrompt(true);
-                      return;
-                    }
-                    openBinanceWizard();
-                  }}
-                />
+                      <span className="">Campaigns</span>
+                    </div>{" "}
+                    
+                  </h3>
 
+                  <CampaignSlider
+                    className="mb-5"
+                    disabled={isReadOnly || messagesRemaining === 0}
+                    onBinanceClick={handleBinanceCampaignClick}
+                  />
+                </div>
                 <h2 className="text-3xl font-bold mb-4">Hello, I'm AlloX</h2>
 
                 <p className="text-gray-600 mb-6">
                   I can help you discover, execute, and manage your portfolio.
                 </p>
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-4">
+                <div className="flex flex-col items-stretch sm:flex-row sm:items-center justify-center gap-3 mb-4">
                   <button
                     type="button"
                     onClick={() => {
@@ -3859,7 +3936,7 @@ export function ChatPage() {
                       openBinanceWizard();
                     }}
                     disabled={isReadOnly || messagesRemaining === 0}
-                    className="inline-flex items-center gap-2.5 px-5 py-2 bg-gradient-to-r from-orange-500/10 via-amber-500/10 to-yellow-500/10 border border-orange-500/20 rounded-full shadow-lg shadow-orange-500/5 backdrop-blur-sm overflow-hidden disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="inline-flex items-center justify-center gap-2.5 w-full sm:w-auto px-4 sm:px-5 py-2 bg-gradient-to-r from-orange-500/10 via-amber-500/10 to-yellow-500/10 border border-orange-500/20 rounded-full shadow-lg shadow-orange-500/5 backdrop-blur-sm overflow-hidden disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     <div className="flex items-center justify-center w-6 h-6 transition-all duration-300">
                       <img
@@ -3868,27 +3945,27 @@ export function ChatPage() {
                       />
                     </div>
                     <span
-                      className={`text-sm font-semibold bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent transition-all duration-500`}
+                      className={`text-xs sm:text-sm font-semibold bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent transition-all duration-500`}
                     >
                       Binance Campaign
                     </span>
                   </button>
                   <NavLink
                     to="/prime-picks"
-                    className="inline-flex items-center gap-2.5 px-5 py-2 bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-cyan-500/10 border border-purple-500/20 rounded-full shadow-lg shadow-purple-500/5 backdrop-blur-sm overflow-hidden"
+                    className="inline-flex items-center justify-center gap-2.5 w-full sm:w-auto px-4 sm:px-5 py-2 bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-cyan-500/10 border border-purple-500/20 rounded-full shadow-lg shadow-purple-500/5 backdrop-blur-sm overflow-hidden"
                   >
                     <div className="flex items-center justify-center w-6 h-6 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full transition-all duration-300">
                       <Gem size={14} className="text-white" strokeWidth={3} />
                     </div>
                     <span
-                      className={`text-sm font-semibold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent transition-all duration-500`}
+                      className={`text-xs sm:text-sm font-semibold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent transition-all duration-500`}
                     >
                       Prime Picks
                     </span>
                   </NavLink>
                   <NavLink
                     to="/campaigns?campaign=volume-league"
-                    className="inline-flex items-center gap-2.5 px-5 py-2 bg-gradient-to-r from-teal-500/10 via-cyan-500/10 to-emerald-500/10 border border-cyan-500/20 rounded-full shadow-lg shadow-cyan-500/5 backdrop-blur-sm overflow-hidden"
+                    className="inline-flex items-center justify-center gap-2.5 w-full sm:w-auto px-4 sm:px-5 py-2 bg-gradient-to-r from-teal-500/10 via-cyan-500/10 to-emerald-500/10 border border-cyan-500/20 rounded-full shadow-lg shadow-cyan-500/5 backdrop-blur-sm overflow-hidden"
                   >
                     <div className="flex items-center justify-center w-6 h-6 bg-gradient-to-br from-teal-500 to-cyan-500 rounded-full transition-all duration-300">
                       <TrendingUp
@@ -3898,13 +3975,13 @@ export function ChatPage() {
                       />
                     </div>
                     <span
-                      className={`text-sm font-semibold bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent transition-all duration-500`}
+                      className={`text-xs sm:text-sm font-semibold bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent transition-all duration-500`}
                     >
                       Volume League
                     </span>
                   </NavLink>
                 </div>
-                <div className="mb-8 grid grid-cols-2 md:grid-cols-3 gap-2">
+                <div className="mb-8 grid grid-cols-2 md:grid-cols-3 gap-2.5">
                   {[
                     "Build Quick Portfolio",
                     "Build a Portfolio - Guided",
@@ -3917,7 +3994,7 @@ export function ChatPage() {
                       key={suggestion}
                       onClick={() => handleSuggestionClick(suggestion)}
                       disabled={isReadOnly || messagesRemaining === 0}
-                      className="px-3 sm:px-4 py-2 bg-white shadow border border-white text-xs sm:text-sm font-medium hover:bg-white/90 hover:shadow-lg hover:border hover:border-gray-200/50 transition-all duration-200 rounded-full disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-white"
+                      className="w-full text-center px-3 sm:px-4 py-2 bg-white shadow border border-white text-xs sm:text-sm font-medium leading-tight hover:bg-white/90 hover:shadow-lg hover:border hover:border-gray-200/50 transition-all duration-200 rounded-full disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-white"
                     >
                       {suggestion}
                     </button>
