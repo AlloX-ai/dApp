@@ -1,5 +1,5 @@
 import { useMemo, useEffect, useState } from "react";
-import { useSearchParams } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import {
   Trophy,
   Flame,
@@ -16,6 +16,7 @@ import tcBanner from "../assets/tcBanner.png";
 import springSeries from "../assets/springSeries.png";
 import pypBanner from "../assets/pypBanner.png";
 import volumeLeague from "../assets/volumeLeague.png";
+import binanceWalletCampaign from "../assets/binanceWalletCampaign.jpg";
 import { ProveYourPortfolioCampaign } from "./ProveYourPortfolio";
 import { ProvePortfolio } from "./ProvePortfolio";
 import { VolumeLeagueCampaign } from "./VolumeLeagueCampaign";
@@ -24,6 +25,7 @@ export function CampaignsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [raceCountdown, setRaceCountdown] = useState(null);
   const [raceEnded, setRaceEnded] = useState(false);
+  const navigate = useNavigate();
 
   const activeTab = useMemo(() => {
     const campaignParam = searchParams.get("campaign");
@@ -87,6 +89,56 @@ export function CampaignsPage() {
           {/* Campaign Cards Grid */}
           <div className="grid xl:grid-cols-2 gap-6">
                  <button
+          onClick={() => navigate("/")}
+          className="glass-card overflow-hidden text-left hover:shadow-2xl transition-all duration-300 group relative"
+        >
+           <div className="relative h-48 w-full overflow-hidden">
+                <ImageWithFallback
+                  src={binanceWalletCampaign}
+                  alt="Volume League"
+                  className="w-full h-full object-cover brightness-85 transition-[filter] duration-500 ease-in-out group-hover:brightness-115"
+                />
+                {/* Gradient Overlay */}
+                <div className="absolute inset-0 " />
+
+                {/* Badge on Banner */}
+                <div className="absolute top-4 right-4 bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold shadow-lg">
+                  ACTIVE
+                </div>
+
+                {/* Icon on Banner */}
+          
+              </div>
+          <div className="p-8">
+            <h3 className="text-2xl font-bold text-gray-900 mb-2">Binance Wallet Campaign</h3>
+            <p className="text-gray-600 mb-6">Complete tasks on BNB Chain using Binance Wallet to qualify for a share of 10,000,000 ALLOX tokens.</p>
+           <div className="flex flex-col sm:flex-row gap-2 sm:items-center justify-between mb-6">
+                  <div className="bg-white/60 backdrop-blur-sm rounded-xl p-3">
+                    <div className="text-xs text-gray-600 mb-1">
+                      Total Rewards
+                    </div>
+                    <div className="font-bold text-base text-gray-900 flex items-center gap-1">
+                      <span>$300,000 ALLOX</span>
+                     
+                    </div>
+                  </div>
+                  <div className="bg-white/60 backdrop-blur-sm rounded-xl p-3">
+                    <div className="text-xs text-gray-600 mb-1">Duration</div>
+                    <div className="font-bold text-gray-900 flex items-center gap-1">
+                      <Calendar className="w-4 h-4 text-blue-600" />
+                      Jun 15 - Jul 15
+                    </div>
+                  </div>
+                </div>
+            <div className="flex items-center justify-end gap-2 ">
+                  <span className="text-sm font-semibold text-amber-600 group-hover:text-amber-700">
+                    View
+                  </span>
+                  <ChevronRight className="w-5 h-5 text-amber-600 group-hover:translate-x-1 transition-transform" />
+                </div>
+          </div>
+        </button>
+                 <button
           onClick={() => setSearchParams({ campaign: "volume-league" })}
           className="glass-card overflow-hidden text-left hover:shadow-2xl transition-all duration-300 group relative"
         >
@@ -111,17 +163,17 @@ export function CampaignsPage() {
               </div>
           <div className="p-8">
             <h3 className="text-2xl font-bold text-gray-900 mb-2">Volume League</h3>
-            <p className="text-gray-600 mb-6">Generate volume on BNB Chain, climb tier brackets, and earn weekly Gem distributions from the leaderboard</p>
+            <p className="text-gray-600 mb-6">Generate volume, climb tier brackets, and earn weekly guaranteed rewards.</p>
            <div className="flex flex-col sm:flex-row gap-2 sm:items-center justify-between mb-6">
                   <div className="bg-white/60 backdrop-blur-sm rounded-xl p-3">
                     <div className="text-xs text-gray-600 mb-1">
                       Weekly Pool
                     </div>
                     <div className="font-bold text-base text-gray-900 flex items-center gap-1">
-                      <span>$11,250</span>
+                      <span>$100,000</span>
                       <span className="text-sm font-semibold text-gray-700 flex items-center">
                         (<Gem className="w-4 h-4 text-purple-600" />
-                        2,250)
+                        20,000)
                       </span>
                     </div>
                   </div>

@@ -184,7 +184,6 @@ function FAQItem({ q, a }) {
 
 export function VolumeLeagueCampaign() {
   const [selectedWeek, setSelectedWeek] = useState(0);
-  const [showInfoModal, setShowInfoModal] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [showFAQModal, setShowFAQModal] = useState(false);
   const [showBonusModal, setShowBonusModal] = useState(false);
@@ -220,10 +219,16 @@ export function VolumeLeagueCampaign() {
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
           <div className="flex items-center gap-3">
-            <h2 className="text-3xl font-bold text-gray-900">Volume League</h2>
-            <button onClick={() => setShowInfoModal(true)}>
-              <Info size={17} className="text-gray-600" />
-            </button>
+           <div className="flex flex-col gap-2">
+             <div className="flex items-end gap-4">
+              <h2 className="text-xl md:text-3xl  font-bold text-gray-900">Volume League</h2>
+             <span className="px-2.5 py-1 bg-green-100 text-green-700 text-[10px] font-bold rounded-full uppercase tracking-wider">
+                Guaranteed Rewards
+              </span>
+             </div>
+            <p className="text-gray-500 mt-1 text-sm">Generate volume, climb tier brackets, and earn weekly guaranteed rewards</p>
+           </div>
+           
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -344,10 +349,7 @@ export function VolumeLeagueCampaign() {
             Create Portfolio
           </Link>
         </div>
-        <p className="text-xs text-gray-400 mt-2">
-          * Rank and estimated gems update daily. Final distribution confirmed
-          after each week closes.
-        </p>
+     
       </div>
 
           <div className="grid sm:grid-cols-2 gap-3">
@@ -363,7 +365,6 @@ export function VolumeLeagueCampaign() {
               <div>
                 <div className="text-xs text-gray-500 mb-0.5">Base Pool Share</div>
                 <div className="text-2xl font-bold text-gray-900">${currentUserBaseShare.toFixed(0)}</div>
-                <div className="text-xs text-gray-400 mt-0.5">√{currentUser.thisWeekVol.toFixed(0)} = {currentUser.sqrtVol.toFixed(1)} weight</div>
               </div>
               <div className={`flex items-center justify-between p-2.5 rounded-xl border ${currentUser.unlocked ? "bg-green-50 border-green-200/60" : "bg-gray-50 border-gray-200/60"}`}>
                 <div>
@@ -412,7 +413,6 @@ export function VolumeLeagueCampaign() {
                 ))}
               </div>
             </div>
-            <p className="text-xs text-gray-400 mt-3">Earnings confirmed after each week closes.</p>
           </div>
         </div>
 
@@ -564,7 +564,7 @@ export function VolumeLeagueCampaign() {
                             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/tip:flex z-30 pointer-events-none">
                               <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-xl">
                                 <div className="font-semibold mb-0.5">
-                                  Bonus locked 🔒
+                                  Bonus locked
                                 </div>
                                 <div className="text-gray-300">
                                   Need{" "}
@@ -584,13 +584,12 @@ export function VolumeLeagueCampaign() {
                     </td>
                     <td className="py-2.5 px-2">
                       <span
-                        className={`text-xs font-bold ${row.unlocked && row.tier ? "text-gray-900" : "text-gray-400"}`}
+                        className={`text-xs font-bold ${row.unlocked && row.tier ? "text-gray-900" : "text-gray-900"}`}
                       >
                         ${total.toFixed(0)}
                         {row.tier && !row.unlocked && (
-                          <span className="text-gray-300 font-normal">
+                          <span className="text-black-500 font-normal">
                             {" "}
-                            (+${row.tier.bonus} locked)
                           </span>
                         )}
                       </span>
@@ -897,53 +896,7 @@ export function VolumeLeagueCampaign() {
       )}
 
       {/* ── How It Works Modal ── */}
-      {showInfoModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6 max-h-[80vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-xl font-bold">How Volume League Works</h3>
-              <button
-                onClick={() => setShowInfoModal(false)}
-                className="w-8 h-8 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center transition-colors"
-              >
-                <X size={16} />
-              </button>
-            </div>
-            <div className="space-y-3 text-sm text-gray-700">
-              {[
-                {
-                  step: 1,
-                  text: "Connect your Binance Wallet and generate volume on BNB Chain through AlloX, via Prime Picks, Quick Portfolio Builder, or the Binance Wallet Campaign tasks.",
-                },
-                {
-                  step: 2,
-                  text: "Your weekly volume is tracked and assigned to a tier: Bronze ($5K+), Silver ($25K+), Gold ($50K+), or Diamond ($100K+).",
-                },
-                {
-                  step: 3,
-                  text: "At the end of each week, gems are distributed among all users in each tier. The higher the tier, the larger the weekly gem pool.",
-                },
-              ].map(({ step, text }) => (
-                <div
-                  key={step}
-                  className="flex items-start gap-3 bg-gray-50 rounded-xl p-3"
-                >
-                  <div className="w-6 h-6 bg-black rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <span className="text-white text-xs font-bold">{step}</span>
-                  </div>
-                  <p>{text}</p>
-                </div>
-              ))}
-            </div>
-            <button
-              onClick={() => setShowInfoModal(false)}
-              className="w-full mt-5 bg-black text-white font-semibold py-3 rounded-xl hover:bg-gray-800 transition-colors"
-            >
-              Got it
-            </button>
-          </div>
-        </div>
-      )}
+    
     </div>
   );
 }
