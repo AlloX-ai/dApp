@@ -15,8 +15,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
 
-// Solana: MetaMask (Wallet Standard) + wallet adapter
-import { initializeWhenDetected } from "@solflare-wallet/metamask-wallet-standard";
+// Solana: Wallet Standard discovery (MetaMask registered on connect / session warmup)
 import { WalletProvider as SolanaWalletProvider } from "@solana/wallet-adapter-react";
 //Privy
 import { PrivyProvider } from "@privy-io/react-auth";
@@ -24,6 +23,9 @@ import { bsc, mainnet, base } from "viem/chains";
 
 import "./index.css";
 import App from "./App.jsx";
+import { ensureReownAppKitConfigured } from "./utils/initReownAppKit.js";
+
+ensureReownAppKitConfigured();
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -38,8 +40,6 @@ const queryClient = new QueryClient({
 const persister = createSyncStoragePersister({
   storage: window.localStorage,
 });
-
-initializeWhenDetected();
 
 // Empty array: WalletProvider discovers Wallet Standard wallets (e.g. MetaMask) via useStandardWalletAdapters
 createRoot(document.getElementById("root")).render(

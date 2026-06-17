@@ -52,7 +52,7 @@ export function applyRateLimitFromServerPayload(dispatch, setUser, payload) {
 
 /**
  * Immediately bump purchased (bonus) message count in Redux + authUser so the Header
- * updates before GET /chat/status or purchase JSON catches up.
+ * updates before GET /chat/allox/status or purchase JSON catches up.
  */
 export function applyOptimisticPurchasedMessages(dispatch, setUser, packageMessageCount) {
   const n = Number(packageMessageCount);
@@ -65,13 +65,13 @@ export function applyOptimisticPurchasedMessages(dispatch, setUser, packageMessa
 }
 
 /**
- * GET /chat/status and mirror ChatPage — updates rate limit, points, chat status, optional user.claimed.
+ * GET /chat/allox/status and mirror ChatPage — updates rate limit, points, chat status, optional user.claimed.
  */
 export async function fetchChatStatus(dispatch, { setUser } = {}) {
   const token = localStorage.getItem("authToken");
   if (!token) return;
   try {
-    const status = await apiCall("/chat/status");
+    const status = await apiCall("/chat/allox/status");
     const statusRl = status?.rateLimit
       ? normalizeRateLimitPayload(status.rateLimit)
       : null;
@@ -106,7 +106,7 @@ export async function fetchChatStatus(dispatch, { setUser } = {}) {
 
 /**
  * After message purchase, refresh counts immediately and once more after a short delay
- * so the UI updates even if the first GET /chat/status runs before the backend finishes indexing.
+ * so the UI updates even if the first GET /chat/allox/status runs before the backend finishes indexing.
  */
 export async function refreshRateLimitAfterMessagePurchase(dispatch, setUser) {
   await fetchChatStatus(dispatch, { setUser });

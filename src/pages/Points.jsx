@@ -17,7 +17,7 @@ import {
   Info,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { useDispatch, useSelector } from "react-redux";
 import { useAuth } from "../hooks/useAuth";
 import {
@@ -99,6 +99,7 @@ export function PointsPage() {
   const { fetchSocialPoints, fetchAllPoints } = useSocial();
 
   const navigate = useNavigate();
+  const location = useLocation();
   const dispatch = useDispatch();
   const { user, setUser, claimSeason1, ensureAuthenticated } = useAuth();
   const claimStatusKnown = typeof user?.season1?.claimed === "boolean";
@@ -173,22 +174,7 @@ export function PointsPage() {
           0,
         ) || 0,
     },
-    {
-      id: 3,
-      name: "Chat Message",
-      points: "25",
-      gems: "0",
-      description: "Earn for each message with AI",
-      icon: MessageSquare,
-      customIcon: null,
-      comingSoon: false,
-      isClickable: true,
-      userPoints:
-        getFormattedNumber(
-          userPointsBreakdown.fromMessages || userPointsBreakdown.messages || 0,
-          0,
-        ) || 0,
-    },
+
     {
       id: 4,
       name: "Daily Bonus",
@@ -212,6 +198,19 @@ export function PointsPage() {
     //   comingSoon: false,
     //   isClickable: true,
     // },
+
+    {
+      id: 6,
+      name: "Social Tasks",
+      points: "500",
+      description: "Complete social media tasks",
+      icon: null,
+      customIcon: XLogo,
+      comingSoon: false,
+      isClickable: true,
+      userPoints:
+        getFormattedNumber(socialPoints + telegramPoints || 0, 0) || 0,
+    },
     {
       id: 5,
       name: "Staking",
@@ -224,16 +223,20 @@ export function PointsPage() {
       isClickable: false,
     },
     {
-      id: 6,
-      name: "Social Tasks",
-      points: "500",
-      description: "Complete social media tasks",
-      icon: null,
-      customIcon: XLogo,
-      comingSoon: false,
+      id: 3,
+      name: "Referral",
+      points: "0",
+      gems: "10",
+      description: "Invite friends and earn Gems",
+      icon: Users,
+      customIcon: null,
+      comingSoon: true,
       isClickable: true,
-      userPoints:
-        getFormattedNumber(socialPoints + telegramPoints || 0, 0) || 0,
+      // userPoints:
+      //   getFormattedNumber(
+      //     userPointsBreakdown.fromMessages || userPointsBreakdown.messages || 0,
+      //     0,
+      //   ) || 0,
     },
   ];
 
@@ -275,9 +278,9 @@ export function PointsPage() {
       requireConnectedAction(() => dispatch(openCheckinModal()));
     } else if (id === 5) {
       // navigate("/referrals", { replace: true });
-    } else if (id === 7) {
+    } else if (id === 3) {
       navigate("/referrals", { replace: true });
-    } else if (id > 1 && id <= 3) {
+    } else if (id > 1 && id <= 2) {
       requireConnectedAction(() => navigate("/", { replace: true }));
     } else if (id === 6) {
       handleXTasksClick();
@@ -288,6 +291,18 @@ export function PointsPage() {
     window.scrollTo(0, 0);
     document.title = "Rewards";
   }, []);
+
+  useEffect(() => {
+    if (location.hash !== "#daily-bonus") return;
+
+    if (!isConnected) {
+      dispatch(setWalletModal(true));
+    } else {
+      dispatch(openCheckinModal());
+    }
+
+    // navigate({ pathname: "/rewards", hash: "" }, { replace: true });
+  }, [location.hash, isConnected, dispatch, navigate]);
 
   return (
     <div className="space-y-6 flex-1 px-6 py-8 portfolio-wrapper ms-auto w-full overflow-y-auto">
@@ -483,14 +498,14 @@ export function PointsPage() {
                         {portfolioTierName}
                       </button>
                     )}
-                    {hasGems && (
+                    {/* {hasGems && (
                       <div className="flex mb-auto ml-auto items-center gap-1.5 px-2 py-1 bg-purple-100 border border-purple-200 rounded-lg w-fit">
                         <Gem size={14} className="text-purple-600" />
                         <span className="text-xs font-bold text-purple-700">
                           Gems
                         </span>
                       </div>
-                    )}
+                    )} */}
                     {!way.comingSoon && (
                       <div className="bg-blue-100 border border-blue-200 px-2 py-1 rounded-lg mb-auto">
                         <div className="flex gap-1 items-baseline">
@@ -510,14 +525,15 @@ export function PointsPage() {
                   <div className="flex items-baseline gap-1 justify-between">
                     {hasGems ? (
                       <div className="flex gap-3">
-                        <div className="flex gap-1 items-baseline">
+                        {/* <div className="flex gap-1 items-baseline">
                           <span className="text-3xl font-bold">
-                            {/* {way.points} */}0
+                            {way.points}0
                           </span>
                           <span className="text-sm text-gray-600 font-medium">
                             points
                           </span>
-                        </div>{" "}
+                        </div>
+                        {" "} */}
                         <div className="flex gap-1 items-baseline">
                           <span className="text-3xl font-bold">
                             {/* {way.gems} */}0

@@ -136,12 +136,12 @@ export function Season1() {
                 </div>
               )} */}
 
-              {season.number === 3 && user3 && user3.gems > 0 && (
+              {/* {season.number === 3 && user3 && user3.gems > 0 && (
                 <span className="px-2 py-0.5 bg-green-500 text-white text-xs sm:text-sm  2xl:text-lg font-bold rounded-full absolute top-0 bottom-0 my-auto h-fit right-2">
                   YOU WON
                 </span>
-              )}
-              {season.number === 3 && user3 && user3.gems > 0 && (
+              )} */}
+              {/* {season.number === 3 && user3 && user3.gems > 0 && (
                 <div className="absolute -bottom-0 left-1/2 -translate-x-1/2">
                   <button
                     onClick={() => setShowModal(true)}
@@ -157,7 +157,7 @@ export function Season1() {
                     Share
                   </button>
                 </div>
-              )}
+              )} */}
               <div className={season.active ? "opacity-100" : "opacity-60"}>
                 <div className="flex items-center relative justify-between mb-3">
                   <div
