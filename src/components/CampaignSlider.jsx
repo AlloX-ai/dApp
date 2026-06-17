@@ -133,7 +133,7 @@ export function CampaignSlider({
 
   return (
     <div
-      className={`campaign-slider w-full ${matchedHeight ? "campaign-slider--matched" : ""} ${className}`}
+      className={`campaign-slider w-full ${matchedHeight ? "sm:campaign-slider--matched" : ""} ${className}`}
     >
       <style>{`
         .campaign-slider .slick-list {
@@ -205,7 +205,7 @@ export function CampaignSlider({
               disabled={disabled}
               className={`relative w-full rounded-2xl text-left disabled:opacity-60 ${
                 matchedHeight
-                  ? "min-h-[168px] h-full"
+                  ? "sm:min-h-[168px] h-full"
                   : "h-[88px] sm:h-[120px] lg:h-[140px]"
               }`}
               style={{
