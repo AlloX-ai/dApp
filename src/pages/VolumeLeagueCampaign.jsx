@@ -836,7 +836,7 @@ export function VolumeLeagueCampaign() {
                 </div>
                 <ul className="space-y-2 text-sm text-gray-700">
                   {[
-                    "Every user who trades any amount in a given week earns a share of the $70K weekly base pool",
+                    "Every user who trades a minimum of $500 in a given week earns a share of the $70K weekly base pool",
                     "Share is calculated as: √(your volume) ÷ Σ√(all users' volumes) × $70,000",
                     "Rankings and pool shares reset every week at 00:00 UTC on Monday",
                     "Volume from Prime Picks, Quick Portfolio Builder, and Binance Wallet Campaign tasks all count",
