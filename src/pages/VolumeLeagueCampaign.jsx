@@ -94,15 +94,15 @@ const WEEKS = [
 ];
 
 const faqs = [
-  { q: "Who qualifies for the base pool?", a: "Every user who trades any amount that week earns a share of the $70K weekly base pool. There is no minimum volume to participate in the base pool, if you trade, you earn." },
-  { q: "How is my base pool share calculated?", a: "Your share is proportional to your √(volume) relative to all participants. For example, if your √(volume) is 100 and the sum of all √(volume) across all users is 10,000, you receive 1% of the $70K base pool = $700. This square-root weighting means large traders don't dominate smaller ones." },
+  { q: "Who qualifies for the Reward share  pool?", a: "Every user who trades any amount that week earns a share of the $70K weekly reward share pool. There is no minimum volume to participate in the reward share pool, if you trade, you earn." },
+  { q: "How is my reward share pool share calculated?", a: "Your share is proportional to your √(volume) relative to all participants. For example, if your √(volume) is 100 and the sum of all √(volume) across all users is 10,000, you receive 1% of the $70K reward share pool = $700. This square-root weighting means large traders don't dominate smaller ones." },
   { q: "How do tier bonuses work?", a: "The top 150 ranked users each week are assigned a tier by rank position: top 10 = Diamond, 11–30 = Gold, 31–70 = Silver, 71–150 = Bronze. Each tier has a volume threshold you must hit to unlock your one-time bonus for that week." },
   { q: "What are the tier volume thresholds?", a: "Diamond (top 10): $100K | Gold (rank 11–30): $50K | Silver (rank 31–70): $25K | Bronze (rank 71–150): $5K. If you are ranked in the top 150 but haven't hit your tier's threshold, your bonus shows as locked on the leaderboard." },
   { q: "What happens to locked bonuses?", a: "Locked bonuses are not paid out." },
   { q: "Can I earn a tier bonus multiple times per week?", a: "No. The tier bonus is a one-time reward per user per week. Exceeding your tier threshold multiple times does not multiply the bonus." },
   { q: "How are rankings determined?", a: "Users are ranked weekly by √(volume) from highest to lowest. Rankings and pool shares reset every Monday at 00:00 UTC." },
-  { q: "What is the total prize pool?", a: "The total campaign prize is $500K across 5 weeks ($100K/week). Each week: $70K base pool (distributed to all traders) + $30K tier bonus budget (Diamond $10K, Gold $10K, Silver $6K, Bronze $4K)." },
-  { q: "Can I participate with multiple wallets?", a: "No. Each user may only participate with one verified Binance Wallet. Using multiple wallets will result in permanent disqualification from all tiers and forfeiture of base pool earnings." },
+  { q: "What is the total prize pool?", a: "The total campaign prize is $500K across 5 weeks ($100K/week). Each week: $70K reward share pool (distributed to all traders) + $30K tier bonus budget (Diamond $10K, Gold $10K, Silver $6K, Bronze $4K)." },
+  { q: "Can I participate with multiple wallets?", a: "No. Each user may only participate with one verified Binance Wallet. Using multiple wallets will result in permanent disqualification from all tiers and forfeiture of reward share pool earnings." },
 ];
 function getTierByRank(rank) {
   return (
@@ -242,37 +242,16 @@ export function VolumeLeagueCampaign() {
                 </div>
               </div>
             </div>
-            <div className="glass-card px-4 py-2">
-              <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-gray-500" />
-                <div>
-                  <div className="text-xs text-gray-500">Weekly Pool</div>
-                  <div className="font-bold text-gray-900">$100K / week</div>
-                </div>
-              </div>
-            </div>
+           
           </div>
         </div>
       </div>
 
       {/* Your Position */}
-      <div className="glass-card p-6 bg-gradient-to-br from-cyan-50/60 to-blue-50/60 border-cyan-200/50">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-4">
-          <div className="flex items-center gap-2 ">
-            <div className="w-8 h-8 bg-cyan-600 rounded-lg flex items-center justify-center">
-              <TrendingUp size={16} className="text-white" />
-            </div>
-            <h3 className="font-bold text-gray-900">Your Position</h3>
-            <span
-              className={` inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold ${currentUser.tier.badge}`}
-            >
-              <div
-                className={`w-1.5 h-1.5 rounded-full bg-gradient-to-br ${currentUser.tier.color}`}
-              />
-              {currentUser.tier.label} Tier
-            </span>
-          </div>
-          <div className="flex items-center gap-3">
+           <div className="glass-card p-5">
+       <div className="flex items-center justify-between">
+         <h3 className="font-bold text-gray-900 mb-4">How It Works</h3>
+             <div className="flex items-center gap-3">
             <button
               onClick={() => setShowBonusModal(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
@@ -280,13 +259,7 @@ export function VolumeLeagueCampaign() {
               <Award className="w-4 h-4" />
               Bonuses
             </button>
-            <button
-              onClick={() => setShowTermsModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
-            >
-              <FileText className="w-4 h-4" />
-              Terms
-            </button>
+          
             <button
               onClick={() => setShowFAQModal(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
@@ -294,167 +267,150 @@ export function VolumeLeagueCampaign() {
               <BookOpen className="w-3.5 h-3.5" />
               FAQs
             </button>
+              <button
+              onClick={() => setShowTermsModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+            >
+              <FileText className="w-4 h-4" />
+              Terms
+            </button>
           </div>
+       </div>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {[
+            { step: 1, icon: <Plus size={18} className="text-blue-600" />, bg: "bg-blue-100", title: "Create a Portfolio", desc: "Select tokens to build a portfolio. Every buy or sell counts as volume." },
+            { step: 2, icon: <TrendingUp size={18} className="text-green-600" />, bg: "bg-green-100", title: "Generate Volume", desc: "The more volume you generate, the larger your share of the weekly reward pool." },
+            { step: 3, icon: <Gem size={18} className="text-purple-600" />, bg: "bg-purple-100", title: "Guaranteed Rewards", desc: "Every participant earns a reward share each week, a minimum of $500 volume required." },
+            { step: 4, icon: <Award size={18} className="text-amber-600" />, bg: "bg-amber-100", title: "Extra Bonus", desc: "Reach volume tiers to unlock one-time weekly bonuses on top of your base share." },
+          ].map(({ step, icon, bg, title, desc }) => (
+            <div key={step} className="relative bg-gray-50 rounded-2xl p-4">
+              <div className="absolute top-3 right-3 text-xs font-bold text-gray-300">{step}</div>
+              <div className={`w-9 h-9 ${bg} rounded-xl flex items-center justify-center mb-3`}>{icon}</div>
+              <div className="font-bold text-gray-900 text-sm mb-1">{title}</div>
+              <div className="text-xs text-gray-500 leading-relaxed">{desc}</div>
+            </div>
+          ))}
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="bg-white/70 rounded-xl p-3 text-center">
-            <div className="flex items-center justify-center mb-1">
-              <Crown size={14} className="text-yellow-500" />
-            </div>
-            <div className="text-2xl font-bold text-gray-900">
-              #{currentUser.rank}
-            </div>
-            <div className="text-xs text-gray-500 mt-0.5">Rank</div>
-          </div>
-          <div className="bg-white/70 rounded-xl p-3 text-center">
-            <div className="flex items-center justify-center mb-1">
-              <PieChart size={14} className="text-blue-500" />
-            </div>
-            <div className="text-2xl font-bold text-gray-900">
-              {currentUser.portfolios}
-            </div>
-            <div className="text-xs text-gray-500 mt-0.5">
-              Portfolios Created
-            </div>
-          </div>
-          <div className="bg-white/70 rounded-xl p-3 text-center">
-            <div className="flex items-center justify-center mb-1">
-              <Wallet size={14} className="text-green-500" />
-            </div>
-            <div className="text-2xl font-bold text-gray-900">
-              {fmt(currentUser.totalVolume)}
-            </div>
-            <div className="text-xs text-gray-500 mt-0.5">Total Volume</div>
-          </div>
-          <div className="bg-white/70 rounded-xl p-3 text-center">
-            <div className="flex items-center justify-center mb-1">
-              <BarChart2 size={14} className="text-cyan-500" />
-            </div>
-            <div className="text-2xl font-bold text-gray-900">
-              {fmt(currentUser.thisWeekVol)}
-            </div>
-            <div className="text-xs text-gray-500 mt-0.5">
-              This Week's Volume
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-4 flex flex-col md:flex-row gap-2 items-center justify-center p-3 bg-white/60 rounded-xl">
-          
-          <Link
-            to={"/"}
-            className="btn-primary  flex items-center justify-center gap-2 text-sm"
-          >
-            <Plus size={16} />
-            Create Portfolio
-          </Link>
-        </div>
-     
       </div>
 
           <div className="grid sm:grid-cols-2 gap-3">
           {/* This week's earnings */}
-          <div className="glass-card p-5 border-blue-200/50 bg-gradient-to-br from-blue-50/40 to-indigo-50/40">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-7 h-7 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Calendar size={14} className="text-blue-600" />
-              </div>
-              <span className="font-bold text-gray-900 text-sm">This Week's Earnings</span>
+       <div className="glass-card p-5 border-blue-200/50 bg-gradient-to-br from-blue-50/40 to-indigo-50/40">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-7 h-7 bg-blue-100 rounded-lg flex items-center justify-center">
+              <TrendingUp size={14} className="text-blue-600" />
             </div>
-            <div className="space-y-3">
-              <div>
-                <div className="text-xs text-gray-500 mb-0.5">Base Pool Share</div>
-                <div className="text-2xl font-bold text-gray-900">${currentUserBaseShare.toFixed(0)}</div>
-              </div>
-              <div className={`flex items-center justify-between p-2.5 rounded-xl border ${currentUser.unlocked ? "bg-green-50 border-green-200/60" : "bg-gray-50 border-gray-200/60"}`}>
-                <div>
-                  <div className="text-xs text-gray-500 mb-0.5">Tier Bonus</div>
-                  <div className="font-bold text-gray-900">${currentUser.tier?.bonus.toLocaleString()}</div>
-                  {!currentUser.unlocked && currentUser.tier && (
-                    <div className="text-xs text-gray-400 mt-0.5">Need {fmt(currentUser.tier.volThreshold - currentUser.thisWeekVol)} more</div>
-                  )}
-                </div>
-                <span className={`flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-lg ${currentUser.unlocked ? "bg-green-100 text-green-700" : "bg-gray-200 text-gray-500"}`}>
-                  {currentUser.unlocked ? <Check size={12} /> : <Lock size={12} />}
-                  {currentUser.unlocked ? "Unlocked" : "Locked"}
-                </span>
-              </div>
-              <div className="flex items-center justify-between pt-2 border-t border-gray-200/60">
-                <span className="text-xs font-semibold text-gray-600">Week Total</span>
-                <span className="font-bold text-gray-900">
-                  ${(currentUserBaseShare + (currentUser.unlocked ? (currentUser.tier?.bonus ?? 0) : 0)).toFixed(0)}
-                  {!currentUser.unlocked && <span className="text-xs text-gray-400 font-normal"> (bonus locked)</span>}
-                </span>
-              </div>
+            <span className="font-bold text-gray-900 text-sm">My Position</span>
+            {currentUser.tier && (
+              <span className={`ml-auto inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-bold ${currentUser.tier.badge}`}>
+                <div className={`w-1.5 h-1.5 rounded-full bg-gradient-to-br ${currentUser.tier.color}`} />
+                {currentUser.tier.label}
+              </span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 mb-4">
+            <div className="bg-white/70 rounded-xl p-2.5 text-center">
+              <Crown size={13} className="text-yellow-500 mx-auto mb-1" />
+              <div className="font-bold text-gray-900 text-base">#{currentUser.rank}</div>
+              <div className="text-[10px] text-gray-500">Rank</div>
+            </div>
+            <div className="bg-white/70 rounded-xl p-2.5 text-center">
+              <PieChart size={13} className="text-blue-500 mx-auto mb-1" />
+              <div className="font-bold text-gray-900 text-base">{currentUser.portfolios}</div>
+              <div className="text-[10px] text-gray-500">Portfolios</div>
+            </div>
+            <div className="bg-white/70 rounded-xl p-2.5 text-center">
+              <Wallet size={13} className="text-green-500 mx-auto mb-1" />
+              <div className="font-bold text-gray-900 text-base">{fmt(currentUser.totalVolume)}</div>
+              <div className="text-[10px] text-gray-500">Volume</div>
+            </div>
+            <div className="bg-white/70 rounded-xl p-2.5 text-center">
+              <BarChart2 size={13} className="text-green-500 mx-auto mb-1" />
+              <div className="font-bold text-gray-900 text-base">{fmt(currentUser.thisWeekVol)}</div>
+              <div className="text-[10px] text-gray-500">This Week's Volume</div>
             </div>
           </div>
 
+          <button className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-black hover:bg-gray-800 text-white font-semibold text-sm transition-colors">
+            <Plus size={15} /> Create Portfolio
+          </button>
+        </div>
+
           {/* Total campaign earnings */}
-          <div className="glass-card p-5 border-purple-200/50 bg-gradient-to-br from-purple-50/40 to-pink-50/40">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-7 h-7 bg-purple-100 rounded-lg flex items-center justify-center">
-                <Gem size={14} className="text-purple-600" />
-              </div>
-              <span className="font-bold text-gray-900 text-sm">Total Campaign Earnings</span>
+         <div className="glass-card p-5 border-purple-200/50 bg-gradient-to-br from-purple-50/40 to-pink-50/40">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-7 h-7 bg-purple-100 rounded-lg flex items-center justify-center">
+              <Gem size={14} className="text-purple-600" />
             </div>
-            <div className="space-y-3">
-              <div>
-                <div className="text-xs text-gray-500 mb-0.5">Accumulated so far</div>
-                <div className="text-2xl font-bold text-gray-900">$0</div>
-                <div className="text-xs text-gray-400 mt-0.5">Across {WEEKS.length} weeks · resets weekly</div>
-              </div>
-              <div className="space-y-1.5">
-                {WEEKS.map((w, i) => (
-                  <div key={w.week} className="flex items-center gap-2">
-                    <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${i < selectedWeek ? "bg-green-400" : i === selectedWeek ? "bg-blue-400" : "bg-gray-200"}`} />
-                    <span className="text-xs text-gray-500 flex-1">Wk {w.week} · {w.dateRange}</span>
-                    <span className="text-xs font-semibold text-gray-400">—</span>
-                  </div>
-                ))}
-              </div>
+            <span className="font-bold text-gray-900 text-sm">My Earnings</span>
+          </div>
+
+          {/* Total Earnings stat */}
+            <div className="flex items-center justify-between bg-white/70 rounded-xl border border-purple-200/50 mb-3 p-3">
+                    <div>
+            <div className="text-xs text-gray-500 mb-1">Total Earnings</div>
+          </div>
+           <div className="text-2xl font-bold text-gray-900">$0</div>
+            </div>
+
+          {/* This Week's Earnings */}
+          <div className="mb-3 p-3 bg-white/60 rounded-xl border border-purple-200/40 space-y-2">
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">This Week's Earnings</div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-gray-500">Reward Share</span>
+              <span className="font-bold text-gray-900">${currentUserBaseShare.toFixed(0)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-gray-500">Tier Bonus</span>
+              <span className={`flex items-center gap-1 text-xs font-bold ${currentUser.unlocked ? "text-green-600" : "text-gray-400"}`}>
+                {currentUser.unlocked ? <Check size={11} /> : <Lock size={11} />}
+                ${currentUser.tier?.bonus.toLocaleString()}
+              </span>
+            </div>
+            <div className="flex items-center justify-between pt-1.5 border-t border-gray-200/60">
+              <span className="text-xs font-semibold text-gray-700">Total</span>
+              <span className="font-bold text-gray-900">
+                ${(currentUserBaseShare + (currentUser.unlocked ? (currentUser.tier?.bonus ?? 0) : 0)).toFixed(0)}
+              </span>
             </div>
           </div>
+
+      
+        </div>
         </div>
 
 
       {/* Weekly Leaderboard */}
       <div className="glass-card p-6">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-          <div className="flex items-center gap-2">
+            <div className="flex flex-col gap-2">
+                      <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2">
             <Calendar size={18} className="text-gray-600" />
             <h3 className="font-bold text-gray-900">Weekly Leaderboard</h3>
           </div>
-          <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
-            <button
-              onClick={() => setSelectedWeek((w) => Math.max(0, w - 1))}
-              disabled={selectedWeek === 0}
-              className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white disabled:opacity-30 transition-all"
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <div className="md:hidden min-w-[72px] px-3 py-1.5 text-center text-xs font-semibold text-gray-700">
-              Wk {WEEKS[selectedWeek].week}
+            <span className="px-2.5 py-1 bg-green-100 text-green-700 text-[12px] font-bold rounded-full  tracking-wider">
+                $100K/Week
+              </span>
+        </div>
+        <p className="text-xs text-gray-400 mb-4">The more volume you generate, the larger your reward share</p>
             </div>
-            <div className="hidden md:flex items-center gap-1">
-              {WEEKS.map((w, i) => (
-                <button
-                  key={w.week}
-                  onClick={() => setSelectedWeek(i)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${selectedWeek === i ? "bg-black text-white" : "text-gray-600 hover:bg-white"}`}
-                >
-                  Wk {w.week}
-                </button>
-              ))}
-            </div>
-            <button
-              onClick={() =>
-                setSelectedWeek((w) => Math.min(WEEKS.length - 1, w + 1))
-              }
-              disabled={selectedWeek === WEEKS.length - 1}
-              className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white disabled:opacity-30 transition-all"
-            >
-              <ChevronRight size={16} />
-            </button>
+         <div className="flex items-center gap-2 flex-wrap">
+            {WEEKS.map((w, i) => (
+              <button
+                key={w.week}
+                onClick={() => setSelectedWeek(i)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border ${
+                  selectedWeek === i
+                    ? "bg-black text-white border-black"
+                    : "text-gray-600 border-gray-200 hover:border-gray-400 hover:text-gray-900 bg-white"
+                }`}
+              >
+                Week {w.week}
+                <span className="ml-1.5 opacity-60">{w.dateRange.split("–")[0].trim()}</span>
+              </button>
+            ))}
           </div>
         </div>
 
@@ -491,10 +447,10 @@ export function VolumeLeagueCampaign() {
                   Tier
                 </th>
                 <th className="text-left py-2.5 px-2 text-gray-500 font-semibold text-xs">
-                  Base Share
+                  Reward Share
                 </th>
                 <th className="text-left py-2.5 px-2 text-gray-500 font-semibold text-xs">
-                  Bonus
+                  Tier Bonus
                 </th>
                 <th className="text-left py-2.5 px-2 text-gray-500 font-semibold text-xs">
                   Total
@@ -832,12 +788,12 @@ export function VolumeLeagueCampaign() {
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <BarChart2 size={16} className="text-gray-600" />
-                  <h4 className="font-bold text-gray-900">Base Pool Rules</h4>
+                  <h4 className="font-bold text-gray-900">reward share Pool Rules</h4>
                 </div>
                 <ul className="space-y-2 text-sm text-gray-700">
                   {[
-                    "Every user who trades a minimum of $500 in a given week earns a share of the $70K weekly base pool",
-                    "Share is calculated as: √(your volume) ÷ Σ√(all users' volumes) × $70,000",
+                    "Every user who trades a minimum of $500 in a given week earns a share of the $70K weekly reward share pool",
+                    "Reward share is calculated as: √(your volume) ÷ Σ√(all users' volumes) × $70,000",
                     "Rankings and pool shares reset every week at 00:00 UTC on Monday",
                     "Volume from Prime Picks, Quick Portfolio Builder, and Binance Wallet Campaign tasks all count",
                   ].map((item, i) => (
