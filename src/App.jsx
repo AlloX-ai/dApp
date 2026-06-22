@@ -12,6 +12,7 @@ import { WalletModal } from "./components/WalletModal";
 import { LaunchSidebar } from "./components/LaunchSidebar";
 import { Header } from "./components/Header";
 import { ChatPage } from "./pages/ChatPage";
+import { ChatPage2 } from "./pages/ChatPage2";
 import { PortfolioPage } from "./pages/PortfolioPage";
 import { TradingPage } from "./pages/TradingPage";
 import { StakingPage } from "./pages/StakingPage";
@@ -30,11 +31,23 @@ import {
 } from "@wagmi/core";
 import { subscribeWalletConnectForceConnect } from "./utils/walletConnectForceConnect";
 import { resolveSemanticWalletType } from "./utils/resolveSemanticWalletType";
+
 import {
+  isBinanceConnectorLike,
+  restoreBinanceSessionMarkerFromPersistence,
+} from "./utils/binanceWallet";
+
+import {
+  clearBinanceWalletSession,
+  clearPersistedWalletProvider,
   clearPersistedWalletType,
+  getPersistedWalletProvider,
   getPersistedWalletType,
+  hasBinanceWalletSession,
   isWalletConnectHandoffType,
+  markBinanceWalletSession,
   persistWalletType,
+  resolveWalletTypeForPersistence,
 } from "./utils/walletPersistence";
 import {
   connectViaWalletConnect,
@@ -91,6 +104,8 @@ import { PrivyFundHubModal } from "./components/PrivyFundHubModal";
 import { MaintenancePage } from "./pages/MaintenancePage";
 import { TopPortfoliosPage } from "./pages/TopPortfoliosPage";
 import { WatchlistPage } from "./pages/WatchlistPage";
+import { PrimePicks } from "./pages/PrimePicks";
+import { persistBinanceBoosterAddrFromSearch } from "./utils/binanceCampaign";
 
 const MAINTENANCE_MODE = false;
 
@@ -107,17 +122,6 @@ const isRateLimitError = (error) => {
   ).toLowerCase();
   return message.includes("429") || message.includes("too many requests");
 };
-
-function isBinanceConnectorLike(connector) {
-  const type = String(connector?.type ?? "").toLowerCase();
-  const id = String(connector?.id ?? "").toLowerCase();
-  const name = String(connector?.name ?? "").toLowerCase();
-  return (
-    type.includes("binance") ||
-    id.includes("binance") ||
-    name.includes("binance")
-  );
-}
 
 /** Avoid EVM (wagmi) and Solana (adapter) fighting for the same MetaMask session. */
 async function disconnectAllEvmWagmi() {
@@ -176,6 +180,7 @@ function PrivyEnsureBnbChain() {
 function LaunchAppLayout() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
   const wasConnectedRef = useRef(false);
   const prevAddressRef = useRef(undefined);
   const prevWalletTypeRef = useRef(undefined);
@@ -216,6 +221,10 @@ function LaunchAppLayout() {
   const privyVerifyAttemptedRef = useRef(false);
   const privyVerifyFailuresRef = useRef(0);
   const privyVerifyCooldownUntilRef = useRef(0);
+
+  useEffect(() => {
+    persistBinanceBoosterAddrFromSearch(location.search);
+  }, [location.search]);
 
   const attemptWalletAuthentication = useCallback(
     async ({
@@ -549,9 +558,10 @@ function LaunchAppLayout() {
   }, [user?.season1, user?.season1?.points, dispatch]);
 
   useEffect(() => {
-    if (user?.walletType && address && user?.address === address) {
-      dispatch(setWalletType(user.walletType));
-    }
+    if (!user?.walletType || !address || user?.address !== address) return;
+    // Backend often returns generic "evm" even for Binance MPC / WC sessions.
+    if (hasBinanceWalletSession() && user.walletType === "evm") return;
+    dispatch(setWalletType(user.walletType));
   }, [user?.walletType, user?.address, address, dispatch]);
 
   useEffect(() => {
@@ -773,7 +783,10 @@ function LaunchAppLayout() {
 
       <CheckinModal
         open={checkinModal}
-        onClose={() => dispatch(closeCheckinModal())}
+        onClose={() => {
+          dispatch(closeCheckinModal());
+          window.location.hash = "";
+        }}
         status={checkinStatus}
         claim={claimCheckin}
         fetchStatus={fetchCheckinStatus}
@@ -921,6 +934,10 @@ function WalletSync() {
   const { wallets: privyWallets, ready: privyWalletsReady } = useWallets();
 
   useEffect(() => {
+    restoreBinanceSessionMarkerFromPersistence();
+    if (getPersistedWalletProvider() === "binance_wallet") {
+      markBinanceWalletSession();
+    }
     const persisted = getPersistedWalletType();
     if (persisted && !store.getState().wallet.walletType) {
       dispatch(setWalletType(persisted));
@@ -1014,22 +1031,27 @@ function WalletSync() {
               disconnectTimeoutId = null;
             }
             if (account.address) {
+              if (isBinanceConnectorLike(account.connector)) {
+                markBinanceWalletSession();
+              }
               const resolvedType = resolveSemanticWalletType(
                 account.connector,
                 getPersistedWalletType(),
               );
+              const typeToPersist =
+                resolveWalletTypeForPersistence(resolvedType);
               const resolvedChainId =
                 account.chainId ?? getChainId(wagmiClient);
               dispatch(setAddress(account.address));
               if (resolvedChainId != null) {
                 dispatch(setChainId(resolvedChainId));
               }
-              dispatch(setWalletType(resolvedType));
-              persistWalletType(resolvedType);
+              dispatch(setWalletType(typeToPersist));
+              persistWalletType(typeToPersist);
               dispatch(setIsConnected(true));
               dispatch(setSessionSource("wallet"));
               if (typeof window !== "undefined") {
-                window.WALLET_TYPE = resolvedType;
+                window.WALLET_TYPE = typeToPersist;
               }
               if (
                 !localStorage.getItem("authToken") &&
@@ -1103,12 +1125,17 @@ function WalletSync() {
           }
           const activeConnection = connections[0];
           if (activeConnection.accounts[0]) {
+            if (isBinanceConnectorLike(activeConnection.connector)) {
+              markBinanceWalletSession();
+            }
             const resolvedType = resolveSemanticWalletType(
               activeConnection.connector,
               getPersistedWalletType(),
             );
-            dispatch(setWalletType(resolvedType));
-            persistWalletType(resolvedType);
+            const typeToPersist =
+              resolveWalletTypeForPersistence(resolvedType);
+            dispatch(setWalletType(typeToPersist));
+            persistWalletType(typeToPersist);
             dispatch(setAddress(activeConnection.accounts[0]));
             dispatch(
               setChainId(activeConnection.chainId ?? getChainId(wagmiClient)),
@@ -1116,7 +1143,7 @@ function WalletSync() {
             dispatch(setIsConnected(true));
             dispatch(setSessionSource("wallet"));
             if (typeof window !== "undefined") {
-              window.WALLET_TYPE = resolvedType;
+              window.WALLET_TYPE = typeToPersist;
             }
             if (
               !localStorage.getItem("authToken") &&
@@ -1215,7 +1242,7 @@ function App() {
   const count = parseInt(localStorage.getItem("alloxRaceChatCount") || "0", 10);
   useEffect(() => {
     const today = new Date().toDateString();
-  // App only decides visibility; storage updates happen in CongratsModal after open.
+    // App only decides visibility; storage updates happen in CongratsModal after open.
     setShowModal(lastShown !== today && count < 3 && isAuthenticated);
   }, [lastShown, count, isAuthenticated]);
 
@@ -1244,12 +1271,15 @@ function App() {
           <Route path="/top-portfolios" element={<TopPortfoliosPage />} />
           <Route path="/campaigns" element={<CampaignsPage />} />
           <Route path="/watchlist" element={<WatchlistPage />} />
+          <Route path="/prime-picks" element={<PrimePicks />} />
+
           <Route path="/rewards" element={<PointsPage />} />
 
           <Route path="/trending" element={<TradingPage />} />
           <Route path="/staking" element={<StakingPage />} />
           <Route path="/history" element={<HistoryPage />} />
           <Route path="/referrals" element={<ReferralsPage />} />
+          <Route path="/bwcampaign" element={<ChatPage2 />} />
         </Route>
       </Routes>
       {showModal && (
@@ -1261,7 +1291,7 @@ function App() {
           address={address}
         />
       )}
-      {isAuthenticated && <AIChatWidget />}
+      {/* {isAuthenticated && <AIChatWidget />} */}
     </>
   );
 }

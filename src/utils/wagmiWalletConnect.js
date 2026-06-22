@@ -2,7 +2,12 @@ import { connect } from "@wagmi/core";
 import { connectBinanceViaWalletConnect } from "./binanceWalletAppKit";
 import { wagmiClient } from "../wagmiConnectors";
 import { ensureReownAppKitConfigured } from "./initReownAppKit";
-import { persistWalletType } from "./walletPersistence";
+import {
+  clearBinanceWalletSession,
+  clearPersistedWalletProvider,
+  markBinanceWalletSession,
+  persistWalletType,
+} from "./walletPersistence";
 
 /** DApp browser wallets that connect via the WalletConnect v2 modal. */
 export const WALLET_CONNECT_UI_TYPES = new Set(["walletconnect", "binance"]);
@@ -19,6 +24,12 @@ export function getWalletConnectConnector() {
 }
 
 function tagSemanticWalletType(walletType) {
+  if (walletType === "binance") {
+    markBinanceWalletSession();
+    return;
+  }
+  clearBinanceWalletSession();
+  clearPersistedWalletProvider();
   if (typeof window !== "undefined") {
     window.WALLET_TYPE = walletType;
   }

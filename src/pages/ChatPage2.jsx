@@ -143,15 +143,6 @@ function formatResetAt(resetAt) {
   return `${dateStr} at ${timeStr}`;
 }
 
-const QUICK_PRESET_AMOUNTS_USD = [5, 100, 500];
-
-function parseQuickCustomAmountUsd(raw) {
-  const trimmed = String(raw ?? "").trim();
-  if (trimmed === "") return null;
-  const n = Number(trimmed);
-  return Number.isFinite(n) && n > 0 ? n : null;
-}
-
 const NARRATIVE_MODAL_OPTIONS = [
   {
     id: "layer2",
@@ -217,7 +208,7 @@ const NARRATIVE_MODAL_OPTIONS = [
   },
 ];
 
-export function ChatPage() {
+export function ChatPage2() {
   const dispatch = useDispatch();
   const location = useLocation();
   const navigate = useNavigate();
@@ -3843,7 +3834,7 @@ export function ChatPage() {
                   I can help you discover, execute, and manage your portfolio.
                 </p>
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-4">
-                  {/* <button
+                  <button
                     type="button"
                     onClick={() => {
                       if (isReadOnly || messagesRemaining === 0) return;
@@ -3867,7 +3858,7 @@ export function ChatPage() {
                     >
                       Binance Campaign
                     </span>
-                  </button> */}
+                  </button>
                   <NavLink
                     to="/prime-picks"
                     className="inline-flex items-center gap-2.5 px-5 py-2 bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-cyan-500/10 border border-purple-500/20 rounded-full shadow-lg shadow-purple-500/5 backdrop-blur-sm overflow-hidden"
@@ -5162,10 +5153,8 @@ export function ChatPage() {
                           How much would you like to invest?
                         </div>
                         <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 mb-3">
-                          {QUICK_PRESET_AMOUNTS_USD.map((amt) => {
-                            const selected =
-                              quickForm.amountUsd === amt &&
-                              quickForm.customAmountUsdText === "";
+                          {[5, 100, 500].map((amt) => {
+                            const selected = quickForm.amountUsd === amt;
                             return (
                               <button
                                 key={amt}
@@ -5193,18 +5182,12 @@ export function ChatPage() {
                             onClick={() =>
                               setQuickForm((p) => ({
                                 ...p,
-                                amountUsd: parseQuickCustomAmountUsd(
-                                  p.customAmountUsdText,
-                                ),
+                                amountUsd: null,
                               }))
                             }
                             disabled={quickIsGenerating || quickIsExecuting}
                             className={
-                              quickForm.customAmountUsdText !== "" ||
-                              (quickForm.amountUsd != null &&
-                                !QUICK_PRESET_AMOUNTS_USD.includes(
-                                  quickForm.amountUsd,
-                                ))
+                              quickForm.amountUsd == null
                                 ? "px-4 py-2.5 bg-gray-900 text-white border border-gray-900 rounded-xl text-sm font-medium hover:bg-gray-800 shadow-sm"
                                 : "px-4 py-2.5 bg-white/80 border border-gray-200 rounded-xl text-sm font-medium hover:bg-white hover:border-gray-300"
                             }
@@ -5216,27 +5199,17 @@ export function ChatPage() {
                           Custom amount (USD)
                         </label>
                         <input
-                          type="text"
-                          inputMode="decimal"
-                          autoComplete="off"
-                          maxLength={12}
+                          type="number"
+                          min="1"
+                          maxLength={8}
                           value={quickForm.customAmountUsdText}
                           placeholder="$ e.g. 250"
                           onChange={(e) => {
                             const raw = e.target.value;
-                            if (raw !== "" && !/^\d*\.?\d*$/.test(raw)) return;
                             setQuickForm((p) => ({
                               ...p,
                               customAmountUsdText: raw,
-                              amountUsd: parseQuickCustomAmountUsd(raw),
-                            }));
-                          }}
-                          onBlur={() => {
-                            setQuickForm((p) => ({
-                              ...p,
-                              amountUsd: parseQuickCustomAmountUsd(
-                                p.customAmountUsdText,
-                              ),
+                              amountUsd: raw.trim() === "" ? null : Number(raw),
                             }));
                           }}
                           disabled={quickIsGenerating || quickIsExecuting}

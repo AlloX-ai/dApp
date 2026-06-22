@@ -10,7 +10,13 @@ import {
   refreshAuthToken,
 } from "../utils/api";
 import { setWalletType } from "../redux/slices/walletSlice";
-import { persistWalletType, getPersistedWalletType } from "../utils/walletPersistence";
+import {
+  getPersistedWalletType,
+  hasBinanceWalletSession,
+  persistWalletProvider,
+  persistWalletType,
+  resolveWalletTypeForPersistence,
+} from "../utils/walletPersistence";
 import { resolveWalletProvider } from "../utils/resolveWalletProvider";
 import { runPrivyLogoutBridge } from "../auth/privyLogoutBridge";
 import {
@@ -400,9 +406,14 @@ export const useAuth = () => {
         setUser({ walletType: walletTypeFromApi, address });
       }
 
+      persistWalletProvider(walletProvider ?? null);
+
       if (walletTypeFromApi) {
-        dispatch(setWalletType(walletTypeFromApi));
-        persistWalletType(walletTypeFromApi);
+        const typeForStore = hasBinanceWalletSession()
+          ? "binance"
+          : walletTypeFromApi;
+        dispatch(setWalletType(typeForStore));
+        persistWalletType(resolveWalletTypeForPersistence(typeForStore));
       }
 
       toast.success("Wallet connected and verified.", { id: toastId });

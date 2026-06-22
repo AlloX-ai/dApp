@@ -17,7 +17,7 @@ import {
   Info,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { useDispatch, useSelector } from "react-redux";
 import { useAuth } from "../hooks/useAuth";
 import {
@@ -101,6 +101,7 @@ export function PointsPage() {
   const { fetchSocialPoints, fetchAllPoints } = useSocial();
 
   const navigate = useNavigate();
+  const location = useLocation();
   const dispatch = useDispatch();
   const { user, setUser, claimSeason1, ensureAuthenticated } = useAuth();
   const claimStatusKnown = typeof user?.season1?.claimed === "boolean";
@@ -292,6 +293,18 @@ export function PointsPage() {
     window.scrollTo(0, 0);
     document.title = "Rewards";
   }, []);
+
+  useEffect(() => {
+    if (location.hash !== "#daily-bonus") return;
+
+    if (!isConnected) {
+      dispatch(setWalletModal(true));
+    } else {
+      dispatch(openCheckinModal());
+    }
+
+    // navigate({ pathname: "/rewards", hash: "" }, { replace: true });
+  }, [location.hash, isConnected, dispatch, navigate]);
 
   return (
     <div className="space-y-6 flex-1 px-6 py-8 portfolio-wrapper ms-auto w-full overflow-y-auto">
