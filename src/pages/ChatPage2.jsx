@@ -143,6 +143,13 @@ function formatResetAt(resetAt) {
   return `${dateStr} at ${timeStr}`;
 }
 
+function parseQuickCustomAmountUsd(raw) {
+  const trimmed = String(raw ?? "").trim();
+  if (trimmed === "") return null;
+  const n = Number(trimmed);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
 const NARRATIVE_MODAL_OPTIONS = [
   {
     id: "layer2",
@@ -4529,8 +4536,9 @@ export function ChatPage2() {
                               onClick={() =>
                                 setBinanceForm((p) => ({
                                   ...p,
-                                  amountUsd: null,
-                                  customAmountUsdText: "",
+                                  amountUsd: parseQuickCustomAmountUsd(
+                                    p.customAmountUsdText,
+                                  ),
                                 }))
                               }
                               disabled={
@@ -4554,18 +4562,27 @@ export function ChatPage2() {
                             Custom amount (USD)
                           </label>
                           <input
-                            type="number"
-                            min={BINANCE_CAMPAIGN_MIN_AMOUNT_USD}
-                            maxLength={8}
+                            type="text"
+                            inputMode="decimal"
+                            autoComplete="off"
+                            maxLength={12}
                             value={binanceForm.customAmountUsdText}
-                            placeholder={`$ e.g. 750`}
+                            placeholder={`$ e.g. 750 (min $${BINANCE_CAMPAIGN_MIN_AMOUNT_USD})`}
                             onChange={(e) => {
                               const raw = e.target.value;
+                              if (raw !== "" && !/^\d*\.?\d*$/.test(raw)) return;
                               setBinanceForm((p) => ({
                                 ...p,
                                 customAmountUsdText: raw,
-                                amountUsd:
-                                  raw.trim() === "" ? null : Number(raw),
+                                amountUsd: parseQuickCustomAmountUsd(raw),
+                              }));
+                            }}
+                            onBlur={() => {
+                              setBinanceForm((p) => ({
+                                ...p,
+                                amountUsd: parseQuickCustomAmountUsd(
+                                  p.customAmountUsdText,
+                                ),
                               }));
                             }}
                             disabled={binanceIsGenerating || binanceIsExecuting}

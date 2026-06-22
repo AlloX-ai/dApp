@@ -898,9 +898,9 @@ export function ReferralsPage() {
                 Track your referrals and earnings
                 {dashboard?.referredBy ? " · You joined via a referral" : ""}
               </p>
-              {dashboardError && (
+              {/* {dashboardError && (
                 <p className="text-xs text-red-600 mt-1">{dashboardError}</p>
-              )}
+              )} */}
             </div>
 
             {/* Info Buttons - Top Right */}
