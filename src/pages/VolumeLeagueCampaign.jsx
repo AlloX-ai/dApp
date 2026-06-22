@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSelector } from "react-redux";
 import {
   Gem,
   TrendingUp,
@@ -20,8 +21,10 @@ import {
   BookOpen,
   Plus,
   Check,
+  AlertCircle,
 } from "lucide-react";
 import { Link } from "react-router";
+import { useVolume } from "../hooks/useVolume";
 
 const TIERS = [
   {
@@ -94,15 +97,42 @@ const WEEKS = [
 ];
 
 const faqs = [
-  { q: "Who qualifies for the Reward share  pool?", a: "Every user who trades any amount that week earns a share of the $70K weekly reward share pool. There is no minimum volume to participate in the reward share pool, if you trade, you earn." },
-  { q: "How is my reward share pool share calculated?", a: "Your share is proportional to your √(volume) relative to all participants. For example, if your √(volume) is 100 and the sum of all √(volume) across all users is 10,000, you receive 1% of the $70K reward share pool = $700. This square-root weighting means large traders don't dominate smaller ones." },
-  { q: "How do tier bonuses work?", a: "The top 150 ranked users each week are assigned a tier by rank position: top 10 = Diamond, 11–30 = Gold, 31–70 = Silver, 71–150 = Bronze. Each tier has a volume threshold you must hit to unlock your one-time bonus for that week." },
-  { q: "What are the tier volume thresholds?", a: "Diamond (top 10): $100K | Gold (rank 11–30): $50K | Silver (rank 31–70): $25K | Bronze (rank 71–150): $5K. If you are ranked in the top 150 but haven't hit your tier's threshold, your bonus shows as locked on the leaderboard." },
-  { q: "What happens to locked bonuses?", a: "Locked bonuses are not paid out." },
-  { q: "Can I earn a tier bonus multiple times per week?", a: "No. The tier bonus is a one-time reward per user per week. Exceeding your tier threshold multiple times does not multiply the bonus." },
-  { q: "How are rankings determined?", a: "Users are ranked weekly by √(volume) from highest to lowest. Rankings and pool shares reset every Monday at 00:00 UTC." },
-  { q: "What is the total prize pool?", a: "The total campaign prize is $500K across 5 weeks ($100K/week). Each week: $70K reward share pool (distributed to all traders) + $30K tier bonus budget (Diamond $10K, Gold $10K, Silver $6K, Bronze $4K)." },
-  { q: "Can I participate with multiple wallets?", a: "No. Each user may only participate with one verified Binance Wallet. Using multiple wallets will result in permanent disqualification from all tiers and forfeiture of reward share pool earnings." },
+  {
+    q: "Who qualifies for the Reward share  pool?",
+    a: "Every user who trades any amount that week earns a share of the $70K weekly reward share pool. There is no minimum volume to participate in the reward share pool, if you trade, you earn.",
+  },
+  {
+    q: "How is my reward share pool share calculated?",
+    a: "Your share is proportional to your √(volume) relative to all participants. For example, if your √(volume) is 100 and the sum of all √(volume) across all users is 10,000, you receive 1% of the $70K reward share pool = $700. This square-root weighting means large traders don't dominate smaller ones.",
+  },
+  {
+    q: "How do tier bonuses work?",
+    a: "The top 150 ranked users each week are assigned a tier by rank position: top 10 = Diamond, 11–30 = Gold, 31–70 = Silver, 71–150 = Bronze. Each tier has a volume threshold you must hit to unlock your one-time bonus for that week.",
+  },
+  {
+    q: "What are the tier volume thresholds?",
+    a: "Diamond (top 10): $100K | Gold (rank 11–30): $50K | Silver (rank 31–70): $25K | Bronze (rank 71–150): $5K. If you are ranked in the top 150 but haven't hit your tier's threshold, your bonus shows as locked on the leaderboard.",
+  },
+  {
+    q: "What happens to locked bonuses?",
+    a: "Locked bonuses are not paid out.",
+  },
+  {
+    q: "Can I earn a tier bonus multiple times per week?",
+    a: "No. The tier bonus is a one-time reward per user per week. Exceeding your tier threshold multiple times does not multiply the bonus.",
+  },
+  {
+    q: "How are rankings determined?",
+    a: "Users are ranked weekly by √(volume) from highest to lowest. Rankings and pool shares reset every Monday at 00:00 UTC.",
+  },
+  {
+    q: "What is the total prize pool?",
+    a: "The total campaign prize is $500K across 5 weeks ($100K/week). Each week: $70K reward share pool (distributed to all traders) + $30K tier bonus budget (Diamond $10K, Gold $10K, Silver $6K, Bronze $4K).",
+  },
+  {
+    q: "Can I participate with multiple wallets?",
+    a: "No. Each user may only participate with one verified Binance Wallet. Using multiple wallets will result in permanent disqualification from all tiers and forfeiture of reward share pool earnings.",
+  },
 ];
 function getTierByRank(rank) {
   return (
@@ -183,16 +213,66 @@ function FAQItem({ q, a }) {
 }
 
 export function VolumeLeagueCampaign() {
+
+    const [showTutorialModal, setShowTutorialModal] = useState(false);
   const [selectedWeek, setSelectedWeek] = useState(0);
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [showFAQModal, setShowFAQModal] = useState(false);
   const [showBonusModal, setShowBonusModal] = useState(false);
+  const [positionWeek, setPositionWeek] = useState(0);
+  const [portfolios, setPortfolios] = useState([]);
+  const [portfolioSlide, setPortfolioSlide] = useState(0);
+  const [selectedPortfolio, setSelectedPortfolio] = useState(null);
+
+  
+  const portfolioIdRef = { current: 1 };
+  const walletAddress = useSelector((state) => state.wallet.address);
+  const { fetchCompetition, fetchLeaderboard, fetchUserCompetitionData } =
+    useVolume();
   const showWeekNotStartedPlaceholder = selectedWeek >= 1;
   const selectedWeekStatus = WEEKS[selectedWeek].status;
 
-  const leaderboard = generateLeaderboard(selectedWeek + 1);
+  const MOCK_TOKENS_POOL = [
+    { symbol: "BNB", name: "Binance Coin", price: 312 },
+    { symbol: "ETH", name: "Ethereum", price: 3410 },
+    { symbol: "BTC", name: "Bitcoin", price: 67200 },
+    { symbol: "CAKE", name: "PancakeSwap", price: 2.14 },
+    { symbol: "ASTER", name: "Aster", price: 0.38 },
+    { symbol: "LINK", name: "Chainlink", price: 14.2 },
+    { symbol: "UNI", name: "Uniswap", price: 7.8 },
+  ];
+  const handleCreatePortfolio = () => {
+    const shuffled = [...MOCK_TOKENS_POOL]
+      .sort(() => Math.random() - 0.5)
+      .slice(0, 3);
+    const totalAlloc = 100;
+    const splits = [50, 30, 20];
+    const budget = 500 + Math.random() * 1500;
+    const newPortfolio = {
+      id: Date.now(),
+      name: `Portfolio #${portfolios.length + 1}`,
+      tokens: shuffled.map((t, i) => ({
+        symbol: t.symbol,
+        name: t.name,
+        allocation: splits[i],
+        price: t.price,
+        amount: (budget * splits[i]) / 100 / t.price,
+      })),
+    };
+    setPortfolios((prev) => [...prev, newPortfolio]);
+    setPortfolioSlide(0);
+  };
 
-  console.log(leaderboard, "lb");
+  const handleSellPortfolio = (id) => {
+    setPortfolios((prev) => {
+      const next = prev.filter((p) => p.id !== id);
+      setPortfolioSlide((s) => Math.max(0, Math.min(s, next.length - 1)));
+      return next;
+    });
+    setSelectedPortfolio(null);
+  };
+
+  const leaderboard = generateLeaderboard(selectedWeek + 1);
 
   // Mock current user
   const currentUser = {
@@ -212,6 +292,53 @@ export function VolumeLeagueCampaign() {
     currentUser.tier && currentUser.unlocked ? currentUser.tier.bonus : 0;
   const currentUserWeeklyRewardUsd = currentUserBaseShare + currentUserBonusAmt;
   currentUser.estimatedGems = Math.floor(currentUserWeeklyRewardUsd / 5);
+  useEffect(() => {
+    const loadVolumeCampaignData = async () => {
+      try {
+        const campaignResult = await fetchCompetition();
+        console.log(
+          "[VolumeLeagueCampaign] /campaigns/volume-league",
+          campaignResult,
+        );
+
+        const leaderboardResult = await fetchLeaderboard({
+          week: selectedWeek + 1,
+          limit: 10,
+        });
+        console.log(
+          "[VolumeLeagueCampaign] /campaigns/volume-league/leaderboard",
+          leaderboardResult,
+        );
+
+        if (walletAddress) {
+          const userResult = await fetchUserCompetitionData({
+            address: walletAddress,
+          });
+          console.log(
+            "[VolumeLeagueCampaign] /campaigns/volume-league/?address=...",
+            userResult,
+          );
+        } else {
+          console.log(
+            "[VolumeLeagueCampaign] skipped /campaigns/volume-league/?address=... because no wallet is connected yet",
+          );
+        }
+      } catch (fetchError) {
+        console.error(
+          "[VolumeLeagueCampaign] failed to load volume campaign data",
+          fetchError,
+        );
+      }
+    };
+
+    loadVolumeCampaignData();
+  }, [
+    fetchCompetition,
+    fetchLeaderboard,
+    fetchUserCompetitionData,
+    selectedWeek,
+    walletAddress,
+  ]);
 
   return (
     <div className="space-y-5">
@@ -219,47 +346,38 @@ export function VolumeLeagueCampaign() {
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
           <div className="flex items-center gap-3">
-           <div className="flex flex-col gap-2">
-             <div className="flex items-end gap-4">
-              <h2 className="text-xl md:text-3xl  font-bold text-gray-900">Volume League</h2>
-             <span className="px-2.5 py-1 bg-green-100 text-green-700 text-[10px] font-bold rounded-full uppercase tracking-wider">
-                Guaranteed Rewards
-              </span>
-             </div>
-            <p className="text-gray-500 mt-1 text-sm">Generate volume, climb tier brackets, and earn weekly guaranteed rewards</p>
-           </div>
-           
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="glass-card px-4 py-2 bg-gradient-to-r from-blue-500/20 to-indigo-600/20 border-blue-400/40">
-              <div className="flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-blue-600" />
-                <div>
-                  <div className="text-xs text-gray-500">Total Prize Pool</div>
-                  <div className="font-bold text-gray-900">$500,000</div>
-                </div>
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-4">
+                <h2 className="text-xl md:text-3xl  font-bold text-gray-900">
+                  Volume League
+                </h2>
+                <span className=" text-gray-600 text-md font-bold rounded-full  tracking-wider">
+                  ($500,000 Reward)
+                </span>
               </div>
+              <p className="text-gray-500 mt-1 text-sm">
+                Generate volume, climb tier brackets, and earn weekly guaranteed
+                rewards
+              </p>
             </div>
-           
           </div>
         </div>
       </div>
 
       {/* Your Position */}
-           <div className="glass-card p-5">
-       <div className="flex items-center justify-between">
-         <h3 className="font-bold text-gray-900 mb-4">How It Works</h3>
-             <div className="flex items-center gap-3">
+      <div className="glass-card p-5">
+        <div className="flex justify-between items-center">
+          <h3 className="font-bold text-gray-900 mb-5">
+            2 Simple Steps To Earn
+          </h3>
+          <div className="flex items-center gap-3">
             <button
-              onClick={() => setShowBonusModal(true)}
+              onClick={() => setShowTutorialModal(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
             >
-              <Award className="w-4 h-4" />
-              Bonuses
+              <HelpCircle className="w-3.5 h-3.5" />
+              Guide
             </button>
-          
             <button
               onClick={() => setShowFAQModal(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
@@ -267,7 +385,7 @@ export function VolumeLeagueCampaign() {
               <BookOpen className="w-3.5 h-3.5" />
               FAQs
             </button>
-              <button
+            <button
               onClick={() => setShowTermsModal(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
             >
@@ -275,128 +393,336 @@ export function VolumeLeagueCampaign() {
               Terms
             </button>
           </div>
-       </div>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          {[
-            { step: 1, icon: <Plus size={18} className="text-blue-600" />, bg: "bg-blue-100", title: "Create a Portfolio", desc: "Select tokens to build a portfolio. Every buy or sell counts as volume." },
-            { step: 2, icon: <TrendingUp size={18} className="text-green-600" />, bg: "bg-green-100", title: "Generate Volume", desc: "The more volume you generate, the larger your share of the weekly reward pool." },
-            { step: 3, icon: <Gem size={18} className="text-purple-600" />, bg: "bg-purple-100", title: "Guaranteed Rewards", desc: "Every participant earns a reward share each week, a minimum of $500 volume required." },
-            { step: 4, icon: <Award size={18} className="text-amber-600" />, bg: "bg-amber-100", title: "Extra Bonus", desc: "Reach volume tiers to unlock one-time weekly bonuses on top of your base share." },
-          ].map(({ step, icon, bg, title, desc }) => (
-            <div key={step} className="relative bg-gray-50 rounded-2xl p-4">
-              <div className="absolute top-3 right-3 text-xs font-bold text-gray-300">{step}</div>
-              <div className={`w-9 h-9 ${bg} rounded-xl flex items-center justify-center mb-3`}>{icon}</div>
-              <div className="font-bold text-gray-900 text-sm mb-1">{title}</div>
-              <div className="text-xs text-gray-500 leading-relaxed">{desc}</div>
+        </div>
+        <div className="flex flex-col sm:flex-row items-stretch gap-0">
+          {/* Step 1 — Create a Portfolio */}
+          <div className="flex-1 relative bg-blue-50 border border-blue-200/60 rounded-2xl p-4 sm:rounded-r-none sm:border-r-0">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="px-2 py-1 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
+                <span className="text-white text-xs font-bold">Step 1</span>
+              </div>
+              <span className="font-bold text-gray-900 text-sm">
+                {" "}
+                Create a Portfolio
+              </span>
             </div>
-          ))}
+            <p className="text-xs text-gray-500 leading-relaxed ">
+              Select tokens and build different portfolios with any amount.
+            </p>
+          </div>
+
+          {/* Connector → */}
+          <div className="hidden sm:flex items-center justify-center w-8 bg-gray-50 border-y border-gray-200/60 z-10">
+            <div className="w-4 h-4 border-t-2 border-r-2 border-gray-900 rotate-45 -ml-2" />
+          </div>
+          <div className="flex sm:hidden items-center justify-center h-6">
+            <div className="w-4 h-4 border-b-2 border-r-2 border-gray-900 rotate-45 -mt-2" />
+          </div>
+
+          {/* Step 2 — Generate Volume */}
+          <div className="flex-1 relative bg-blue-50 border border-blue-200/60 rounded-2xl p-4 sm:rounded-none sm:border-x-0">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="px-2 py-1 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
+                <span className="text-white text-xs font-bold">Step 2</span>
+              </div>
+              <span className="font-bold text-gray-900 text-sm">
+                Generate Volume
+              </span>
+            </div>
+            <p className="text-xs text-gray-500 leading-relaxed ">
+              Every buy/sell counts to your weekly volume. A $500 minimum volume
+              required.
+            </p>
+            {/* Progress bar */}
+          </div>
+
+          {/* Connector → */}
+          <div className="hidden sm:flex items-center justify-center w-8 bg-gray-50 border-y border-gray-200/60 z-10">
+            <div className="flex flex-col gap-1">
+              <div className="w-4 h-0.5 bg-gray-900 rounded-full" />
+              <div className="w-4 h-0.5 bg-gray-900 rounded-full" />
+            </div>
+          </div>
+
+          {/* Step 3 — Guaranteed Rewards */}
+          <div className="flex-1 relative bg-green-50 border border-green-200/60 rounded-2xl p-4 sm:rounded-l-none sm:border-l-0">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="px-2 py-1 bg-green-600 rounded-full flex items-center justify-center flex-shrink-0">
+                <span className="text-white text-xs font-bold">Rewards</span>
+              </div>
+              <span className="font-bold text-gray-900 text-sm">
+                Guaranteed Rewards + Bonus
+              </span>
+            </div>
+            <p className="text-xs text-gray-500 leading-relaxed ">
+              Every participant earns a reward share each week, plus an extra
+              bonus.
+            </p>
+          </div>
         </div>
       </div>
 
-          <div className="grid sm:grid-cols-2 gap-3">
-          {/* This week's earnings */}
-       <div className="glass-card p-5 border-blue-200/50 bg-gradient-to-br from-blue-50/40 to-indigo-50/40">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-7 h-7 bg-blue-100 rounded-lg flex items-center justify-center">
-              <TrendingUp size={14} className="text-blue-600" />
-            </div>
-            <span className="font-bold text-gray-900 text-sm">My Position</span>
-            {currentUser.tier && (
-              <span className={`ml-auto inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-bold ${currentUser.tier.badge}`}>
-                <div className={`w-1.5 h-1.5 rounded-full bg-gradient-to-br ${currentUser.tier.color}`} />
-                {currentUser.tier.label}
+      <div className="grid sm:grid-cols-2 gap-3">
+        {/* My Position */}
+        <div className="glass-card p-5 border-blue-200/50 bg-gradient-to-br from-blue-50/40 to-indigo-50/40">
+          <div className="flex items-center justify-between gap-2 mb-4">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 bg-blue-100 rounded-lg flex items-center justify-center">
+                <TrendingUp size={14} className="text-blue-600" />
+              </div>
+              <span className="font-bold text-gray-900 text-sm">
+                My Position
               </span>
-            )}
+            <span className="px-2.5 py-1 bg-green-100 text-green-700 text-[10px] font-bold rounded-full uppercase tracking-wider">
+              Guaranteed Rewards
+            </span>
+            </div>
+            <div className="flex items-center gap-2">
+              {currentUser.tier && (
+                <span
+                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-bold ${currentUser.tier.badge}`}
+                >
+                  <div
+                    className={`w-1.5 h-1.5 rounded-full bg-gradient-to-br ${currentUser.tier.color}`}
+                  />
+                  {currentUser.tier.label}
+                </span>
+              )}
+              <select
+                value={positionWeek}
+                onChange={(e) => setPositionWeek(Number(e.target.value))}
+                className="text-xs font-semibold text-gray-700 bg-white border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-300 cursor-pointer"
+              >
+                {WEEKS.map((w, i) => (
+                  <option key={i} value={i}>
+                    Wk {w.week}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 mb-4">
+          {/* Stats — Rank, Volume, Portfolios */}
+          <div className="grid grid-cols-3 gap-2 mb-4">
             <div className="bg-white/70 rounded-xl p-2.5 text-center">
               <Crown size={13} className="text-yellow-500 mx-auto mb-1" />
-              <div className="font-bold text-gray-900 text-base">#{currentUser.rank}</div>
+              <div className="font-bold text-gray-900 text-lg">
+                #{currentUser.rank}
+              </div>
               <div className="text-[10px] text-gray-500">Rank</div>
             </div>
             <div className="bg-white/70 rounded-xl p-2.5 text-center">
-              <PieChart size={13} className="text-blue-500 mx-auto mb-1" />
-              <div className="font-bold text-gray-900 text-base">{currentUser.portfolios}</div>
-              <div className="text-[10px] text-gray-500">Portfolios</div>
-            </div>
-            <div className="bg-white/70 rounded-xl p-2.5 text-center">
               <Wallet size={13} className="text-green-500 mx-auto mb-1" />
-              <div className="font-bold text-gray-900 text-base">{fmt(currentUser.totalVolume)}</div>
+              <div className="font-bold text-gray-900 text-lg">
+                {fmt(currentUser.totalVolume)}
+              </div>
               <div className="text-[10px] text-gray-500">Volume</div>
             </div>
             <div className="bg-white/70 rounded-xl p-2.5 text-center">
-              <BarChart2 size={13} className="text-green-500 mx-auto mb-1" />
-              <div className="font-bold text-gray-900 text-base">{fmt(currentUser.thisWeekVol)}</div>
-              <div className="text-[10px] text-gray-500">This Week's Volume</div>
+              <PieChart size={13} className="text-blue-500 mx-auto mb-1" />
+              <div className="font-bold text-gray-900 text-lg">
+                {portfolios.length}
+              </div>
+              <div className="text-[10px] text-gray-500">Portfolios</div>
             </div>
           </div>
 
-          <button className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-black hover:bg-gray-800 text-white font-semibold text-sm transition-colors">
-            <Plus size={15} /> Create Portfolio
-          </button>
+          {/* Create Portfolio — big upload-style when empty, small when portfolios exist */}
+          {portfolios.length === 0 ? (
+            <button
+              onClick={handleCreatePortfolio}
+              className="w-full group flex flex-col items-center justify-center gap-2 py-8 rounded-2xl border-2 border-dashed border-blue-300 bg-blue-50/50 hover:bg-blue-600 hover:border-blue-600 transition-all duration-200"
+            >
+              <div className="w-10 h-10 rounded-full bg-blue-100 group-hover:bg-blue-500 flex items-center justify-center transition-colors">
+                <Plus
+                  size={20}
+                  className="text-blue-600 group-hover:text-white transition-colors"
+                />
+              </div>
+              <div className="text-center">
+                <div className="font-bold text-gray-900 group-hover:text-white text-sm transition-colors">
+                  Create Portfolio
+                </div>
+                <div className="text-xs text-gray-400 group-hover:text-blue-100 transition-colors mt-0.5">
+                  Select tokens · every trade counts as volume
+                </div>
+              </div>
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={handleCreatePortfolio}
+                className="w-full group flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed border-blue-300 bg-blue-50/50 hover:bg-blue-600 hover:border-blue-600 transition-all duration-200 mb-3"
+              >
+                <Plus
+                  size={14}
+                  className="text-blue-600 group-hover:text-white transition-colors"
+                />
+                <span className="text-sm font-semibold text-gray-800 group-hover:text-white transition-colors">
+                  Create Portfolio
+                </span>
+              </button>
+
+              {/* Portfolio horizontal list / slider */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-semibold text-gray-500">
+                    My Portfolios
+                  </span>
+                  {portfolios.length > 3 && (
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() =>
+                          setPortfolioSlide((s) => Math.max(0, s - 1))
+                        }
+                        disabled={portfolioSlide === 0}
+                        className="w-6 h-6 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center disabled:opacity-30 transition-all"
+                      >
+                        <svg
+                          width="10"
+                          height="10"
+                          viewBox="0 0 20 20"
+                          fill="none"
+                        >
+                          <path
+                            d="M13 5l-5 5 5 5"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                          />
+                        </svg>
+                      </button>
+                      <span className="text-[10px] text-gray-400">
+                        {portfolioSlide + 1}–
+                        {Math.min(portfolioSlide + 3, portfolios.length)} of{" "}
+                        {portfolios.length}
+                      </span>
+                      <button
+                        onClick={() =>
+                          setPortfolioSlide((s) =>
+                            Math.min(portfolios.length - 3, s + 1),
+                          )
+                        }
+                        disabled={portfolioSlide >= portfolios.length - 3}
+                        className="w-6 h-6 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center disabled:opacity-30 transition-all"
+                      >
+                        <svg
+                          width="10"
+                          height="10"
+                          viewBox="0 0 20 20"
+                          fill="none"
+                        >
+                          <path
+                            d="M7 5l5 5-5 5"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {portfolios
+                    .slice(portfolioSlide, portfolioSlide + 3)
+                    .map((p) => {
+                      const total = p.tokens.reduce(
+                        (s, t) => s + t.price * t.amount,
+                        0,
+                      );
+                      return (
+                        <button
+                          key={p.id}
+                          onClick={() => setSelectedPortfolio(p)}
+                          className="flex flex-col items-center p-3 bg-white/70 hover:bg-white border border-gray-200/60 hover:border-blue-300 rounded-xl transition-all group"
+                        >
+                          <div className="w-9 h-9 bg-blue-100 group-hover:bg-blue-200 rounded-xl flex items-center justify-center mb-2 transition-colors">
+                            <PieChart size={15} className="text-blue-600" />
+                          </div>
+                          <div className="text-[10px] font-bold text-gray-900 text-center leading-tight">
+                            {p.name}
+                          </div>
+                          <div className="text-[10px] text-gray-400 mt-0.5">
+                            {p.tokens.map((t) => t.symbol).join("·")}
+                          </div>
+                          <div className="text-xs font-bold text-gray-900 mt-1.5">
+                            ${total.toFixed(0)}
+                          </div>
+                        </button>
+                      );
+                    })}
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
-          {/* Total campaign earnings */}
-         <div className="glass-card p-5 border-purple-200/50 bg-gradient-to-br from-purple-50/40 to-pink-50/40">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-7 h-7 bg-purple-100 rounded-lg flex items-center justify-center">
-              <Gem size={14} className="text-purple-600" />
+        {/* My Earnings — Tier Bonus info */}
+        <div className="glass-card p-5 border-amber-200/50 bg-gradient-to-br from-amber-50/30 to-orange-50/30">
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-7 h-7 bg-amber-100 rounded-lg flex items-center justify-center">
+              <Award size={14} className="text-amber-600" />
             </div>
-            <span className="font-bold text-gray-900 text-sm">My Earnings</span>
+            <span className="font-bold text-gray-900 text-sm">
+              Reward Tiers
+            </span>
+            <span className="px-2.5 py-1 bg-green-100 text-green-700 text-[10px] font-bold rounded-full uppercase tracking-wider">
+              Extra Bonus
+            </span>
           </div>
+          <p className="text-xs text-gray-400 mb-4 pl-9">
+            Rank in the top 150 and hit the volume threshold to unlock your tier
+            bonus this week.
+          </p>
 
-          {/* Total Earnings stat */}
-            <div className="flex items-center justify-between bg-white/70 rounded-xl border border-purple-200/50 mb-3 p-3">
-                    <div>
-            <div className="text-xs text-gray-500 mb-1">Total Earnings</div>
+          <div className="grid grid-cols-2 gap-2">
+            {TIERS.map((tier) => {
+              const isUserTier = currentUser.tier?.label === tier.label;
+              return (
+                <div
+                  key={tier.label}
+                  className={`rounded-2xl p-3 border ${isUserTier ? `${tier.bg} ${tier.border} border-2` : "bg-white/60 border-gray-200/60"}`}
+                >
+                  <div
+                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold mb-2 ${tier.badge}`}
+                  >
+                    <div
+                      className={`w-1.5 h-1.5 rounded-full bg-gradient-to-br ${tier.color}`}
+                    />
+                    {tier.label}
+                  </div>
+                  <div className="text-xs text-gray-500 mb-2 leading-relaxed">
+                    {tier.ranks} · {fmt(tier.volThreshold)}+ volume required
+                  </div>
+                  <div className="font-bold text-gray-900">
+                    ${tier.bonus.toLocaleString()}
+                  </div>
+                </div>
+              );
+            })}
           </div>
-           <div className="text-2xl font-bold text-gray-900">$0</div>
-            </div>
-
-          {/* This Week's Earnings */}
-          <div className="mb-3 p-3 bg-white/60 rounded-xl border border-purple-200/40 space-y-2">
-            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">This Week's Earnings</div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-gray-500">Reward Share</span>
-              <span className="font-bold text-gray-900">${currentUserBaseShare.toFixed(0)}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-gray-500">Tier Bonus</span>
-              <span className={`flex items-center gap-1 text-xs font-bold ${currentUser.unlocked ? "text-green-600" : "text-gray-400"}`}>
-                {currentUser.unlocked ? <Check size={11} /> : <Lock size={11} />}
-                ${currentUser.tier?.bonus.toLocaleString()}
-              </span>
-            </div>
-            <div className="flex items-center justify-between pt-1.5 border-t border-gray-200/60">
-              <span className="text-xs font-semibold text-gray-700">Total</span>
-              <span className="font-bold text-gray-900">
-                ${(currentUserBaseShare + (currentUser.unlocked ? (currentUser.tier?.bonus ?? 0) : 0)).toFixed(0)}
-              </span>
-            </div>
-          </div>
-
-      
         </div>
-        </div>
-
+      </div>
 
       {/* Weekly Leaderboard */}
       <div className="glass-card p-6">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-            <div className="flex flex-col gap-2">
-                      <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2">
-            <Calendar size={18} className="text-gray-600" />
-            <h3 className="font-bold text-gray-900">Weekly Leaderboard</h3>
-          </div>
-            <span className="px-2.5 py-1 bg-green-100 text-green-700 text-[12px] font-bold rounded-full  tracking-wider">
+              <div className="flex items-center gap-2">
+                <Calendar size={18} className="text-gray-600" />
+                <h3 className="font-bold text-gray-900">Weekly Leaderboard</h3>
+              </div>
+              <span className="px-2.5 py-1 bg-green-100 text-green-700 text-[12px] font-bold rounded-full  tracking-wider">
                 $100K/Week
               </span>
-        </div>
-        <p className="text-xs text-gray-400 mb-4">The more volume you generate, the larger your reward share</p>
             </div>
-         <div className="flex items-center gap-2 flex-wrap">
+            <p className="text-xs text-gray-400 mb-4">
+              The more volume you generate, the larger your reward share
+            </p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
             {WEEKS.map((w, i) => (
               <button
                 key={w.week}
@@ -408,7 +734,9 @@ export function VolumeLeagueCampaign() {
                 }`}
               >
                 Week {w.week}
-                <span className="ml-1.5 opacity-60">{w.dateRange.split("–")[0].trim()}</span>
+                <span className="ml-1.5 opacity-60">
+                  {w.dateRange.split("–")[0].trim()}
+                </span>
               </button>
             ))}
           </div>
@@ -544,9 +872,7 @@ export function VolumeLeagueCampaign() {
                       >
                         ${total.toFixed(0)}
                         {row.tier && !row.unlocked && (
-                          <span className="text-black-500 font-normal">
-                            {" "}
-                          </span>
+                          <span className="text-black-500 font-normal"> </span>
                         )}
                       </span>
                     </td>
@@ -788,7 +1114,9 @@ export function VolumeLeagueCampaign() {
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <BarChart2 size={16} className="text-gray-600" />
-                  <h4 className="font-bold text-gray-900">reward share Pool Rules</h4>
+                  <h4 className="font-bold text-gray-900">
+                    Reward Share Pool Rules
+                  </h4>
                 </div>
                 <ul className="space-y-2 text-sm text-gray-700">
                   {[
@@ -851,8 +1179,173 @@ export function VolumeLeagueCampaign() {
         </div>
       )}
 
+
+      {selectedPortfolio && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-gray-900">{selectedPortfolio.name}</h3>
+                <p className="text-xs text-gray-400 mt-0.5">{selectedPortfolio.tokens.length} tokens · BNB Chain</p>
+              </div>
+              <button onClick={() => setSelectedPortfolio(null)} className="w-8 h-8 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="px-6 py-4 space-y-2">
+              {/* Token rows */}
+              {selectedPortfolio.tokens.map(token => {
+                const value = token.price * token.amount;
+                return (
+                  <div key={token.symbol} className="flex items-center justify-between py-2.5 border-b border-gray-100 last:border-0">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-xs font-bold text-gray-600">
+                        {token.symbol.slice(0, 2)}
+                      </div>
+                      <div>
+                        <div className="text-sm font-semibold text-gray-900">{token.symbol}</div>
+                        <div className="text-xs text-gray-400">{token.name}</div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm font-bold text-gray-900">${value.toFixed(2)}</div>
+                      <div className="text-xs text-gray-400">{token.amount.toFixed(4)} @ ${token.price.toLocaleString()}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Total */}
+            <div className="px-6 pb-2">
+              <div className="flex items-center justify-between py-3 border-t-2 border-gray-100">
+                <span className="font-bold text-gray-700 text-sm">Total Value</span>
+                <span className="font-bold text-gray-900 text-lg">
+                  ${selectedPortfolio.tokens.reduce((s, t) => s + t.price * t.amount, 0).toFixed(2)}
+                </span>
+              </div>
+            </div>
+
+            <div className="px-6 pb-6 grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setSelectedPortfolio(null)}
+                className="py-2.5 rounded-xl border border-gray-200 text-gray-700 font-semibold text-sm hover:bg-gray-50 transition-colors"
+              >
+                Close
+              </button>
+              <button
+                onClick={() => handleSellPortfolio(selectedPortfolio.id)}
+                className="py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white font-semibold text-sm transition-colors"
+              >
+                Sell Portfolio
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+          {showTutorialModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full max-h-[85vh] overflow-hidden flex flex-col">
+            <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-bold">How Rewards Work</h3>
+                <p className="text-xs text-gray-400 mt-0.5">Volume League · Weekly Distribution</p>
+              </div>
+              <button onClick={() => setShowTutorialModal(false)} className="w-9 h-9 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center transition-colors">
+                <X size={17} />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto px-6 py-5 space-y-5">
+
+              {/* Minimum threshold */}
+             
+
+              {/* 2 steps */}
+              <div>
+                <div className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">2 Simple Steps</div>
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3">
+                    <div className="w-14 h-7 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <span className="text-white text-[10px] font-bold">Step 1</span>
+                    </div>
+                    <div>
+                      <div className="font-semibold text-gray-900 text-sm">Create a Portfolio</div>
+                      <div className="text-xs text-gray-500 mt-0.5">Select tokens and build an on-chain portfolio. Every buy or sell transaction generates volume automatically.</div>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-14 h-7 bg-green-600 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <span className="text-white text-[10px] font-bold">Step 2</span>
+                    </div>
+                    <div>
+                      <div className="font-semibold text-gray-900 text-sm">Generate Volume</div>
+                      <div className="text-xs text-gray-500 mt-0.5">Trade more to increase your volume. The more you generate, the larger your share of the $70K weekly base pool.</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* How the base pool works */}
+              <div>
+                <div className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Weekly Reward Distribution</div>
+                <ul className="space-y-2.5">
+                  {[
+                    { icon: <Check size={13} className="text-green-600 flex-shrink-0 mt-0.5" />, text: "Every week, $70,000 is split among all participants who hit the $500 minimum volume." },
+                    { icon: <Check size={13} className="text-green-600 flex-shrink-0 mt-0.5" />, text: "Your share is calculated using √(your volume) ÷ √(total volume). This means everyone earns, not just the biggest traders." },
+                    { icon: <Check size={13} className="text-green-600 flex-shrink-0 mt-0.5" />, text: "Rankings reset every week. Your earnings are confirmed after each week closes." },
+                    { icon: <Check size={13} className="text-green-600 flex-shrink-0 mt-0.5" />, text: "Minimum to qualify: You need at least $500 in weekly volume to receive a reward share. Any trade counts, buy or sell." },
+                  ].map((item, i) => (
+                    <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                      {item.icon}
+                      <span>{item.text}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Bonuses */}
+              <div>
+                <div className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Extra Tier Bonuses</div>
+                <ul className="space-y-2">
+                  {[
+                    "The top 150 users by volume each week are assigned a tier: Diamond (top 10), Gold (11–30), Silver (31–70), Bronze (71–150).",
+                    "Each tier has a one-time bonus on top of your base share, but only if you hit the tier's volume threshold.",
+                    "Locked bonuses roll into the following week's pool, so unclaimed rewards stay in the game.",
+                  ].map((text, i) => (
+                    <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                      <div className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0 mt-1.5" />
+                      {text}
+                    </li>
+                  ))}
+                </ul>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  {TIERS.map(t => (
+                    <div key={t.label} className={`rounded-xl p-2.5 border ${t.bg} ${t.border}`}>
+                      <div className={`text-xs font-bold ${t.text} mb-0.5`}>{t.label}</div>
+                      <div className="text-xs text-gray-500">{t.ranks} · {fmt(t.volThreshold)}+</div>
+                      <div className="font-bold text-gray-900 text-sm mt-1">${t.bonus.toLocaleString()}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+
+            <div className="px-6 pb-5 pt-2">
+              <button onClick={() => setShowTutorialModal(false)} className="w-full bg-black text-white font-semibold py-3 rounded-xl hover:bg-gray-800 transition-colors text-sm">
+                Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+
+
       {/* ── How It Works Modal ── */}
-    
     </div>
   );
 }
