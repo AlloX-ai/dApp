@@ -56,6 +56,7 @@ export const refreshAuthToken = async () => {
     try {
       const res = await fetch(`${API_URL}${AUTH_REFRESH_ENDPOINT}`, {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${current}`,
@@ -158,6 +159,7 @@ export const apiCall = async (endpoint, options = {}, apiType) => {
   const doFetch = () =>
     fetch(`${API_URL}${endpoint}`, {
       ...fetchOptions,
+      credentials: fetchOptions.credentials ?? "include",
       headers: {
         "Content-Type": "application/json",
         ...getAuthHeaders(),
@@ -228,6 +230,7 @@ export const api2Call = async (endpoint, options = {}) => {
   const doFetch = () =>
     fetch(`${API2_URL}${endpoint}`, {
       ...fetchOptions,
+      credentials: fetchOptions.credentials ?? "include",
       headers: {
         "Content-Type": "application/json",
         ...getAuthHeaders(),

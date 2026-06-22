@@ -75,6 +75,12 @@ import { useAuth } from "./hooks/useAuth";
 import { completePrivyAuth } from "./hooks/useAuth";
 import { useCheckin } from "./hooks/useCheckin";
 import { CheckinModal } from "./components/CheckinModal";
+import { getApiUrl, getApi2Url } from "./utils/api";
+import {
+  REFERRER_DISPLAY_EVENT,
+  REFERRER_DISPLAY_STORAGE_KEY,
+  trackReferralLanding,
+} from "./utils/referral";
 
 import { Toaster } from "sonner";
 import { toast } from "./utils/toast";
@@ -200,6 +206,7 @@ function LaunchAppLayout() {
     chainId,
   } = useSelector((state) => state.wallet);
   const [fundModalOpen, setFundModalOpen] = useState(false);
+  const [referrerDisplay, setReferrerDisplay] = useState("");
   const { token, user, logout, ensureAuthenticated } = useAuth();
   const {
     login,
@@ -488,6 +495,24 @@ function LaunchAppLayout() {
     loading: checkinLoading,
   } = useCheckin();
 
+  useEffect(() => {
+    const loadReferrerDisplay = () => {
+      const stored = localStorage.getItem(REFERRER_DISPLAY_STORAGE_KEY);
+      setReferrerDisplay(stored || "");
+    };
+    const onReferrerDisplay = (event) => {
+      const display = event?.detail?.display;
+      if (display) setReferrerDisplay(display);
+    };
+    loadReferrerDisplay();
+    window.addEventListener("storage", loadReferrerDisplay);
+    window.addEventListener(REFERRER_DISPLAY_EVENT, onReferrerDisplay);
+    return () => {
+      window.removeEventListener("storage", loadReferrerDisplay);
+      window.removeEventListener(REFERRER_DISPLAY_EVENT, onReferrerDisplay);
+    };
+  }, []);
+
   const { fetchSocialPoints, fetchAllPoints, loadSeenPosts } = useSocial();
   useEffect(() => {
     if (!isConnected || !authenticated) return;
@@ -510,10 +535,8 @@ function LaunchAppLayout() {
     //   console.warn("Solana wallet disconnect:", e);
     // }
     // }
-    // else
-    if (connector) {
-      await disconnect(wagmiClient, { connector });
-    }
+    // Ensure all wagmi connector sessions are cleared (v3 keeps per-connector connections).
+    await disconnectAllEvmWagmi();
     dispatch(setAddress(null));
     dispatch(setChainId(null));
     dispatch(setIsConnected(false));
@@ -525,7 +548,7 @@ function LaunchAppLayout() {
     dispatch(clearCheckin());
     // Fully clear auth state (token + user) across the app (includes Privy logout via bridge)
     await logout();
-  });
+  }, [dispatch, disconnectSolana, logout]);
 
   useEffect(() => {
     const points = user?.season1?.points;
@@ -669,20 +692,35 @@ function LaunchAppLayout() {
     );
 
     if (connector) {
-      connect(wagmiClient, { connector })
-        .then(() => {
-          clearBinanceWalletSession();
-          clearPersistedWalletProvider();
-          const type = option.walletType === "metamask" ? "metamask" : "evm";
-          dispatch(setWalletType(type));
-          persistWalletType(type);
-          dispatch(setIsConnected(true));
-          dispatch(setSessionSource("wallet"));
-        })
-        .catch((err) => {
+      try {
+        // Defensive cleanup for stale connector state before reconnect.
+        await disconnectAllEvmWagmi();
+        await connect(wagmiClient, { connector });
+        const type = option.walletType === "metamask" ? "metamask" : "evm";
+        dispatch(setWalletType(type));
+        persistWalletType(type);
+        dispatch(setIsConnected(true));
+        dispatch(setSessionSource("wallet"));
+      } catch (err) {
+        const message = String(err?.message || "").toLowerCase();
+        if (message.includes("already connected")) {
+          try {
+            await disconnect(wagmiClient, { connector });
+            await connect(wagmiClient, { connector });
+            const type = option.walletType === "metamask" ? "metamask" : "evm";
+            dispatch(setWalletType(type));
+            persistWalletType(type);
+            dispatch(setIsConnected(true));
+            dispatch(setSessionSource("wallet"));
+            return;
+          } catch (retryErr) {
+            console.error("Wallet reconnect after stale session failed:", retryErr);
+          }
+        } else {
           console.error("Wallet connection error:", err);
-          toast.error("Failed to connect wallet. Please try again.");
-        });
+        }
+        toast.error("Failed to connect wallet. Please try again.");
+      }
     } else {
       toast.error(
         option.name +
@@ -713,6 +751,11 @@ function LaunchAppLayout() {
       <div className="w-full flex-1 pt-20 flex min-h-0">
         <LaunchSidebar />
         <main className="w-full flex flex-col min-h-0">
+          {/* {!token && !!referrerDisplay && (
+            <div className="mx-6 mt-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-xs text-blue-900 w-fit relative -top-5">
+              Referred by {referrerDisplay}
+            </div>
+          )} */}
           <Outlet />
         </main>
       </div>
@@ -837,19 +880,32 @@ function BetaAccessLayout() {
       c.name.toLowerCase().includes(option.name.toLowerCase()),
     );
     if (connector) {
-      connect(wagmiClient, { connector })
-        .then(() => {
-          clearBinanceWalletSession();
-          clearPersistedWalletProvider();
-          const type = option.walletType === "metamask" ? "metamask" : "evm";
-          dispatch(setWalletType(type));
-          persistWalletType(type);
-          dispatch(setSessionSource("wallet"));
-        })
-        .catch((err) => {
+      try {
+        await disconnectAllEvmWagmi();
+        await connect(wagmiClient, { connector });
+        const type = option.walletType === "metamask" ? "metamask" : "evm";
+        dispatch(setWalletType(type));
+        persistWalletType(type);
+        dispatch(setSessionSource("wallet"));
+      } catch (err) {
+        const message = String(err?.message || "").toLowerCase();
+        if (message.includes("already connected")) {
+          try {
+            await disconnect(wagmiClient, { connector });
+            await connect(wagmiClient, { connector });
+            const type = option.walletType === "metamask" ? "metamask" : "evm";
+            dispatch(setWalletType(type));
+            persistWalletType(type);
+            dispatch(setSessionSource("wallet"));
+            return;
+          } catch (retryErr) {
+            console.error("Wallet reconnect after stale session failed:", retryErr);
+          }
+        } else {
           console.error("Wallet connection error:", err);
-          toast.error("Failed to connect wallet. Please try again.");
-        });
+        }
+        toast.error("Failed to connect wallet. Please try again.");
+      }
     } else {
       toast.error(
         option.name +
@@ -1189,6 +1245,10 @@ function App() {
     // App only decides visibility; storage updates happen in CongratsModal after open.
     setShowModal(lastShown !== today && count < 3 && isAuthenticated);
   }, [lastShown, count, isAuthenticated]);
+
+  useEffect(() => {
+    trackReferralLanding(getApiUrl()).catch(() => {});
+  }, []);
 
   if (MAINTENANCE_MODE) {
     return (
