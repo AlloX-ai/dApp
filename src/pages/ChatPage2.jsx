@@ -66,6 +66,7 @@ import { erc20Abi, formatEther, formatUnits } from "viem";
 import { AnimatePresence, motion } from "motion/react";
 import ChatMoreInfoModal from "../components/ChatMoreInfoModal";
 import { SellPortfolioModal } from "../components/SellPortfolioModal";
+import { CampaignBinanceErrorBanner } from "../components/CampaignBinanceErrorBanner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CHAINS,
@@ -85,8 +86,10 @@ import {
   PRIME_PICKS_PORTFOLIO_SIZE,
   buildBinanceExecutionFromGenerate,
   buildBinanceGeneratePayload,
+  campaignBinanceApiCall,
   getBinanceMissingSelections,
   getStoredBinanceBoosterAddr,
+  parseCampaignBinanceError,
   persistBinanceBoosterAddrFromSearch,
   BINANCE_WALLET_ADDRESS_HELP_URL,
   formatBinancePercent,
@@ -334,6 +337,8 @@ export function ChatPage2() {
   // Binance Campaign wizard (BNB Chain only; amount; narrative from backend)
   const [binanceWizardOpen, setBinanceWizardOpen] = useState(false);
   const [binanceError, setBinanceError] = useState("");
+  const [binanceCampaignError, setBinanceCampaignError] = useState(null);
+  const [binanceCampaignRetrying, setBinanceCampaignRetrying] = useState(false);
   const [binanceIsGenerating, setBinanceIsGenerating] = useState(false);
   const [binanceIsExecuting, setBinanceIsExecuting] = useState(false);
   const [binanceForm, setBinanceForm] = useState({
@@ -402,6 +407,8 @@ export function ChatPage2() {
 
   const resetBinanceWizard = useCallback(() => {
     setBinanceError("");
+    setBinanceCampaignError(null);
+    setBinanceCampaignRetrying(false);
     setBinanceIsGenerating(false);
     setBinanceIsExecuting(false);
     setBinanceIsSwitchingChain(false);
@@ -1791,6 +1798,8 @@ export function ChatPage2() {
 
   const handleBinanceGenerate = useCallback(async () => {
     setBinanceError("");
+    setBinanceCampaignError(null);
+    setBinanceCampaignRetrying(false);
     if (isReadOnly) return;
     if (!isConnected) {
       setShowWalletPrompt(true);
@@ -1821,10 +1830,20 @@ export function ChatPage2() {
 
       await ensureAuthenticated();
 
-      const response = await apiCall(BINANCE_CAMPAIGN_GENERATE_PATH, {
-        method: "POST",
-        body: JSON.stringify(buildBinanceGeneratePayload(binanceForm)),
-      });
+      const response = await campaignBinanceApiCall(
+        apiCall,
+        BINANCE_CAMPAIGN_GENERATE_PATH,
+        {
+          method: "POST",
+          body: JSON.stringify(buildBinanceGeneratePayload(binanceForm)),
+        },
+        {
+          onCampaignError: (error, { isRetrying } = {}) => {
+            setBinanceCampaignError(error);
+            setBinanceCampaignRetrying(!!isRetrying);
+          },
+        },
+      );
 
       const { basket, quote, meta } = parseBinanceGenerateResponse(response);
 
@@ -1856,11 +1875,18 @@ export function ChatPage2() {
       }));
     } catch (e) {
       if (e?.status === 401) logout();
-      setBinanceError(
-        e?.message ||
-          e?.data?.message ||
-          "Binance campaign portfolio generation failed. Try again.",
-      );
+      const campaignError =
+        e?.campaignError ?? parseCampaignBinanceError(e);
+      if (campaignError) {
+        setBinanceCampaignError(campaignError);
+        setBinanceCampaignRetrying(false);
+      } else {
+        setBinanceError(
+          e?.message ||
+            e?.data?.message ||
+            "Binance campaign portfolio generation failed. Try again.",
+        );
+      }
     } finally {
       setBinanceIsGenerating(false);
     }
@@ -1880,6 +1906,8 @@ export function ChatPage2() {
 
   const handleBinanceConfirmAndExecute = useCallback(async () => {
     setBinanceError("");
+    setBinanceCampaignError(null);
+    setBinanceCampaignRetrying(false);
     if (binanceBasket.length === 0 || !binanceQuote || !binanceGenerateMeta)
       return;
     if (isReadOnly) return;
@@ -4481,11 +4509,21 @@ export function ChatPage2() {
                         </div>
                       </div>
 
-                      {binanceError && binanceBasket.length === 0 && (
-                        <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
-                          {binanceError}
-                        </div>
-                      )}
+                      {(binanceCampaignError || binanceError) &&
+                        binanceBasket.length === 0 && (
+                          <>
+                            {binanceCampaignError ? (
+                              <CampaignBinanceErrorBanner
+                                error={binanceCampaignError}
+                                isRetrying={binanceCampaignRetrying}
+                              />
+                            ) : (
+                              <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                                {binanceError}
+                              </div>
+                            )}
+                          </>
+                        )}
 
                       <div className="space-y-3 sm:space-y-4">
                         <div className="rounded-2xl bg-white/70 border border-gray-200/60 p-3 sm:p-4 shadow-sm">
@@ -4734,10 +4772,19 @@ export function ChatPage2() {
                           )}
                         </div>
 
-                        {binanceError && (
-                          <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
-                            {binanceError}
-                          </div>
+                        {(binanceCampaignError || binanceError) && (
+                          <>
+                            {binanceCampaignError ? (
+                              <CampaignBinanceErrorBanner
+                                error={binanceCampaignError}
+                                isRetrying={binanceCampaignRetrying}
+                              />
+                            ) : (
+                              <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                                {binanceError}
+                              </div>
+                            )}
+                          </>
                         )}
 
                         {executionState.error && (
