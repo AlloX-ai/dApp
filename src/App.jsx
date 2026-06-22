@@ -63,7 +63,11 @@ import { completePrivyAuth } from "./hooks/useAuth";
 import { useCheckin } from "./hooks/useCheckin";
 import { CheckinModal } from "./components/CheckinModal";
 import { getApiUrl, getApi2Url } from "./utils/api";
-import { captureReferralFromUrl } from "./utils/referral";
+import {
+  REFERRER_DISPLAY_EVENT,
+  REFERRER_DISPLAY_STORAGE_KEY,
+  trackReferralLanding,
+} from "./utils/referral";
 
 import { Toaster } from "sonner";
 import { toast } from "./utils/toast";
@@ -484,13 +488,19 @@ function LaunchAppLayout() {
 
   useEffect(() => {
     const loadReferrerDisplay = () => {
-      const stored = localStorage.getItem("allox_referrer_display");
+      const stored = localStorage.getItem(REFERRER_DISPLAY_STORAGE_KEY);
       setReferrerDisplay(stored || "");
+    };
+    const onReferrerDisplay = (event) => {
+      const display = event?.detail?.display;
+      if (display) setReferrerDisplay(display);
     };
     loadReferrerDisplay();
     window.addEventListener("storage", loadReferrerDisplay);
+    window.addEventListener(REFERRER_DISPLAY_EVENT, onReferrerDisplay);
     return () => {
       window.removeEventListener("storage", loadReferrerDisplay);
+      window.removeEventListener(REFERRER_DISPLAY_EVENT, onReferrerDisplay);
     };
   }, []);
 
@@ -1210,32 +1220,7 @@ function App() {
   }, [lastShown, count, isAuthenticated]);
 
   useEffect(() => {
-    const normalizedRef = captureReferralFromUrl();
-    if (!normalizedRef) return;
-
-    fetch(
-      `${getApiUrl()}/referral/track?ref=${encodeURIComponent(normalizedRef)}`,
-      {
-        credentials: "include",
-      },
-    ).catch(() => {});
-
-    fetch(
-      `${getApiUrl()}/referral/check/${encodeURIComponent(normalizedRef)}`,
-      {
-        credentials: "include",
-      },
-    )
-      .then(async (response) => {
-        if (!response.ok) return null;
-        return response.json();
-      })
-      .then((payload) => {
-        const display = payload?.referrerDisplay;
-        if (!display) return;
-        localStorage.setItem("allox_referrer_display", display);
-      })
-      .catch(() => {});
+    trackReferralLanding(getApiUrl()).catch(() => {});
   }, []);
 
   if (MAINTENANCE_MODE) {

@@ -30,6 +30,13 @@ import { setWalletModal } from "../redux/slices/walletSlice";
 
 const REF_LIST_LIMIT = 20;
 
+const DEFAULT_REWARD_TIERS = [
+  { label: "Tier 1", minInvestmentUsd: 100, rewardUsd: 5 },
+  { label: "Tier 2", minInvestmentUsd: 500, rewardUsd: 25 },
+  { label: "Tier 3", minInvestmentUsd: 1000, rewardUsd: 50 },
+  { label: "Tier 4", minInvestmentUsd: 2500, rewardUsd: 100 },
+];
+
 const asNumber = (value) => {
   const n = Number(value);
   return Number.isFinite(n) ? n : 0;
@@ -40,6 +47,19 @@ const money = (value) =>
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   })}`;
+
+const formatTierRange = (tier, index, tiers) => {
+  const min = asNumber(tier.minInvestmentUsd);
+  const nextMin = tiers[index + 1]?.minInvestmentUsd;
+  if (nextMin != null) {
+    const upper = asNumber(nextMin);
+    if (upper >= 1000) {
+      return `${money(min)} – ${money(upper - 1)}`;
+    }
+    return `${money(min)} – ${money(upper - 1)}`;
+  }
+  return `${money(min)}+`;
+};
 
 const STAKING_POOLS = [
   { id: "ETH60", name: "ETH Pool", lockDays: 60 },
@@ -97,9 +117,16 @@ export function ReferralsPage() {
   const milestoneUsd = asNumber(breakdown.milestone?.usd);
   const level2Percent = asNumber(dashboard?.level2PercentOfTrack1) || 5;
   const minInvestmentUsd = asNumber(dashboard?.minInvestmentUsd) || 100;
-  const rewardTiers = dashboard?.rewardTiers ?? [];
+  const gemUsdValue = asNumber(dashboard?.gemUsdValue) || 5;
+  const rewardTiers =
+    dashboard?.rewardTiers?.length > 0
+      ? dashboard.rewardTiers
+      : DEFAULT_REWARD_TIERS;
   const milestones = dashboard?.milestones ?? {};
   const nextMilestone = milestones?.next;
+  const milestoneList = milestones?.list ?? [];
+  const activeReferrals = asNumber(dashboard?.stats?.activeCount);
+  const canChangeCode = dashboard?.canChangeCode !== false;
   const directEarnings = directUsd;
   const networkEarnings = networkUsd;
   const milestoneEarnings = milestoneUsd;
@@ -180,6 +207,21 @@ export function ReferralsPage() {
       setDashboardLoading(false);
     }
   }, [isAuthenticated, listPage, mapRefereesToUi]);
+
+  const renderTierRows = (tiers, className = "text-xs") =>
+    tiers.map((tier, index) => (
+      <div
+        key={tier.label || index}
+        className={`flex justify-between ${className}`}
+      >
+        <span className="text-gray-600">
+          {formatTierRange(tier, index, tiers)} portfolio
+        </span>
+        <span className="font-bold text-green-700">
+          {money(tier.rewardUsd)}
+        </span>
+      </div>
+    ));
 
   const reloadListPage = async (page) => {
     try {
@@ -393,7 +435,12 @@ export function ReferralsPage() {
     document.title = "Referrals";
   }, []);
 
-  // Bootstrap activation state from API so existing referrers skip landing.
+  // Show dashboard once wallet auth completes (code optional).
+  useEffect(() => {
+    if (isAuthenticated) setIsActivated(true);
+  }, [isAuthenticated]);
+
+  // Bootstrap dashboard payload for returning users.
   useEffect(() => {
     if (!isAuthenticated) return;
     let cancelled = false;
@@ -418,9 +465,13 @@ export function ReferralsPage() {
     }
   }, [isAuthenticated, isActivated, loadReferralData]);
 
+  const track1Label = breakdown.track1?.label || "Per Referral Reward";
+  const track2Label = breakdown.track2?.label || "Level 2 Passive (5%)";
+  const milestoneLabel = breakdown.milestone?.label || "Milestone Bonus";
+
   return (
     <div className="space-y-6 flex-1 px-6 py-8 portfolio-wrapper ms-auto w-full overflow-y-auto">
-      {!isActivated ? (
+      {!isActivated || !isConnected ? (
         // Landing Page - Before Activation
         <>
           {/* Header with buttons in top right */}
@@ -883,7 +934,7 @@ export function ReferralsPage() {
           )}
 
           {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="glass-card p-5">
               <div className="flex items-center gap-3 mb-2">
                 <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center">
@@ -891,7 +942,12 @@ export function ReferralsPage() {
                 </div>
                 <div>
                   <div className="text-xs text-gray-600">Total Earned</div>
-                  <div className="text-2xl font-bold">${totalEarnings}</div>
+                  <div className="text-2xl font-bold">
+                    {money(totalEarnings)}
+                  </div>
+                  {/* <div className="text-xs text-gray-500">
+                    {totalGems} gems ({money(gemUsdValue)}/gem)
+                  </div> */}
                 </div>
               </div>
             </div>
@@ -904,7 +960,7 @@ export function ReferralsPage() {
                 <div>
                   <div className="text-xs text-gray-600">Track 1 & 2</div>
                   <div className="text-2xl font-bold">
-                    ${directEarnings + networkEarnings}
+                    {money(directEarnings + networkEarnings)}
                   </div>
                 </div>
               </div>
@@ -917,7 +973,9 @@ export function ReferralsPage() {
                 </div>
                 <div>
                   <div className="text-xs text-gray-600">Milestones</div>
-                  <div className="text-2xl font-bold">${milestoneEarnings}</div>
+                  <div className="text-2xl font-bold">
+                    {money(milestoneEarnings)}
+                  </div>
                 </div>
               </div>
             </div>
@@ -933,6 +991,21 @@ export function ReferralsPage() {
                 </div>
               </div>
             </div>
+
+            {/* <div className="glass-card p-5">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
+                  <CheckCircle2 size={18} className="text-emerald-600" />
+                </div>
+                <div>
+                  <div className="text-xs text-gray-600">Active</div>
+                  <div className="text-2xl font-bold">{activeReferrals}</div>
+                  <div className="text-xs text-gray-500">
+                    ≥ {money(minInvestmentUsd)} portfolio
+                  </div>
+                </div>
+              </div>
+            </div> */}
           </div>
 
           <div className="flex flex-col sm:flex-row justify-between gap-4">
@@ -943,33 +1016,33 @@ export function ReferralsPage() {
                   <div className="flex items-center gap-2">
                     <DollarSign size={14} className="text-green-600" />
                     <span className="text-xs font-medium text-green-800">
-                      Track 1: Direct
+                      {track1Label}
                     </span>
                   </div>
                   <span className="text-sm font-bold text-green-900">
-                    ${directEarnings}
+                    {money(directEarnings)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg">
                   <div className="flex items-center gap-2">
                     <Sparkles size={14} className="text-blue-600" />
                     <span className="text-xs font-medium text-blue-800">
-                      Track 2: Network
+                      {track2Label}
                     </span>
                   </div>
                   <span className="text-sm font-bold text-blue-900">
-                    ${networkEarnings}
+                    {money(networkEarnings)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between px-3 py-2 bg-purple-50 border border-purple-200 rounded-lg">
                   <div className="flex items-center gap-2">
                     <Trophy size={14} className="text-purple-600" />
                     <span className="text-xs font-medium text-purple-800">
-                      Track 3: Milestones
+                      {milestoneLabel}
                     </span>
                   </div>
                   <span className="text-sm font-bold text-purple-900">
-                    ${milestoneEarnings}
+                    {money(milestoneEarnings)}
                   </span>
                 </div>
               </div>
@@ -999,6 +1072,33 @@ export function ReferralsPage() {
                     Share this link with your network. When someone creates a
                     portfolio with $100+ investment, you earn instantly.
                   </p>
+                  {canChangeCode ? (
+                    <form
+                      onSubmit={submitReferralCode}
+                      className="space-y-2 mt-3"
+                    >
+                      <input
+                        value={newCode}
+                        onChange={(e) => setNewCode(e.target.value)}
+                        placeholder="Change your referral code"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs"
+                      />
+                      {codeError && (
+                        <p className="text-xs text-red-600">{codeError}</p>
+                      )}
+                      <button
+                        type="submit"
+                        disabled={submittingCode || !newCode.trim()}
+                        className="px-4 py-2 bg-black text-white rounded-lg text-xs font-semibold disabled:opacity-50"
+                      >
+                        {submittingCode ? "Saving..." : "Update code"}
+                      </button>
+                    </form>
+                  ) : (
+                    <p className="text-xs text-gray-500 mt-2">
+                      Referral code can be changed once every 30 days.
+                    </p>
+                  )}
                 </>
               ) : (
                 <>
@@ -1029,7 +1129,7 @@ export function ReferralsPage() {
             </div>
           </div>
 
-          {/* {!dashboard?.referredBy && (
+          {!dashboard?.referredBy && (
             <form
               onSubmit={submitClaim}
               className="glass-card p-5 flex flex-col sm:flex-row gap-2 items-end"
@@ -1041,7 +1141,7 @@ export function ReferralsPage() {
                 <input
                   value={claimCode}
                   onChange={(e) => setClaimCode(e.target.value)}
-                  placeholder="Enter code if you missed ?ref="
+                  placeholder="Enter code if you missed ?r="
                   className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs"
                 />
                 {claimError && (
@@ -1056,7 +1156,52 @@ export function ReferralsPage() {
                 {claiming ? "Claiming..." : "Claim"}
               </button>
             </form>
-          )} */}
+          )}
+
+          {nextMilestone && (
+            <div className="glass-card p-5">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-bold text-sm">Next milestone</h3>
+                <span className="text-xs text-gray-600">
+                  {money(nextMilestone.bonusUsd)} bonus at {nextMilestone.count}{" "}
+                  active referrals
+                </span>
+              </div>
+              <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-purple-600 rounded-full transition-all"
+                  style={{ width: `${milestoneProgress}%` }}
+                />
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                {asNumber(nextMilestone.referralsToNext)} more active referral
+                {asNumber(nextMilestone.referralsToNext) === 1 ? "" : "s"} to
+                unlock
+              </p>
+              {milestoneList.length > 0 && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-4">
+                  {milestoneList.map((m) => (
+                    <div
+                      key={m.count}
+                      className={`rounded-lg border px-3 py-2 text-xs ${
+                        m.paid
+                          ? "border-green-200 bg-green-50"
+                          : m.unlocked
+                            ? "border-purple-200 bg-purple-50"
+                            : "border-gray-200 bg-gray-50"
+                      }`}
+                    >
+                      <div className="font-semibold">{m.count} active</div>
+                      <div className="text-gray-600">{money(m.bonusUsd)}</div>
+                      <div className="text-gray-500 mt-1">
+                        {m.paid ? "Paid" : m.unlocked ? "Unlocked" : "Locked"}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Date Filter */}
           <div className="flex items-center justify-between">
@@ -1175,7 +1320,8 @@ export function ReferralsPage() {
 
                             {action.type === "direct" ? (
                               <div className="text-xs text-gray-600">
-                                {action.pool} · {action.lockPeriod}
+                                {action.pool} 
+                                {/* · {action.lockPeriod} */}
                                 <span className="block text-gray-500 mt-0.5">
                                   One-time reward per referee
                                 </span>
@@ -1905,7 +2051,8 @@ export function ReferralsPage() {
                             </div>
                             {action.type === "direct" ? (
                               <div className="text-xs text-gray-600">
-                                {action.pool} · {action.lockPeriod}
+                                {action.pool} 
+                                {/* · {action.lockPeriod} */}
                                 <span className="block text-gray-500 mt-0.5">
                                   One-time reward per referee
                                 </span>
