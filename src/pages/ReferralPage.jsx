@@ -190,16 +190,16 @@ export function ReferralsPage() {
       const [me, listData, boardData] = await Promise.all([
         apiCall("/referral/me"),
         apiCall(`/referral/list?page=${listPage}&limit=${REF_LIST_LIMIT}`),
-        apiCall("/referral/leaderboard?limit=50"),
+        // apiCall("/referral/leaderboard?limit=50"),
       ]);
       setDashboard(me);
       const { regs, actions } = mapRefereesToUi(listData?.referees);
       setRegistrations(regs);
       setCompletedActions(actions);
       if (listData?.pagination) setListPagination(listData.pagination);
-      setLeaderboard(
-        Array.isArray(boardData?.leaderboard) ? boardData.leaderboard : [],
-      );
+      // setLeaderboard(
+      //   Array.isArray(boardData?.leaderboard) ? boardData.leaderboard : [],
+      // );
       if (me?.referralCode) setIsActivated(true);
     } catch (e) {
       setDashboardError(e?.message || "Failed to load referral data.");
@@ -435,10 +435,10 @@ export function ReferralsPage() {
     document.title = "Referrals";
   }, []);
 
-  // Show dashboard once wallet auth completes (code optional).
-  useEffect(() => {
-    if (isAuthenticated) setIsActivated(true);
-  }, [isAuthenticated]);
+  // // Show dashboard once wallet auth completes (code optional).
+  // useEffect(() => {
+  //   if (isAuthenticated) setIsActivated(true);
+  // }, [isAuthenticated]);
 
   // Bootstrap dashboard payload for returning users.
   useEffect(() => {
@@ -471,7 +471,7 @@ export function ReferralsPage() {
 
   return (
     <div className="space-y-6 flex-1 px-6 py-8 portfolio-wrapper ms-auto w-full overflow-y-auto">
-      {!isActivated || !isConnected ? (
+      {!isActivated ? (
         // Landing Page - Before Activation
         <>
           {/* Header with buttons in top right */}
@@ -1128,7 +1128,7 @@ export function ReferralsPage() {
               )}
             </div>
           </div>
-
+          {/* 
           {!dashboard?.referredBy && (
             <form
               onSubmit={submitClaim}
@@ -1201,7 +1201,7 @@ export function ReferralsPage() {
                 </div>
               )}
             </div>
-          )}
+          )} */}
 
           {/* Date Filter */}
           <div className="flex items-center justify-between">
@@ -1320,7 +1320,7 @@ export function ReferralsPage() {
 
                             {action.type === "direct" ? (
                               <div className="text-xs text-gray-600">
-                                {action.pool} 
+                                {action.pool}
                                 {/* · {action.lockPeriod} */}
                                 <span className="block text-gray-500 mt-0.5">
                                   One-time reward per referee
@@ -1391,7 +1391,7 @@ export function ReferralsPage() {
           )}
 
           {/* API: public leaderboard */}
-          {leaderboard.length > 0 && (
+          {/* {leaderboard.length > 0 && (
             <div className="glass-card p-5">
               <h3 className="font-bold text-sm mb-4">Top referrers</h3>
               <div className="space-y-2 max-h-[280px] overflow-auto">
@@ -1419,7 +1419,7 @@ export function ReferralsPage() {
                 ))}
               </div>
             </div>
-          )}
+          )} */}
         </>
       )}
 
@@ -2051,7 +2051,7 @@ export function ReferralsPage() {
                             </div>
                             {action.type === "direct" ? (
                               <div className="text-xs text-gray-600">
-                                {action.pool} 
+                                {action.pool}
                                 {/* · {action.lockPeriod} */}
                                 <span className="block text-gray-500 mt-0.5">
                                   One-time reward per referee
