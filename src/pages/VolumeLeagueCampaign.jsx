@@ -366,7 +366,7 @@ export function VolumeLeagueCampaign() {
 
       {/* Your Position */}
       <div className="glass-card p-5">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-0">
           <h3 className="font-bold text-gray-900 mb-5">
             2 Simple Steps To Earn
           </h3>
@@ -437,7 +437,7 @@ export function VolumeLeagueCampaign() {
           </div>
 
           {/* Connector → */}
-          <div className="hidden sm:flex items-center justify-center w-8 bg-gray-50 border-y border-gray-200/60 z-10">
+          <div className="flex items-center justify-center w-8 bg-gray-50 border-y border-gray-200/60 z-10 w-full sm:w-fit py-2 px-2">
             <div className="flex flex-col gap-1">
               <div className="w-4 h-0.5 bg-gray-900 rounded-full" />
               <div className="w-4 h-0.5 bg-gray-900 rounded-full" />
@@ -464,7 +464,7 @@ export function VolumeLeagueCampaign() {
 
       <div className="grid sm:grid-cols-2 gap-3">
         {/* My Position */}
-        <div className="glass-card p-5 border-blue-200/50 bg-gradient-to-br from-blue-50/40 to-indigo-50/40">
+        <div className="glass-card p-5 border-blue-200/50 bg-gradient-to-br from-blue-50/40 to-indigo-50/40 sm:h-[375px]">
           <div className="flex items-center justify-between gap-2 mb-4">
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -473,7 +473,7 @@ export function VolumeLeagueCampaign() {
               <span className="font-bold text-gray-900 text-sm">
                 My Position
               </span>
-            <span className="px-2.5 py-1 bg-green-100 text-green-700 text-[10px] font-bold rounded-full uppercase tracking-wider">
+            <span className="hidden sm:flex px-2.5 py-1 bg-green-100 text-green-700 text-[10px] font-bold rounded-full uppercase tracking-wider">
               Guaranteed Rewards
             </span>
             </div>
@@ -503,27 +503,27 @@ export function VolumeLeagueCampaign() {
           </div>
 
           {/* Stats — Rank, Volume, Portfolios */}
-          <div className="grid grid-cols-3 gap-2 mb-4">
+          <div className="grid grid-cols-3 gap-2">
             <div className="bg-white/70 rounded-xl p-2.5 text-center">
               <Crown size={13} className="text-yellow-500 mx-auto mb-1" />
               <div className="font-bold text-gray-900 text-lg">
                 #{currentUser.rank}
               </div>
-              <div className="text-[10px] text-gray-500">Rank</div>
+              <div className="text-[10px] text-gray-500">Reward Share</div>
             </div>
             <div className="bg-white/70 rounded-xl p-2.5 text-center">
               <Wallet size={13} className="text-green-500 mx-auto mb-1" />
               <div className="font-bold text-gray-900 text-lg">
                 {fmt(currentUser.totalVolume)}
               </div>
-              <div className="text-[10px] text-gray-500">Volume</div>
+              <div className="text-[10px] text-gray-500">Extra Bonus</div>
             </div>
             <div className="bg-white/70 rounded-xl p-2.5 text-center">
               <PieChart size={13} className="text-blue-500 mx-auto mb-1" />
               <div className="font-bold text-gray-900 text-lg">
                 {portfolios.length}
               </div>
-              <div className="text-[10px] text-gray-500">Portfolios</div>
+              <div className="text-[10px] text-gray-500">Volume</div>
             </div>
           </div>
 
@@ -531,7 +531,7 @@ export function VolumeLeagueCampaign() {
           {portfolios.length === 0 ? (
             <button
               onClick={handleCreatePortfolio}
-              className="w-full group flex flex-col items-center justify-center gap-2 py-8 rounded-2xl border-2 border-dashed border-blue-300 bg-blue-50/50 hover:bg-blue-600 hover:border-blue-600 transition-all duration-200"
+              className="w-full group flex flex-col items-center justify-center gap-2 py-8 rounded-2xl border-2 border-dashed border-blue-300 bg-blue-50/50 hover:bg-blue-600 hover:border-blue-600 transition-all duration-200 sm:h-[205px]"
             >
               <div className="w-10 h-10 rounded-full bg-blue-100 group-hover:bg-blue-500 flex items-center justify-center transition-colors">
                 <Plus
@@ -565,7 +565,7 @@ export function VolumeLeagueCampaign() {
 
               {/* Portfolio horizontal list / slider */}
               <div>
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center justify-between mb-2 h-6">
                   <span className="text-xs font-semibold text-gray-500">
                     My Portfolios
                   </span>
@@ -659,7 +659,7 @@ export function VolumeLeagueCampaign() {
         </div>
 
         {/* My Earnings — Tier Bonus info */}
-        <div className="glass-card p-5 border-amber-200/50 bg-gradient-to-br from-amber-50/30 to-orange-50/30">
+        <div className="glass-card p-5 border-amber-200/50 bg-gradient-to-br from-amber-50/30 to-orange-50/30 sm:h-[375px]">
           <div className="flex items-center gap-2 mb-1">
             <div className="w-7 h-7 bg-amber-100 rounded-lg flex items-center justify-center">
               <Award size={14} className="text-amber-600" />
@@ -676,7 +676,7 @@ export function VolumeLeagueCampaign() {
             bonus this week.
           </p>
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:h-[265px]">
             {TIERS.map((tier) => {
               const isUserTier = currentUser.tier?.label === tier.label;
               return (
