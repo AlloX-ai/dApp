@@ -51,13 +51,13 @@ export function useVolume() {
 	);
 
 	const fetchLeaderboard = useCallback(
-		async ({ week = 1, limit = 10 } = {}) => {
+		async ({ week = 1, limit = 20, page = 1 } = {}) => {
 			setLoadingState("leaderboard", true);
 			setError(null);
 
 			try {
 				const data = await apiCall(
-					`${VOLUME_CAMPAIGN_ENDPOINT}/leaderboard?week=${week}&limit=${limit}`,
+					`${VOLUME_CAMPAIGN_ENDPOINT}/leaderboard?week=${week}&limit=${limit}&page=${page}`,
 				);
 
 				dispatch(setLeaderboard(data));
@@ -99,14 +99,14 @@ export function useVolume() {
 	);
 
 	const fetchVolumeData = useCallback(
-		async ({ week = 1, limit = 10, address, includeUser = false } = {}) => {
+		async ({ week = 1, limit = 10, page = 1, address, includeUser = false } = {}) => {
 			setLoadingState("volumeData", true);
 			setError(null);
 
 			try {
 				const [competitionData, leaderboardData, userCompetitionData] = await Promise.all([
 					apiCall(VOLUME_CAMPAIGN_ENDPOINT),
-					apiCall(`${VOLUME_CAMPAIGN_ENDPOINT}/leaderboard?week=${week}&limit=${limit}`),
+					apiCall(`${VOLUME_CAMPAIGN_ENDPOINT}/leaderboard?week=${week}&limit=${limit}&page=${page}`),
 					includeUser && address
 						? apiCall(`${VOLUME_CAMPAIGN_ENDPOINT}/?address=${address}`)
 						: Promise.resolve(null),
