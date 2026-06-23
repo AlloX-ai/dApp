@@ -296,7 +296,8 @@ export function PointsPage() {
     if (location.hash !== "#daily-bonus") return;
 
     if (!isConnected) {
-      dispatch(setWalletModal(true));
+      // dispatch(setWalletModal(true));
+      dispatch(openCheckinModal());
     } else {
       dispatch(openCheckinModal());
     }

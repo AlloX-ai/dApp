@@ -101,6 +101,8 @@ import {
   switchPrivyEmbeddedToChain,
 } from "../utils/privyWalletUtils";
 import { isBinanceWalletConnection } from "../utils/binanceWallet";
+import { BinanceCampaignCheckinNotice } from "../components/BinanceCampaignCheckinNotice";
+import { useBinanceCampaignCheckin } from "../hooks/useBinanceCampaignCheckin";
 
 const BNB_CHAIN_SWITCH = {
   chainId: 56,
@@ -404,6 +406,10 @@ export function ChatPage() {
     hasActiveWalletSession &&
     !isBinanceWalletConnected &&
     !showBinanceBoosterWalletWarning;
+
+  const isBinanceCampaignRoute = location.pathname === "/bwcampaign";
+  const { shouldShowCampaignCheckin, progress: binanceCampaignCheckinProgress } =
+    useBinanceCampaignCheckin();
 
   const resetBinanceWizard = useCallback(() => {
     setBinanceError("");
@@ -3861,6 +3867,17 @@ export function ChatPage() {
                 <p className="text-gray-600 mb-6">
                   I can help you discover, execute, and manage your portfolio.
                 </p>
+                {isBinanceCampaignRoute && (
+                  <div className="max-w-xl mx-auto mb-6 text-left">
+                    <BinanceCampaignCheckinNotice
+                      progress={
+                        shouldShowCampaignCheckin
+                          ? binanceCampaignCheckinProgress
+                          : null
+                      }
+                    />
+                  </div>
+                )}
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-4">
                   {/* <button
                     type="button"
@@ -4524,6 +4541,13 @@ export function ChatPage() {
                             )}
                           </>
                         )}
+  <BinanceCampaignCheckinNotice
+                        progress={
+                          shouldShowCampaignCheckin
+                            ? binanceCampaignCheckinProgress
+                            : null
+                        }
+                      />
 
                       <div className="space-y-3 sm:space-y-4">
                         <div className="rounded-2xl bg-white/70 border border-gray-200/60 p-3 sm:p-4 shadow-sm">
