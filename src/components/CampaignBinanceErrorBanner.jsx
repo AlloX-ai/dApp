@@ -17,11 +17,7 @@ export function CampaignBinanceErrorBanner({ error, isRetrying = false }) {
           Retrying automatically in {error.retryAfterSeconds} seconds…
         </p>
       )}
-      {error.requestId && (
-        <p className="mt-3 text-xs text-amber-800/70">
-          Reference: {error.requestId}
-        </p>
-      )}
+     
     </div>
   );
 }
