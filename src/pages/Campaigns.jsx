@@ -1,5 +1,5 @@
 import { useMemo, useEffect, useState } from "react";
-import { useSearchParams } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import {
   Trophy,
   Flame,
@@ -15,6 +15,8 @@ import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import tcBanner from "../assets/tcBanner.png";
 import springSeries from "../assets/springSeries.png";
 import pypBanner from "../assets/pypBanner.png";
+import volumeLeague from "../assets/volumeLeague.png";
+import binanceWalletCampaign from "../assets/binanceWalletCampaign.jpg";
 import { ProveYourPortfolioCampaign } from "./ProveYourPortfolio";
 import { ProvePortfolio } from "./ProvePortfolio";
 import { VolumeLeagueCampaign } from "./VolumeLeagueCampaign";
@@ -23,6 +25,7 @@ export function CampaignsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [raceCountdown, setRaceCountdown] = useState(null);
   const [raceEnded, setRaceEnded] = useState(false);
+  const navigate = useNavigate();
 
   const activeTab = useMemo(() => {
     const campaignParam = searchParams.get("campaign");
@@ -86,34 +89,92 @@ export function CampaignsPage() {
           {/* Campaign Cards Grid */}
           <div className="grid xl:grid-cols-2 gap-6">
                  <button
-          onClick={() => setSearchParams({ campaign: "volume-league" })}
+          onClick={() => navigate("/")}
           className="glass-card overflow-hidden text-left hover:shadow-2xl transition-all duration-300 group relative"
         >
-          <div className="relative h-48 w-full overflow-hidden bg-gradient-to-br from-cyan-900 via-blue-900 to-indigo-900 flex items-center justify-center">
-            <div className="absolute inset-0 opacity-20">
-              {[...Array(6)].map((_, i) => (
-                <div key={i} className="absolute rounded-full border border-cyan-400/40" style={{ width: `${60 + i * 30}px`, height: `${60 + i * 30}px`, top: '50%', left: '50%', transform: 'translate(-50%,-50%)' }} />
-              ))}
-            </div>
-            <TrendingUp className="w-16 h-16 text-cyan-400 drop-shadow-lg" />
-            <div className="absolute top-4 right-4 bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold shadow-lg">
-              ACTIVE
-            </div>
-            <div className="absolute top-4 left-4 bg-cyan-500/20 backdrop-blur-sm text-cyan-200 px-3 py-1 rounded-full text-xs font-semibold border border-cyan-400/30">
-              Weekly Rewards
-            </div>
-          </div>
+           <div className="relative h-48 w-full overflow-hidden">
+                <ImageWithFallback
+                  src={binanceWalletCampaign}
+                  alt="Volume League"
+                  className="w-full h-full object-cover brightness-85 transition-[filter] duration-500 ease-in-out group-hover:brightness-115"
+                />
+                {/* Gradient Overlay */}
+                <div className="absolute inset-0 " />
+
+                {/* Badge on Banner */}
+                <div className="absolute top-4 right-4 bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold shadow-lg">
+                  ACTIVE
+                </div>
+
+                {/* Icon on Banner */}
+          
+              </div>
           <div className="p-8">
-            <h3 className="text-2xl font-bold text-gray-900 mb-2">Volume League</h3>
-            <p className="text-gray-600 mb-6">Generate volume on BNB Chain, climb tier brackets, and earn weekly Gem distributions from the leaderboard</p>
+            <h3 className="text-2xl font-bold text-gray-900 mb-2">Binance Wallet Campaign</h3>
+            <p className="text-gray-600 mb-6">Complete tasks on BNB Chain using Binance Wallet to qualify for a share of 10,000,000 ALLOX tokens.</p>
            <div className="flex flex-col sm:flex-row gap-2 sm:items-center justify-between mb-6">
                   <div className="bg-white/60 backdrop-blur-sm rounded-xl p-3">
                     <div className="text-xs text-gray-600 mb-1">
-                      Weekly Pool
+                      Total Rewards
                     </div>
                     <div className="font-bold text-base text-gray-900 flex items-center gap-1">
-                      $11,250 (<Gem className="w-4 h-4 text-purple-600" />
-                      2,250)
+                      <span>$300,000 ALLOX</span>
+                     
+                    </div>
+                  </div>
+                  <div className="bg-white/60 backdrop-blur-sm rounded-xl p-3">
+                    <div className="text-xs text-gray-600 mb-1">Duration</div>
+                    <div className="font-bold text-gray-900 flex items-center gap-1">
+                      <Calendar className="w-4 h-4 text-blue-600" />
+                      Jun 15 - Jul 15
+                    </div>
+                  </div>
+                </div>
+            <div className="flex items-center justify-end gap-2 ">
+                  <span className="text-sm font-semibold text-amber-600 group-hover:text-amber-700">
+                    View
+                  </span>
+                  <ChevronRight className="w-5 h-5 text-amber-600 group-hover:translate-x-1 transition-transform" />
+                </div>
+          </div>
+        </button>
+                 <button
+          onClick={() => setSearchParams({ campaign: "volume-league" })}
+          className="glass-card overflow-hidden text-left hover:shadow-2xl transition-all duration-300 group relative"
+        >
+           <div className="relative h-48 w-full overflow-hidden">
+                <ImageWithFallback
+                  src={volumeLeague}
+                  alt="Volume League"
+                  className="w-full h-full object-cover brightness-85 transition-[filter] duration-500 ease-in-out group-hover:brightness-115"
+                />
+                {/* Gradient Overlay */}
+                <div className="absolute inset-0 " />
+
+                {/* Badge on Banner */}
+                <div className="absolute top-4 right-4 bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold shadow-lg">
+                  ACTIVE
+                </div>
+
+                {/* Icon on Banner */}
+            <div className="absolute top-4 left-4 bg-cyan-500/20 backdrop-blur-sm text-cyan-200 px-3 py-1 rounded-full text-xs font-semibold border border-cyan-400/30">
+              Weekly Rewards
+            </div>
+              </div>
+          <div className="p-8">
+            <h3 className="text-2xl font-bold text-gray-900 mb-2">Volume League</h3>
+            <p className="text-gray-600 mb-6">Generate volume, climb tier brackets, and earn weekly guaranteed rewards.</p>
+           <div className="flex flex-col sm:flex-row gap-2 sm:items-center justify-between mb-6">
+                  <div className="bg-white/60 backdrop-blur-sm rounded-xl p-3">
+                    <div className="text-xs text-gray-600 mb-1">
+                      Total Rewards
+                    </div>
+                    <div className="font-bold text-base text-gray-900 flex items-center gap-1">
+                      <span>$500,000</span>
+                      <span className="text-sm font-semibold text-gray-700 flex items-center">
+                        (<Gem className="w-4 h-4 text-purple-600" />
+                        100,000)
+                      </span>
                     </div>
                   </div>
                   <div className="bg-white/60 backdrop-blur-sm rounded-xl p-3">
@@ -142,9 +203,9 @@ export function CampaignsPage() {
               {/* Banner Image */}
               <div className="relative h-48 w-full overflow-hidden">
                 <ImageWithFallback
-                  src={pypBanner}
-                  alt="Prove Your Portfolio"
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  src={tcBanner}
+                  alt="Trading Competition"
+                  className="w-full h-full object-cover brightness-85 transition-[filter] duration-500 ease-in-out group-hover:brightness-115"
                 />
                 {/* Gradient Overlay */}
                 <div className="absolute inset-0 " />
@@ -174,8 +235,11 @@ export function CampaignsPage() {
                       Total Rewards
                     </div>
                     <div className="font-bold text-gray-900 flex items-center gap-1">
-                      $50,000 (<Gem className="w-4 h-4 text-purple-600" />
-                      10,000)
+                      <span>$500,000</span>
+                      <span className="text-sm font-semibold text-gray-700 flex items-center">
+                        (<Gem className="w-4 h-4 text-purple-600" />
+                        100,000)
+                      </span>
                     </div>
                   </div>
                   <div className="bg-white/60 backdrop-blur-sm rounded-xl p-3">
@@ -205,9 +269,9 @@ export function CampaignsPage() {
               {/* Banner Image */}
               <div className="relative h-48 w-full overflow-hidden">
                 <ImageWithFallback
-                  src={tcBanner}
-                  alt="Trading Competition"
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  src={pypBanner}
+                  alt="Prove Your Portfolio"
+                  className="w-full h-full object-cover brightness-85 transition-[filter] duration-500 ease-in-out group-hover:brightness-115"
                 />
                 {/* Gradient Overlay */}
                 <div className="absolute inset-0 " />
@@ -248,8 +312,11 @@ export function CampaignsPage() {
                       Total Rewards
                     </div>
                     <div className="font-bold text-gray-900 flex items-center gap-1">
-                      $500,000 (<Gem className="w-4 h-4 text-purple-600" />
-                      100,000)
+                      <span>$50,000</span>
+                      <span className="text-sm font-semibold text-gray-700 flex items-center">
+                        (<Gem className="w-4 h-4 text-purple-600" />
+                        10,000)
+                      </span>
                     </div>
                   </div>
                   <div className="bg-white/60 backdrop-blur-sm rounded-xl p-3">
@@ -298,7 +365,7 @@ export function CampaignsPage() {
                 <ImageWithFallback
                   src={springSeries}
                   alt="Spring Series"
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  className="w-full h-full object-cover grayscale brightness-85 transition-[filter] duration-500 ease-in-out group-hover:brightness-115"
                 />
                 {/* Gradient Overlay */}
                 {/* <div className="absolute inset-0 bg-gradient-to-b from-orange-900/60 via-red-900/40 to-transparent" /> */}
@@ -329,8 +396,11 @@ export function CampaignsPage() {
                       Total Rewards
                     </div>
                     <div className="font-bold text-base text-gray-900 flex items-center gap-1">
-                      $45,000 (<Gem className="w-4 h-4 text-purple-600" />
-                      9,000)
+                      <span>$45,000</span>
+                      <span className="text-sm font-semibold text-gray-700 flex items-center">
+                        (<Gem className="w-4 h-4 text-purple-600" />
+                        9,000)
+                      </span>
                     </div>
                   </div>
                   <div className="bg-white/60 backdrop-blur-sm rounded-xl p-3">
