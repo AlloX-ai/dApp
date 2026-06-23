@@ -187,6 +187,87 @@ export function getStoredBinanceBoosterAddr() {
   }
 }
 
+export function isCampaignBinanceEndpoint(endpoint) {
+  return (
+    typeof endpoint === "string" && /^\/campaigns\/binance(?:\/|$)/.test(endpoint)
+  );
+}
+
+/** Structured error from any `/campaigns/binance/*` error response. */
+export function parseCampaignBinanceError(errOrData) {
+  if (!errOrData) return null;
+
+  const preset = errOrData?.campaignError;
+  if (preset && typeof preset === "object") {
+    return preset;
+  }
+
+  const data = errOrData?.data ?? errOrData;
+  const error = data?.error;
+  if (!error || typeof error !== "object" || (!error.message && !error.code)) {
+    return null;
+  }
+
+  const retryAfterSeconds = Number(error.retryAfterSeconds);
+  return {
+    code: error.code ?? null,
+    message: error.message ?? "Something went wrong. Please try again.",
+    eta: error.eta ?? null,
+    retryAfterSeconds: Number.isFinite(retryAfterSeconds)
+      ? retryAfterSeconds
+      : null,
+    requestId: error.requestId ?? null,
+    timestamp: error.timestamp ?? null,
+  };
+}
+
+const CAMPAIGN_BINANCE_RETRY_MAX_ATTEMPTS = 20;
+
+/**
+ * Call a `/campaigns/binance/*` endpoint; show structured errors via `onCampaignError`
+ * and auto-retry when `error.retryAfterSeconds` is present.
+ */
+export async function campaignBinanceApiCall(
+  apiCallFn,
+  endpoint,
+  options = {},
+  { onCampaignError } = {},
+) {
+  for (let attempt = 0; attempt < CAMPAIGN_BINANCE_RETRY_MAX_ATTEMPTS; attempt++) {
+    try {
+      const result = await apiCallFn(endpoint, options);
+      onCampaignError?.(null, { isRetrying: false });
+      return result;
+    } catch (err) {
+      const campaignError = parseCampaignBinanceError(err);
+      if (!campaignError) throw err;
+
+      const retrySec = campaignError.retryAfterSeconds;
+      const canRetry =
+        retrySec != null &&
+        retrySec > 0 &&
+        attempt < CAMPAIGN_BINANCE_RETRY_MAX_ATTEMPTS - 1;
+
+      onCampaignError?.(campaignError, {
+        isRetrying: canRetry,
+        retryInSeconds: canRetry ? retrySec : null,
+      });
+
+      if (!canRetry) {
+        throw {
+          ...err,
+          campaignError,
+          message: campaignError.message,
+        };
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, retrySec * 1000));
+    }
+  }
+
+  throw new Error("Campaign request failed after multiple retries.");
+}
+
 export function getBinanceMissingSelections(form) {
   const missing = [];
   const amount = form?.amountUsd != null ? Number(form.amountUsd) : null;

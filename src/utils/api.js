@@ -209,9 +209,15 @@ export const apiCall = async (endpoint, options = {}, apiType) => {
   }
 
   if (!response.ok) {
+    const nestedError =
+      data?.error && typeof data.error === "object" ? data.error : null;
     throw {
       status: response.status,
-      message: data.error || data.message || "Request failed",
+      message:
+        nestedError?.message ||
+        (typeof data.error === "string" ? data.error : null) ||
+        data.message ||
+        "Request failed",
       data,
     };
   }
@@ -279,9 +285,15 @@ export const api2Call = async (endpoint, options = {}) => {
   }
 
   if (!response.ok) {
+    const nestedError =
+      data?.error && typeof data.error === "object" ? data.error : null;
     throw {
       status: response.status,
-      message: data.error || data.message || "Request failed",
+      message:
+        nestedError?.message ||
+        (typeof data.error === "string" ? data.error : null) ||
+        data.message ||
+        "Request failed",
       data,
     };
   }
