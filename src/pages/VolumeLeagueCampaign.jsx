@@ -49,7 +49,7 @@ import {
   PRIME_PICKS_INCLUDED_TOKENS,
   PRIME_PICKS_PORTFOLIO_SIZE,
 } from "../utils/binanceCampaign";
-import { SellPortfolioModal } from "../components/SellPortfolioModal";
+import { PortfolioDetailModal } from "../components/PortfolioDetailModal";
 
 const BNB_CHAIN_SWITCH = {
   chainId: 56,
@@ -58,6 +58,29 @@ const BNB_CHAIN_SWITCH = {
   rpcUrls: ["https://bsc-dataseed.binance.org"],
   blockExplorerUrls: ["https://bscscan.com"],
   nativeCurrency: { name: "BNB", symbol: "BNB", decimals: 18 },
+};
+
+const isOnChainExecutionMode = (executionMode) =>
+  String(executionMode || "").toUpperCase() === "ON_CHAIN";
+
+const isPortfolioClosed = (portfolio) =>
+  String(portfolio?.status || portfolio?.sellStatus || "").toUpperCase() ===
+  "CLOSED";
+
+const getChainInfo = (chain) => {
+  const normalized = normalizeChain(chain || BINANCE_CAMPAIGN_CHAIN);
+  const chainMeta = CHAINS[normalized];
+  if (chainMeta?.label) {
+    return { label: chainMeta.label, icon: null };
+  }
+  const key = String(chain || BINANCE_CAMPAIGN_CHAIN).toUpperCase();
+  if (key === "BSC") {
+    return {
+      label: "BNB Chain",
+      icon: "https://cdn.allox.ai/allox/networks/bnbIcon.svg",
+    };
+  }
+  return { label: key, icon: null };
 };
 
 const TIERS = [
@@ -309,8 +332,9 @@ export function VolumeLeagueCampaign() {
   const [isSwitchingChain, setIsSwitchingChain] = useState(false);
   const [generatedBasket, setGeneratedBasket] = useState([]);
   const [generatedMeta, setGeneratedMeta] = useState(null);
-  const [sellPortfolioModalOpen, setSellPortfolioModalOpen] = useState(false);
-  const [sellPortfolioTarget, setSellPortfolioTarget] = useState(null);
+  const [detailModalPortfolio, setDetailModalPortfolio] = useState(null);
+  const [detailModalInitialSell, setDetailModalInitialSell] = useState(null);
+  const [detailModalRefreshKey, setDetailModalRefreshKey] = useState(0);
   const [portfolioSlide, setPortfolioSlide] = useState(0);
   const [executionPrompt, setExecutionPrompt] = useState(null);
   const executionPromptResolverRef = useRef(null);
@@ -438,6 +462,25 @@ export function VolumeLeagueCampaign() {
   const portfolios = Array.isArray(recentPortfoliosQuery.data)
     ? recentPortfoliosQuery.data
     : [];
+
+  const closePortfolioDetailModal = useCallback(() => {
+    setDetailModalPortfolio(null);
+    setDetailModalInitialSell(null);
+  }, []);
+
+  const openPortfolioDetailModal = useCallback((portfolio, options = {}) => {
+    const portfolioId = portfolio?.id ?? portfolio?.portfolioId;
+    if (!portfolioId) return;
+    setDetailModalPortfolio({ ...portfolio, id: portfolioId });
+    setDetailModalInitialSell(options.startSell ? "portfolio" : null);
+  }, []);
+
+  const handlePortfolioSellComplete = useCallback(async () => {
+    setDetailModalRefreshKey((key) => key + 1);
+    await queryClient.invalidateQueries({
+      queryKey: ["volumeLeaguePortfolios"],
+    });
+  }, [queryClient]);
 
   const parseCampaignBasketFromResponse = useCallback((response) => {
     const preview =
@@ -892,32 +935,32 @@ export function VolumeLeagueCampaign() {
     const loadVolumeCampaignData = async () => {
       try {
         const campaignResult = await fetchCompetition();
-        console.log(
-          "[VolumeLeagueCampaign] /campaigns/volume-league",
-          campaignResult,
-        );
+        // console.log(
+        //   "[VolumeLeagueCampaign] /campaigns/volume-league",
+        //   campaignResult,
+        // );
 
         const leaderboardResult = await fetchLeaderboard({
           week: selectedWeek + 1,
           limit: 10,
         });
-        console.log(
-          "[VolumeLeagueCampaign] /campaigns/volume-league/leaderboard",
-          leaderboardResult,
-        );
+        // console.log(
+        //   "[VolumeLeagueCampaign] /campaigns/volume-league/leaderboard",
+        //   leaderboardResult,
+        // );
 
         if (walletAddress) {
           const userResult = await fetchUserCompetitionData({
             address: walletAddress,
           });
-          console.log(
-            "[VolumeLeagueCampaign] /campaigns/volume-league/?address=...",
-            userResult,
-          );
+          // console.log(
+          //   "[VolumeLeagueCampaign] /campaigns/volume-league/?address=...",
+          //   userResult,
+          // );
         } else {
-          console.log(
-            "[VolumeLeagueCampaign] skipped /campaigns/volume-league/?address=... because no wallet is connected yet",
-          );
+          // console.log(
+          //   "[VolumeLeagueCampaign] skipped /campaigns/volume-league/?address=... because no wallet is connected yet",
+          // );
         }
       } catch (fetchError) {
         console.error(
@@ -1254,7 +1297,16 @@ export function VolumeLeagueCampaign() {
                       return (
                         <div
                           key={String(portfolioId)}
-                          className="relative flex flex-col items-center p-3 bg-white/70 hover:bg-white border border-gray-200/60 hover:border-blue-300 rounded-xl transition-all group"
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => openPortfolioDetailModal(p)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              openPortfolioDetailModal(p);
+                            }
+                          }}
+                          className="relative flex flex-col items-center p-3 bg-white/70 hover:bg-white border border-gray-200/60 hover:border-blue-300 rounded-xl transition-all group cursor-pointer"
                         >
                           <div className="w-9 h-9 bg-blue-100 group-hover:bg-blue-200 rounded-xl flex items-center justify-center mb-2 transition-colors">
                             <PieChart size={15} className="text-blue-600" />
@@ -1272,14 +1324,9 @@ export function VolumeLeagueCampaign() {
                           </div>
                           <button
                             type="button"
-                            onClick={() => {
-                              setSellPortfolioTarget({
-                                type: "portfolio",
-                                portfolioId,
-                                title: p.name || "Portfolio",
-                                chain: p.chain || BINANCE_CAMPAIGN_CHAIN,
-                              });
-                              setSellPortfolioModalOpen(true);
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              openPortfolioDetailModal(p, { startSell: true });
                             }}
                             className="absolute right-2 top-0 mt-2 inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[10px] font-semibold text-emerald-600 hover:bg-emerald-200/30"
                           >
@@ -2206,19 +2253,18 @@ export function VolumeLeagueCampaign() {
         </div>
       )}
 
-      <SellPortfolioModal
-        isOpen={sellPortfolioModalOpen}
-        onClose={() => {
-          setSellPortfolioModalOpen(false);
-          setSellPortfolioTarget(null);
-        }}
-        target={sellPortfolioTarget}
-        onComplete={async () => {
-          await queryClient.invalidateQueries({
-            queryKey: ["volumeLeaguePortfolios"],
-          });
-        }}
-      />
+      {detailModalPortfolio && (
+        <PortfolioDetailModal
+          portfolio={detailModalPortfolio}
+          onClose={closePortfolioDetailModal}
+          onSellComplete={handlePortfolioSellComplete}
+          getChainInfo={getChainInfo}
+          isOnChainExecutionMode={isOnChainExecutionMode}
+          isPortfolioClosed={isPortfolioClosed}
+          refreshKey={detailModalRefreshKey}
+          initialSellMode={detailModalInitialSell}
+        />
+      )}
 
       {showTutorialModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">

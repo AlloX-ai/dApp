@@ -99,6 +99,11 @@ import {
   switchPrivyEmbeddedToChain,
 } from "../utils/privyWalletUtils";
 import { isBinanceWalletConnection } from "../utils/binanceWallet";
+import {
+  parseCustomAmountUsd,
+  isDecimalAmountInput,
+  QUICK_PRESET_AMOUNTS_USD,
+} from "../utils/customAmountInput";
 
 const BNB_CHAIN_SWITCH = {
   chainId: 56,
@@ -4625,8 +4630,9 @@ export function ChatPage() {
                               onClick={() =>
                                 setBinanceForm((p) => ({
                                   ...p,
-                                  amountUsd: null,
-                                  customAmountUsdText: "",
+                                  amountUsd: parseCustomAmountUsd(
+                                    p.customAmountUsdText,
+                                  ),
                                 }))
                               }
                               disabled={
@@ -4650,18 +4656,27 @@ export function ChatPage() {
                             Custom amount (USD)
                           </label>
                           <input
-                            type="number"
-                            min={BINANCE_CAMPAIGN_MIN_AMOUNT_USD}
-                            maxLength={8}
+                            type="text"
+                            inputMode="decimal"
+                            autoComplete="off"
+                            maxLength={12}
                             value={binanceForm.customAmountUsdText}
-                            placeholder={`$ e.g. 750`}
+                            placeholder={`$ e.g. 750 (min $${BINANCE_CAMPAIGN_MIN_AMOUNT_USD})`}
                             onChange={(e) => {
                               const raw = e.target.value;
+                              if (!isDecimalAmountInput(raw)) return;
                               setBinanceForm((p) => ({
                                 ...p,
                                 customAmountUsdText: raw,
-                                amountUsd:
-                                  raw.trim() === "" ? null : Number(raw),
+                                amountUsd: parseCustomAmountUsd(raw),
+                              }));
+                            }}
+                            onBlur={() => {
+                              setBinanceForm((p) => ({
+                                ...p,
+                                amountUsd: parseCustomAmountUsd(
+                                  p.customAmountUsdText,
+                                ),
                               }));
                             }}
                             disabled={binanceIsGenerating || binanceIsExecuting}
@@ -5249,8 +5264,10 @@ export function ChatPage() {
                           How much would you like to invest?
                         </div>
                         <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 mb-3">
-                          {[5, 100, 500].map((amt) => {
-                            const selected = quickForm.amountUsd === amt;
+                          {QUICK_PRESET_AMOUNTS_USD.map((amt) => {
+                            const selected =
+                              quickForm.amountUsd === amt &&
+                              quickForm.customAmountUsdText === "";
                             return (
                               <button
                                 key={amt}
@@ -5278,12 +5295,18 @@ export function ChatPage() {
                             onClick={() =>
                               setQuickForm((p) => ({
                                 ...p,
-                                amountUsd: null,
+                                amountUsd: parseCustomAmountUsd(
+                                  p.customAmountUsdText,
+                                ),
                               }))
                             }
                             disabled={quickIsGenerating || quickIsExecuting}
                             className={
-                              quickForm.amountUsd == null
+                              quickForm.customAmountUsdText !== "" ||
+                              (quickForm.amountUsd != null &&
+                                !QUICK_PRESET_AMOUNTS_USD.includes(
+                                  quickForm.amountUsd,
+                                ))
                                 ? "px-4 py-2.5 bg-gray-900 text-white border border-gray-900 rounded-xl text-sm font-medium hover:bg-gray-800 shadow-sm"
                                 : "px-4 py-2.5 bg-white/80 border border-gray-200 rounded-xl text-sm font-medium hover:bg-white hover:border-gray-300"
                             }
@@ -5295,17 +5318,27 @@ export function ChatPage() {
                           Custom amount (USD)
                         </label>
                         <input
-                          type="number"
-                          min="1"
-                          maxLength={8}
+                          type="text"
+                          inputMode="decimal"
+                          autoComplete="off"
+                          maxLength={12}
                           value={quickForm.customAmountUsdText}
                           placeholder="$ e.g. 250"
                           onChange={(e) => {
                             const raw = e.target.value;
+                            if (!isDecimalAmountInput(raw)) return;
                             setQuickForm((p) => ({
                               ...p,
                               customAmountUsdText: raw,
-                              amountUsd: raw.trim() === "" ? null : Number(raw),
+                              amountUsd: parseCustomAmountUsd(raw),
+                            }));
+                          }}
+                          onBlur={() => {
+                            setQuickForm((p) => ({
+                              ...p,
+                              amountUsd: parseCustomAmountUsd(
+                                p.customAmountUsdText,
+                              ),
                             }));
                           }}
                           disabled={quickIsGenerating || quickIsExecuting}
