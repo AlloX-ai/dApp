@@ -48,6 +48,11 @@ export function SellPortfolioPanel({
   if (!displayTarget) return null;
 
   const paddingClass = compact ? "space-y-3" : "space-y-4";
+  const tokenLogoMap = displayTarget?.tokenLogos || {};
+  const getOrderLogo = (order) => {
+    const symbol = String(order?.symbol || "").trim().toUpperCase();
+    return order?.logo || tokenLogoMap[symbol] || null;
+  };
 
   return (
     <div className={paddingClass}>
@@ -120,6 +125,7 @@ export function SellPortfolioPanel({
                 const priceImpact = Number(order.priceImpact || 0);
                 const isHighImpact = priceImpact >= 5;
                 const orderStatus = orderStatusMap[order.executionOrderId];
+                const logo = getOrderLogo(order);
                 return (
                   <div
                     key={order.executionOrderId}
@@ -134,8 +140,18 @@ export function SellPortfolioPanel({
                     }`}
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <div className="font-semibold flex items-center gap-2">
-                        {order.symbol}
+                      <div className="font-semibold flex items-center gap-2 min-w-0">
+                        {logo ? (
+                          <img
+                            src={logo}
+                            alt=""
+                            className="h-6 w-6 rounded-full border border-gray-200 bg-white object-cover shrink-0"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <div className="h-6 w-6 rounded-full border border-gray-200 bg-gray-100 shrink-0" />
+                        )}
+                        <span className="truncate">{order.symbol}</span>
                         {isHighImpact && orderStatus !== "confirmed" ? (
                           <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-200 text-amber-900 uppercase">
                             High impact

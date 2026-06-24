@@ -211,6 +211,22 @@ function sqrtShare(vol) {
   return Math.sqrt(vol);
 }
 
+function normalizeAddress(address) {
+  return String(address || "").trim().toLowerCase();
+}
+
+function hasLeaderboardEntryWithAddress(rows, walletAddress) {
+  const targetAddress = normalizeAddress(walletAddress);
+  if (!targetAddress || !Array.isArray(rows)) return false;
+
+  return rows.some((row) => {
+    const rowAddress = normalizeAddress(
+      row?.address || row?.walletAddress || row?.userAddress,
+    );
+    return rowAddress === targetAddress;
+  });
+}
+
 // Generate mock leaderboard
 function generateLeaderboard(weekSeed) {
   const effectiveWeekSeed = ((weekSeed - 1) % 5) + 1;
@@ -425,6 +441,10 @@ export function VolumeLeagueCampaign() {
     Math.ceil(LEADERBOARD_TOTAL_RECORDS / LEADERBOARD_ITEMS_PER_PAGE),
   );
   const paginatedLeaderboard = leaderboardData?.rows ?? [];
+  const walletExistsInLeaderboardRows = useMemo(
+    () => hasLeaderboardEntryWithAddress(paginatedLeaderboard, walletAddress),
+    [paginatedLeaderboard, walletAddress],
+  );
 
   // Mock current user
   const currentUser = {
@@ -1138,11 +1158,8 @@ export function VolumeLeagueCampaign() {
               <span className="font-bold text-gray-900 text-sm">
                 My Position
               </span>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-50 border border-yellow-200 text-yellow-700 text-[10px] font-bold">
-                <Crown size={10} />{" "}
-                {"#" +
-                  (userCompetitionData?.user?.weeklyEarnings?.[positionWeek + 1]
-                    ?.rank ?? "-")}
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-50 border border-yellow-200 text-yellow-700 text-[12px] font-bold">
+                <Crown size={10} /> {(userCompetitionData?.user?.weeklyEarnings?.[positionWeek + 1]?.rank ? "#" + userCompetitionData?.user?.weeklyEarnings?.[positionWeek + 1]?.rank : "No Rank")}
               </span>
               <span className="hidden sm:flex px-2.5 py-1 bg-green-100 text-green-700 text-[10px] font-bold rounded-full uppercase tracking-wider">
                 Guaranteed Rewards
@@ -1341,6 +1358,7 @@ export function VolumeLeagueCampaign() {
                         p?.totalValue ??
                         0;
                       const portfolioId = p?.id ?? p?.portfolioId;
+                      const isClosed = isPortfolioClosed(p);
                       return (
                         <div
                           key={String(portfolioId)}
@@ -1373,11 +1391,19 @@ export function VolumeLeagueCampaign() {
                             type="button"
                             onClick={(event) => {
                               event.stopPropagation();
+                              if (isClosed) {
+                                openPortfolioDetailModal(p);
+                                return;
+                              }
                               openPortfolioDetailModal(p, { startSell: true });
                             }}
-                            className="absolute right-2 top-0 mt-2 inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[10px] font-semibold text-emerald-600 hover:bg-emerald-200/30"
+                            className={`absolute right-2 top-0 mt-2 inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold ${
+                              isClosed
+                                ? "border border-gray-200 text-gray-500 hover:bg-gray-50"
+                                : "border border-emerald-200 text-emerald-600 hover:bg-emerald-200/30"
+                            }`}
                           >
-                            Sell
+                            {isClosed ? "Closed" : "Sell"}
                           </button>
                         </div>
                       );
@@ -1489,49 +1515,56 @@ export function VolumeLeagueCampaign() {
           </span>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm min-h-[700px]">
-            <thead>
-              <tr className="border-b border-gray-200">
-                <th className="text-left py-2.5 px-2 text-gray-500 font-semibold text-xs">
-                  #
-                </th>
-                <th className="text-left py-2.5 px-2 text-gray-500 font-semibold text-xs">
-                  Wallet
-                </th>
-                <th className="text-left py-2.5 px-2 text-gray-500 font-semibold text-xs">
-                  Portfolios
-                </th>
-                <th className="text-left py-2.5 px-2 text-gray-500 font-semibold text-xs">
-                  Volume
-                </th>
-                <th className="text-left py-2.5 px-2 text-gray-500 font-semibold text-xs">
-                  Tier
-                </th>
-                <th className="text-left py-2.5 px-2 text-gray-500 font-semibold text-xs">
-                  Reward Share
-                </th>
-                <th className="text-left py-2.5 px-2 text-gray-500 font-semibold text-xs">
-                  Tier Bonus
-                </th>
-                <th className="text-left py-2.5 px-2 text-gray-500 font-semibold text-xs">
-                  Total
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 ">
-              {loading.leaderboard ? (
-                <tr>
-                  <td colSpan={8} className="py-10">
-                    <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
-                      <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
-                      Loading leaderboard...
-                    </div>
-                  </td>
+        {loading.leaderboard ? (
+          <div className="rounded-2xl border border-gray-200 bg-white/60 py-10 min-h-[700px] flex items-center justify-center">
+            <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
+              <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
+              Loading leaderboard...
+            </div>
+          </div>
+        ) : paginatedLeaderboard.length === 0 ? (
+          <div className="rounded-2xl border border-gray-200 bg-white/60 px-4 py-10 text-center min-h-[700px] flex flex-col items-center justify-center gap-2">
+            <div className="text-sm font-semibold text-gray-800">
+              No leaderboard records yet
+            </div>
+            <div className="mt-1 text-xs text-gray-500">
+              Once users start generating volume this week, rankings will appear
+              here.
+            </div>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-h-[700px]">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="text-left py-2.5 px-2 text-gray-500 font-semibold text-xs">
+                    #
+                  </th>
+                  <th className="text-left py-2.5 px-2 text-gray-500 font-semibold text-xs">
+                    Wallet
+                  </th>
+                  <th className="text-left py-2.5 px-2 text-gray-500 font-semibold text-xs">
+                    Portfolios
+                  </th>
+                  <th className="text-left py-2.5 px-2 text-gray-500 font-semibold text-xs">
+                    Volume
+                  </th>
+                  <th className="text-left py-2.5 px-2 text-gray-500 font-semibold text-xs">
+                    Tier
+                  </th>
+                  <th className="text-left py-2.5 px-2 text-gray-500 font-semibold text-xs">
+                    Reward Share
+                  </th>
+                  <th className="text-left py-2.5 px-2 text-gray-500 font-semibold text-xs">
+                    Tier Bonus
+                  </th>
+                  <th className="text-left py-2.5 px-2 text-gray-500 font-semibold text-xs">
+                    Total
+                  </th>
                 </tr>
-              ) : (
-                <>
-                  {paginatedLeaderboard?.map((row) => {
+              </thead>
+              <tbody className="divide-y divide-gray-100 ">
+                {paginatedLeaderboard?.map((row) => {
                     const bonusAmt =
                       row.tier && row.tierUnlocked ? row.tier.bonus : 0;
                     const total = row.baseShare + bonusAmt;
@@ -1542,15 +1575,15 @@ export function VolumeLeagueCampaign() {
                     return (
                       <tr
                         key={row.rank}
-                        className="hover:bg-white/60 transition-colors"
+                        className={`hover:bg-white/60 transition-colors ${row.address === walletAddress ? "bg-blue-50/80 border-t-2 border-blue-300" : ""}`}
                       >
                         <td className="py-2.5 px-2">
                           <div className="flex items-center justify-center w-5">
                             <PositionIcon rank={row.rank} />
                           </div>
                         </td>
-                        <td className="py-2.5 px-2 font-mono text-xs text-gray-700">
-                          {row.displayAddress}
+                        <td className={`py-2.5 px-2 font-mono text-xs  ${row.address === walletAddress ? "font-bold text-blue-700" : "text-gray-700"}`}>
+                          {row.displayAddress} {row.address === walletAddress && "(You)"}
                         </td>
                         <td className="py-2.5 px-2 text-gray-700 font-medium">
                           {row.portfolioCount}
@@ -1627,8 +1660,8 @@ export function VolumeLeagueCampaign() {
                     );
                   })}
 
-                  {/* Current user row */}
-                  {(() => {
+                {/* Current user row */}
+                {walletExistsInLeaderboardRows && (() => {
                     const userBonusAmt =
                       currentUser.tier && currentUser.tierUnlocked
                         ? currentUser.tier.bonus
@@ -1717,39 +1750,40 @@ export function VolumeLeagueCampaign() {
                       </tr>
                     );
                   })()}
-                </>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="mt-4 flex items-center justify-between gap-3">
-          <span className="text-xs text-gray-500">
-            Page {leaderboardPage} of {LEADERBOARD_TOTAL_PAGES}
-          </span>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() =>
-                setLeaderboardPage((prev) => Math.max(1, prev - 1))
-              }
-              disabled={leaderboardPage === 1}
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-gray-200 bg-white text-gray-700 hover:border-gray-400 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Previous
-            </button>
-            <button
-              onClick={() =>
-                setLeaderboardPage((prev) =>
-                  Math.min(LEADERBOARD_TOTAL_PAGES, prev + 1),
-                )
-              }
-              disabled={leaderboardPage === LEADERBOARD_TOTAL_PAGES}
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-gray-200 bg-white text-gray-700 hover:border-gray-400 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Next
-            </button>
+              </tbody>
+            </table>
           </div>
-        </div>
+        )}
+
+        {!loading.leaderboard && paginatedLeaderboard.length > 0 && (
+          <div className="mt-4 flex items-center justify-between gap-3">
+            <span className="text-xs text-gray-500">
+              Page {leaderboardPage} of {LEADERBOARD_TOTAL_PAGES}
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() =>
+                  setLeaderboardPage((prev) => Math.max(1, prev - 1))
+                }
+                disabled={leaderboardPage === 1}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-gray-200 bg-white text-gray-700 hover:border-gray-400 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
+              <button
+                onClick={() =>
+                  setLeaderboardPage((prev) =>
+                    Math.min(LEADERBOARD_TOTAL_PAGES, prev + 1),
+                  )
+                }
+                disabled={leaderboardPage === LEADERBOARD_TOTAL_PAGES}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-gray-200 bg-white text-gray-700 hover:border-gray-400 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {showBonusModal && (
