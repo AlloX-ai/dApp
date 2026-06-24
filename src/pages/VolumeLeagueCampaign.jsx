@@ -36,7 +36,12 @@ import { useAuth } from "../hooks/useAuth";
 import { useVolume } from "../hooks/useVolume";
 import { apiCall } from "../utils/api";
 import { toast } from "../utils/toast";
-import { CHAIN_LIST, CHAINS, chainIdFor, normalizeChain } from "../config/chains";
+import {
+  CHAIN_LIST,
+  CHAINS,
+  chainIdFor,
+  normalizeChain,
+} from "../config/chains";
 import {
   createPrivyExecutionTxEnv,
   executePortfolioOnChain,
@@ -191,10 +196,9 @@ const faqs = [
     a: "No. Each user may only participate with one verified Binance Wallet. Using multiple wallets will result in permanent disqualification from all tiers and forfeiture of reward share pool earnings.",
   },
 ];
-function getTierByRank(rank) {
-  return (
-    TIERS.find((t) => rank >= t.rankRange[0] && rank <= t.rankRange[1]) ?? null
-  );
+function getTierByRank(tierColor) {
+  const normalizedTier = String(tierColor ?? "").toLowerCase();
+  return TIERS.find((t) => t.label.toLowerCase() === normalizedTier) ?? null;
 }
 
 function fmt(n) {
@@ -321,6 +325,16 @@ export function VolumeLeagueCampaign() {
   const { ensureAuthenticated, logout, user: authUser } = useAuth();
   const [showTutorialModal, setShowTutorialModal] = useState(false);
   const [selectedWeek, setSelectedWeek] = useState(0);
+  const [leaderboardPage, setLeaderboardPage] = useState(1);
+  const [volumeLoadingState, setVolumeLoadingState] = useState({
+    competition: false,
+    leaderboard: false,
+    userData: false,
+    volumeData: false,
+  });
+  const [campaignData, setCampaignData] = useState(null);
+  const [leaderboardData, setLeaderboardData] = useState(null);
+  const [userCompetitionData, setUserCompetitionData] = useState(null);
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [showFAQModal, setShowFAQModal] = useState(false);
   const [showBonusModal, setShowBonusModal] = useState(false);
@@ -355,8 +369,12 @@ export function VolumeLeagueCampaign() {
   const walletAddress = useSelector((state) => state.wallet.address);
   const sessionSource = useSelector((state) => state.wallet.sessionSource);
   const walletType = useSelector((state) => state.wallet.walletType);
-  const { fetchCompetition, fetchLeaderboard, fetchUserCompetitionData } =
-    useVolume();
+  const {
+    loading,
+    fetchCompetition,
+    fetchLeaderboard,
+    fetchUserCompetitionData,
+  } = useVolume();
   const selectedWeekStatus = WEEKS[selectedWeek].status;
   const targetChainId = chainIdFor(BINANCE_CAMPAIGN_CHAIN);
   const targetChainLabel =
@@ -400,6 +418,13 @@ export function VolumeLeagueCampaign() {
     (generatedBasket.length === 0 && !canGenerate);
 
   const leaderboard = generateLeaderboard(selectedWeek + 1);
+  const LEADERBOARD_ITEMS_PER_PAGE = 20;
+  const LEADERBOARD_TOTAL_RECORDS = 32;
+  const LEADERBOARD_TOTAL_PAGES = Math.max(
+    1,
+    Math.ceil(LEADERBOARD_TOTAL_RECORDS / LEADERBOARD_ITEMS_PER_PAGE),
+  );
+  const paginatedLeaderboard = leaderboardData?.rows ?? [];
 
   // Mock current user
   const currentUser = {
@@ -420,6 +445,9 @@ export function VolumeLeagueCampaign() {
   const currentUserWeeklyRewardUsd = currentUserBaseShare + currentUserBonusAmt;
   currentUser.estimatedGems = Math.floor(currentUserWeeklyRewardUsd / 5);
 
+  useEffect(() => {
+    setVolumeLoadingState(loading);
+  }, [loading]);
   const recentPortfoliosQuery = useQuery({
     queryKey: ["volumeLeaguePortfolios", walletAddress],
     enabled: isConnected && !!walletAddress,
@@ -935,32 +963,22 @@ export function VolumeLeagueCampaign() {
     const loadVolumeCampaignData = async () => {
       try {
         const campaignResult = await fetchCompetition();
-        // console.log(
-        //   "[VolumeLeagueCampaign] /campaigns/volume-league",
-        //   campaignResult,
-        // );
+        setCampaignData(campaignResult);
 
         const leaderboardResult = await fetchLeaderboard({
           week: selectedWeek + 1,
-          limit: 10,
+          limit: LEADERBOARD_ITEMS_PER_PAGE,
+          page: leaderboardPage,
         });
-        // console.log(
-        //   "[VolumeLeagueCampaign] /campaigns/volume-league/leaderboard",
-        //   leaderboardResult,
-        // );
+        setLeaderboardData(leaderboardResult);
 
         if (walletAddress) {
           const userResult = await fetchUserCompetitionData({
             address: walletAddress,
           });
-          // console.log(
-          //   "[VolumeLeagueCampaign] /campaigns/volume-league/?address=...",
-          //   userResult,
-          // );
+          setUserCompetitionData(userResult);
         } else {
-          // console.log(
-          //   "[VolumeLeagueCampaign] skipped /campaigns/volume-league/?address=... because no wallet is connected yet",
-          // );
+          setUserCompetitionData(null);
         }
       } catch (fetchError) {
         console.error(
@@ -975,9 +993,17 @@ export function VolumeLeagueCampaign() {
     fetchCompetition,
     fetchLeaderboard,
     fetchUserCompetitionData,
+    LEADERBOARD_ITEMS_PER_PAGE,
+    leaderboardPage,
     selectedWeek,
     walletAddress,
   ]);
+
+  useEffect(() => {
+    setLeaderboardPage(1);
+  }, [selectedWeek]);
+
+  console.log(leaderboardData, "leaderboarddata");
 
   return (
     <div className="space-y-5">
@@ -986,7 +1012,7 @@ export function VolumeLeagueCampaign() {
         <div>
           <div className="flex items-center gap-3">
             <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-1 sm:gap-4">
                 <h2 className="text-xl md:text-3xl  font-bold text-gray-900">
                   Volume League
                 </h2>
@@ -1006,7 +1032,7 @@ export function VolumeLeagueCampaign() {
       {/* Your Position */}
       <div className="glass-card p-5">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-0">
-          <h3 className="font-bold text-gray-900 mb-5">
+          <h3 className="font-bold text-xl text-gray-900 mb-5">
             2 Simple Steps To Earn
           </h3>
           <div className="flex items-center gap-3">
@@ -1112,19 +1138,34 @@ export function VolumeLeagueCampaign() {
               <span className="font-bold text-gray-900 text-sm">
                 My Position
               </span>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-50 border border-yellow-200 text-yellow-700 text-[10px] font-bold">
+                <Crown size={10} />{" "}
+                {"#" +
+                  (userCompetitionData?.user?.weeklyEarnings?.[positionWeek + 1]
+                    ?.rank ?? "-")}
+              </span>
               <span className="hidden sm:flex px-2.5 py-1 bg-green-100 text-green-700 text-[10px] font-bold rounded-full uppercase tracking-wider">
                 Guaranteed Rewards
               </span>
             </div>
             <div className="flex items-center gap-2">
-              {currentUser.tier && (
+              {getTierByRank(
+                userCompetitionData?.user?.weeklyEarnings?.[positionWeek + 1]
+                  ?.tier,
+              ) && (
                 <span
-                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-bold ${currentUser.tier.badge}`}
+                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-bold ${getTierByRank(userCompetitionData?.user?.weeklyEarnings?.[positionWeek + 1]?.tier)?.badge}`}
                 >
                   <div
-                    className={`w-1.5 h-1.5 rounded-full bg-gradient-to-br ${currentUser.tier.color}`}
+                    className={`w-1.5 h-1.5 rounded-full bg-gradient-to-br ${getTierByRank(userCompetitionData?.user?.weeklyEarnings?.[positionWeek + 1]?.tier)?.color}`}
                   />
-                  {currentUser.tier.label}
+                  {
+                    getTierByRank(
+                      userCompetitionData?.user?.weeklyEarnings?.[
+                        positionWeek + 1
+                      ]?.tier,
+                    )?.label
+                  }
                 </span>
               )}
               <select
@@ -1144,23 +1185,29 @@ export function VolumeLeagueCampaign() {
           {/* Stats — Rank, Volume, Portfolios */}
           <div className="grid grid-cols-3 gap-2">
             <div className="bg-white/70 rounded-xl p-2.5 text-center">
-              <Crown size={13} className="text-yellow-500 mx-auto mb-1" />
+              <BarChart2 size={13} className="text-green-500 mx-auto mb-1" />
               <div className="font-bold text-gray-900 text-lg">
-                #{currentUser.rank}
+                $
+                {userCompetitionData?.user?.weeklyEarnings?.[positionWeek + 1]
+                  ?.baseShareUsd ?? 0}
               </div>
               <div className="text-[10px] text-gray-500">Reward Share</div>
             </div>
             <div className="bg-white/70 rounded-xl p-2.5 text-center">
               <Wallet size={13} className="text-green-500 mx-auto mb-1" />
               <div className="font-bold text-gray-900 text-lg">
-                {fmt(currentUser.totalVolume)}
+                $
+                {userCompetitionData?.user?.weeklyEarnings?.[positionWeek + 1]
+                  ?.tierBonusUsd ?? 0}
               </div>
               <div className="text-[10px] text-gray-500">Extra Bonus</div>
             </div>
             <div className="bg-white/70 rounded-xl p-2.5 text-center">
-              <PieChart size={13} className="text-blue-500 mx-auto mb-1" />
+              <PieChart size={13} className="text-green-500 mx-auto mb-1" />
               <div className="font-bold text-gray-900 text-lg">
-                {portfolios.length}
+                $
+                {userCompetitionData?.user?.weeklyEarnings?.[positionWeek + 1]
+                  ?.volume ?? 0}
               </div>
               <div className="text-[10px] text-gray-500">Volume</div>
             </div>
@@ -1361,7 +1408,11 @@ export function VolumeLeagueCampaign() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:h-[265px]">
             {TIERS.map((tier) => {
-              const isUserTier = currentUser.tier?.label === tier.label;
+              const isUserTier =
+                getTierByRank(
+                  userCompetitionData?.user?.weeklyEarnings?.[positionWeek + 1]
+                    ?.tier,
+                )?.label === tier.label;
               return (
                 <div
                   key={tier.label}
@@ -1439,7 +1490,7 @@ export function VolumeLeagueCampaign() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm min-h-[700px]">
             <thead>
               <tr className="border-b border-gray-200">
                 <th className="text-left py-2.5 px-2 text-gray-500 font-semibold text-xs">
@@ -1468,192 +1519,236 @@ export function VolumeLeagueCampaign() {
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
-              {leaderboard.map((row) => {
-                const bonusAmt = row.tier && row.unlocked ? row.tier.bonus : 0;
-                const total = row.baseShare + bonusAmt;
-                const needed =
-                  row.tier && !row.unlocked
-                    ? row.tier.volThreshold - row.vol
-                    : 0;
-                return (
-                  <tr
-                    key={row.rank}
-                    className="hover:bg-white/60 transition-colors"
-                  >
-                    <td className="py-2.5 px-2">
-                      <div className="flex items-center justify-center w-5">
-                        <PositionIcon rank={row.rank} />
-                      </div>
-                    </td>
-                    <td className="py-2.5 px-2 font-mono text-xs text-gray-700">
-                      0x{((row.rank * 0xd3ad) >>> 0).toString(16).slice(0, 4)}
-                      ...{((row.rank * 0xbeef) >>> 0).toString(16).slice(0, 4)}
-                    </td>
-                    <td className="py-2.5 px-2 text-gray-700 font-medium">
-                      {row.portfolios}
-                    </td>
-                    <td className="py-2.5 px-2 font-semibold text-gray-900">
-                      {fmt(row.vol)}
-                    </td>
-                    <td className="py-2.5 px-2">
-                      {row.tier ? (
-                        <span
-                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold ${row.tier.badge}`}
-                        >
-                          <div
-                            className={`w-1.5 h-1.5 rounded-full bg-gradient-to-br ${row.tier.color}`}
-                          />
-                          {row.tier.label}
-                        </span>
-                      ) : (
-                        <span className="text-gray-400 text-xs">—</span>
-                      )}
-                    </td>
-                    <td className="py-2.5 px-2 text-blue-700 font-semibold text-xs">
-                      ${row.baseShare.toFixed(0)}
-                    </td>
-                    <td className="py-2.5 px-2">
-                      {row.tier ? (
-                        <div className="relative group/tip inline-flex items-center gap-1">
-                          <span
-                            className={`inline-flex items-center gap-1 text-xs font-bold ${row.unlocked ? "text-green-600" : "text-gray-400"}`}
-                          >
-                            {row.unlocked ? (
-                              <Check size={12} />
-                            ) : (
-                              <Lock size={12} />
-                            )}
-                            ${row.tier.bonus.toLocaleString()}
-                          </span>
-                          {/* Tooltip for locked bonus */}
-                          {!row.unlocked && (
-                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/tip:flex z-30 pointer-events-none">
-                              <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-xl">
-                                <div className="font-semibold mb-0.5">
-                                  Bonus locked
-                                </div>
-                                <div className="text-gray-300">
-                                  Need{" "}
-                                  <span className="text-white font-bold">
-                                    {fmt(needed)}
-                                  </span>{" "}
-                                  more to unlock
-                                </div>
-                                <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-gray-400 text-xs">—</span>
-                      )}
-                    </td>
-                    <td className="py-2.5 px-2">
-                      <span
-                        className={`text-xs font-bold ${row.unlocked && row.tier ? "text-gray-900" : "text-gray-900"}`}
+            <tbody className="divide-y divide-gray-100 ">
+              {loading.leaderboard ? (
+                <tr>
+                  <td colSpan={8} className="py-10">
+                    <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
+                      <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
+                      Loading leaderboard...
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                <>
+                  {paginatedLeaderboard?.map((row) => {
+                    const bonusAmt =
+                      row.tier && row.tierUnlocked ? row.tier.bonus : 0;
+                    const total = row.baseShare + bonusAmt;
+                    const needed =
+                      row.tier && !row.tierUnlocked
+                        ? row.tierThresholdUsd - row.volume
+                        : 0;
+                    return (
+                      <tr
+                        key={row.rank}
+                        className="hover:bg-white/60 transition-colors"
                       >
-                        ${total.toFixed(0)}
-                        {row.tier && !row.unlocked && (
-                          <span className="text-black-500 font-normal"> </span>
-                        )}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-
-              {/* Current user row */}
-              {(() => {
-                const userBonusAmt =
-                  currentUser.tier && currentUser.unlocked
-                    ? currentUser.tier.bonus
-                    : 0;
-                const userTotal = currentUserBaseShare + userBonusAmt;
-                const userNeeded =
-                  currentUser.tier && !currentUser.unlocked
-                    ? currentUser.tier.volThreshold - currentUser.thisWeekVol
-                    : 0;
-                return (
-                  <tr className="bg-blue-50/80 border-t-2 border-blue-300">
-                    <td className="py-2.5 px-2">
-                      <span className="text-blue-700 text-xs font-bold">
-                        {currentUser.rank}
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-2 font-mono text-xs text-blue-700 font-semibold">
-                      {currentUser.address} (you)
-                    </td>
-                    <td className="py-2.5 px-2 text-gray-700 font-medium">
-                      {currentUser.portfolios}
-                    </td>
-                    <td className="py-2.5 px-2 font-semibold text-gray-900">
-                      {fmt(currentUser.thisWeekVol)}
-                    </td>
-                    <td className="py-2.5 px-2">
-                      {currentUser.tier && (
-                        <span
-                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold ${currentUser.tier.badge}`}
-                        >
-                          <div
-                            className={`w-1.5 h-1.5 rounded-full bg-gradient-to-br ${currentUser.tier.color}`}
-                          />
-                          {currentUser.tier.label}
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-2.5 px-2 text-blue-700 font-semibold text-xs">
-                      ${currentUserBaseShare.toFixed(0)}
-                    </td>
-                    <td className="py-2.5 px-2">
-                      <div className="relative group/tip inline-flex items-center gap-1">
-                        <span
-                          className={`inline-flex items-center gap-1 text-xs font-bold ${currentUser.unlocked ? "text-green-600" : "text-gray-400"}`}
-                        >
-                          {currentUser.unlocked ? (
-                            <Check size={12} />
-                          ) : (
-                            <Lock size={12} />
-                          )}
-                          ${currentUser.tier?.bonus.toLocaleString()}
-                        </span>
-                        {!currentUser.unlocked && userNeeded > 0 && (
-                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/tip:flex z-30 pointer-events-none">
-                            <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-xl">
-                              <div className="font-semibold mb-0.5">
-                                Bonus locked 🔒
-                              </div>
-                              <div className="text-gray-300">
-                                Need{" "}
-                                <span className="text-white font-bold">
-                                  {fmt(userNeeded)}
-                                </span>{" "}
-                                more to unlock
-                              </div>
-                              <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
-                            </div>
+                        <td className="py-2.5 px-2">
+                          <div className="flex items-center justify-center w-5">
+                            <PositionIcon rank={row.rank} />
                           </div>
-                        )}
-                      </div>
-                    </td>
-                    <td className="py-2.5 px-2">
-                      <span
-                        className={`text-xs font-bold ${currentUser.unlocked ? "text-gray-900" : "text-gray-400"}`}
-                      >
-                        ${userTotal.toFixed(0)}
-                        {currentUser.tier && !currentUser.unlocked && (
-                          <span className="text-gray-300 font-normal">
-                            {" "}
-                            (+${currentUser.tier.bonus} locked)
+                        </td>
+                        <td className="py-2.5 px-2 font-mono text-xs text-gray-700">
+                          {row.displayAddress}
+                        </td>
+                        <td className="py-2.5 px-2 text-gray-700 font-medium">
+                          {row.portfolioCount}
+                        </td>
+                        <td className="py-2.5 px-2 font-semibold text-gray-900">
+                          {fmt(row.volume)}
+                        </td>
+                        <td className="py-2.5 px-2">
+                          {row.tier ? (
+                            <span
+                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold ${getTierByRank(row.tier)?.badge}`}
+                            >
+                              <div
+                                className={`w-1.5 h-1.5 rounded-full bg-gradient-to-br ${getTierByRank(row.tier)?.color}`}
+                              />
+                              {getTierByRank(row.tier)?.label}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 text-xs">—</span>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-2 text-blue-700 font-semibold text-xs">
+                          ${row.baseShareUsd?.toFixed(0)}
+                        </td>
+                        <td className="py-2.5 px-2">
+                          {row.tier ? (
+                            <div className="relative group/tip inline-flex items-center gap-1">
+                              <span
+                                className={`inline-flex items-center gap-1 text-xs font-bold ${row.tierUnlocked ? "text-green-600" : "text-gray-400"}`}
+                              >
+                                {row.tierUnlocked ? (
+                                  <Check size={12} />
+                                ) : (
+                                  <Lock size={12} />
+                                )}
+                                ${row.tierBonusUsd}
+                              </span>
+                              {/* Tooltip for locked bonus */}
+                              {!row.tierUnlocked && (
+                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/tip:flex z-30 pointer-events-none">
+                                  <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-xl">
+                                    <div className="font-semibold mb-0.5">
+                                      Bonus locked
+                                    </div>
+                                    <div className="text-gray-300">
+                                      Need{" "}
+                                      <span className="text-white font-bold">
+                                        {fmt(needed)}
+                                      </span>{" "}
+                                      more to unlock
+                                    </div>
+                                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 text-xs">—</span>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-2">
+                          <span
+                            className={`text-xs font-bold ${row.tierUnlocked && row.tier ? "text-gray-900" : "text-gray-900"}`}
+                          >
+                            ${row?.totalEarningsUsd?.toFixed(0)}
+                            {row.tier && !row.tierUnlocked && (
+                              <span className="text-black-500 font-normal">
+                                {" "}
+                              </span>
+                            )}
                           </span>
-                        )}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })()}
+                        </td>
+                      </tr>
+                    );
+                  })}
+
+                  {/* Current user row */}
+                  {(() => {
+                    const userBonusAmt =
+                      currentUser.tier && currentUser.tierUnlocked
+                        ? currentUser.tier.bonus
+                        : 0;
+                    const userTotal = currentUserBaseShare + userBonusAmt;
+                    const userNeeded =
+                      currentUser.tier && !currentUser.tierUnlocked
+                        ? currentUser.tier.volThreshold -
+                          currentUser.thisWeekVol
+                        : 0;
+                    return (
+                      <tr className="bg-blue-50/80 border-t-2 border-blue-300">
+                        <td className="py-2.5 px-2">
+                          <span className="text-blue-700 text-xs font-bold">
+                            {currentUser.rank}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-2 font-mono text-xs text-blue-700 font-semibold">
+                          {currentUser.address} (you)
+                        </td>
+                        <td className="py-2.5 px-2 text-gray-700 font-medium">
+                          {currentUser.portfolios}
+                        </td>
+                        <td className="py-2.5 px-2 font-semibold text-gray-900">
+                          {fmt(currentUser.thisWeekVol)}
+                        </td>
+                        <td className="py-2.5 px-2">
+                          {currentUser.tier && (
+                            <span
+                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold ${currentUser.tier.badge}`}
+                            >
+                              <div
+                                className={`w-1.5 h-1.5 rounded-full bg-gradient-to-br ${currentUser.tier.color}`}
+                              />
+                              {currentUser.tier.label}
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-2 text-blue-700 font-semibold text-xs">
+                          ${currentUserBaseShare.toFixed(0)}
+                        </td>
+                        <td className="py-2.5 px-2">
+                          <div className="relative group/tip inline-flex items-center gap-1">
+                            <span
+                              className={`inline-flex items-center gap-1 text-xs font-bold ${currentUser.unlocked ? "text-green-600" : "text-gray-400"}`}
+                            >
+                              {currentUser.unlocked ? (
+                                <Check size={12} />
+                              ) : (
+                                <Lock size={12} />
+                              )}
+                              ${currentUser.tier?.bonus.toLocaleString()}
+                            </span>
+                            {!currentUser.unlocked && userNeeded > 0 && (
+                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/tip:flex z-30 pointer-events-none">
+                                <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-xl">
+                                  <div className="font-semibold mb-0.5">
+                                    Bonus locked 🔒
+                                  </div>
+                                  <div className="text-gray-300">
+                                    Need{" "}
+                                    <span className="text-white font-bold">
+                                      {fmt(userNeeded)}
+                                    </span>{" "}
+                                    more to unlock
+                                  </div>
+                                  <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-2.5 px-2">
+                          <span
+                            className={`text-xs font-bold ${currentUser.unlocked ? "text-gray-900" : "text-gray-400"}`}
+                          >
+                            ${userTotal.toFixed(0)}
+                            {currentUser.tier && !currentUser.unlocked && (
+                              <span className="text-gray-300 font-normal">
+                                {" "}
+                                (+${currentUser.tier.bonus} locked)
+                              </span>
+                            )}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })()}
+                </>
+              )}
             </tbody>
           </table>
+        </div>
+
+        <div className="mt-4 flex items-center justify-between gap-3">
+          <span className="text-xs text-gray-500">
+            Page {leaderboardPage} of {LEADERBOARD_TOTAL_PAGES}
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() =>
+                setLeaderboardPage((prev) => Math.max(1, prev - 1))
+              }
+              disabled={leaderboardPage === 1}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-gray-200 bg-white text-gray-700 hover:border-gray-400 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() =>
+                setLeaderboardPage((prev) =>
+                  Math.min(LEADERBOARD_TOTAL_PAGES, prev + 1),
+                )
+              }
+              disabled={leaderboardPage === LEADERBOARD_TOTAL_PAGES}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-gray-200 bg-white text-gray-700 hover:border-gray-400 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Next
+            </button>
+          </div>
         </div>
       </div>
 
@@ -2228,9 +2323,7 @@ export function VolumeLeagueCampaign() {
                   <button
                     type="button"
                     onClick={() => void handleSwitchChain()}
-                    disabled={
-                      isSwitchingChain || isGenerating || isExecuting
-                    }
+                    disabled={isSwitchingChain || isGenerating || isExecuting}
                     className="w-full sm:w-auto px-6 py-3 bg-orange-500 text-white border border-orange-600/30 rounded-2xl text-sm font-semibold hover:bg-orange-600 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {isSwitchingChain

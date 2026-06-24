@@ -15,7 +15,7 @@ import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import tcBanner from "../assets/tcBanner.png";
 import springSeries from "../assets/springSeries.png";
 import pypBanner from "../assets/pypBanner.png";
-import volumeLeague from "../assets/volumeLeague.png";
+import volumeLeague from "../assets/volumeLeague.jpg";
 import binanceWalletCampaign from "../assets/binanceWalletCampaign.jpg";
 import { ProveYourPortfolioCampaign } from "./ProveYourPortfolio";
 import { ProvePortfolio } from "./ProvePortfolio";
