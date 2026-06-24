@@ -1036,7 +1036,7 @@ export function VolumeLeagueCampaign() {
                 <h2 className="text-xl md:text-3xl  font-bold text-gray-900">
                   Volume League
                 </h2>
-                <span className=" text-gray-600 text-md font-bold rounded-full  tracking-wider">
+                <span className=" text-green-600 text-md sm:text-lg font-bold rounded-full  tracking-wider">
                   ($500,000 Reward)
                 </span>
               </div>
@@ -1081,19 +1081,24 @@ export function VolumeLeagueCampaign() {
         </div>
         <div className="flex flex-col sm:flex-row items-stretch gap-0">
           {/* Step 1 — Create a Portfolio */}
-          <div className="flex-1 relative bg-blue-50 border border-blue-200/60 rounded-2xl p-4 sm:rounded-r-none sm:border-r-0">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="px-2 py-1 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
-                <span className="text-white text-xs font-bold">Step 1</span>
+          <div className="flex-1 flex items-center relative bg-blue-50 border border-blue-200/60 rounded-2xl p-4 sm:rounded-r-none sm:border-r-0">
+        <div className="flex items-center gap-3">
+             <div className="w-12 h-12 px-2 py-1 bg-white border-2 hover:shadow-lg  border-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
+                <span className="text-blue-600 text-xl font-bold">1</span>
               </div>
+           <div className="flex flex-col ">
+             <div className="flex items-center gap-2">
+             
               <span className="font-bold text-gray-900 text-sm">
                 {" "}
                 Create a Portfolio
               </span>
             </div>
-            <p className="text-xs text-gray-500 leading-relaxed ">
+            <p className="text-xs text-gray-500 leading-relaxed">
               Select tokens and build different portfolios with any amount.
             </p>
+           </div>
+        </div>
           </div>
 
           {/* Connector → */}
@@ -1106,11 +1111,15 @@ export function VolumeLeagueCampaign() {
 
           {/* Step 2 — Generate Volume */}
           <div className="flex-1 relative bg-blue-50 border border-blue-200/60 rounded-2xl p-4 sm:rounded-none sm:border-x-0">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="px-2 py-1 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
-                <span className="text-white text-xs font-bold">Step 2</span>
+                    <div className="flex items-center gap-3">
+             <div className="w-12 h-12 px-2 py-1 bg-white border-2 hover:shadow-lg  border-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
+                <span className="text-blue-600 text-xl font-bold">2</span>
               </div>
+           <div className="flex flex-col ">
+             <div className="flex items-center gap-2">
+             
               <span className="font-bold text-gray-900 text-sm">
+                {" "}
                 Generate Volume
               </span>
             </div>
@@ -1118,6 +1127,13 @@ export function VolumeLeagueCampaign() {
               Every buy/sell counts to your weekly volume. A $500 minimum volume
               required.
             </p>
+           </div>
+            </div>
+            
+            
+            
+            
+          
             {/* Progress bar */}
           </div>
 
@@ -1150,41 +1166,21 @@ export function VolumeLeagueCampaign() {
       <div className="grid sm:grid-cols-2 gap-3">
         {/* My Position */}
         <div className="glass-card p-5 border-blue-200/50 bg-gradient-to-br from-blue-50/40 to-indigo-50/40 sm:h-[375px]">
-          <div className="flex items-center justify-between gap-2 mb-4">
+          <div className="flex items-center justify-between gap-2 mb-1">
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 bg-blue-100 rounded-lg flex items-center justify-center">
                 <TrendingUp size={14} className="text-blue-600" />
               </div>
               <span className="font-bold text-gray-900 text-sm">
-                My Position
+                My Position {(userCompetitionData?.user?.weeklyEarnings?.[positionWeek + 1]?.rank ? "#" + userCompetitionData?.user?.weeklyEarnings?.[positionWeek + 1]?.rank : "#")}
               </span>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-50 border border-yellow-200 text-yellow-700 text-[12px] font-bold">
-                <Crown size={10} /> {(userCompetitionData?.user?.weeklyEarnings?.[positionWeek + 1]?.rank ? "#" + userCompetitionData?.user?.weeklyEarnings?.[positionWeek + 1]?.rank : "No Rank")}
-              </span>
-              <span className="hidden sm:flex px-2.5 py-1 bg-green-100 text-green-700 text-[10px] font-bold rounded-full uppercase tracking-wider">
-                Guaranteed Rewards
-              </span>
+              
+             
             </div>
             <div className="flex items-center gap-2">
-              {getTierByRank(
-                userCompetitionData?.user?.weeklyEarnings?.[positionWeek + 1]
-                  ?.tier,
-              ) && (
-                <span
-                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-bold ${getTierByRank(userCompetitionData?.user?.weeklyEarnings?.[positionWeek + 1]?.tier)?.badge}`}
-                >
-                  <div
-                    className={`w-1.5 h-1.5 rounded-full bg-gradient-to-br ${getTierByRank(userCompetitionData?.user?.weeklyEarnings?.[positionWeek + 1]?.tier)?.color}`}
-                  />
-                  {
-                    getTierByRank(
-                      userCompetitionData?.user?.weeklyEarnings?.[
-                        positionWeek + 1
-                      ]?.tier,
-                    )?.label
-                  }
-                </span>
-              )}
+               <span className="hidden sm:flex px-2.5 py-1 bg-green-100 text-green-700 text-[10px] font-bold rounded-full uppercase tracking-wider">
+                Guaranteed Rewards
+              </span>
               <select
                 value={positionWeek}
                 onChange={(e) => setPositionWeek(Number(e.target.value))}
@@ -1198,11 +1194,14 @@ export function VolumeLeagueCampaign() {
               </select>
             </div>
           </div>
+          <p className="text-xs text-gray-900 mb-4 pl-9">
+            Earn every week with <b>unlimited winners.</b>
+          </p>
 
           {/* Stats — Rank, Volume, Portfolios */}
           <div className="grid grid-cols-3 gap-2">
             <div className="bg-white/70 rounded-xl p-2.5 text-center">
-              <BarChart2 size={13} className="text-green-500 mx-auto mb-1" />
+              <BarChart2 size={13} className="text-blue-500 mx-auto mb-1" />
               <div className="font-bold text-gray-900 text-lg">
                 $
                 {userCompetitionData?.user?.weeklyEarnings?.[positionWeek + 1]
@@ -1211,7 +1210,7 @@ export function VolumeLeagueCampaign() {
               <div className="text-[10px] text-gray-500">Reward Share</div>
             </div>
             <div className="bg-white/70 rounded-xl p-2.5 text-center">
-              <Wallet size={13} className="text-green-500 mx-auto mb-1" />
+              <Wallet size={13} className="text-blue-500 mx-auto mb-1" />
               <div className="font-bold text-gray-900 text-lg">
                 $
                 {userCompetitionData?.user?.weeklyEarnings?.[positionWeek + 1]
@@ -1220,7 +1219,7 @@ export function VolumeLeagueCampaign() {
               <div className="text-[10px] text-gray-500">Extra Bonus</div>
             </div>
             <div className="bg-white/70 rounded-xl p-2.5 text-center">
-              <PieChart size={13} className="text-green-500 mx-auto mb-1" />
+              <PieChart size={13} className="text-blue-500 mx-auto mb-1" />
               <div className="font-bold text-gray-900 text-lg">
                 $
                 {userCompetitionData?.user?.weeklyEarnings?.[positionWeek + 1]
@@ -1256,7 +1255,7 @@ export function VolumeLeagueCampaign() {
           {portfolios.length === 0 ? (
             <button
               onClick={openCreateWizard}
-              className="w-full group flex flex-col items-center justify-center gap-2 py-8 rounded-2xl border-2 border-dashed border-blue-300 bg-blue-50/50 hover:bg-blue-600 hover:border-blue-600 transition-all duration-200 sm:h-[205px]"
+              className="w-full group flex flex-col items-center justify-center gap-2 py-8 rounded-2xl border-2 border-dashed border-blue-300 bg-blue-50/50 hover:bg-blue-600 hover:border-blue-600 transition-all duration-200 sm:h-[185px]"
             >
               <div className="w-10 h-10 rounded-full bg-blue-100 group-hover:bg-blue-500 flex items-center justify-center transition-colors">
                 <Plus
@@ -1407,19 +1406,22 @@ export function VolumeLeagueCampaign() {
 
         {/* My Earnings — Tier Bonus info */}
         <div className="glass-card p-5 border-amber-200/50 bg-gradient-to-br from-amber-50/30 to-orange-50/30 sm:h-[375px]">
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 mb-1">
             <div className="w-7 h-7 bg-amber-100 rounded-lg flex items-center justify-center">
               <Award size={14} className="text-amber-600" />
             </div>
             <span className="font-bold text-gray-900 text-sm">
               Reward Tiers
             </span>
-            <span className="px-2.5 py-1 bg-green-100 text-green-700 text-[10px] font-bold rounded-full uppercase tracking-wider">
+           
+          </div>
+           <span className="px-2.5 py-1 bg-green-100 text-green-700 text-[10px] font-bold rounded-full uppercase tracking-wider">
               Extra Bonus
             </span>
           </div>
-          <p className="text-xs text-gray-400 mb-4 pl-9">
-            Rank in the top 150 and hit the volume threshold to unlock your tier
+          <p className="text-xs text-gray-900 mb-4 pl-9">
+            Rank in the <b>top 150</b> and hit the volume threshold to unlock your tier
             bonus this week.
           </p>
 

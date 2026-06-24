@@ -15,7 +15,7 @@ import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import tcBanner from "../assets/tcBanner.png";
 import springSeries from "../assets/springSeries.png";
 import pypBanner from "../assets/pypBanner.png";
-import volumeLeague from "../assets/volumeLeague.jpg";
+import volumeLeague from "../assets/volumeLeague2.jpg";
 import binanceWalletCampaign from "../assets/binanceWalletCampaign.jpg";
 import { ProveYourPortfolioCampaign } from "./ProveYourPortfolio";
 import { ProvePortfolio } from "./ProvePortfolio";
@@ -142,7 +142,8 @@ export function CampaignsPage() {
           onClick={() => setSearchParams({ campaign: "volume-league" })}
           className="glass-card overflow-hidden text-left hover:shadow-2xl transition-all duration-300 group relative"
         >
-           <div className="relative h-48 w-full overflow-hidden">
+
+            <div className="relative h-48 w-full overflow-hidden sm:top-[-11px]">
                 <ImageWithFallback
                   src={volumeLeague}
                   alt="Volume League"
@@ -157,10 +158,14 @@ export function CampaignsPage() {
                 </div>
 
                 {/* Icon on Banner */}
-            <div className="absolute top-4 left-4 bg-cyan-500/20 backdrop-blur-sm text-cyan-200 px-3 py-1 rounded-full text-xs font-semibold border border-cyan-400/30">
+           <div className="absolute top-4 left-4 bg-cyan-500/20 backdrop-blur-sm text-cyan-200 px-3 py-1 rounded-full text-xs font-semibold border border-cyan-400/30">
               Weekly Rewards
             </div>
               </div>
+
+
+
+       
           <div className="p-8">
             <h3 className="text-2xl font-bold text-gray-900 mb-2">Volume League</h3>
             <p className="text-gray-600 mb-6">Generate volume, climb tier brackets, and earn weekly guaranteed rewards.</p>
