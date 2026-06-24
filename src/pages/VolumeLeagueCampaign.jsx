@@ -495,6 +495,8 @@ export function VolumeLeagueCampaign() {
           const chain = String(portfolio?.chain || "").toUpperCase();
           return (
             portfolio?.id &&
+            isOnChainExecutionMode(portfolio?.executionMode) &&
+            !isPortfolioClosed(portfolio) &&
             (!chain || chain === "BSC") &&
             portfolio.__createdAtMs >= startOfTodayMs
           );
@@ -1194,7 +1196,7 @@ export function VolumeLeagueCampaign() {
               </select>
             </div>
           </div>
-          <p className="text-xs text-gray-900 mb-4 pl-9">
+          <p className="text-xs text-gray-900 mb-2 pl-9">
             Earn every week with <b>unlimited winners.</b>
           </p>
 
@@ -1357,7 +1359,6 @@ export function VolumeLeagueCampaign() {
                         p?.totalValue ??
                         0;
                       const portfolioId = p?.id ?? p?.portfolioId;
-                      const isClosed = isPortfolioClosed(p);
                       return (
                         <div
                           key={String(portfolioId)}
@@ -1390,19 +1391,11 @@ export function VolumeLeagueCampaign() {
                             type="button"
                             onClick={(event) => {
                               event.stopPropagation();
-                              if (isClosed) {
-                                openPortfolioDetailModal(p);
-                                return;
-                              }
                               openPortfolioDetailModal(p, { startSell: true });
                             }}
-                            className={`absolute right-2 top-0 mt-2 inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold ${
-                              isClosed
-                                ? "border border-gray-200 text-gray-500 hover:bg-gray-50"
-                                : "border border-emerald-200 text-emerald-600 hover:bg-emerald-200/30"
-                            }`}
+                            className="absolute right-2 top-0 mt-2 inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[10px] font-semibold text-emerald-600 hover:bg-emerald-200/30"
                           >
-                            {isClosed ? "Closed" : "Sell"}
+                            Sell
                           </button>
                         </div>
                       );
@@ -1921,8 +1914,7 @@ export function VolumeLeagueCampaign() {
                 <p className="text-sm text-gray-700 leading-relaxed">
                   All users participating in any active AlloX campaign are
                   eligible for Volume League. This includes participants from
-                  the Binance Wallet Campaign, Prove Your Portfolio, Prime
-                  Picks, and the Quick Portfolio Builder.
+                     Prime Picks, and the Quick Portfolio Builder.
                 </p>
               </div>
               <div>
@@ -1937,7 +1929,7 @@ export function VolumeLeagueCampaign() {
                     "Every user who trades a minimum of $500 in a given week earns a share of the $70K weekly reward share pool",
                     "Reward share is calculated as: √(your volume) ÷ Σ√(all users' volumes) × $70,000",
                     "Rankings and pool shares reset every week at 00:00 UTC on Monday",
-                    "Volume from Prime Picks, Quick Portfolio Builder, and Binance Wallet Campaign tasks all count",
+                    "Volume from Prime Picks and Quick Portfolio Builder tasks all count",
                   ].map((item, i) => (
                     <li key={i} className="flex items-start gap-2">
                       <div className="w-1.5 h-1.5 rounded-full bg-gray-400 mt-1.5 flex-shrink-0" />
