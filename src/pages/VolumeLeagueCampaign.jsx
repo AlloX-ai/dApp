@@ -1,12 +1,11 @@
-import { useEffect, useState } from "react";
-import { useSelector } from "react-redux";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
 import {
-  Gem,
   TrendingUp,
   Users,
   Calendar,
-  ChevronLeft,
-  ChevronRight,
   Crown,
   Medal,
   Award,
@@ -21,10 +20,73 @@ import {
   BookOpen,
   Plus,
   Check,
-  AlertCircle,
 } from "lucide-react";
-import { Link } from "react-router";
+import { useAccount, useSwitchChain } from "wagmi";
+import {
+  getEmbeddedConnectedWallet,
+  useSendTransaction,
+  useWallets,
+} from "@privy-io/react-auth";
+import { setChainId, setWalletModal } from "../redux/slices/walletSlice";
+import {
+  getPrivyEmbedded,
+  switchPrivyEmbeddedToChain,
+} from "../utils/privyWalletUtils";
+import { useAuth } from "../hooks/useAuth";
 import { useVolume } from "../hooks/useVolume";
+import { apiCall } from "../utils/api";
+import { toast } from "../utils/toast";
+import {
+  CHAIN_LIST,
+  CHAINS,
+  chainIdFor,
+  normalizeChain,
+} from "../config/chains";
+import {
+  createPrivyExecutionTxEnv,
+  executePortfolioOnChain,
+} from "../utils/execution";
+import {
+  BINANCE_CAMPAIGN_CHAIN,
+  BINANCE_CAMPAIGN_MIN_AMOUNT_USD,
+  BINANCE_CAMPAIGN_SOURCE_TOKENS,
+  BINANCE_CAMPAIGN_AMOUNT_TIERS,
+  PRIME_PICKS_INCLUDED_TOKENS,
+  PRIME_PICKS_PORTFOLIO_SIZE,
+} from "../utils/binanceCampaign";
+import { PortfolioDetailModal } from "../components/PortfolioDetailModal";
+
+const BNB_CHAIN_SWITCH = {
+  chainId: 56,
+  chainHex: "0x38",
+  chainName: "BNB Chain",
+  rpcUrls: ["https://bsc-dataseed.binance.org"],
+  blockExplorerUrls: ["https://bscscan.com"],
+  nativeCurrency: { name: "BNB", symbol: "BNB", decimals: 18 },
+};
+
+const isOnChainExecutionMode = (executionMode) =>
+  String(executionMode || "").toUpperCase() === "ON_CHAIN";
+
+const isPortfolioClosed = (portfolio) =>
+  String(portfolio?.status || portfolio?.sellStatus || "").toUpperCase() ===
+  "CLOSED";
+
+const getChainInfo = (chain) => {
+  const normalized = normalizeChain(chain || BINANCE_CAMPAIGN_CHAIN);
+  const chainMeta = CHAINS[normalized];
+  if (chainMeta?.label) {
+    return { label: chainMeta.label, icon: null };
+  }
+  const key = String(chain || BINANCE_CAMPAIGN_CHAIN).toUpperCase();
+  if (key === "BSC") {
+    return {
+      label: "BNB Chain",
+      icon: "https://cdn.allox.ai/allox/networks/bnbIcon.svg",
+    };
+  }
+  return { label: key, icon: null };
+};
 
 const TIERS = [
   {
@@ -211,9 +273,57 @@ function FAQItem({ q, a }) {
   );
 }
 
-export function VolumeLeagueCampaign() {
+function parseQuickTokensFromMarkdown(markdownText) {
+  if (!markdownText) return [];
+  const lines = String(markdownText).split("\n");
+  const rows = [];
+  for (const line of lines) {
+    const match = line.match(
+      /^([A-Z0-9]+)\s*\(([^)]+)\):\s*\$?([\d.,]+)\s*\/\s*([\d.,]+)\s*tokens?\s+at\s+\$?([\d.,]+)/i,
+    );
+    if (!match) continue;
+    rows.push({
+      id: match[1].toUpperCase(),
+      symbol: match[1].toUpperCase(),
+      category: match[2],
+      allocationUsd: Number(match[3].replace(/,/g, "")),
+      quantity: Number(match[4].replace(/,/g, "")),
+      price: Number(match[5].replace(/,/g, "")),
+      logo: null,
+      contractAddress: null,
+    });
+  }
+  return rows;
+}
 
-    const [showTutorialModal, setShowTutorialModal] = useState(false);
+function getPortfolioTimestamp(portfolio) {
+  const raw =
+    portfolio?.createdAt ??
+    portfolio?.updatedAt ??
+    portfolio?.created_at ??
+    portfolio?.updated_at ??
+    portfolio?.date ??
+    portfolio?.timestamp;
+  if (raw == null) return 0;
+  const parsed =
+    typeof raw === "number" ? new Date(raw) : new Date(String(raw));
+  const time = parsed.getTime();
+  return Number.isFinite(time) ? time : 0;
+}
+
+export function VolumeLeagueCampaign() {
+  const dispatch = useDispatch();
+  const queryClient = useQueryClient();
+  const {
+    chainId: walletChainId,
+    isConnected,
+    connector: activeConnector,
+  } = useAccount();
+  const { switchChainAsync } = useSwitchChain();
+  const { wallets } = useWallets();
+  const { sendTransaction: privySendTransaction } = useSendTransaction();
+  const { ensureAuthenticated, logout, user: authUser } = useAuth();
+  const [showTutorialModal, setShowTutorialModal] = useState(false);
   const [selectedWeek, setSelectedWeek] = useState(0);
   const [leaderboardPage, setLeaderboardPage] = useState(1);
   const [volumeLoadingState, setVolumeLoadingState] = useState({
@@ -229,57 +339,83 @@ export function VolumeLeagueCampaign() {
   const [showFAQModal, setShowFAQModal] = useState(false);
   const [showBonusModal, setShowBonusModal] = useState(false);
   const [positionWeek, setPositionWeek] = useState(0);
-  const [portfolios, setPortfolios] = useState([]);
+  const [createWizardOpen, setCreateWizardOpen] = useState(false);
+  const [actionError, setActionError] = useState("");
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isExecuting, setIsExecuting] = useState(false);
+  const [isSwitchingChain, setIsSwitchingChain] = useState(false);
+  const [generatedBasket, setGeneratedBasket] = useState([]);
+  const [generatedMeta, setGeneratedMeta] = useState(null);
+  const [detailModalPortfolio, setDetailModalPortfolio] = useState(null);
+  const [detailModalInitialSell, setDetailModalInitialSell] = useState(null);
+  const [detailModalRefreshKey, setDetailModalRefreshKey] = useState(0);
   const [portfolioSlide, setPortfolioSlide] = useState(0);
-  const [selectedPortfolio, setSelectedPortfolio] = useState(null);
-
-  
-  const portfolioIdRef = { current: 1 };
+  const [executionPrompt, setExecutionPrompt] = useState(null);
+  const executionPromptResolverRef = useRef(null);
+  const [executionState, setExecutionState] = useState({
+    isExecuting: false,
+    currentSymbol: null,
+    completed: 0,
+    total: 0,
+    error: null,
+    portfolioId: null,
+    tokenStatuses: {},
+  });
+  const [campaignForm, setCampaignForm] = useState({
+    amountUsd: null,
+    customAmountUsdText: "",
+    sourceToken: "USDT",
+  });
   const walletAddress = useSelector((state) => state.wallet.address);
-  const { loading, fetchCompetition, fetchLeaderboard, fetchUserCompetitionData } =
-    useVolume();
-  const showWeekNotStartedPlaceholder = selectedWeek >= 1;
+  const sessionSource = useSelector((state) => state.wallet.sessionSource);
+  const walletType = useSelector((state) => state.wallet.walletType);
+  const {
+    loading,
+    fetchCompetition,
+    fetchLeaderboard,
+    fetchUserCompetitionData,
+  } = useVolume();
   const selectedWeekStatus = WEEKS[selectedWeek].status;
-
-  const MOCK_TOKENS_POOL = [
-    { symbol: "BNB", name: "Binance Coin", price: 312 },
-    { symbol: "ETH", name: "Ethereum", price: 3410 },
-    { symbol: "BTC", name: "Bitcoin", price: 67200 },
-    { symbol: "CAKE", name: "PancakeSwap", price: 2.14 },
-    { symbol: "ASTER", name: "Aster", price: 0.38 },
-    { symbol: "LINK", name: "Chainlink", price: 14.2 },
-    { symbol: "UNI", name: "Uniswap", price: 7.8 },
-  ];
-  const handleCreatePortfolio = () => {
-    const shuffled = [...MOCK_TOKENS_POOL]
-      .sort(() => Math.random() - 0.5)
-      .slice(0, 3);
-    const totalAlloc = 100;
-    const splits = [50, 30, 20];
-    const budget = 500 + Math.random() * 1500;
-    const newPortfolio = {
-      id: Date.now(),
-      name: `Portfolio #${portfolios.length + 1}`,
-      tokens: shuffled.map((t, i) => ({
-        symbol: t.symbol,
-        name: t.name,
-        allocation: splits[i],
-        price: t.price,
-        amount: (budget * splits[i]) / 100 / t.price,
-      })),
-    };
-    setPortfolios((prev) => [...prev, newPortfolio]);
-    setPortfolioSlide(0);
-  };
-
-  const handleSellPortfolio = (id) => {
-    setPortfolios((prev) => {
-      const next = prev.filter((p) => p.id !== id);
-      setPortfolioSlide((s) => Math.max(0, Math.min(s, next.length - 1)));
-      return next;
-    });
-    setSelectedPortfolio(null);
-  };
+  const targetChainId = chainIdFor(BINANCE_CAMPAIGN_CHAIN);
+  const targetChainLabel =
+    CHAINS[normalizeChain(BINANCE_CAMPAIGN_CHAIN)]?.label || "BNB Chain";
+  const onTargetChain =
+    isConnected && Number(walletChainId) === Number(targetChainId);
+  const needsChainSwitch = isConnected && !onTargetChain;
+  const currentChainLabel =
+    CHAIN_LIST.find((c) => c.chainId === Number(walletChainId))?.label ||
+    "another network";
+  const amountMissingSelections = useMemo(() => {
+    const missing = [];
+    const amount =
+      campaignForm.amountUsd != null ? Number(campaignForm.amountUsd) : null;
+    if (amount == null || Number.isNaN(amount)) {
+      missing.push("investment amount");
+    } else if (amount < BINANCE_CAMPAIGN_MIN_AMOUNT_USD) {
+      missing.push(
+        `investment of at least $${BINANCE_CAMPAIGN_MIN_AMOUNT_USD}`,
+      );
+    }
+    return missing;
+  }, [campaignForm.amountUsd]);
+  const canGenerate = amountMissingSelections.length === 0;
+  const wizardPrimaryLabel = useMemo(() => {
+    if (isExecuting || executionState.isExecuting) return "Executing...";
+    if (isGenerating) return "Generating...";
+    if (generatedBasket.length > 0) return "Confirm & Execute";
+    return "Generate";
+  }, [
+    executionState.isExecuting,
+    generatedBasket.length,
+    isExecuting,
+    isGenerating,
+  ]);
+  const wizardPrimaryDisabled =
+    isGenerating ||
+    isExecuting ||
+    executionState.isExecuting ||
+    !onTargetChain ||
+    (generatedBasket.length === 0 && !canGenerate);
 
   const leaderboard = generateLeaderboard(selectedWeek + 1);
   const LEADERBOARD_ITEMS_PER_PAGE = 20;
@@ -289,7 +425,6 @@ export function VolumeLeagueCampaign() {
     Math.ceil(LEADERBOARD_TOTAL_RECORDS / LEADERBOARD_ITEMS_PER_PAGE),
   );
   const paginatedLeaderboard = leaderboardData?.rows ?? [];
- 
 
   // Mock current user
   const currentUser = {
@@ -310,10 +445,519 @@ export function VolumeLeagueCampaign() {
   const currentUserWeeklyRewardUsd = currentUserBaseShare + currentUserBonusAmt;
   currentUser.estimatedGems = Math.floor(currentUserWeeklyRewardUsd / 5);
 
-  
   useEffect(() => {
     setVolumeLoadingState(loading);
   }, [loading]);
+  const recentPortfoliosQuery = useQuery({
+    queryKey: ["volumeLeaguePortfolios", walletAddress],
+    enabled: isConnected && !!walletAddress,
+    staleTime: 30_000,
+    queryFn: async () => {
+      await ensureAuthenticated();
+      const response = await apiCall("/portfolio");
+      const list = Array.isArray(response?.portfolios)
+        ? response.portfolios
+        : [];
+      const startOfToday = new Date();
+      startOfToday.setHours(0, 0, 0, 0);
+      const startOfTodayMs = startOfToday.getTime();
+      return list
+        .map((portfolio) => {
+          const id =
+            portfolio?.id ?? portfolio?.portfolioId ?? portfolio?.portfolio_id;
+          return {
+            ...portfolio,
+            id,
+            __createdAtMs: getPortfolioTimestamp(portfolio),
+          };
+        })
+        .filter((portfolio) => {
+          const chain = String(portfolio?.chain || "").toUpperCase();
+          return (
+            portfolio?.id &&
+            (!chain || chain === "BSC") &&
+            portfolio.__createdAtMs >= startOfTodayMs
+          );
+        })
+        .sort((a, b) => b.__createdAtMs - a.__createdAtMs)
+        .map(({ __createdAtMs, ...portfolio }) => {
+          void __createdAtMs;
+          return portfolio;
+        });
+    },
+  });
+
+  const portfolios = Array.isArray(recentPortfoliosQuery.data)
+    ? recentPortfoliosQuery.data
+    : [];
+
+  const closePortfolioDetailModal = useCallback(() => {
+    setDetailModalPortfolio(null);
+    setDetailModalInitialSell(null);
+  }, []);
+
+  const openPortfolioDetailModal = useCallback((portfolio, options = {}) => {
+    const portfolioId = portfolio?.id ?? portfolio?.portfolioId;
+    if (!portfolioId) return;
+    setDetailModalPortfolio({ ...portfolio, id: portfolioId });
+    setDetailModalInitialSell(options.startSell ? "portfolio" : null);
+  }, []);
+
+  const handlePortfolioSellComplete = useCallback(async () => {
+    setDetailModalRefreshKey((key) => key + 1);
+    await queryClient.invalidateQueries({
+      queryKey: ["volumeLeaguePortfolios"],
+    });
+  }, [queryClient]);
+
+  const parseCampaignBasketFromResponse = useCallback((response) => {
+    const preview =
+      response?.portfolioPreview ||
+      response?.data?.portfolioPreview ||
+      response?.portfolio_preview ||
+      response?.data?.portfolio_preview;
+
+    if (
+      preview &&
+      typeof preview === "object" &&
+      Array.isArray(preview.positions)
+    ) {
+      const basket = preview.positions
+        .map((position, index) => {
+          const symbol = String(
+            position?.symbol || position?.name || "",
+          ).toUpperCase();
+          if (!symbol) return null;
+          return {
+            id:
+              position?.tokenId ||
+              position?.contractAddress ||
+              `${symbol}-${index}`,
+            symbol,
+            logo: position?.logo || null,
+            category: position?.category || "BNB Chain",
+            allocationUsd:
+              position?.allocationUsd ??
+              position?.allocation_usd ??
+              position?.allocation ??
+              null,
+            quantity:
+              position?.tokenAmount ??
+              position?.token_amount ??
+              position?.quantity ??
+              null,
+            price:
+              position?.entryPriceUsd ??
+              position?.entry_price_usd ??
+              position?.priceUsd ??
+              null,
+            contractAddress: position?.contractAddress || null,
+          };
+        })
+        .filter(Boolean);
+
+      return {
+        basket,
+        execution: response?.execution || response?.data?.execution || null,
+        meta: {
+          chain: preview.chain || BINANCE_CAMPAIGN_CHAIN,
+          executionMode: preview.executionMode || "ON_CHAIN",
+        },
+      };
+    }
+
+    const basket = parseQuickTokensFromMarkdown(
+      response?.message || response?.content || "",
+    );
+    return {
+      basket,
+      execution: response?.execution || response?.data?.execution || null,
+      meta: {
+        chain: BINANCE_CAMPAIGN_CHAIN,
+        executionMode: "ON_CHAIN",
+      },
+    };
+  }, []);
+
+  const handleExecutionUpdate = useCallback((update) => {
+    setExecutionState((prev) => {
+      const next = { ...prev, error: null };
+      const symbolKey = update.symbol
+        ? String(update.symbol).toUpperCase()
+        : null;
+
+      if (update.step === "QUOTE_START") {
+        next.isExecuting = true;
+        next.completed = 0;
+        next.currentSymbol = null;
+        next.tokenStatuses = {};
+        setExecutionPrompt(null);
+        executionPromptResolverRef.current = null;
+      } else if (update.step === "QUOTE_COMPLETE") {
+        next.total = (update.quotedCount || 0) + (update.failedCount || 0);
+      } else if (
+        update.step === "POSITION_START" ||
+        update.step === "POSITION_PREPARED" ||
+        update.step === "POSITION_TX_SUBMITTED" ||
+        update.step === "POSITION_STATUS"
+      ) {
+        next.currentSymbol = update.symbol || null;
+        if (symbolKey) {
+          next.tokenStatuses = {
+            ...prev.tokenStatuses,
+            [symbolKey]: "processing",
+          };
+        }
+      } else if (
+        update.step === "POSITION_CONFIRMED" ||
+        update.step === "POSITION_CANCELLED" ||
+        update.step === "POSITION_FAILED" ||
+        update.step === "POSITION_ERROR"
+      ) {
+        next.completed = (prev.completed || 0) + 1;
+        next.currentSymbol = null;
+        if (symbolKey) {
+          next.tokenStatuses = {
+            ...prev.tokenStatuses,
+            [symbolKey]:
+              update.step === "POSITION_CONFIRMED" ? "success" : "skipped",
+          };
+        }
+        if (update.step === "POSITION_ERROR") {
+          next.error = update.error || null;
+        }
+      } else if (update.step === "COMPLETE") {
+        next.isExecuting = false;
+        next.currentSymbol = null;
+      }
+
+      return next;
+    });
+  }, []);
+
+  const promptExecutionDecision = useCallback((promptData) => {
+    return new Promise((resolve) => {
+      executionPromptResolverRef.current = resolve;
+      setExecutionPrompt(promptData);
+    });
+  }, []);
+
+  const resolveExecutionPrompt = useCallback((decision) => {
+    const resolve = executionPromptResolverRef.current;
+    executionPromptResolverRef.current = null;
+    setExecutionPrompt(null);
+    if (typeof resolve === "function") resolve(decision);
+  }, []);
+
+  const handleStartExecution = useCallback(
+    async (execution) => {
+      const isPrivyExecutionSession =
+        authUser?.authProvider === "privy" ||
+        sessionSource === "privy" ||
+        walletType === "privy";
+
+      let privyTxEnv;
+      const executionChain = normalizeChain(execution?.chain);
+      const executionChainId = chainIdFor(executionChain);
+
+      if (isPrivyExecutionSession) {
+        const embedded = getEmbeddedConnectedWallet(wallets);
+        if (!embedded) {
+          throw new Error(
+            "Embedded wallet not found. Refresh the page or sign in again.",
+          );
+        }
+        const cid = embedded.chainId;
+        const onExecutionChain =
+          cid === `eip155:${executionChainId}` ||
+          (typeof cid === "string" &&
+            cid.startsWith("0x") &&
+            parseInt(cid, 16) === executionChainId) ||
+          Number(cid) === executionChainId;
+        if (!onExecutionChain) {
+          await embedded.switchChain(executionChainId);
+        }
+        privyTxEnv = createPrivyExecutionTxEnv(
+          embedded.address,
+          privySendTransaction,
+          executionChain,
+        );
+      }
+
+      return executePortfolioOnChain(execution, {
+        onUpdate: handleExecutionUpdate,
+        onPrompt: promptExecutionDecision,
+        ...(privyTxEnv ? { txEnv: privyTxEnv } : {}),
+      });
+    },
+    [
+      authUser?.authProvider,
+      handleExecutionUpdate,
+      privySendTransaction,
+      promptExecutionDecision,
+      sessionSource,
+      walletType,
+      wallets,
+    ],
+  );
+
+  const resetCreateWizard = useCallback(() => {
+    setActionError("");
+    setIsGenerating(false);
+    setIsExecuting(false);
+    setIsSwitchingChain(false);
+    setGeneratedBasket([]);
+    setGeneratedMeta(null);
+    setExecutionPrompt(null);
+    executionPromptResolverRef.current = null;
+    setExecutionState({
+      isExecuting: false,
+      currentSymbol: null,
+      completed: 0,
+      total: 0,
+      error: null,
+      portfolioId: null,
+      tokenStatuses: {},
+    });
+    setCampaignForm({
+      amountUsd: null,
+      customAmountUsdText: "",
+      sourceToken: "USDT",
+    });
+  }, []);
+
+  const openCreateWizard = useCallback(() => {
+    if (!isConnected) {
+      dispatch(setWalletModal(true));
+      return;
+    }
+    setCreateWizardOpen(true);
+  }, [dispatch, isConnected]);
+
+  const handleSwitchChain = useCallback(async () => {
+    if (!isConnected) {
+      dispatch(setWalletModal(true));
+      return;
+    }
+
+    const isPrivySession =
+      authUser?.authProvider === "privy" ||
+      sessionSource === "privy" ||
+      walletType === "privy";
+
+    try {
+      setIsSwitchingChain(true);
+      setActionError("");
+
+      if (isPrivySession) {
+        const embedded = getPrivyEmbedded(wallets);
+        if (!embedded) {
+          toast.error(
+            "Embedded wallet not ready. Refresh the page or sign in again.",
+          );
+          return;
+        }
+        await switchPrivyEmbeddedToChain(embedded, BNB_CHAIN_SWITCH.chainId);
+        dispatch(setChainId(BNB_CHAIN_SWITCH.chainId));
+        toast.success(`Switched to ${targetChainLabel}.`);
+        return;
+      }
+
+      if (!switchChainAsync) {
+        toast.error(
+          "Unable to switch chain. Please try reconnecting your wallet.",
+        );
+        return;
+      }
+      if (!activeConnector) {
+        toast.error("No wallet connected. Please connect an EVM wallet first.");
+        return;
+      }
+
+      try {
+        await switchChainAsync({ chainId: BNB_CHAIN_SWITCH.chainId });
+      } catch (error) {
+        if (error?.code === 4902) {
+          const provider = await activeConnector.getProvider();
+          await provider.request({
+            method: "wallet_addEthereumChain",
+            params: [
+              {
+                chainId: BNB_CHAIN_SWITCH.chainHex,
+                chainName: BNB_CHAIN_SWITCH.chainName,
+                rpcUrls: BNB_CHAIN_SWITCH.rpcUrls,
+                blockExplorerUrls: BNB_CHAIN_SWITCH.blockExplorerUrls,
+                nativeCurrency: BNB_CHAIN_SWITCH.nativeCurrency,
+              },
+            ],
+          });
+          await switchChainAsync({ chainId: BNB_CHAIN_SWITCH.chainId });
+        } else {
+          throw error;
+        }
+      }
+
+      dispatch(setChainId(BNB_CHAIN_SWITCH.chainId));
+      toast.success(`Switched to ${targetChainLabel}.`);
+    } catch (error) {
+      console.error("Volume League chain switch error:", error);
+      toast.error(`Failed to switch to ${targetChainLabel}.`);
+    } finally {
+      setIsSwitchingChain(false);
+    }
+  }, [
+    activeConnector,
+    authUser?.authProvider,
+    dispatch,
+    isConnected,
+    sessionSource,
+    switchChainAsync,
+    targetChainLabel,
+    walletType,
+    wallets,
+  ]);
+
+  const handleGeneratePortfolio = useCallback(async () => {
+    setActionError("");
+    if (!isConnected) {
+      dispatch(setWalletModal(true));
+      return;
+    }
+    if (!onTargetChain) {
+      setActionError(`Switch to ${targetChainLabel} to continue.`);
+      return;
+    }
+    if (!canGenerate) {
+      setActionError(`Please select ${amountMissingSelections.join(", ")}.`);
+      return;
+    }
+
+    try {
+      setIsGenerating(true);
+      await ensureAuthenticated();
+      const prompt = `Build a $${campaignForm.amountUsd} balanced diversified portfolio on BNB Chain (On-Chain Execution).`;
+      const response = await apiCall("/chat/allox/message", {
+        method: "POST",
+        body: JSON.stringify({ message: prompt }),
+      });
+      const { basket, meta } = parseCampaignBasketFromResponse(response);
+      if (!basket.length) {
+        setActionError(
+          "Could not generate a token basket. Try again or adjust your amount.",
+        );
+        return;
+      }
+      setGeneratedBasket(basket);
+      setGeneratedMeta({
+        ...meta,
+        sourceToken: campaignForm.sourceToken,
+        totalInvestment: campaignForm.amountUsd,
+      });
+    } catch (error) {
+      if (error?.status === 401) logout();
+      setActionError(
+        error?.message || "Portfolio generation failed. Please try again.",
+      );
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [
+    amountMissingSelections,
+    campaignForm.amountUsd,
+    campaignForm.sourceToken,
+    canGenerate,
+    dispatch,
+    ensureAuthenticated,
+    isConnected,
+    logout,
+    onTargetChain,
+    parseCampaignBasketFromResponse,
+    targetChainLabel,
+  ]);
+
+  const handleConfirmPortfolio = useCallback(async () => {
+    setActionError("");
+    if (!generatedBasket.length) return;
+    if (!isConnected) {
+      dispatch(setWalletModal(true));
+      return;
+    }
+    if (!onTargetChain) {
+      setActionError(`Switch to ${targetChainLabel} to continue.`);
+      return;
+    }
+
+    try {
+      setIsExecuting(true);
+      await ensureAuthenticated();
+      const tokenLines = generatedBasket
+        .map((token) => {
+          const allocation = Number(token.allocationUsd ?? 0);
+          const quantity = token.quantity != null ? Number(token.quantity) : 0;
+          const price = token.price != null ? Number(token.price) : 0;
+          return `${token.symbol} (${token.category || "token"}): $${allocation.toFixed(
+            2,
+          )} / ${quantity} tokens at $${price.toFixed(6)}`;
+        })
+        .join("\n");
+      const response = await apiCall("/chat/allox/message", {
+        method: "POST",
+        body: JSON.stringify({
+          message: `Confirm and execute this quick portfolio.\nChain: BNB Chain (On-Chain Execution)\nPayment token: ${campaignForm.sourceToken}\n- Portfolio type: Diversified\n- Investment: $${campaignForm.amountUsd}\n- Risk tolerance: Balanced (medium)\nTokens:\n${tokenLines}`,
+        }),
+      });
+      if (!(response?.action === "START_EXECUTION" && response?.execution)) {
+        setActionError(
+          "Execution payload was not returned. Please generate again and retry.",
+        );
+        return;
+      }
+      const completeData = await handleStartExecution({
+        ...response.execution,
+        sourceToken: campaignForm.sourceToken,
+      });
+      setExecutionState((prev) => ({
+        ...prev,
+        isExecuting: false,
+        portfolioId:
+          completeData?.portfolioId ||
+          completeData?.id ||
+          completeData?.portfolio?.id ||
+          null,
+      }));
+      void queryClient.invalidateQueries({
+        queryKey: ["volumeLeaguePortfolios"],
+      });
+      setCreateWizardOpen(false);
+      resetCreateWizard();
+    } catch (error) {
+      if (error?.status === 401) logout();
+      setActionError(error?.message || "Execution failed. Please try again.");
+    } finally {
+      setIsExecuting(false);
+    }
+  }, [
+    campaignForm.amountUsd,
+    campaignForm.sourceToken,
+    dispatch,
+    ensureAuthenticated,
+    generatedBasket,
+    handleStartExecution,
+    isConnected,
+    logout,
+    onTargetChain,
+    queryClient,
+    resetCreateWizard,
+    targetChainLabel,
+  ]);
+
+  const handleWizardPrimaryAction = useCallback(async () => {
+    if (generatedBasket.length > 0) {
+      await handleConfirmPortfolio();
+    } else {
+      await handleGeneratePortfolio();
+    }
+  }, [generatedBasket.length, handleConfirmPortfolio, handleGeneratePortfolio]);
 
   useEffect(() => {
     const loadVolumeCampaignData = async () => {
@@ -359,10 +1003,7 @@ export function VolumeLeagueCampaign() {
     setLeaderboardPage(1);
   }, [selectedWeek]);
 
-  console.log(leaderboardData ,"leaderboarddata");
-  
-
-  
+  console.log(leaderboardData, "leaderboarddata");
 
   return (
     <div className="space-y-5">
@@ -498,21 +1139,33 @@ export function VolumeLeagueCampaign() {
                 My Position
               </span>
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-50 border border-yellow-200 text-yellow-700 text-[10px] font-bold">
-                <Crown size={10} /> {"#" + (userCompetitionData?.user?.weeklyEarnings?.[positionWeek + 1]?.rank ?? "-")}
+                <Crown size={10} />{" "}
+                {"#" +
+                  (userCompetitionData?.user?.weeklyEarnings?.[positionWeek + 1]
+                    ?.rank ?? "-")}
               </span>
-            <span className="hidden sm:flex px-2.5 py-1 bg-green-100 text-green-700 text-[10px] font-bold rounded-full uppercase tracking-wider">
-              Guaranteed Rewards
-            </span>
+              <span className="hidden sm:flex px-2.5 py-1 bg-green-100 text-green-700 text-[10px] font-bold rounded-full uppercase tracking-wider">
+                Guaranteed Rewards
+              </span>
             </div>
             <div className="flex items-center gap-2">
-              {getTierByRank(userCompetitionData?.user?.weeklyEarnings?.[positionWeek + 1]?.tier) && (
+              {getTierByRank(
+                userCompetitionData?.user?.weeklyEarnings?.[positionWeek + 1]
+                  ?.tier,
+              ) && (
                 <span
                   className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-bold ${getTierByRank(userCompetitionData?.user?.weeklyEarnings?.[positionWeek + 1]?.tier)?.badge}`}
                 >
                   <div
                     className={`w-1.5 h-1.5 rounded-full bg-gradient-to-br ${getTierByRank(userCompetitionData?.user?.weeklyEarnings?.[positionWeek + 1]?.tier)?.color}`}
                   />
-                  {getTierByRank(userCompetitionData?.user?.weeklyEarnings?.[positionWeek + 1]?.tier)?.label}
+                  {
+                    getTierByRank(
+                      userCompetitionData?.user?.weeklyEarnings?.[
+                        positionWeek + 1
+                      ]?.tier,
+                    )?.label
+                  }
                 </span>
               )}
               <select
@@ -534,30 +1187,58 @@ export function VolumeLeagueCampaign() {
             <div className="bg-white/70 rounded-xl p-2.5 text-center">
               <BarChart2 size={13} className="text-green-500 mx-auto mb-1" />
               <div className="font-bold text-gray-900 text-lg">
-                ${userCompetitionData?.user?.weeklyEarnings?.[positionWeek + 1]?.baseShareUsd ?? 0}
+                $
+                {userCompetitionData?.user?.weeklyEarnings?.[positionWeek + 1]
+                  ?.baseShareUsd ?? 0}
               </div>
               <div className="text-[10px] text-gray-500">Reward Share</div>
             </div>
             <div className="bg-white/70 rounded-xl p-2.5 text-center">
               <Wallet size={13} className="text-green-500 mx-auto mb-1" />
               <div className="font-bold text-gray-900 text-lg">
-               ${userCompetitionData?.user?.weeklyEarnings?.[positionWeek + 1]?.tierBonusUsd ?? 0}
+                $
+                {userCompetitionData?.user?.weeklyEarnings?.[positionWeek + 1]
+                  ?.tierBonusUsd ?? 0}
               </div>
               <div className="text-[10px] text-gray-500">Extra Bonus</div>
             </div>
             <div className="bg-white/70 rounded-xl p-2.5 text-center">
               <PieChart size={13} className="text-green-500 mx-auto mb-1" />
               <div className="font-bold text-gray-900 text-lg">
-                ${userCompetitionData?.user?.weeklyEarnings?.[positionWeek + 1]?.volume ?? 0}
+                $
+                {userCompetitionData?.user?.weeklyEarnings?.[positionWeek + 1]
+                  ?.volume ?? 0}
               </div>
               <div className="text-[10px] text-gray-500">Volume</div>
             </div>
           </div>
 
+          {recentPortfoliosQuery.error && (
+            <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+              Failed to load portfolios for this wallet.
+            </div>
+          )}
+
+          {actionError && !createWizardOpen && (
+            <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+              {actionError}
+            </div>
+          )}
+
+          {(executionState.isExecuting || isExecuting) && !createWizardOpen && (
+            <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">
+              {executionState.currentSymbol
+                ? `Processing ${executionState.currentSymbol} (${executionState.completed}/${executionState.total} done)`
+                : executionState.total > 0
+                  ? `Swaps completed: ${executionState.completed}/${executionState.total}`
+                  : "Preparing portfolio execution..."}
+            </div>
+          )}
+
           {/* Create Portfolio — big upload-style when empty, small when portfolios exist */}
           {portfolios.length === 0 ? (
             <button
-              onClick={handleCreatePortfolio}
+              onClick={openCreateWizard}
               className="w-full group flex flex-col items-center justify-center gap-2 py-8 rounded-2xl border-2 border-dashed border-blue-300 bg-blue-50/50 hover:bg-blue-600 hover:border-blue-600 transition-all duration-200 sm:h-[205px]"
             >
               <div className="w-10 h-10 rounded-full bg-blue-100 group-hover:bg-blue-500 flex items-center justify-center transition-colors">
@@ -578,7 +1259,7 @@ export function VolumeLeagueCampaign() {
           ) : (
             <>
               <button
-                onClick={handleCreatePortfolio}
+                onClick={openCreateWizard}
                 className="w-full group flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed border-blue-300 bg-blue-50/50 hover:bg-blue-600 hover:border-blue-600 transition-all duration-200 mb-3"
               >
                 <Plus
@@ -654,29 +1335,51 @@ export function VolumeLeagueCampaign() {
                   {portfolios
                     .slice(portfolioSlide, portfolioSlide + 3)
                     .map((p) => {
-                      const total = p.tokens.reduce(
-                        (s, t) => s + t.price * t.amount,
-                        0,
-                      );
+                      const total =
+                        p?.totalCurrentValue ??
+                        p?.totalCurrentValueUsd ??
+                        p?.totalValue ??
+                        0;
+                      const portfolioId = p?.id ?? p?.portfolioId;
                       return (
-                        <button
-                          key={p.id}
-                          onClick={() => setSelectedPortfolio(p)}
-                          className="flex flex-col items-center p-3 bg-white/70 hover:bg-white border border-gray-200/60 hover:border-blue-300 rounded-xl transition-all group"
+                        <div
+                          key={String(portfolioId)}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => openPortfolioDetailModal(p)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              openPortfolioDetailModal(p);
+                            }
+                          }}
+                          className="relative flex flex-col items-center p-3 bg-white/70 hover:bg-white border border-gray-200/60 hover:border-blue-300 rounded-xl transition-all group cursor-pointer"
                         >
                           <div className="w-9 h-9 bg-blue-100 group-hover:bg-blue-200 rounded-xl flex items-center justify-center mb-2 transition-colors">
                             <PieChart size={15} className="text-blue-600" />
                           </div>
                           <div className="text-[10px] font-bold text-gray-900 text-center leading-tight">
-                            {p.name}
+                            {p.name || "Portfolio"}
                           </div>
                           <div className="text-[10px] text-gray-400 mt-0.5">
-                            {p.tokens.map((t) => t.symbol).join("·")}
+                            {String(p?.riskProfile || "")
+                              .slice(0, 8)
+                              .trim() || "BNB Chain"}
                           </div>
                           <div className="text-xs font-bold text-gray-900 mt-1.5">
                             ${total.toFixed(0)}
                           </div>
-                        </button>
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              openPortfolioDetailModal(p, { startSell: true });
+                            }}
+                            className="absolute right-2 top-0 mt-2 inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[10px] font-semibold text-emerald-600 hover:bg-emerald-200/30"
+                          >
+                            Sell
+                          </button>
+                        </div>
                       );
                     })}
                 </div>
@@ -705,7 +1408,11 @@ export function VolumeLeagueCampaign() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:h-[265px]">
             {TIERS.map((tier) => {
-              const isUserTier = getTierByRank(userCompetitionData?.user?.weeklyEarnings?.[positionWeek + 1]?.tier)?.label === tier.label;
+              const isUserTier =
+                getTierByRank(
+                  userCompetitionData?.user?.weeklyEarnings?.[positionWeek + 1]
+                    ?.tier,
+                )?.label === tier.label;
               return (
                 <div
                   key={tier.label}
@@ -824,188 +1531,192 @@ export function VolumeLeagueCampaign() {
                 </tr>
               ) : (
                 <>
-              {paginatedLeaderboard?.map((row) => {
-                const bonusAmt = row.tier && row.tierUnlocked ? row.tier.bonus : 0;
-                const total = row.baseShare + bonusAmt;
-                const needed =
-                  row.tier && !row.tierUnlocked
-                    ? row.tierThresholdUsd - row.volume
-                    : 0;
-                return (
-                  <tr
-                    key={row.rank}
-                    className="hover:bg-white/60 transition-colors"
-                  >
-                    <td className="py-2.5 px-2">
-                      <div className="flex items-center justify-center w-5">
-                        <PositionIcon rank={row.rank} />
-                      </div>
-                    </td>
-                    <td className="py-2.5 px-2 font-mono text-xs text-gray-700">
-                     {row.displayAddress}
-                    </td>
-                    <td className="py-2.5 px-2 text-gray-700 font-medium">
-                      {row.portfolioCount}
-                    </td>
-                    <td className="py-2.5 px-2 font-semibold text-gray-900">
-                      {fmt(row.volume)}
-                    </td>
-                    <td className="py-2.5 px-2">
-                      {row.tier ? (
-                        <span
-                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold ${getTierByRank(row.tier)?.badge}`}
-                        >
-                          <div
-                            className={`w-1.5 h-1.5 rounded-full bg-gradient-to-br ${getTierByRank(row.tier)?.color}`}
-                          />
-                          {getTierByRank(row.tier)?.label}
-                        </span>
-                      ) : (
-                        <span className="text-gray-400 text-xs">—</span>
-                      )}
-                    </td>
-                    <td className="py-2.5 px-2 text-blue-700 font-semibold text-xs">
-                      ${row.baseShareUsd?.toFixed(0)}
-                    </td>
-                    <td className="py-2.5 px-2">
-                      {row.tier ? (
-                        <div className="relative group/tip inline-flex items-center gap-1">
-                          <span
-                            className={`inline-flex items-center gap-1 text-xs font-bold ${row.tierUnlocked ? "text-green-600" : "text-gray-400"}`}
-                          >
-                            {row.tierUnlocked ? (
-                              <Check size={12} />
-                            ) : (
-                              <Lock size={12} />
-                            )}
-                            ${row.tierBonusUsd}
-                          </span>
-                          {/* Tooltip for locked bonus */}
-                          {!row.tierUnlocked && (
-                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/tip:flex z-30 pointer-events-none">
-                              <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-xl">
-                                <div className="font-semibold mb-0.5">
-                                  Bonus locked
-                                </div>
-                                <div className="text-gray-300">
-                                  Need{" "}
-                                  <span className="text-white font-bold">
-                                    {fmt(needed)}
-                                  </span>{" "}
-                                  more to unlock
-                                </div>
-                                <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-gray-400 text-xs">—</span>
-                      )}
-                    </td>
-                    <td className="py-2.5 px-2">
-                      <span
-                        className={`text-xs font-bold ${row.tierUnlocked && row.tier ? "text-gray-900" : "text-gray-900"}`}
+                  {paginatedLeaderboard?.map((row) => {
+                    const bonusAmt =
+                      row.tier && row.tierUnlocked ? row.tier.bonus : 0;
+                    const total = row.baseShare + bonusAmt;
+                    const needed =
+                      row.tier && !row.tierUnlocked
+                        ? row.tierThresholdUsd - row.volume
+                        : 0;
+                    return (
+                      <tr
+                        key={row.rank}
+                        className="hover:bg-white/60 transition-colors"
                       >
-                        ${row?.totalEarningsUsd?.toFixed(0)}
-                        {row.tier && !row.tierUnlocked && (
-                          <span className="text-black-500 font-normal"> </span>
-                        )}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-
-              {/* Current user row */}
-              {(() => {
-                const userBonusAmt =
-                  currentUser.tier && currentUser.tierUnlocked
-                    ? currentUser.tier.bonus
-                    : 0;
-                const userTotal = currentUserBaseShare + userBonusAmt;
-                const userNeeded =
-                  currentUser.tier && !currentUser.tierUnlocked
-                    ? currentUser.tier.volThreshold - currentUser.thisWeekVol
-                    : 0;
-                return (
-                  <tr className="bg-blue-50/80 border-t-2 border-blue-300">
-                    <td className="py-2.5 px-2">
-                      <span className="text-blue-700 text-xs font-bold">
-                        {currentUser.rank}
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-2 font-mono text-xs text-blue-700 font-semibold">
-                      {currentUser.address} (you)
-                    </td>
-                    <td className="py-2.5 px-2 text-gray-700 font-medium">
-                      {currentUser.portfolios}
-                    </td>
-                    <td className="py-2.5 px-2 font-semibold text-gray-900">
-                      {fmt(currentUser.thisWeekVol)}
-                    </td>
-                    <td className="py-2.5 px-2">
-                      {currentUser.tier && (
-                        <span
-                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold ${currentUser.tier.badge}`}
-                        >
-                          <div
-                            className={`w-1.5 h-1.5 rounded-full bg-gradient-to-br ${currentUser.tier.color}`}
-                          />
-                          {currentUser.tier.label}
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-2.5 px-2 text-blue-700 font-semibold text-xs">
-                      ${currentUserBaseShare.toFixed(0)}
-                    </td>
-                    <td className="py-2.5 px-2">
-                      <div className="relative group/tip inline-flex items-center gap-1">
-                        <span
-                          className={`inline-flex items-center gap-1 text-xs font-bold ${currentUser.unlocked ? "text-green-600" : "text-gray-400"}`}
-                        >
-                          {currentUser.unlocked ? (
-                            <Check size={12} />
-                          ) : (
-                            <Lock size={12} />
-                          )}
-                          ${currentUser.tier?.bonus.toLocaleString()}
-                        </span>
-                        {!currentUser.unlocked && userNeeded > 0 && (
-                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/tip:flex z-30 pointer-events-none">
-                            <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-xl">
-                              <div className="font-semibold mb-0.5">
-                                Bonus locked 🔒
-                              </div>
-                              <div className="text-gray-300">
-                                Need{" "}
-                                <span className="text-white font-bold">
-                                  {fmt(userNeeded)}
-                                </span>{" "}
-                                more to unlock
-                              </div>
-                              <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
-                            </div>
+                        <td className="py-2.5 px-2">
+                          <div className="flex items-center justify-center w-5">
+                            <PositionIcon rank={row.rank} />
                           </div>
-                        )}
-                      </div>
-                    </td>
-                    <td className="py-2.5 px-2">
-                      <span
-                        className={`text-xs font-bold ${currentUser.unlocked ? "text-gray-900" : "text-gray-400"}`}
-                      >
-                        ${userTotal.toFixed(0)}
-                        {currentUser.tier && !currentUser.unlocked && (
-                          <span className="text-gray-300 font-normal">
-                            {" "}
-                            (+${currentUser.tier.bonus} locked)
+                        </td>
+                        <td className="py-2.5 px-2 font-mono text-xs text-gray-700">
+                          {row.displayAddress}
+                        </td>
+                        <td className="py-2.5 px-2 text-gray-700 font-medium">
+                          {row.portfolioCount}
+                        </td>
+                        <td className="py-2.5 px-2 font-semibold text-gray-900">
+                          {fmt(row.volume)}
+                        </td>
+                        <td className="py-2.5 px-2">
+                          {row.tier ? (
+                            <span
+                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold ${getTierByRank(row.tier)?.badge}`}
+                            >
+                              <div
+                                className={`w-1.5 h-1.5 rounded-full bg-gradient-to-br ${getTierByRank(row.tier)?.color}`}
+                              />
+                              {getTierByRank(row.tier)?.label}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 text-xs">—</span>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-2 text-blue-700 font-semibold text-xs">
+                          ${row.baseShareUsd?.toFixed(0)}
+                        </td>
+                        <td className="py-2.5 px-2">
+                          {row.tier ? (
+                            <div className="relative group/tip inline-flex items-center gap-1">
+                              <span
+                                className={`inline-flex items-center gap-1 text-xs font-bold ${row.tierUnlocked ? "text-green-600" : "text-gray-400"}`}
+                              >
+                                {row.tierUnlocked ? (
+                                  <Check size={12} />
+                                ) : (
+                                  <Lock size={12} />
+                                )}
+                                ${row.tierBonusUsd}
+                              </span>
+                              {/* Tooltip for locked bonus */}
+                              {!row.tierUnlocked && (
+                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/tip:flex z-30 pointer-events-none">
+                                  <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-xl">
+                                    <div className="font-semibold mb-0.5">
+                                      Bonus locked
+                                    </div>
+                                    <div className="text-gray-300">
+                                      Need{" "}
+                                      <span className="text-white font-bold">
+                                        {fmt(needed)}
+                                      </span>{" "}
+                                      more to unlock
+                                    </div>
+                                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 text-xs">—</span>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-2">
+                          <span
+                            className={`text-xs font-bold ${row.tierUnlocked && row.tier ? "text-gray-900" : "text-gray-900"}`}
+                          >
+                            ${row?.totalEarningsUsd?.toFixed(0)}
+                            {row.tier && !row.tierUnlocked && (
+                              <span className="text-black-500 font-normal">
+                                {" "}
+                              </span>
+                            )}
                           </span>
-                        )}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })()}
+                        </td>
+                      </tr>
+                    );
+                  })}
+
+                  {/* Current user row */}
+                  {(() => {
+                    const userBonusAmt =
+                      currentUser.tier && currentUser.tierUnlocked
+                        ? currentUser.tier.bonus
+                        : 0;
+                    const userTotal = currentUserBaseShare + userBonusAmt;
+                    const userNeeded =
+                      currentUser.tier && !currentUser.tierUnlocked
+                        ? currentUser.tier.volThreshold -
+                          currentUser.thisWeekVol
+                        : 0;
+                    return (
+                      <tr className="bg-blue-50/80 border-t-2 border-blue-300">
+                        <td className="py-2.5 px-2">
+                          <span className="text-blue-700 text-xs font-bold">
+                            {currentUser.rank}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-2 font-mono text-xs text-blue-700 font-semibold">
+                          {currentUser.address} (you)
+                        </td>
+                        <td className="py-2.5 px-2 text-gray-700 font-medium">
+                          {currentUser.portfolios}
+                        </td>
+                        <td className="py-2.5 px-2 font-semibold text-gray-900">
+                          {fmt(currentUser.thisWeekVol)}
+                        </td>
+                        <td className="py-2.5 px-2">
+                          {currentUser.tier && (
+                            <span
+                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold ${currentUser.tier.badge}`}
+                            >
+                              <div
+                                className={`w-1.5 h-1.5 rounded-full bg-gradient-to-br ${currentUser.tier.color}`}
+                              />
+                              {currentUser.tier.label}
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-2 text-blue-700 font-semibold text-xs">
+                          ${currentUserBaseShare.toFixed(0)}
+                        </td>
+                        <td className="py-2.5 px-2">
+                          <div className="relative group/tip inline-flex items-center gap-1">
+                            <span
+                              className={`inline-flex items-center gap-1 text-xs font-bold ${currentUser.unlocked ? "text-green-600" : "text-gray-400"}`}
+                            >
+                              {currentUser.unlocked ? (
+                                <Check size={12} />
+                              ) : (
+                                <Lock size={12} />
+                              )}
+                              ${currentUser.tier?.bonus.toLocaleString()}
+                            </span>
+                            {!currentUser.unlocked && userNeeded > 0 && (
+                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/tip:flex z-30 pointer-events-none">
+                                <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-xl">
+                                  <div className="font-semibold mb-0.5">
+                                    Bonus locked 🔒
+                                  </div>
+                                  <div className="text-gray-300">
+                                    Need{" "}
+                                    <span className="text-white font-bold">
+                                      {fmt(userNeeded)}
+                                    </span>{" "}
+                                    more to unlock
+                                  </div>
+                                  <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-2.5 px-2">
+                          <span
+                            className={`text-xs font-bold ${currentUser.unlocked ? "text-gray-900" : "text-gray-400"}`}
+                          >
+                            ${userTotal.toFixed(0)}
+                            {currentUser.tier && !currentUser.unlocked && (
+                              <span className="text-gray-300 font-normal">
+                                {" "}
+                                (+${currentUser.tier.bonus} locked)
+                              </span>
+                            )}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })()}
                 </>
               )}
             </tbody>
@@ -1018,7 +1729,9 @@ export function VolumeLeagueCampaign() {
           </span>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setLeaderboardPage((prev) => Math.max(1, prev - 1))}
+              onClick={() =>
+                setLeaderboardPage((prev) => Math.max(1, prev - 1))
+              }
               disabled={leaderboardPage === 1}
               className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-gray-200 bg-white text-gray-700 hover:border-gray-400 disabled:opacity-40 disabled:cursor-not-allowed"
             >
@@ -1243,111 +1956,467 @@ export function VolumeLeagueCampaign() {
           </div>
         </div>
       )}
-
-
-      {selectedPortfolio && (
+      {createWizardOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-3xl w-full max-h-[85vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
               <div>
-                <h3 className="font-bold text-gray-900">{selectedPortfolio.name}</h3>
-                <p className="text-xs text-gray-400 mt-0.5">{selectedPortfolio.tokens.length} tokens · BNB Chain</p>
+                <h3 className="text-xl font-bold">Create Portfolio</h3>
+                <p className="text-xs text-gray-500 mt-1">
+                  Volume League uses BNB Chain only.
+                </p>
               </div>
-              <button onClick={() => setSelectedPortfolio(null)} className="w-8 h-8 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center transition-colors">
+              <button
+                type="button"
+                onClick={() => {
+                  setCreateWizardOpen(false);
+                  resetCreateWizard();
+                }}
+                className="w-9 h-9 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center transition-colors"
+              >
                 <X size={16} />
               </button>
             </div>
 
-            <div className="px-6 py-4 space-y-2">
-              {/* Token rows */}
-              {selectedPortfolio.tokens.map(token => {
-                const value = token.price * token.amount;
-                return (
-                  <div key={token.symbol} className="flex items-center justify-between py-2.5 border-b border-gray-100 last:border-0">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-xs font-bold text-gray-600">
-                        {token.symbol.slice(0, 2)}
-                      </div>
-                      <div>
-                        <div className="text-sm font-semibold text-gray-900">{token.symbol}</div>
-                        <div className="text-xs text-gray-400">{token.name}</div>
-                      </div>
+            <div className="p-6 space-y-4">
+              {/* <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-orange-50 border border-orange-200/80 text-xs text-orange-900 w-fit">
+                <img
+                  src="https://cdn.allox.ai/allox/networks/bnbIcon.svg"
+                  alt=""
+                  className="h-5 w-5"
+                />
+                <span className="font-medium">{targetChainLabel}</span>
+              </div> */}
+
+              {actionError && (
+                <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                  {actionError}
+                </div>
+              )}
+
+              <div className="rounded-2xl bg-white/70 border border-gray-200/60 p-4 shadow-sm">
+                <div className="text-sm font-semibold text-gray-900 mb-2">
+                  Choose your investment amount
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
+                  {BINANCE_CAMPAIGN_AMOUNT_TIERS.map(({ amountUsd }) => {
+                    const selected =
+                      campaignForm.amountUsd === amountUsd &&
+                      campaignForm.customAmountUsdText === "";
+                    return (
+                      <button
+                        key={amountUsd}
+                        type="button"
+                        onClick={() =>
+                          setCampaignForm((prev) => ({
+                            ...prev,
+                            amountUsd,
+                            customAmountUsdText: "",
+                          }))
+                        }
+                        className={
+                          selected
+                            ? "px-4 py-2.5 bg-gray-900 text-white border border-gray-900 rounded-xl text-sm font-semibold hover:bg-gray-800 shadow-sm"
+                            : "px-4 py-2.5 bg-white/80 border border-gray-200 rounded-xl text-sm font-semibold hover:bg-white hover:border-gray-300"
+                        }
+                      >
+                        ${amountUsd.toLocaleString("en-US")}
+                      </button>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setCampaignForm((prev) => ({
+                        ...prev,
+                        amountUsd: null,
+                        customAmountUsdText: "",
+                      }))
+                    }
+                    className={
+                      campaignForm.customAmountUsdText !== ""
+                        ? "px-4 py-2.5 bg-gray-900 text-white border border-gray-900 rounded-xl text-sm font-semibold hover:bg-gray-800 shadow-sm"
+                        : "px-4 py-2.5 bg-white/80 border border-gray-200 rounded-xl text-sm font-semibold hover:bg-white hover:border-gray-300"
+                    }
+                  >
+                    Custom
+                  </button>
+                </div>
+                <label className="block text-sm text-gray-700 mb-2">
+                  Custom amount (USD)
+                </label>
+                <input
+                  type="number"
+                  min={BINANCE_CAMPAIGN_MIN_AMOUNT_USD}
+                  maxLength={8}
+                  value={campaignForm.customAmountUsdText}
+                  placeholder="$ e.g. 750"
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    setCampaignForm((prev) => ({
+                      ...prev,
+                      customAmountUsdText: raw,
+                      amountUsd: raw.trim() === "" ? null : Number(raw),
+                    }));
+                  }}
+                  className="w-full px-4 py-3 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/20 bg-white/70"
+                />
+              </div>
+
+              <div className="rounded-2xl bg-white/70 border border-gray-200/60 p-4 shadow-sm">
+                <div className="text-sm font-semibold text-gray-900 mb-2">
+                  Pay with
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {BINANCE_CAMPAIGN_SOURCE_TOKENS.map((symbol) => {
+                    const selected = campaignForm.sourceToken === symbol;
+                    return (
+                      <button
+                        key={symbol}
+                        type="button"
+                        onClick={() =>
+                          setCampaignForm((prev) => ({
+                            ...prev,
+                            sourceToken: symbol,
+                          }))
+                        }
+                        className={
+                          selected
+                            ? "inline-flex items-center gap-2 px-4 py-2 bg-gray-900 text-white border border-gray-900 rounded-xl text-sm font-medium hover:bg-gray-800 shadow-sm"
+                            : "inline-flex items-center gap-2 px-4 py-2 bg-white/80 border border-gray-200 rounded-xl text-sm font-medium hover:bg-white hover:border-gray-300"
+                        }
+                      >
+                        {symbol}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="rounded-2xl bg-white/70 border border-gray-200/60 p-4 shadow-sm">
+                <div className="text-sm font-semibold text-gray-900 mb-3">
+                  What&apos;s Included?
+                </div>
+                <div className="flex flex-wrap gap-1 mb-3">
+                  {PRIME_PICKS_INCLUDED_TOKENS.map((token) => (
+                    <div
+                      key={token.symbol}
+                      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-100 border border-gray-200/80"
+                    >
+                      <img
+                        src={token.logo}
+                        alt={token.symbol}
+                        className="w-6 h-6"
+                      />
+                      <span className="text-sm font-medium text-gray-800">
+                        {token.symbol}
+                      </span>
                     </div>
-                    <div className="text-right">
-                      <div className="text-sm font-bold text-gray-900">${value.toFixed(2)}</div>
-                      <div className="text-xs text-gray-400">{token.amount.toFixed(4)} @ ${token.price.toLocaleString()}</div>
+                  ))}
+                </div>
+                <div className="flex items-start gap-2 text-sm text-gray-600">
+                  <Info size={16} className="shrink-0 mt-0.5 text-gray-400" />
+                  <p>
+                    Your portfolio will include {PRIME_PICKS_PORTFOLIO_SIZE}{" "}
+                    randomly selected assets from the pool above.
+                  </p>
+                </div>
+              </div>
+
+              {generatedBasket.length > 0 && (
+                <div className="rounded-2xl bg-blue-50/70 border border-blue-200/70 p-4 space-y-3">
+                  <div>
+                    <div className="text-sm font-semibold text-gray-900">
+                      Your portfolio
+                    </div>
+                    <div className="text-xs text-gray-600 mt-1">
+                      {generatedMeta?.chain || BINANCE_CAMPAIGN_CHAIN} ·
+                      On-Chain Execution
+                      {generatedMeta?.sourceToken
+                        ? ` · Pay with ${generatedMeta.sourceToken}`
+                        : ""}
                     </div>
                   </div>
-                );
-              })}
-            </div>
 
-            {/* Total */}
-            <div className="px-6 pb-2">
-              <div className="flex items-center justify-between py-3 border-t-2 border-gray-100">
-                <span className="font-bold text-gray-700 text-sm">Total Value</span>
-                <span className="font-bold text-gray-900 text-lg">
-                  ${selectedPortfolio.tokens.reduce((s, t) => s + t.price * t.amount, 0).toFixed(2)}
-                </span>
+                  <div className="space-y-2">
+                    {generatedBasket.map((token, idx) => {
+                      const status =
+                        executionState.tokenStatuses?.[
+                          String(token.symbol || "").toUpperCase()
+                        ];
+                      const isProcessing =
+                        (executionState.isExecuting || isExecuting) &&
+                        (executionState.currentSymbol === token.symbol ||
+                          status === "processing");
+                      return (
+                        <div
+                          key={String(token.id || `${token.symbol}-${idx}`)}
+                          className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5 ${
+                            status === "success"
+                              ? "border-green-200 bg-green-50"
+                              : status === "skipped"
+                                ? "border-red-200 bg-red-50"
+                                : isProcessing
+                                  ? "border-blue-200 bg-blue-50"
+                                  : "border-gray-200 bg-white/80"
+                          }`}
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            {token.logo ? (
+                              <img
+                                src={token.logo}
+                                alt={token.symbol}
+                                className="w-8 h-8 rounded-full bg-white border border-gray-200"
+                              />
+                            ) : (
+                              <div className="w-8 h-8 rounded-full bg-gray-100 border border-gray-200" />
+                            )}
+                            <div className="min-w-0">
+                              <div className="text-sm font-semibold text-gray-900">
+                                {token.symbol}
+                              </div>
+                              <div className="text-xs text-gray-500 truncate">
+                                ${Number(token.allocationUsd || 0).toFixed(2)}{" "}
+                                allocation
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-sm font-semibold text-gray-800">
+                              {token.quantity != null
+                                ? Number(token.quantity).toFixed(4)
+                                : "—"}
+                            </div>
+                            <div className="text-xs text-gray-500 flex items-center justify-end gap-1">
+                              {isProcessing && (
+                                <Loader2 className="w-3 h-3 animate-spin shrink-0" />
+                              )}
+                              {status === "success" && (
+                                <CheckCircle2 className="w-3 h-3 text-green-600 shrink-0" />
+                              )}
+                              {status === "skipped" && (
+                                <AlertTriangle className="w-3 h-3 text-red-500 shrink-0" />
+                              )}
+                              {token.price != null
+                                ? `@ $${Number(token.price).toFixed(4)}`
+                                : "Ready"}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {(executionState.isExecuting || isExecuting) && (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
+                  <div className="flex items-center gap-2 text-xs text-emerald-800 font-medium">
+                    <Loader2 size={13} className="animate-spin shrink-0" />
+                    <span>
+                      {executionState.currentSymbol
+                        ? `Processing ${executionState.currentSymbol} (${executionState.completed}/${executionState.total} done)`
+                        : executionState.total > 0
+                          ? `Swaps completed: ${executionState.completed}/${executionState.total}`
+                          : "Preparing swaps..."}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {executionPrompt && (
+                <div className="glass-card p-4 border border-amber-200/60 bg-amber-50/50 text-sm">
+                  {executionPrompt.type === "QUOTE_FAILED_TOKENS" ? (
+                    <>
+                      <p className="font-medium text-gray-900 mb-1">
+                        Some tokens have no valid swap route
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => resolveExecutionPrompt("continue")}
+                          className="px-3 py-2 rounded-xl bg-gray-900 text-white text-xs font-medium hover:bg-gray-800"
+                        >
+                          Continue
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => resolveExecutionPrompt("edit")}
+                          className="px-3 py-2 rounded-xl bg-white border border-gray-300 text-gray-700 text-xs font-medium hover:bg-gray-50"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </>
+                  ) : executionPrompt.type === "SLIPPAGE_INCREASE_REQUIRED" ? (
+                    <>
+                      <p className="font-medium text-gray-900 mb-1">
+                        Higher slippage needed for{" "}
+                        {executionPrompt.symbol || "this token"}
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => resolveExecutionPrompt("accept")}
+                          className="px-3 py-2 rounded-xl bg-gray-900 text-white text-xs font-medium hover:bg-gray-800"
+                        >
+                          Accept and continue
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => resolveExecutionPrompt("decline")}
+                          className="px-3 py-2 rounded-xl bg-white border border-gray-300 text-gray-700 text-xs font-medium hover:bg-gray-50"
+                        >
+                          Stop
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <p className="font-medium text-gray-900 mb-1">
+                        Swap failed for {executionPrompt.symbol}
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => resolveExecutionPrompt("retry")}
+                          className="px-3 py-2 rounded-xl bg-gray-900 text-white text-xs font-medium hover:bg-gray-800"
+                        >
+                          Retry
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => resolveExecutionPrompt("skip")}
+                          className="px-3 py-2 rounded-xl bg-white border border-gray-300 text-gray-700 text-xs font-medium hover:bg-gray-50"
+                        >
+                          Skip
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {needsChainSwitch && (
+                <div className="flex items-start gap-2 text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+                  <AlertTriangle
+                    size={16}
+                    className="shrink-0 mt-0.5 text-amber-600"
+                  />
+                  <p>
+                    You&apos;re connected on {currentChainLabel}. Switch to{" "}
+                    {targetChainLabel} to generate and execute this portfolio.
+                  </p>
+                </div>
+              )}
+
+              <div className="flex flex-col sm:flex-row gap-2 justify-end pt-2 items-stretch sm:items-center">
+                {generatedBasket.length === 0 &&
+                  !canGenerate &&
+                  !needsChainSwitch && (
+                    <div className="italic mr-auto text-xs text-amber-700 rounded-xl px-3 py-2 flex items-center h-fit">
+                      *Select {amountMissingSelections.join(", ")} to enable
+                      Generate
+                    </div>
+                  )}
+                {needsChainSwitch ? (
+                  <button
+                    type="button"
+                    onClick={() => void handleSwitchChain()}
+                    disabled={isSwitchingChain || isGenerating || isExecuting}
+                    className="w-full sm:w-auto px-6 py-3 bg-orange-500 text-white border border-orange-600/30 rounded-2xl text-sm font-semibold hover:bg-orange-600 disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {isSwitchingChain
+                      ? "Switching..."
+                      : `Switch to ${targetChainLabel}`}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => void handleWizardPrimaryAction()}
+                    disabled={wizardPrimaryDisabled}
+                    className="w-full sm:w-auto px-6 py-3 bg-gray-900 text-white border border-gray-900 rounded-2xl text-sm font-semibold hover:bg-gray-800 disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {wizardPrimaryLabel}
+                  </button>
+                )}
               </div>
-            </div>
-
-            <div className="px-6 pb-6 grid grid-cols-2 gap-2">
-              <button
-                onClick={() => setSelectedPortfolio(null)}
-                className="py-2.5 rounded-xl border border-gray-200 text-gray-700 font-semibold text-sm hover:bg-gray-50 transition-colors"
-              >
-                Close
-              </button>
-              <button
-                onClick={() => handleSellPortfolio(selectedPortfolio.id)}
-                className="py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white font-semibold text-sm transition-colors"
-              >
-                Sell Portfolio
-              </button>
             </div>
           </div>
         </div>
       )}
 
-          {showTutorialModal && (
+      {detailModalPortfolio && (
+        <PortfolioDetailModal
+          portfolio={detailModalPortfolio}
+          onClose={closePortfolioDetailModal}
+          onSellComplete={handlePortfolioSellComplete}
+          getChainInfo={getChainInfo}
+          isOnChainExecutionMode={isOnChainExecutionMode}
+          isPortfolioClosed={isPortfolioClosed}
+          refreshKey={detailModalRefreshKey}
+          initialSellMode={detailModalInitialSell}
+        />
+      )}
+
+      {showTutorialModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full max-h-[85vh] overflow-hidden flex flex-col">
             <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
               <div>
                 <h3 className="text-xl font-bold">How Rewards Work</h3>
-                <p className="text-xs text-gray-400 mt-0.5">Volume League · Weekly Distribution</p>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  Volume League · Weekly Distribution
+                </p>
               </div>
-              <button onClick={() => setShowTutorialModal(false)} className="w-9 h-9 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center transition-colors">
+              <button
+                onClick={() => setShowTutorialModal(false)}
+                className="w-9 h-9 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center transition-colors"
+              >
                 <X size={17} />
               </button>
             </div>
 
             <div className="overflow-y-auto px-6 py-5 space-y-5">
-
               {/* Minimum threshold */}
-             
 
               {/* 2 steps */}
               <div>
-                <div className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">2 Simple Steps</div>
+                <div className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">
+                  2 Simple Steps
+                </div>
                 <div className="space-y-3">
                   <div className="flex items-start gap-3">
                     <div className="w-14 h-7 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <span className="text-white text-[10px] font-bold">Step 1</span>
+                      <span className="text-white text-[10px] font-bold">
+                        Step 1
+                      </span>
                     </div>
                     <div>
-                      <div className="font-semibold text-gray-900 text-sm">Create a Portfolio</div>
-                      <div className="text-xs text-gray-500 mt-0.5">Select tokens and build an on-chain portfolio. Every buy or sell transaction generates volume automatically.</div>
+                      <div className="font-semibold text-gray-900 text-sm">
+                        Create a Portfolio
+                      </div>
+                      <div className="text-xs text-gray-500 mt-0.5">
+                        Select tokens and build an on-chain portfolio. Every buy
+                        or sell transaction generates volume automatically.
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
                     <div className="w-14 h-7 bg-green-600 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <span className="text-white text-[10px] font-bold">Step 2</span>
+                      <span className="text-white text-[10px] font-bold">
+                        Step 2
+                      </span>
                     </div>
                     <div>
-                      <div className="font-semibold text-gray-900 text-sm">Generate Volume</div>
-                      <div className="text-xs text-gray-500 mt-0.5">Trade more to increase your volume. The more you generate, the larger your share of the $70K weekly base pool.</div>
+                      <div className="font-semibold text-gray-900 text-sm">
+                        Generate Volume
+                      </div>
+                      <div className="text-xs text-gray-500 mt-0.5">
+                        Trade more to increase your volume. The more you
+                        generate, the larger your share of the $70K weekly base
+                        pool.
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1355,15 +2424,52 @@ export function VolumeLeagueCampaign() {
 
               {/* How the base pool works */}
               <div>
-                <div className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Weekly Reward Distribution</div>
+                <div className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">
+                  Weekly Reward Distribution
+                </div>
                 <ul className="space-y-2.5">
                   {[
-                    { icon: <Check size={13} className="text-green-600 flex-shrink-0 mt-0.5" />, text: "Every week, $70,000 is split among all participants who hit the $500 minimum volume." },
-                    { icon: <Check size={13} className="text-green-600 flex-shrink-0 mt-0.5" />, text: "Your share is calculated using √(your volume) ÷ √(total volume). This means everyone earns, not just the biggest traders." },
-                    { icon: <Check size={13} className="text-green-600 flex-shrink-0 mt-0.5" />, text: "Rankings reset every week. Your earnings are confirmed after each week closes." },
-                    { icon: <Check size={13} className="text-green-600 flex-shrink-0 mt-0.5" />, text: "Minimum to qualify: You need at least $500 in weekly volume to receive a reward share. Any trade counts, buy or sell." },
+                    {
+                      icon: (
+                        <Check
+                          size={13}
+                          className="text-green-600 flex-shrink-0 mt-0.5"
+                        />
+                      ),
+                      text: "Every week, $70,000 is split among all participants who hit the $500 minimum volume.",
+                    },
+                    {
+                      icon: (
+                        <Check
+                          size={13}
+                          className="text-green-600 flex-shrink-0 mt-0.5"
+                        />
+                      ),
+                      text: "Your share is calculated using √(your volume) ÷ √(total volume). This means everyone earns, not just the biggest traders.",
+                    },
+                    {
+                      icon: (
+                        <Check
+                          size={13}
+                          className="text-green-600 flex-shrink-0 mt-0.5"
+                        />
+                      ),
+                      text: "Rankings reset every week. Your earnings are confirmed after each week closes.",
+                    },
+                    {
+                      icon: (
+                        <Check
+                          size={13}
+                          className="text-green-600 flex-shrink-0 mt-0.5"
+                        />
+                      ),
+                      text: "Minimum to qualify: You need at least $500 in weekly volume to receive a reward share. Any trade counts, buy or sell.",
+                    },
                   ].map((item, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                    <li
+                      key={i}
+                      className="flex items-start gap-2 text-sm text-gray-700"
+                    >
                       {item.icon}
                       <span>{item.text}</span>
                     </li>
@@ -1373,42 +2479,56 @@ export function VolumeLeagueCampaign() {
 
               {/* Bonuses */}
               <div>
-                <div className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Extra Tier Bonuses</div>
+                <div className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">
+                  Extra Tier Bonuses
+                </div>
                 <ul className="space-y-2">
                   {[
                     "The top 150 users by volume each week are assigned a tier: Diamond (top 10), Gold (11–30), Silver (31–70), Bronze (71–150).",
                     "Each tier has a one-time bonus on top of your base share, but only if you hit the tier's volume threshold.",
                     "Locked bonuses roll into the following week's pool, so unclaimed rewards stay in the game.",
                   ].map((text, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                    <li
+                      key={i}
+                      className="flex items-start gap-2 text-sm text-gray-700"
+                    >
                       <div className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0 mt-1.5" />
                       {text}
                     </li>
                   ))}
                 </ul>
                 <div className="mt-3 grid grid-cols-2 gap-2">
-                  {TIERS.map(t => (
-                    <div key={t.label} className={`rounded-xl p-2.5 border ${t.bg} ${t.border}`}>
-                      <div className={`text-xs font-bold ${t.text} mb-0.5`}>{t.label}</div>
-                      <div className="text-xs text-gray-500">{t.ranks} · {fmt(t.volThreshold)}+</div>
-                      <div className="font-bold text-gray-900 text-sm mt-1">${t.bonus.toLocaleString()}</div>
+                  {TIERS.map((t) => (
+                    <div
+                      key={t.label}
+                      className={`rounded-xl p-2.5 border ${t.bg} ${t.border}`}
+                    >
+                      <div className={`text-xs font-bold ${t.text} mb-0.5`}>
+                        {t.label}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {t.ranks} · {fmt(t.volThreshold)}+
+                      </div>
+                      <div className="font-bold text-gray-900 text-sm mt-1">
+                        ${t.bonus.toLocaleString()}
+                      </div>
                     </div>
                   ))}
                 </div>
               </div>
-
             </div>
 
             <div className="px-6 pb-5 pt-2">
-              <button onClick={() => setShowTutorialModal(false)} className="w-full bg-black text-white font-semibold py-3 rounded-xl hover:bg-gray-800 transition-colors text-sm">
+              <button
+                onClick={() => setShowTutorialModal(false)}
+                className="w-full bg-black text-white font-semibold py-3 rounded-xl hover:bg-gray-800 transition-colors text-sm"
+              >
                 Got it
               </button>
             </div>
           </div>
         </div>
       )}
-
-
 
       {/* ── How It Works Modal ── */}
     </div>

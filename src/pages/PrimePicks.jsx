@@ -40,6 +40,10 @@ import {
   mapBundleQuoteDetailsBySymbol,
   parseBundleQuoteSummary,
 } from "../utils/bundles";
+import {
+  parseCustomAmountUsd,
+  isDecimalAmountInput,
+} from "../utils/customAmountInput";
 
 const PRESET_AMOUNTS = [20, 50, 100, 500];
 
@@ -576,7 +580,7 @@ export function PrimePicks() {
   };
 
   const effectiveAmount = isCustom
-    ? parseFloat(customAmount) || 0
+    ? parseCustomAmountUsd(customAmount) ?? 0
     : selectedAmount;
 
   useEffect(() => {
@@ -1466,15 +1470,26 @@ export function PrimePicks() {
                             $
                           </span>
                           <input
-                            type="number"
-                            min={BUNDLE_MIN_AMOUNT_USD}
-                            placeholder="Enter amount"
+                            type="text"
+                            inputMode="decimal"
+                            autoComplete="off"
+                            maxLength={12}
+                            placeholder={`Enter amount (min $${BUNDLE_MIN_AMOUNT_USD})`}
                             value={customAmount}
                             onChange={(e) => {
-                              setCustomAmount(e.target.value);
+                              const raw = e.target.value;
+                              if (!isDecimalAmountInput(raw)) return;
+                              setCustomAmount(raw);
                               setIsCustom(true);
                               setSelectedAmount(null);
                               setActionError("");
+                            }}
+                            onBlur={() => {
+                              if (!isCustom) return;
+                              const parsed = parseCustomAmountUsd(customAmount);
+                              if (parsed != null) {
+                                setCustomAmount(String(parsed));
+                              }
                             }}
                             className="w-full px-4 ps-8 py-3 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/20 bg-white/70"
                           />
