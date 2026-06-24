@@ -1357,6 +1357,7 @@ export function VolumeLeagueCampaign() {
                         p?.totalValue ??
                         0;
                       const portfolioId = p?.id ?? p?.portfolioId;
+                      const isClosed = isPortfolioClosed(p);
                       return (
                         <div
                           key={String(portfolioId)}
@@ -1389,11 +1390,19 @@ export function VolumeLeagueCampaign() {
                             type="button"
                             onClick={(event) => {
                               event.stopPropagation();
+                              if (isClosed) {
+                                openPortfolioDetailModal(p);
+                                return;
+                              }
                               openPortfolioDetailModal(p, { startSell: true });
                             }}
-                            className="absolute right-2 top-0 mt-2 inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[10px] font-semibold text-emerald-600 hover:bg-emerald-200/30"
+                            className={`absolute right-2 top-0 mt-2 inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold ${
+                              isClosed
+                                ? "border border-gray-200 text-gray-500 hover:bg-gray-50"
+                                : "border border-emerald-200 text-emerald-600 hover:bg-emerald-200/30"
+                            }`}
                           >
-                            Sell
+                            {isClosed ? "Closed" : "Sell"}
                           </button>
                         </div>
                       );

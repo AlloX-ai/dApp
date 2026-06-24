@@ -485,8 +485,10 @@ export function ChatPage() {
     return Number.isFinite(parsed) && parsed > 0 ? parsed : 0.5;
   }, [chatSlippageSetting]);
 
-  // Prove Portfolio "Create" → `/?qw=<id>` + sessionStorage handshake (survives StrictMode + replace state).
+  // Route-driven wizard intents use a query param + sessionStorage handshake
+  // so they survive StrictMode and the replace-state cleanup step.
   const QUICK_WIZARD_INTENT_PARAM = "qw";
+  const BINANCE_WIZARD_INTENT_PARAM = "bw";
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const intentId = params.get(QUICK_WIZARD_INTENT_PARAM);
@@ -523,6 +525,45 @@ export function ChatPage() {
     location.search,
     isConnected,
     openQuickWizard,
+    navigate,
+  ]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const intentId = params.get(BINANCE_WIZARD_INTENT_PARAM);
+    if (!intentId) return;
+    const sessionKey = `allox:bwIntent:${intentId}`;
+    if (sessionStorage.getItem(sessionKey) !== "1") return;
+
+    if (!isConnected) {
+      setShowWalletPrompt(true);
+      return;
+    }
+
+    openBinanceWizard();
+
+    const frame = requestAnimationFrame(() => {
+      try {
+        sessionStorage.removeItem(sessionKey);
+      } catch {
+        /* ignore */
+      }
+      params.delete(BINANCE_WIZARD_INTENT_PARAM);
+      const nextSearch = params.toString();
+      navigate(
+        {
+          pathname: location.pathname,
+          search: nextSearch ? `?${nextSearch}` : "",
+        },
+        { replace: true },
+      );
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [
+    location.pathname,
+    location.search,
+    isConnected,
+    openBinanceWizard,
     navigate,
   ]);
 
@@ -3856,7 +3897,6 @@ export function ChatPage() {
 
                       <span className="">Campaigns</span>
                     </div>{" "}
-                    
                   </h3>
 
                   <CampaignSlider
@@ -3897,7 +3937,7 @@ export function ChatPage() {
                     </span>
                   </button>
                   <NavLink
-                    to="/prime-picks"
+                    to="/campaigns?campaign=prove-your-portfolio"
                     className="inline-flex items-center justify-center gap-2.5 w-full sm:w-auto px-4 sm:px-5 py-2 bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-cyan-500/10 border border-purple-500/20 rounded-full shadow-lg shadow-purple-500/5 backdrop-blur-sm overflow-hidden"
                   >
                     <div className="flex items-center justify-center w-6 h-6 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full transition-all duration-300">
@@ -3906,7 +3946,7 @@ export function ChatPage() {
                     <span
                       className={`text-xs sm:text-sm font-semibold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent transition-all duration-500`}
                     >
-                      Prime Picks
+                      Prove Portfolio
                     </span>
                   </NavLink>
                   <NavLink

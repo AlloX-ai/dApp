@@ -35,6 +35,7 @@ const normalizePosition = (pos, idx) => {
     symbol: String(symbol),
     name,
     logo: pos?.logo || null,
+    isClosed: isPositionClosed(pos),
     tokenAmount,
     entryPriceUsd,
     currentValueUsd,
@@ -86,11 +87,9 @@ export function PortfolioDetailModal({
       const rawPositions = Array.isArray(response?.portfolio?.positions)
         ? response.portfolio.positions
         : [];
-      const active = rawPositions
-        .filter((pos) => !isPositionClosed(pos))
-        .map(normalizePosition);
+      const normalizedPositions = rawPositions.map(normalizePosition);
 
-      setPositions(active);
+      setPositions(normalizedPositions);
       setTotalValue(
         Number(
           response?.portfolio?.totalCurrentValue ??
@@ -255,7 +254,7 @@ export function PortfolioDetailModal({
                 </div>
               ) : positions.length === 0 ? (
                 <div className="text-sm text-gray-500 text-center py-10">
-                  No active positions in this portfolio.
+                  No positions in this portfolio.
                 </div>
               ) : (
                 <div className="divide-y divide-gray-100">
@@ -288,8 +287,15 @@ export function PortfolioDetailModal({
                         )}
 
                         <div className="min-w-0 flex-1">
-                          <div className="font-semibold text-gray-900 leading-tight">
-                            {pos.symbol}
+                          <div className="flex items-center gap-2">
+                            <div className="font-semibold text-gray-900 leading-tight">
+                              {pos.symbol}
+                            </div>
+                            {pos.isClosed ? (
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 border border-gray-200 text-gray-600 uppercase tracking-wide">
+                                Closed
+                              </span>
+                            ) : null}
                           </div>
                           {pos.name ? (
                             <div className="text-xs text-gray-500 truncate">
@@ -309,7 +315,7 @@ export function PortfolioDetailModal({
                           </div>
                         </div>
 
-                        {canSell ? (
+                        {canSell && !pos.isClosed ? (
                           <button
                             type="button"
                             onClick={() => startSell("token", pos.symbol)}
@@ -326,7 +332,7 @@ export function PortfolioDetailModal({
             </div>
 
             <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/60">
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-gray-600">
                   Total Value
                 </span>
@@ -335,15 +341,15 @@ export function PortfolioDetailModal({
                 </span>
               </div>
 
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="flex-1 px-4 py-3 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-800 hover:bg-gray-50"
-                >
-                  Close
-                </button>
-                {canSell && positions.length > 0 ? (
+              {canSell && positions.length > 0 ? (
+                <div className="flex gap-3 mt-4">
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="flex-1 px-4 py-3 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-800 hover:bg-gray-50"
+                  >
+                    Close
+                  </button>
                   <button
                     type="button"
                     onClick={() => startSell("portfolio")}
@@ -351,8 +357,8 @@ export function PortfolioDetailModal({
                   >
                     Sell Portfolio
                   </button>
-                ) : null}
-              </div>
+                </div>
+              ) : null}
             </div>
           </>
         )}

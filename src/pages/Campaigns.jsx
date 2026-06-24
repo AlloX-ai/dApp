@@ -7,7 +7,7 @@ import {
   Calendar,
   ChevronRight,
   ChevronLeft,
-  TrendingUp
+  TrendingUp,
 } from "lucide-react";
 import { TradingCompetitionPage } from "./TradingCompetition";
 import { Season1 } from "./Season1";
@@ -36,14 +36,24 @@ export function CampaignsPage() {
         : campaignParam === "prove-your-portfolio"
           ? "prove-portfolio"
           : campaignParam === "volume-league"
-          ? "volume-league"
-          : null;
+            ? "volume-league"
+            : null;
   }, [searchParams]);
 
   useEffect(() => {
     window.scrollTo(0, 0);
     document.title = "Campaigns";
   }, []);
+
+  const handleBinanceCampaignCardClick = () => {
+    const intentId = `binance-${Date.now()}`;
+    try {
+      sessionStorage.setItem(`allox:bwIntent:${intentId}`, "1");
+    } catch {
+      /* ignore */
+    }
+    navigate(`/?bw=${intentId}`);
+  };
 
   // Countdown timer for Allocation Race (until 17:00 UTC on 29/05/2026)
   useEffect(() => {
@@ -88,11 +98,11 @@ export function CampaignsPage() {
 
           {/* Campaign Cards Grid */}
           <div className="grid xl:grid-cols-2 gap-6">
-                 <button
-          onClick={() => navigate("/")}
-          className="glass-card overflow-hidden text-left hover:shadow-2xl transition-all duration-300 group relative"
-        >
-           <div className="relative h-48 w-full overflow-hidden">
+            <button
+              onClick={handleBinanceCampaignCardClick}
+              className="glass-card overflow-hidden text-left hover:shadow-2xl transition-all duration-300 group relative"
+            >
+              <div className="relative h-48 w-full overflow-hidden">
                 <ImageWithFallback
                   src={binanceWalletCampaign}
                   alt="Volume League"
@@ -107,19 +117,22 @@ export function CampaignsPage() {
                 </div>
 
                 {/* Icon on Banner */}
-          
               </div>
-          <div className="p-8">
-            <h3 className="text-2xl font-bold text-gray-900 mb-2">Binance Wallet Campaign</h3>
-            <p className="text-gray-600 mb-6">Complete tasks on BNB Chain using Binance Wallet to qualify for a share of 10,000,000 ALLOX tokens.</p>
-           <div className="flex flex-col sm:flex-row gap-2 sm:items-center justify-between mb-6">
+              <div className="p-8">
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                  Binance Wallet Campaign
+                </h3>
+                <p className="text-gray-600 mb-6">
+                  Complete tasks on BNB Chain using Binance Wallet to qualify
+                  for a share of 10,000,000 ALLOX tokens.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-2 sm:items-center justify-between mb-6">
                   <div className="bg-white/60 backdrop-blur-sm rounded-xl p-3">
                     <div className="text-xs text-gray-600 mb-1">
                       Total Rewards
                     </div>
                     <div className="font-bold text-base text-gray-900 flex items-center gap-1">
                       <span>$300,000 ALLOX</span>
-                     
                     </div>
                   </div>
                   <div className="bg-white/60 backdrop-blur-sm rounded-xl p-3">
@@ -130,7 +143,7 @@ export function CampaignsPage() {
                     </div>
                   </div>
                 </div>
-            <div className="flex items-center justify-end gap-2 ">
+                <div className="flex items-center justify-end gap-2 ">
                   <span className="text-sm font-semibold text-amber-600 group-hover:text-amber-700">
                     View
                   </span>
@@ -190,14 +203,14 @@ export function CampaignsPage() {
                     </div>
                   </div>
                 </div>
-            <div className="flex items-center justify-end gap-2 ">
+                <div className="flex items-center justify-end gap-2 ">
                   <span className="text-sm font-semibold text-amber-600 group-hover:text-amber-700">
                     View
                   </span>
                   <ChevronRight className="w-5 h-5 text-amber-600 group-hover:translate-x-1 transition-transform" />
                 </div>
-          </div>
-        </button>
+              </div>
+            </button>
             {/* Trading Competition Card */}
             <button
               onClick={() => {
@@ -426,7 +439,6 @@ export function CampaignsPage() {
                 </div>
               </div>
             </button>
-       
           </div>
         </div>
       ) : (
@@ -447,11 +459,9 @@ export function CampaignsPage() {
             <TradingCompetitionPage />
           ) : activeTab === "prove-portfolio" ? (
             <ProvePortfolio />
-          ) 
-          : activeTab === "volume-league" ? (
+          ) : activeTab === "volume-league" ? (
             <VolumeLeagueCampaign />
-          )
-          : (
+          ) : (
             <Season1 />
           )}
         </div>
