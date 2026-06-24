@@ -497,8 +497,8 @@ export function VolumeLeagueCampaign() {
               <span className="font-bold text-gray-900 text-sm">
                 My Position
               </span>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-50 border border-yellow-200 text-yellow-700 text-[10px] font-bold">
-                <Crown size={10} /> {"#" + (userCompetitionData?.user?.weeklyEarnings?.[positionWeek + 1]?.rank ?? "-")}
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-50 border border-yellow-200 text-yellow-700 text-[12px] font-bold">
+                <Crown size={10} /> {(userCompetitionData?.user?.weeklyEarnings?.[positionWeek + 1]?.rank ? "#" + userCompetitionData?.user?.weeklyEarnings?.[positionWeek + 1]?.rank : "No Rank")}
               </span>
             <span className="hidden sm:flex px-2.5 py-1 bg-green-100 text-green-700 text-[10px] font-bold rounded-full uppercase tracking-wider">
               Guaranteed Rewards
