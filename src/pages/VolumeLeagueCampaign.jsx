@@ -497,8 +497,8 @@ export function VolumeLeagueCampaign() {
             portfolio?.id &&
             isOnChainExecutionMode(portfolio?.executionMode) &&
             !isPortfolioClosed(portfolio) &&
-            (!chain || chain === "BSC") &&
-            portfolio.__createdAtMs >= startOfTodayMs
+            (!chain || chain === "BSC") 
+            // && portfolio.__createdAtMs >= startOfTodayMs
           );
         })
         .sort((a, b) => b.__createdAtMs - a.__createdAtMs)
