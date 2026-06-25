@@ -242,20 +242,13 @@ function LaunchAppLayout() {
     sessionSource,
     isWalletConnected: isConnected,
   });
-  const hasActiveBinanceWalletProvider =
-    isConnected &&
-    (getPersistedWalletProvider() === "binance_wallet" ||
-      isBinanceWalletConnected ||
-      (typeof window !== "undefined" &&
-        !!window.binancew3w?.ethereum &&
-        walletType === "binance"));
   const showBinanceBoosterWalletWarning =
-    hasActiveBinanceWalletProvider &&
+    isConnected &&
     !!binanceBoosterAddr &&
     !!address &&
     address.toLowerCase() !== binanceBoosterAddr;
   const showBinanceCampaignIneligibleWarning =
-    hasActiveBinanceWalletProvider &&
+    isConnected &&
     !isBinanceWalletConnected &&
     !showBinanceBoosterWalletWarning;
   const binanceWalletWarningVariant = showBinanceBoosterWalletWarning
