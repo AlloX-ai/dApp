@@ -99,7 +99,14 @@ import { MaintenancePage } from "./pages/MaintenancePage";
 import { TopPortfoliosPage } from "./pages/TopPortfoliosPage";
 import { WatchlistPage } from "./pages/WatchlistPage";
 import { PrimePicks } from "./pages/PrimePicks";
-import { persistBinanceBoosterAddrFromSearch } from "./utils/binanceCampaign";
+import {
+  BINANCE_BOOSTER_ADDR_PARAM,
+  BINANCE_WALLET_ADDRESS_HELP_URL,
+  getStoredBinanceBoosterAddr,
+  persistBinanceBoosterAddrFromSearch,
+} from "./utils/binanceCampaign";
+import { BinanceBoosterWalletModal } from "./components/BinanceBoosterWalletModal";
+import { isBinanceWalletConnection } from "./utils/binanceWallet";
 
 const MAINTENANCE_MODE = false;
 
@@ -198,8 +205,14 @@ function LaunchAppLayout() {
     walletType,
     checkinModal,
     chainId,
+    sessionSource,
   } = useSelector((state) => state.wallet);
   const [fundModalOpen, setFundModalOpen] = useState(false);
+  const [binanceBoosterAddr, setBinanceBoosterAddr] = useState(() =>
+    getStoredBinanceBoosterAddr(),
+  );
+  const [dismissedBinanceWalletWarningKey, setDismissedBinanceWalletWarningKey] =
+    useState(null);
   const { token, user, logout, ensureAuthenticated } = useAuth();
   const {
     login,
@@ -217,7 +230,52 @@ function LaunchAppLayout() {
 
   useEffect(() => {
     persistBinanceBoosterAddrFromSearch(location.search);
+    setBinanceBoosterAddr(getStoredBinanceBoosterAddr());
   }, [location.search]);
+  const hasBinanceBoosterAddrParam = new URLSearchParams(location.search).has(
+    BINANCE_BOOSTER_ADDR_PARAM,
+  );
+
+  const isBinanceWalletConnected = isBinanceWalletConnection({
+    connector,
+    walletType,
+    sessionSource,
+    isWalletConnected: isConnected,
+  });
+  const hasActiveBinanceWalletProvider =
+    isConnected &&
+    (getPersistedWalletProvider() === "binance_wallet" ||
+      isBinanceWalletConnected ||
+      (typeof window !== "undefined" &&
+        !!window.binancew3w?.ethereum &&
+        walletType === "binance"));
+  const showBinanceBoosterWalletWarning =
+    hasActiveBinanceWalletProvider &&
+    !!binanceBoosterAddr &&
+    !!address &&
+    address.toLowerCase() !== binanceBoosterAddr;
+  const showBinanceCampaignIneligibleWarning =
+    hasActiveBinanceWalletProvider &&
+    !isBinanceWalletConnected &&
+    !showBinanceBoosterWalletWarning;
+  const binanceWalletWarningVariant = showBinanceBoosterWalletWarning
+    ? "wrong-address"
+    : showBinanceCampaignIneligibleWarning
+      ? "ineligible-wallet"
+      : null;
+  const activeBinanceWalletWarningKey =
+    hasBinanceBoosterAddrParam && binanceWalletWarningVariant
+      ? `${location.pathname}:${binanceWalletWarningVariant}:${address || ""}:${binanceBoosterAddr || ""}`
+      : null;
+  const showBinanceWalletWarningModal =
+    !!activeBinanceWalletWarningKey &&
+    dismissedBinanceWalletWarningKey !== activeBinanceWalletWarningKey;
+
+  useEffect(() => {
+    if (!activeBinanceWalletWarningKey) {
+      setDismissedBinanceWalletWarningKey(null);
+    }
+  }, [activeBinanceWalletWarningKey]);
 
   const attemptWalletAuthentication = useCallback(
     async ({
@@ -762,6 +820,15 @@ function LaunchAppLayout() {
         fetchStatus={fetchCheckinStatus}
         addOptimisticCheckinPoints={addOptimisticCheckinPoints}
         loading={checkinLoading}
+      />
+      <BinanceBoosterWalletModal
+        isOpen={showBinanceWalletWarningModal}
+        onClose={() =>
+          setDismissedBinanceWalletWarningKey(activeBinanceWalletWarningKey)
+        }
+        expectedAddress={binanceBoosterAddr}
+        helpUrl={BINANCE_WALLET_ADDRESS_HELP_URL}
+        variant={binanceWalletWarningVariant}
       />
     </div>
   );
