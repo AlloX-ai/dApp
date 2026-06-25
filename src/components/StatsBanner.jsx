@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
+import Slider from "react-slick";
 import { Users, PieChart, ArrowUpRight, Repeat2 } from "lucide-react";
 import { apiCall } from "../utils/api";
 import getFormattedNumber from "../hooks/get-formatted-number";
@@ -12,9 +13,41 @@ const formatCompact = (value) => {
   return getFormattedNumber(n, 0);
 };
 
+const sliderSettings = {
+  dots: true,
+  infinite: true,
+  speed: 420,
+  slidesToShow: 1,
+  slidesToScroll: 1,
+  autoplay: true,
+  autoplaySpeed: 3000,
+  arrows: false,
+  pauseOnHover: true,
+  dotsClass: "slick-dots stats-banner-dots",
+};
+
+function StatSlide({ icon: Icon, label, value }) {
+  return (
+    <div className="flex items-center justify-center gap-2.5 px-6 py-2.5">
+      <div
+        className="flex items-center justify-center w-6 h-6 rounded-full flex-shrink-0"
+        style={{
+          background: "linear-gradient(135deg, #20b264 0%, #0f7a44 100%)",
+        }}
+      >
+        <Icon size={14} className="text-white" strokeWidth={2.5} />
+      </div>
+      <span
+        className="text-sm font-semibold whitespace-nowrap"
+        style={{ color: "#0f7a44" }}
+      >
+        {label}: <span style={{ color: "#0f7a44" }}>{value}</span>
+      </span>
+    </div>
+  );
+}
+
 export function StatsBanner({ className = "" }) {
-  const [currentStat, setCurrentStat] = useState(0);
-  const [isAnimating, setIsAnimating] = useState(false);
   const [stats, setStats] = useState(null);
 
   useEffect(() => {
@@ -48,7 +81,7 @@ export function StatsBanner({ className = "" }) {
           },
         ]);
       } catch {
-        /* keep defaults */
+        /* hide banner on failure */
       }
     })();
 
@@ -57,72 +90,71 @@ export function StatsBanner({ className = "" }) {
     };
   }, []);
 
-  const statCount = stats?.length ?? 0;
-
-  useEffect(() => {
-    if (!stats || statCount <= 1) return undefined;
-
-    const interval = setInterval(() => {
-      setIsAnimating(true);
-      setTimeout(() => {
-        setCurrentStat((prev) => (prev + 1) % statCount);
-        setIsAnimating(false);
-      }, 500);
-    }, 3000);
-
-    return () => clearInterval(interval);
-  }, [stats, statCount]);
-
-  const activeStat = useMemo(
-    () => stats?.[currentStat] ?? stats?.[0],
-    [stats, currentStat],
-  );
-
-  if (!stats || !activeStat) return null;
-
-  const StatIcon = activeStat.icon;
+  if (!stats?.length) return null;
 
   return (
     <div
-      className={`mx-auto sm:fixed sm:top-25 sm:left-1/2 sm:-translate-x-1/2 sm:z-20 ${className}`}
+      className={`stats-banner mx-auto mb-6 sm:mb-0 sm:fixed sm:top-25 sm:left-1/2 sm:-translate-x-1/2 sm:z-20 ${className}`}
     >
-      <div
-        className="inline-flex items-center px-5 py-2.5 rounded-full mb-6 sm:mb-0 backdrop-blur-sm shadow-lg"
-        style={{
-          background:
-            "linear-gradient(135deg, rgba(32,178,100,0.12) 0%, rgba(16,140,80,0.08) 100%)",
-          border: "1px solid rgba(32,178,100,0.3)",
-          boxShadow: "0 4px 20px rgba(32,178,100,0.1)",
-          width: 280,
-          overflow: "hidden",
-        }}
-      >
-        <style>{`
-        @keyframes carouselIn  { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-        @keyframes carouselOut { from { transform: translateX(0);    opacity: 1; } to { transform: translateX(-100%); opacity: 0; } }
-        .carousel-in  { animation: carouselIn  0.42s cubic-bezier(0.4,0,0.2,1) forwards; }
-        .carousel-out { animation: carouselOut 0.42s cubic-bezier(0.4,0,0.2,1) forwards; }
+      <style>{`
+        .stats-banner .stats-banner-slider {
+          width: 280px;
+        }
+        .stats-banner .stats-banner-slider .slick-list {
+          border-radius: 9999px;
+          background: linear-gradient(135deg, rgba(32,178,100,0.12) 0%, rgba(16,140,80,0.08) 100%);
+          border: 1px solid rgba(32,178,100,0.3);
+          box-shadow: 0 4px 20px rgba(32,178,100,0.1);
+          backdrop-filter: blur(4px);
+        }
+        .stats-banner .stats-banner-slider .slick-track {
+          display: flex;
+          align-items: center;
+        }
+        .stats-banner .stats-banner-slider .slick-slide {
+          height: auto;
+        }
+        .stats-banner .stats-banner-slider .slick-slide > div {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .stats-banner .stats-banner-dots {
+          position: static;
+          margin: 8px 0 0;
+          line-height: 0;
+        }
+        .stats-banner .stats-banner-dots li {
+          margin: 0 3px;
+          width: 6px;
+          height: 6px;
+        }
+        .stats-banner .stats-banner-dots li button {
+          width: 6px;
+          height: 6px;
+          padding: 0;
+        }
+        .stats-banner .stats-banner-dots li button:before {
+          content: "";
+          width: 6px;
+          height: 6px;
+          border-radius: 9999px;
+          background: rgba(32, 178, 100, 0.35);
+          opacity: 1;
+          top: 0;
+          left: 0;
+        }
+        .stats-banner .stats-banner-dots li.slick-active button:before {
+          background: #0f7a44;
+        }
       `}</style>
-        <div
-          className={`flex items-center gap-2.5 w-full ${isAnimating ? "carousel-out" : "carousel-in"} px-[24px] py-[0px]`}
-        >
-          <div
-            className="flex items-center justify-center w-6 h-6 rounded-full flex-shrink-0"
-            style={{
-              background: "linear-gradient(135deg, #20b264 0%, #0f7a44 100%)",
-            }}
-          >
-            <StatIcon size={14} className="text-white" strokeWidth={2.5} />
+      <Slider {...sliderSettings} className="stats-banner-slider">
+        {stats.map((stat) => (
+          <div key={stat.label}>
+            <StatSlide {...stat} />
           </div>
-          <span
-            className="text-sm font-semibold whitespace-nowrap"
-            style={{ color: "#0f7a44" }}
-          >
-            {activeStat.label}:{" "}
-            <span style={{ color: "#0f7a44" }}>{activeStat.value}</span>
-          </span>
-        </div>
-      </div>
+        ))}
+      </Slider>
     </div>
   );
 }
