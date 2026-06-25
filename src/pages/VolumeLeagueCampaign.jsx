@@ -212,7 +212,9 @@ function sqrtShare(vol) {
 }
 
 function normalizeAddress(address) {
-  return String(address || "").trim().toLowerCase();
+  return String(address || "")
+    .trim()
+    .toLowerCase();
 }
 
 function hasLeaderboardEntryWithAddress(rows, walletAddress) {
@@ -497,7 +499,7 @@ export function VolumeLeagueCampaign() {
             portfolio?.id &&
             isOnChainExecutionMode(portfolio?.executionMode) &&
             !isPortfolioClosed(portfolio) &&
-            (!chain || chain === "BSC") 
+            (!chain || chain === "BSC")
             // && portfolio.__createdAtMs >= startOfTodayMs
           );
         })
@@ -1084,23 +1086,22 @@ export function VolumeLeagueCampaign() {
         <div className="flex flex-col sm:flex-row items-stretch gap-0">
           {/* Step 1 — Create a Portfolio */}
           <div className="flex-1 flex items-center relative bg-blue-50 border border-blue-200/60 rounded-2xl p-4 sm:rounded-r-none sm:border-r-0">
-        <div className="flex items-center gap-3">
-             <div className="w-12 h-12 px-2 py-1 bg-white border-2 hover:shadow-lg  border-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 px-2 py-1 bg-white border-2 hover:shadow-lg  border-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
                 <span className="text-blue-600 text-xl font-bold">1</span>
               </div>
-           <div className="flex flex-col ">
-             <div className="flex items-center gap-2">
-             
-              <span className="font-bold text-gray-900 text-sm">
-                {" "}
-                Create a Portfolio
-              </span>
+              <div className="flex flex-col ">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-gray-900 text-sm">
+                    {" "}
+                    Create a Portfolio
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500 leading-relaxed">
+                  Select tokens and build different portfolios with any amount.
+                </p>
+              </div>
             </div>
-            <p className="text-xs text-gray-500 leading-relaxed">
-              Select tokens and build different portfolios with any amount.
-            </p>
-           </div>
-        </div>
           </div>
 
           {/* Connector → */}
@@ -1113,29 +1114,24 @@ export function VolumeLeagueCampaign() {
 
           {/* Step 2 — Generate Volume */}
           <div className="flex-1 relative bg-blue-50 border border-blue-200/60 rounded-2xl p-4 sm:rounded-none sm:border-x-0">
-                    <div className="flex items-center gap-3">
-             <div className="w-12 h-12 px-2 py-1 bg-white border-2 hover:shadow-lg  border-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 px-2 py-1 bg-white border-2 hover:shadow-lg  border-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
                 <span className="text-blue-600 text-xl font-bold">2</span>
               </div>
-           <div className="flex flex-col ">
-             <div className="flex items-center gap-2">
-             
-              <span className="font-bold text-gray-900 text-sm">
-                {" "}
-                Generate Volume
-              </span>
+              <div className="flex flex-col ">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-gray-900 text-sm">
+                    {" "}
+                    Generate Volume
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500 leading-relaxed ">
+                  Every buy/sell counts to your weekly volume. A $500 minimum
+                  volume required.
+                </p>
+              </div>
             </div>
-            <p className="text-xs text-gray-500 leading-relaxed ">
-              Every buy/sell counts to your weekly volume. A $500 minimum volume
-              required.
-            </p>
-           </div>
-            </div>
-            
-            
-            
-            
-          
+
             {/* Progress bar */}
           </div>
 
@@ -1174,13 +1170,18 @@ export function VolumeLeagueCampaign() {
                 <TrendingUp size={14} className="text-blue-600" />
               </div>
               <span className="font-bold text-gray-900 text-sm">
-                My Position {(userCompetitionData?.user?.weeklyEarnings?.[positionWeek + 1]?.rank ? "#" + userCompetitionData?.user?.weeklyEarnings?.[positionWeek + 1]?.rank : "#")}
+                My Position{" "}
+                {userCompetitionData?.user?.weeklyEarnings?.[positionWeek + 1]
+                  ?.rank
+                  ? "#" +
+                    userCompetitionData?.user?.weeklyEarnings?.[
+                      positionWeek + 1
+                    ]?.rank
+                  : "#"}
               </span>
-              
-             
             </div>
             <div className="flex items-center gap-2">
-               <span className="hidden sm:flex px-2.5 py-1 bg-green-100 text-green-700 text-[10px] font-bold rounded-full uppercase tracking-wider">
+              <span className="hidden sm:flex px-2.5 py-1 bg-green-100 text-green-700 text-[10px] font-bold rounded-full uppercase tracking-wider">
                 Guaranteed Rewards
               </span>
               <select
@@ -1410,21 +1411,20 @@ export function VolumeLeagueCampaign() {
         <div className="glass-card p-5 border-amber-200/50 bg-gradient-to-br from-amber-50/30 to-orange-50/30 sm:h-[375px]">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 mb-1">
-            <div className="w-7 h-7 bg-amber-100 rounded-lg flex items-center justify-center">
-              <Award size={14} className="text-amber-600" />
+              <div className="w-7 h-7 bg-amber-100 rounded-lg flex items-center justify-center">
+                <Award size={14} className="text-amber-600" />
+              </div>
+              <span className="font-bold text-gray-900 text-sm">
+                Reward Tiers
+              </span>
             </div>
-            <span className="font-bold text-gray-900 text-sm">
-              Reward Tiers
-            </span>
-           
-          </div>
-           <span className="px-2.5 py-1 bg-green-100 text-green-700 text-[10px] font-bold rounded-full uppercase tracking-wider">
+            <span className="px-2.5 py-1 bg-green-100 text-green-700 text-[10px] font-bold rounded-full uppercase tracking-wider">
               Extra Bonus
             </span>
           </div>
           <p className="text-xs text-gray-900 mb-4 pl-9">
-            Rank in the <b>top 150</b> and hit the volume threshold to unlock your tier
-            bonus this week.
+            Rank in the <b>top 150</b> and hit the volume threshold to unlock
+            your tier bonus this week.
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:h-[265px]">
@@ -1560,103 +1560,107 @@ export function VolumeLeagueCampaign() {
               </thead>
               <tbody className="divide-y divide-gray-100 ">
                 {paginatedLeaderboard?.map((row) => {
-                    const bonusAmt =
-                      row.tier && row.tierUnlocked ? row.tier.bonus : 0;
-                    const total = row.baseShare + bonusAmt;
-                    const needed =
-                      row.tier && !row.tierUnlocked
-                        ? row.tierThresholdUsd - row.volume
-                        : 0;
-                    return (
-                      <tr
-                        key={row.rank}
-                        className={`hover:bg-white/60 transition-colors ${row.address === walletAddress ? "bg-blue-50/80 border-t-2 border-blue-300" : ""}`}
+                  const bonusAmt =
+                    row.tier && row.tierUnlocked ? row.tier.bonus : 0;
+                  const total = row.baseShare + bonusAmt;
+                  const needed =
+                    row.tier && !row.tierUnlocked
+                      ? row.tierThresholdUsd - row.volume
+                      : 0;
+                  return (
+                    <tr
+                      key={row.rank}
+                      className={`hover:bg-white/60 transition-colors ${row.address === walletAddress ? "bg-blue-50/80 border-t-2 border-blue-300" : ""}`}
+                    >
+                      <td className="py-2.5 px-2">
+                        <div className="flex items-center justify-center w-5">
+                          <PositionIcon rank={row.rank} />
+                        </div>
+                      </td>
+                      <td
+                        className={`py-2.5 px-2 font-mono text-xs  ${row.address === walletAddress ? "font-bold text-blue-700" : "text-gray-700"}`}
                       >
-                        <td className="py-2.5 px-2">
-                          <div className="flex items-center justify-center w-5">
-                            <PositionIcon rank={row.rank} />
-                          </div>
-                        </td>
-                        <td className={`py-2.5 px-2 font-mono text-xs  ${row.address === walletAddress ? "font-bold text-blue-700" : "text-gray-700"}`}>
-                          {row.displayAddress} {row.address === walletAddress && "(You)"}
-                        </td>
-                        <td className="py-2.5 px-2 text-gray-700 font-medium">
-                          {row.portfolioCount}
-                        </td>
-                        <td className="py-2.5 px-2 font-semibold text-gray-900">
-                          {fmt(row.volume)}
-                        </td>
-                        <td className="py-2.5 px-2">
-                          {row.tier ? (
-                            <span
-                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold ${getTierByRank(row.tier)?.badge}`}
-                            >
-                              <div
-                                className={`w-1.5 h-1.5 rounded-full bg-gradient-to-br ${getTierByRank(row.tier)?.color}`}
-                              />
-                              {getTierByRank(row.tier)?.label}
-                            </span>
-                          ) : (
-                            <span className="text-gray-400 text-xs">—</span>
-                          )}
-                        </td>
-                        <td className="py-2.5 px-2 text-blue-700 font-semibold text-xs">
-                          ${row.baseShareUsd?.toFixed(0)}
-                        </td>
-                        <td className="py-2.5 px-2">
-                          {row.tier ? (
-                            <div className="relative group/tip inline-flex items-center gap-1">
-                              <span
-                                className={`inline-flex items-center gap-1 text-xs font-bold ${row.tierUnlocked ? "text-green-600" : "text-gray-400"}`}
-                              >
-                                {row.tierUnlocked ? (
-                                  <Check size={12} />
-                                ) : (
-                                  <Lock size={12} />
-                                )}
-                                ${row.tierBonusUsd}
-                              </span>
-                              {/* Tooltip for locked bonus */}
-                              {!row.tierUnlocked && (
-                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/tip:flex z-30 pointer-events-none">
-                                  <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-xl">
-                                    <div className="font-semibold mb-0.5">
-                                      Bonus locked
-                                    </div>
-                                    <div className="text-gray-300">
-                                      Need{" "}
-                                      <span className="text-white font-bold">
-                                        {fmt(needed)}
-                                      </span>{" "}
-                                      more to unlock
-                                    </div>
-                                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="text-gray-400 text-xs">—</span>
-                          )}
-                        </td>
-                        <td className="py-2.5 px-2">
+                        {row.displayAddress}{" "}
+                        {row.address === walletAddress && "(You)"}
+                      </td>
+                      <td className="py-2.5 px-2 text-gray-700 font-medium">
+                        {row.portfolioCount}
+                      </td>
+                      <td className="py-2.5 px-2 font-semibold text-gray-900">
+                        {fmt(row.volume)}
+                      </td>
+                      <td className="py-2.5 px-2">
+                        {row.tier ? (
                           <span
-                            className={`text-xs font-bold ${row.tierUnlocked && row.tier ? "text-gray-900" : "text-gray-900"}`}
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold ${getTierByRank(row.tier)?.badge}`}
                           >
-                            ${row?.totalEarningsUsd?.toFixed(0)}
-                            {row.tier && !row.tierUnlocked && (
-                              <span className="text-black-500 font-normal">
-                                {" "}
-                              </span>
-                            )}
+                            <div
+                              className={`w-1.5 h-1.5 rounded-full bg-gradient-to-br ${getTierByRank(row.tier)?.color}`}
+                            />
+                            {getTierByRank(row.tier)?.label}
                           </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                        ) : (
+                          <span className="text-gray-400 text-xs">—</span>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-2 text-blue-700 font-semibold text-xs">
+                        ${row.baseShareUsd?.toFixed(0)}
+                      </td>
+                      <td className="py-2.5 px-2">
+                        {row.tier ? (
+                          <div className="relative group/tip inline-flex items-center gap-1">
+                            <span
+                              className={`inline-flex items-center gap-1 text-xs font-bold ${row.tierUnlocked ? "text-green-600" : "text-gray-400"}`}
+                            >
+                              {row.tierUnlocked ? (
+                                <Check size={12} />
+                              ) : (
+                                <Lock size={12} />
+                              )}
+                              ${row.tierBonusUsd}
+                            </span>
+                            {/* Tooltip for locked bonus */}
+                            {!row.tierUnlocked && (
+                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/tip:flex z-30 pointer-events-none">
+                                <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-xl">
+                                  <div className="font-semibold mb-0.5">
+                                    Bonus locked
+                                  </div>
+                                  <div className="text-gray-300">
+                                    Need{" "}
+                                    <span className="text-white font-bold">
+                                      {fmt(needed)}
+                                    </span>{" "}
+                                    more to unlock
+                                  </div>
+                                  <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 text-xs">—</span>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-2">
+                        <span
+                          className={`text-xs font-bold ${row.tierUnlocked && row.tier ? "text-gray-900" : "text-gray-900"}`}
+                        >
+                          ${row?.totalEarningsUsd?.toFixed(0)}
+                          {row.tier && !row.tierUnlocked && (
+                            <span className="text-black-500 font-normal">
+                              {" "}
+                            </span>
+                          )}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
 
                 {/* Current user row */}
-                {walletExistsInLeaderboardRows && (() => {
+                {walletExistsInLeaderboardRows &&
+                  (() => {
                     const userBonusAmt =
                       currentUser.tier && currentUser.tierUnlocked
                         ? currentUser.tier.bonus
@@ -1912,9 +1916,8 @@ export function VolumeLeagueCampaign() {
                   <h4 className="font-bold text-gray-900">Eligibility</h4>
                 </div>
                 <p className="text-sm text-gray-700 leading-relaxed">
-                  All users participating in any active AlloX campaign are
-                  eligible for Volume League. This includes participants from
-                     Prime Picks, and the Quick Portfolio Builder.
+                  All users participating in Quick Portfolio Builder and Prime
+                  Picks are eligible for Volume League campaign.
                 </p>
               </div>
               <div>
@@ -1965,7 +1968,7 @@ export function VolumeLeagueCampaign() {
                 <ul className="space-y-2.5 text-sm text-gray-700">
                   {[
                     "Full rewards require total campaign volume to reach $100M. If not met, the reward pool scales proportionally",
-                    "Using multiple wallets, wash trading, or any volume manipulation results in permanent disqualification",
+                    // "Using multiple wallets, wash trading, or any volume manipulation results in permanent disqualification",
                     "AlloX reserves the right to adjust pool sizes, tier thresholds, or campaign duration with reasonable notice",
                     "All rewards are subject to cliff and vesting linearly at ALLOX TGE",
                     "AlloX's decisions on eligibility, disqualification, and distribution are final",
