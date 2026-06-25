@@ -94,7 +94,7 @@ export function StatsBanner({ className = "" }) {
 
   return (
     <div
-      className={`stats-banner mx-auto mb-6 sm:mb-0 sm:fixed sm:top-25 sm:left-1/2 sm:-translate-x-1/2 sm:z-20 ${className}`}
+      className={`flex justify-center stats-banner mx-auto mb-6 sm:mb-0 sm:fixed sm:top-25 sm:left-1/2 sm:-translate-x-1/2 sm:z-20 ${className}`}
     >
       <style>{`
         .stats-banner .stats-banner-slider {
