@@ -4958,44 +4958,7 @@ export function ChatPage() {
                     </ChatBubble>
                   )}
 
-                  {showBinanceBoosterWalletWarning && (
-                    <div className="max-w-[80%] flex flex-col gap-2 text-xs bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3">
-                      <div className="flex items-start gap-2">
-                        <AlertTriangle
-                          size={16}
-                          className="shrink-0 mt-0.5 text-red-700"
-                        />
-                        <p>
-                          The connected wallet isn&apos;t eligible for this
-                          campaign. Please switch to Binance MPC Wallet.
-                        </p>
-                      </div>
-                      <a
-                        href={BINANCE_WALLET_ADDRESS_HELP_URL}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-red-800 underline underline-offset-2 hover:text-red-950 pl-6"
-                      >
-                        Can&apos;t find that address?
-                      </a>
-                    </div>
-                  )}
 
-                  {showBinanceCampaignIneligibleWarning && (
-                    <div className="max-w-[78%] flex flex-col gap-2 text-xs bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3">
-                      <div className="flex items-start gap-2">
-                        <AlertTriangle
-                          size={16}
-                          className="shrink-0 mt-0.5 text-red-700"
-                        />
-                        <p>
-                          You can create a portfolio, but it won&apos;t be
-                          eligible for the Binance campaign rewards. Connect
-                          with Binance MPC Wallet to participate.
-                        </p>
-                      </div>
-                    </div>
-                  )}
                 </>
               )}
 
