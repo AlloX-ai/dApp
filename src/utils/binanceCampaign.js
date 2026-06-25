@@ -167,13 +167,29 @@ export const BINANCE_BOOSTER_ADDR_PARAM = "binanceBoosterVerAddr";
 export const BINANCE_WALLET_ADDRESS_HELP_URL =
   "https://www.binance.com/en/support/faq/detail/ebfa9f504ec548968bf0c1ed591a3eaa";
 
-/** Persist campaign keyless wallet from `?binanceBoosterVerAddr=` (any page load). */
-export function persistBinanceBoosterAddrFromSearch(search) {
-  const params = new URLSearchParams(search || "");
-  const raw = params.get(BINANCE_BOOSTER_ADDR_PARAM)?.trim();
+export function getBinanceBoosterAddrFromLocation(search = "", hash = "") {
+  const searchParams = new URLSearchParams(search || "");
+  const fromSearch = searchParams.get(BINANCE_BOOSTER_ADDR_PARAM)?.trim();
+  if (fromSearch) return fromSearch.toLowerCase();
+
+  const normalizedHash = String(hash || "").replace(/^#/, "");
+  const hashQueryIndex = normalizedHash.indexOf("?");
+  if (hashQueryIndex >= 0) {
+    const hashQuery = normalizedHash.slice(hashQueryIndex + 1);
+    const hashParams = new URLSearchParams(hashQuery);
+    const fromHash = hashParams.get(BINANCE_BOOSTER_ADDR_PARAM)?.trim();
+    if (fromHash) return fromHash.toLowerCase();
+  }
+
+  return null;
+}
+
+/** Persist campaign keyless wallet from URL (search or hash query). */
+export function persistBinanceBoosterAddrFromLocation(search, hash) {
+  const raw = getBinanceBoosterAddrFromLocation(search, hash);
   if (!raw) return;
   try {
-    localStorage.setItem(BINANCE_BOOSTER_ADDR_STORAGE_KEY, raw.toLowerCase());
+    localStorage.setItem(BINANCE_BOOSTER_ADDR_STORAGE_KEY, raw);
   } catch {
     /* ignore */
   }
