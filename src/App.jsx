@@ -102,8 +102,9 @@ import { PrimePicks } from "./pages/PrimePicks";
 import {
   BINANCE_BOOSTER_ADDR_PARAM,
   BINANCE_WALLET_ADDRESS_HELP_URL,
+  getBinanceBoosterAddrFromLocation,
   getStoredBinanceBoosterAddr,
-  persistBinanceBoosterAddrFromSearch,
+  persistBinanceBoosterAddrFromLocation,
 } from "./utils/binanceCampaign";
 import { BinanceBoosterWalletModal } from "./components/BinanceBoosterWalletModal";
 import { isBinanceWalletConnection } from "./utils/binanceWallet";
@@ -229,11 +230,12 @@ function LaunchAppLayout() {
   const privyVerifyCooldownUntilRef = useRef(0);
 
   useEffect(() => {
-    persistBinanceBoosterAddrFromSearch(location.search);
+    persistBinanceBoosterAddrFromLocation(location.search, location.hash);
     setBinanceBoosterAddr(getStoredBinanceBoosterAddr());
-  }, [location.search]);
-  const hasBinanceBoosterAddrParam = new URLSearchParams(location.search).has(
-    BINANCE_BOOSTER_ADDR_PARAM,
+  }, [location.search, location.hash]);
+  const hasBinanceBoosterAddrParam = !!getBinanceBoosterAddrFromLocation(
+    location.search,
+    location.hash,
   );
 
   const isBinanceWalletConnected = isBinanceWalletConnection({
@@ -247,8 +249,15 @@ function LaunchAppLayout() {
     !!binanceBoosterAddr &&
     !!address &&
     address.toLowerCase() !== binanceBoosterAddr;
+  const isRewardsDailyBonusBoosterMatch =
+    location.pathname === "/rewards" &&
+    String(location.hash || "").startsWith("#daily-bonus") &&
+    !!binanceBoosterAddr &&
+    !!address &&
+    address.toLowerCase() === binanceBoosterAddr;
   const showBinanceCampaignIneligibleWarning =
     isConnected &&
+    !isRewardsDailyBonusBoosterMatch &&
     !isBinanceWalletConnected &&
     !showBinanceBoosterWalletWarning;
   const binanceWalletWarningVariant = showBinanceBoosterWalletWarning

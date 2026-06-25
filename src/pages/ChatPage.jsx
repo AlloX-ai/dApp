@@ -90,7 +90,7 @@ import {
   getBinanceMissingSelections,
   getStoredBinanceBoosterAddr,
   parseCampaignBinanceError,
-  persistBinanceBoosterAddrFromSearch,
+  persistBinanceBoosterAddrFromLocation,
   BINANCE_WALLET_ADDRESS_HELP_URL,
   formatBinancePercent,
   formatBinanceReceiveAmount,
@@ -372,9 +372,9 @@ export function ChatPage() {
   );
 
   useEffect(() => {
-    persistBinanceBoosterAddrFromSearch(location.search);
+    persistBinanceBoosterAddrFromLocation(location.search, location.hash);
     setBinanceBoosterAddr(getStoredBinanceBoosterAddr());
-  }, [location.search]);
+  }, [location.search, location.hash]);
 
   const hasActiveWalletSession = isConnected || wagmiIsConnected;
   const activeConnectorId = activeConnector?.id ?? null;
