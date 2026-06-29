@@ -64,18 +64,32 @@ export function PortfolioDetailModal({
 
   const portfolioTitle = portfolio?.name || "Portfolio";
 
+  const tokenLogosFromPositions = useMemo(() => {
+    const map = {};
+    positions.forEach((pos) => {
+      const symbol = String(pos?.symbol || "")
+        .trim()
+        .toUpperCase();
+      if (symbol && pos?.logo && !map[symbol]) {
+        map[symbol] = pos.logo;
+      }
+    });
+    return map;
+  }, [positions]);
+
   const buildSellTarget = useCallback(
     (type, symbol) => ({
       type,
       portfolioId: portfolio?.id,
       chain: portfolio?.chain,
+      tokenLogos: tokenLogosFromPositions,
       ...(symbol ? { symbol: String(symbol) } : {}),
       title:
         type === "token"
           ? `${symbol} in ${portfolioTitle}`
           : portfolioTitle,
     }),
-    [portfolio?.id, portfolio?.chain, portfolioTitle],
+    [portfolio?.id, portfolio?.chain, portfolioTitle, tokenLogosFromPositions],
   );
 
   const loadPortfolio = useCallback(async () => {
@@ -112,7 +126,7 @@ export function PortfolioDetailModal({
   }, [portfolio?.id, refreshKey, dataRefreshKey, loadPortfolio]);
 
   useEffect(() => {
-    if (!portfolio?.id || !initialSellMode) return;
+    if (!portfolio?.id || !initialSellMode || loading) return;
     if (initialSellMode === "portfolio") {
       setSellTarget(buildSellTarget("portfolio"));
       setView("sell");
@@ -124,7 +138,7 @@ export function PortfolioDetailModal({
       );
       setView("sell");
     }
-  }, [portfolio?.id, initialSellMode, buildSellTarget]);
+  }, [portfolio?.id, initialSellMode, buildSellTarget, loading]);
 
   const chainInfo = useMemo(
     () => getChainInfo?.(portfolio?.chain) ?? null,
@@ -234,6 +248,7 @@ export function PortfolioDetailModal({
             <SellPortfolioPanel
               key={`${sellTarget.portfolioId}-${sellTarget.symbol || "all"}`}
               target={sellTarget}
+              tokenLogos={tokenLogosFromPositions}
               onComplete={handleSellComplete}
               onRequestClose={handleSellBack}
               onBack={handleSellBack}
