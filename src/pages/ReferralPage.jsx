@@ -73,6 +73,7 @@ export function ReferralsPage() {
   const isConnected = useSelector((state) => state.wallet.isConnected);
   const { isAuthenticated, ensureAuthenticated } = useAuth();
   const [activating, setActivating] = useState(false);
+  const [activationError, setActivationError] = useState("");
   const [isActivated, setIsActivated] = useState(false);
   const [copied, setCopied] = useState(false);
   const [selectedPool, setSelectedPool] = useState("");
@@ -265,13 +266,30 @@ export function ReferralsPage() {
       return;
     }
     setActivating(true);
+    setActivationError("");
     try {
       if (!isAuthenticated) {
         await ensureAuthenticated();
       }
+      const activated = await apiCall("/referral/activate", {
+        method: "POST",
+      });
+      const referralCodeFromActivate =
+        activated?.referralCode ?? activated?.code ?? null;
+      if (referralCodeFromActivate || activated?.referralLink) {
+        setDashboard((prev) => ({
+          ...(prev || {}),
+          ...activated,
+          ...(referralCodeFromActivate
+            ? { referralCode: referralCodeFromActivate }
+            : {}),
+        }));
+      }
       setIsActivated(true);
-    } catch {
-      // Wallet modal / toast from auth flow surfaces errors.
+    } catch (e) {
+      setActivationError(
+        e?.message || "Could not activate your referral link. Please try again.",
+      );
     } finally {
       setActivating(false);
     }
@@ -512,6 +530,9 @@ export function ReferralsPage() {
                         ? "Connect wallet"
                         : "Activate"}
                   </button>
+                  {activationError ? (
+                    <p className="text-sm text-red-200">{activationError}</p>
+                  ) : null}
                 </div>
                 {/* Stats Grid */}
                 <div className="grid grid-cols-1 gap-4 mb-6 w-70 items-center">
