@@ -1374,9 +1374,26 @@ export function VolumeLeagueCampaign() {
                           }}
                           className="relative flex flex-col items-center p-3 bg-white/70 hover:bg-white border border-gray-200/60 hover:border-blue-300 rounded-xl transition-all group cursor-pointer"
                         >
-                          <div className="w-9 h-9 bg-blue-100 group-hover:bg-blue-200 rounded-xl flex items-center justify-center mb-2 transition-colors">
-                            <PieChart size={15} className="text-blue-600" />
-                          </div>
+                          <div className="flex items-center justify-center mb-2" >
+                         <div
+                              className="w-7 h-7 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 border-2 border-white flex items-center justify-center text-[9px] font-black text-gray-700 flex-shrink-0"
+                              style={{ marginLeft: 0, zIndex: 1 }}
+                            >
+                              <img className="w-full h-full" src="https://cdn.allox.ai/allox/tokens/aero.svg" alt="token" />
+                            </div>
+                         <div
+                              className="w-7 h-7 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 border-2 border-white flex items-center justify-center text-[9px] font-black text-gray-700 flex-shrink-0"
+                              style={{ marginLeft: -6, zIndex: 2 }}
+                            >
+                              <img className="w-full h-full" src="https://cdn.allox.ai/allox/tokens/shib.svg" alt="token" />
+                            </div>
+                         <div
+                              className="w-7 h-7 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 border-2 border-white flex items-center justify-center text-[9px] font-black text-gray-700 flex-shrink-0"
+                              style={{ marginLeft: -6, zIndex: 3 }}
+                            >
+                              <img className="w-full h-full" src="https://cdn.allox.ai/allox/tokens/usdt.svg" alt="token" />
+                            </div>
+                        </div>
                           <div className="text-[10px] font-bold text-gray-900 text-center leading-tight">
                             {p.name || "Portfolio"}
                           </div>
@@ -1394,7 +1411,11 @@ export function VolumeLeagueCampaign() {
                               event.stopPropagation();
                               openPortfolioDetailModal(p, { startSell: true });
                             }}
-                            className="absolute right-2 top-0 mt-2 inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[10px] font-semibold text-emerald-600 hover:bg-emerald-200/30"
+                            className={`absolute right-2 top-0 mt-2 inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-[12px] font-semibold ${
+                              isClosed
+                                ? "border border-gray-200 text-gray-500 hover:bg-gray-50"
+                                : "border border-emerald-200 text-emerald-600 hover:bg-emerald-200/30"
+                            }`}
                           >
                             Sell
                           </button>
