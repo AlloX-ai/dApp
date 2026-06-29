@@ -4,6 +4,7 @@ import { useSellPortfolio } from "../hooks/useSellPortfolio";
 
 export function SellPortfolioPanel({
   target,
+  tokenLogos: tokenLogosProp,
   onComplete,
   onRequestClose,
   onBack,
@@ -48,7 +49,10 @@ export function SellPortfolioPanel({
   if (!displayTarget) return null;
 
   const paddingClass = compact ? "space-y-3" : "space-y-4";
-  const tokenLogoMap = displayTarget?.tokenLogos || {};
+  const tokenLogoMap = {
+    ...(displayTarget?.tokenLogos || {}),
+    ...(tokenLogosProp || {}),
+  };
   const getOrderLogo = (order) => {
     const symbol = String(order?.symbol || "").trim().toUpperCase();
     return order?.logo || tokenLogoMap[symbol] || null;
