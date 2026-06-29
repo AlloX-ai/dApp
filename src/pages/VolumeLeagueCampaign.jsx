@@ -51,8 +51,12 @@ import {
   BINANCE_CAMPAIGN_MIN_AMOUNT_USD,
   BINANCE_CAMPAIGN_SOURCE_TOKENS,
   BINANCE_CAMPAIGN_AMOUNT_TIERS,
+  BINANCE_DISPLAY_POOL_TOKENS,
   PRIME_PICKS_INCLUDED_TOKENS,
-  PRIME_PICKS_PORTFOLIO_SIZE,
+  VOLUME_LEAGUE_CAMPAIGN_GENERATE_PATH,
+  buildBinanceExecutionFromGenerate,
+  buildBinanceGeneratePayload,
+  parseBinanceGenerateResponse,
 } from "../utils/binanceCampaign";
 import { PortfolioDetailModal } from "../components/PortfolioDetailModal";
 
@@ -64,6 +68,8 @@ const BNB_CHAIN_SWITCH = {
   blockExplorerUrls: ["https://bscscan.com"],
   nativeCurrency: { name: "BNB", symbol: "BNB", decimals: 18 },
 };
+
+const VOLUME_LEAGUE_PORTFOLIO_SIZE = 2;
 
 const isOnChainExecutionMode = (executionMode) =>
   String(executionMode || "").toUpperCase() === "ON_CHAIN";
@@ -329,6 +335,70 @@ function getPortfolioTimestamp(portfolio) {
   return Number.isFinite(time) ? time : 0;
 }
 
+function dedupeTokenPool(...groups) {
+  const seen = new Set();
+  const merged = [];
+
+  groups.flat().forEach((token) => {
+    const symbol = String(token?.symbol || "")
+      .trim()
+      .toUpperCase();
+    if (!symbol || seen.has(symbol)) return;
+    seen.add(symbol);
+    merged.push({
+      ...token,
+      symbol,
+    });
+  });
+
+  return merged;
+}
+
+const VOLUME_LEAGUE_INCLUDED_TOKENS = dedupeTokenPool(
+  PRIME_PICKS_INCLUDED_TOKENS,
+  BINANCE_DISPLAY_POOL_TOKENS,
+);
+
+function normalizePortfolioCardPosition(position, index) {
+  const symbol = String(position?.symbol || position?.name || "")
+    .trim()
+    .toUpperCase();
+  if (!symbol) return null;
+
+  return {
+    id:
+      position?.id ||
+      position?.tokenId ||
+      position?.contractAddress ||
+      `${symbol}-${index}`,
+    symbol,
+    name: position?.name || symbol,
+    logo: position?.logo || null,
+    contractAddress: position?.contractAddress || null,
+    allocationUsd:
+      position?.allocationUsd ??
+      position?.allocation_usd ??
+      position?.allocation ??
+      null,
+    currentValueUsd:
+      position?.currentValueUsd ??
+      position?.current_value_usd ??
+      position?.valueUsd ??
+      null,
+    soldAt: position?.soldAt ?? null,
+  };
+}
+
+function getPortfolioPreviewPositions(portfolio, limit = 3) {
+  const positions = Array.isArray(portfolio?.positions)
+    ? portfolio.positions
+        .map(normalizePortfolioCardPosition)
+        .filter((position) => position && !position.soldAt)
+    : [];
+
+  return positions.slice(0, limit);
+}
+
 export function VolumeLeagueCampaign() {
   const dispatch = useDispatch();
   const queryClient = useQueryClient();
@@ -364,6 +434,7 @@ export function VolumeLeagueCampaign() {
   const [isSwitchingChain, setIsSwitchingChain] = useState(false);
   const [generatedBasket, setGeneratedBasket] = useState([]);
   const [generatedMeta, setGeneratedMeta] = useState(null);
+  const [generatedQuote, setGeneratedQuote] = useState(null);
   const [detailModalPortfolio, setDetailModalPortfolio] = useState(null);
   const [detailModalInitialSell, setDetailModalInitialSell] = useState(null);
   const [detailModalRefreshKey, setDetailModalRefreshKey] = useState(0);
@@ -480,9 +551,6 @@ export function VolumeLeagueCampaign() {
       const list = Array.isArray(response?.portfolios)
         ? response.portfolios
         : [];
-      const startOfToday = new Date();
-      startOfToday.setHours(0, 0, 0, 0);
-      const startOfTodayMs = startOfToday.getTime();
       return list
         .map((portfolio) => {
           const id =
@@ -490,6 +558,11 @@ export function VolumeLeagueCampaign() {
           return {
             ...portfolio,
             id,
+            positions: Array.isArray(portfolio?.positions)
+              ? portfolio.positions
+                  .map(normalizePortfolioCardPosition)
+                  .filter(Boolean)
+              : [],
             __createdAtMs: getPortfolioTimestamp(portfolio),
           };
         })
@@ -497,10 +570,10 @@ export function VolumeLeagueCampaign() {
           const chain = String(portfolio?.chain || "").toUpperCase();
           return (
             portfolio?.id &&
+            portfolio?.campaignSource !== "BINANCE_WALLET" &&
             isOnChainExecutionMode(portfolio?.executionMode) &&
             !isPortfolioClosed(portfolio) &&
             (!chain || chain === "BSC")
-            // && portfolio.__createdAtMs >= startOfTodayMs
           );
         })
         .sort((a, b) => b.__createdAtMs - a.__createdAtMs)
@@ -514,6 +587,13 @@ export function VolumeLeagueCampaign() {
   const portfolios = Array.isArray(recentPortfoliosQuery.data)
     ? recentPortfoliosQuery.data
     : [];
+
+  useEffect(() => {
+    setPortfolioSlide((current) => {
+      const maxStart = Math.max(0, portfolios.length - 3);
+      return Math.min(current, maxStart);
+    });
+  }, [portfolios.length]);
 
   const closePortfolioDetailModal = useCallback(() => {
     setDetailModalPortfolio(null);
@@ -533,75 +613,6 @@ export function VolumeLeagueCampaign() {
       queryKey: ["volumeLeaguePortfolios"],
     });
   }, [queryClient]);
-
-  const parseCampaignBasketFromResponse = useCallback((response) => {
-    const preview =
-      response?.portfolioPreview ||
-      response?.data?.portfolioPreview ||
-      response?.portfolio_preview ||
-      response?.data?.portfolio_preview;
-
-    if (
-      preview &&
-      typeof preview === "object" &&
-      Array.isArray(preview.positions)
-    ) {
-      const basket = preview.positions
-        .map((position, index) => {
-          const symbol = String(
-            position?.symbol || position?.name || "",
-          ).toUpperCase();
-          if (!symbol) return null;
-          return {
-            id:
-              position?.tokenId ||
-              position?.contractAddress ||
-              `${symbol}-${index}`,
-            symbol,
-            logo: position?.logo || null,
-            category: position?.category || "BNB Chain",
-            allocationUsd:
-              position?.allocationUsd ??
-              position?.allocation_usd ??
-              position?.allocation ??
-              null,
-            quantity:
-              position?.tokenAmount ??
-              position?.token_amount ??
-              position?.quantity ??
-              null,
-            price:
-              position?.entryPriceUsd ??
-              position?.entry_price_usd ??
-              position?.priceUsd ??
-              null,
-            contractAddress: position?.contractAddress || null,
-          };
-        })
-        .filter(Boolean);
-
-      return {
-        basket,
-        execution: response?.execution || response?.data?.execution || null,
-        meta: {
-          chain: preview.chain || BINANCE_CAMPAIGN_CHAIN,
-          executionMode: preview.executionMode || "ON_CHAIN",
-        },
-      };
-    }
-
-    const basket = parseQuickTokensFromMarkdown(
-      response?.message || response?.content || "",
-    );
-    return {
-      basket,
-      execution: response?.execution || response?.data?.execution || null,
-      meta: {
-        chain: BINANCE_CAMPAIGN_CHAIN,
-        executionMode: "ON_CHAIN",
-      },
-    };
-  }, []);
 
   const handleExecutionUpdate = useCallback((update) => {
     setExecutionState((prev) => {
@@ -732,6 +743,7 @@ export function VolumeLeagueCampaign() {
     setIsSwitchingChain(false);
     setGeneratedBasket([]);
     setGeneratedMeta(null);
+    setGeneratedQuote(null);
     setExecutionPrompt(null);
     executionPromptResolverRef.current = null;
     setExecutionState({
@@ -859,15 +871,20 @@ export function VolumeLeagueCampaign() {
     try {
       setIsGenerating(true);
       await ensureAuthenticated();
-      const prompt = `Build a $${campaignForm.amountUsd} balanced diversified portfolio on BNB Chain (On-Chain Execution).`;
-      const response = await apiCall("/chat/allox/message", {
+      const response = await apiCall(VOLUME_LEAGUE_CAMPAIGN_GENERATE_PATH, {
         method: "POST",
-        body: JSON.stringify({ message: prompt }),
+        body: JSON.stringify(buildBinanceGeneratePayload(campaignForm)),
       });
-      const { basket, meta } = parseCampaignBasketFromResponse(response);
+      const { basket, quote, meta } = parseBinanceGenerateResponse(response);
       if (!basket.length) {
         setActionError(
           "Could not generate a token basket. Try again or adjust your amount.",
+        );
+        return;
+      }
+      if (!quote) {
+        setActionError(
+          "Portfolio quote was not returned. Try again or adjust your amount.",
         );
         return;
       }
@@ -877,6 +894,7 @@ export function VolumeLeagueCampaign() {
         sourceToken: campaignForm.sourceToken,
         totalInvestment: campaignForm.amountUsd,
       });
+      setGeneratedQuote(quote);
     } catch (error) {
       if (error?.status === 401) logout();
       setActionError(
@@ -895,13 +913,12 @@ export function VolumeLeagueCampaign() {
     isConnected,
     logout,
     onTargetChain,
-    parseCampaignBasketFromResponse,
     targetChainLabel,
   ]);
 
   const handleConfirmPortfolio = useCallback(async () => {
     setActionError("");
-    if (!generatedBasket.length) return;
+    if (!generatedBasket.length || !generatedQuote || !generatedMeta) return;
     if (!isConnected) {
       dispatch(setWalletModal(true));
       return;
@@ -914,32 +931,18 @@ export function VolumeLeagueCampaign() {
     try {
       setIsExecuting(true);
       await ensureAuthenticated();
-      const tokenLines = generatedBasket
-        .map((token) => {
-          const allocation = Number(token.allocationUsd ?? 0);
-          const quantity = token.quantity != null ? Number(token.quantity) : 0;
-          const price = token.price != null ? Number(token.price) : 0;
-          return `${token.symbol} (${token.category || "token"}): $${allocation.toFixed(
-            2,
-          )} / ${quantity} tokens at $${price.toFixed(6)}`;
-        })
-        .join("\n");
-      const response = await apiCall("/chat/allox/message", {
-        method: "POST",
-        body: JSON.stringify({
-          message: `Confirm and execute this quick portfolio.\nChain: BNB Chain (On-Chain Execution)\nPayment token: ${campaignForm.sourceToken}\n- Portfolio type: Diversified\n- Investment: $${campaignForm.amountUsd}\n- Risk tolerance: Balanced (medium)\nTokens:\n${tokenLines}`,
-        }),
+      const execution = buildBinanceExecutionFromGenerate({
+        meta: generatedMeta,
+        basket: generatedBasket,
+        quote: generatedQuote,
       });
-      if (!(response?.action === "START_EXECUTION" && response?.execution)) {
+      if (!execution) {
         setActionError(
-          "Execution payload was not returned. Please generate again and retry.",
+          "Missing portfolio quote. Generate again before executing.",
         );
         return;
       }
-      const completeData = await handleStartExecution({
-        ...response.execution,
-        sourceToken: campaignForm.sourceToken,
-      });
+      const completeData = await handleStartExecution(execution);
       setExecutionState((prev) => ({
         ...prev,
         isExecuting: false,
@@ -962,10 +965,11 @@ export function VolumeLeagueCampaign() {
     }
   }, [
     campaignForm.amountUsd,
-    campaignForm.sourceToken,
     dispatch,
     ensureAuthenticated,
     generatedBasket,
+    generatedMeta,
+    generatedQuote,
     handleStartExecution,
     isConnected,
     logout,
@@ -1360,6 +1364,7 @@ export function VolumeLeagueCampaign() {
                         p?.totalValue ??
                         0;
                       const portfolioId = p?.id ?? p?.portfolioId;
+                      const previewPositions = getPortfolioPreviewPositions(p);
                       return (
                         <div
                           key={String(portfolioId)}
@@ -1375,36 +1380,32 @@ export function VolumeLeagueCampaign() {
                           className="relative flex flex-col items-center p-3 bg-white/70 hover:bg-white border border-gray-200/60 hover:border-blue-300 rounded-xl transition-all group cursor-pointer"
                         >
                           <div className="flex items-center justify-center mb-2">
-                            <div
-                              className="w-7 h-7 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 border-2 border-white flex items-center justify-center text-[9px] font-black text-gray-700 flex-shrink-0"
-                              style={{ marginLeft: 0, zIndex: 1 }}
-                            >
-                              <img
-                                className="w-full h-full"
-                                src="https://cdn.allox.ai/allox/tokens/aero.svg"
-                                alt="token"
-                              />
-                            </div>
-                            <div
-                              className="w-7 h-7 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 border-2 border-white flex items-center justify-center text-[9px] font-black text-gray-700 flex-shrink-0"
-                              style={{ marginLeft: -6, zIndex: 2 }}
-                            >
-                              <img
-                                className="w-full h-full"
-                                src="https://cdn.allox.ai/allox/tokens/shib.svg"
-                                alt="token"
-                              />
-                            </div>
-                            <div
-                              className="w-7 h-7 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 border-2 border-white flex items-center justify-center text-[9px] font-black text-gray-700 flex-shrink-0"
-                              style={{ marginLeft: -6, zIndex: 3 }}
-                            >
-                              <img
-                                className="w-full h-full"
-                                src="https://cdn.allox.ai/allox/tokens/usdt.svg"
-                                alt="token"
-                              />
-                            </div>
+                            {previewPositions.length > 0 ? (
+                              previewPositions.map((position, index) => (
+                                <div
+                                  key={position.id}
+                                  className="w-7 h-7 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 border-2 border-white flex items-center justify-center text-[9px] font-black text-gray-700 flex-shrink-0 overflow-hidden"
+                                  style={{
+                                    marginLeft: index === 0 ? 0 : -6,
+                                    zIndex: index + 1,
+                                  }}
+                                >
+                                  {position.logo ? (
+                                    <img
+                                      className="w-full h-full object-cover"
+                                      src={position.logo}
+                                      alt={position.symbol}
+                                    />
+                                  ) : (
+                                    <span>{position.symbol.slice(0, 2)}</span>
+                                  )}
+                                </div>
+                              ))
+                            ) : (
+                              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 border-2 border-white flex items-center justify-center text-[9px] font-black text-gray-700 flex-shrink-0">
+                                <PieChart size={13} />
+                              </div>
+                            )}
                           </div>
                           <div className="text-[10px] font-bold text-gray-900 text-center leading-tight">
                             {p.name || "Portfolio"}
@@ -2158,7 +2159,7 @@ export function VolumeLeagueCampaign() {
                   What&apos;s Included?
                 </div>
                 <div className="flex flex-wrap gap-1 mb-3">
-                  {PRIME_PICKS_INCLUDED_TOKENS.map((token) => (
+                  {VOLUME_LEAGUE_INCLUDED_TOKENS.map((token) => (
                     <div
                       key={token.symbol}
                       className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-100 border border-gray-200/80"
@@ -2177,7 +2178,7 @@ export function VolumeLeagueCampaign() {
                 <div className="flex items-start gap-2 text-sm text-gray-600">
                   <Info size={16} className="shrink-0 mt-0.5 text-gray-400" />
                   <p>
-                    Your portfolio will include {PRIME_PICKS_PORTFOLIO_SIZE}{" "}
+                    Your portfolio will include {VOLUME_LEAGUE_PORTFOLIO_SIZE}{" "}
                     randomly selected assets from the pool above.
                   </p>
                 </div>

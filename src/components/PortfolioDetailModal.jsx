@@ -165,11 +165,9 @@ export function PortfolioDetailModal({
   const handleSellComplete = useCallback(
     async (portfolioId) => {
       await onSellComplete?.(portfolioId);
-      setView("details");
-      setSellTarget(null);
-      setDataRefreshKey((key) => key + 1);
+      onClose?.();
     },
-    [onSellComplete],
+    [onClose, onSellComplete],
   );
 
   if (!portfolio) return null;
@@ -250,7 +248,7 @@ export function PortfolioDetailModal({
               target={sellTarget}
               tokenLogos={tokenLogosFromPositions}
               onComplete={handleSellComplete}
-              onRequestClose={handleSellBack}
+              onRequestClose={onClose}
               onBack={handleSellBack}
               compact
             />
