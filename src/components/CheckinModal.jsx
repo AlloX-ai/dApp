@@ -403,14 +403,14 @@ export function CheckinModal({
                   </p>
                 </div>
 
-                {shouldShowCampaignCheckin && (
+                {/* {shouldShowCampaignCheckin && (
                   <div className="mb-4 sm:mb-6">
                     <BinanceCampaignCheckinNotice
                       progress={binanceCampaignCheckinProgress}
                       compact
                     />
                   </div>
-                )}
+                )} */}
 
                 {/* Stats */}
                 <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-6 sm:mb-8">
