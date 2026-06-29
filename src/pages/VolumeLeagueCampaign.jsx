@@ -389,11 +389,12 @@ function normalizePortfolioCardPosition(position, index) {
   };
 }
 
-function getPortfolioPreviewPositions(portfolio, limit = 3) {
+function getPortfolioPreviewPositions(portfolio, limit = 4) {
   const positions = Array.isArray(portfolio?.positions)
     ? portfolio.positions
         .map(normalizePortfolioCardPosition)
-        .filter((position) => position && !position.soldAt)
+        .filter(Boolean)
+        .sort((a, b) => Number(Boolean(a.soldAt)) - Number(Boolean(b.soldAt)))
     : [];
 
   return positions.slice(0, limit);
@@ -587,7 +588,7 @@ export function VolumeLeagueCampaign() {
   const portfolios = Array.isArray(recentPortfoliosQuery.data)
     ? recentPortfoliosQuery.data
     : [];
-
+  console.log("portfolios", portfolios);
   useEffect(() => {
     setPortfolioSlide((current) => {
       const maxStart = Math.max(0, portfolios.length - 3);
@@ -1030,8 +1031,6 @@ export function VolumeLeagueCampaign() {
   useEffect(() => {
     setLeaderboardPage(1);
   }, [selectedWeek]);
-
-  console.log(leaderboardData, "leaderboarddata");
 
   return (
     <div className="space-y-5">
