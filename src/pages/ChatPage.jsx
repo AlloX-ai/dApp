@@ -67,6 +67,7 @@ import { AnimatePresence, motion } from "motion/react";
 import ChatMoreInfoModal from "../components/ChatMoreInfoModal";
 import { SellPortfolioModal } from "../components/SellPortfolioModal";
 import { CampaignBinanceErrorBanner } from "../components/CampaignBinanceErrorBanner";
+import { StatsBanner } from "../components/StatsBanner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CHAINS,
@@ -90,7 +91,7 @@ import {
   getBinanceMissingSelections,
   getStoredBinanceBoosterAddr,
   parseCampaignBinanceError,
-  persistBinanceBoosterAddrFromSearch,
+  persistBinanceBoosterAddrFromLocation,
   BINANCE_WALLET_ADDRESS_HELP_URL,
   formatBinancePercent,
   formatBinanceReceiveAmount,
@@ -284,7 +285,6 @@ export function ChatPage() {
   const [refreshOnchainLoading, setRefreshOnchainLoading] = useState(false);
   const [refreshOnchainMessage, setRefreshOnchainMessage] = useState(null);
   const [statusLoading, setStatusLoading] = useState(false);
-  const [pnl, setPnl] = useState(0);
 
   const [executionState, setExecutionState] = useState({
     isExecuting: false,
@@ -374,9 +374,9 @@ export function ChatPage() {
   );
 
   useEffect(() => {
-    persistBinanceBoosterAddrFromSearch(location.search);
+    persistBinanceBoosterAddrFromLocation(location.search, location.hash);
     setBinanceBoosterAddr(getStoredBinanceBoosterAddr());
-  }, [location.search]);
+  }, [location.search, location.hash]);
 
   const hasActiveWalletSession = isConnected || wagmiIsConnected;
   const activeConnectorId = activeConnector?.id ?? null;
@@ -753,13 +753,6 @@ export function ChatPage() {
     });
   }, [currentMessages]);
 
-  const fetchPLData = async () => {
-    const data = await apiCall(`/portfolio/stats/pnl`);
-    if (data) {
-      setPnl(data.pnlPercent);
-    }
-  };
-
   useEffect(() => {
     return () => {
       if (typingTimerRef.current) {
@@ -810,7 +803,6 @@ export function ChatPage() {
   useEffect(() => {
     window.scrollTo(0, 0);
     document.title = "AlloX AI Agent";
-    fetchPLData();
   }, []);
 
   const fetchChatStatus = useCallback(async () => {
@@ -3849,18 +3841,7 @@ export function ChatPage() {
           !binanceWizardOpen && (
             <div className="h-full flex items-center justify-center px-6">
               <div className="text-center max-w-2xl relative">
-                <div className="mx-auto inline-flex items-center gap-2.5 px-5 py-2.5 bg-gradient-to-r from-green-500/15 to-emerald-500/15 border border-green-500/30 rounded-full mb-6 shadow-sm shadow-green-500/10 sm:fixed sm:top-25 sm:left-1/2 sm:-translate-x-1/2 sm:mb-0 sm:z-20">
-                  <div className="flex items-center justify-center w-6 h-6 bg-green-500 rounded-full">
-                    <TrendingUp
-                      size={14}
-                      className="text-white"
-                      strokeWidth={3}
-                    />
-                  </div>
-                  <span className="text-sm font-semibold text-green-700">
-                    {pnl}% positive P&L
-                  </span>
-                </div>
+                <StatsBanner />
 
                 <h2 className="text-3xl font-bold mb-4">Hello, I'm AlloX</h2>
 
@@ -4982,44 +4963,7 @@ export function ChatPage() {
                     </ChatBubble>
                   )}
 
-                  {showBinanceBoosterWalletWarning && (
-                    <div className="max-w-[80%] flex flex-col gap-2 text-xs bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3">
-                      <div className="flex items-start gap-2">
-                        <AlertTriangle
-                          size={16}
-                          className="shrink-0 mt-0.5 text-red-700"
-                        />
-                        <p>
-                          The connected wallet isn&apos;t eligible for this
-                          campaign. Please switch to Binance MPC Wallet.
-                        </p>
-                      </div>
-                      <a
-                        href={BINANCE_WALLET_ADDRESS_HELP_URL}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-red-800 underline underline-offset-2 hover:text-red-950 pl-6"
-                      >
-                        Can&apos;t find that address?
-                      </a>
-                    </div>
-                  )}
 
-                  {showBinanceCampaignIneligibleWarning && (
-                    <div className="max-w-[78%] flex flex-col gap-2 text-xs bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3">
-                      <div className="flex items-start gap-2">
-                        <AlertTriangle
-                          size={16}
-                          className="shrink-0 mt-0.5 text-red-700"
-                        />
-                        <p>
-                          You can create a portfolio, but it won&apos;t be
-                          eligible for the Binance campaign rewards. Connect
-                          with Binance MPC Wallet to participate.
-                        </p>
-                      </div>
-                    </div>
-                  )}
                 </>
               )}
 
