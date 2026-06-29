@@ -3937,19 +3937,6 @@ export function ChatPage() {
                     </span>
                   </button>
                   <NavLink
-                    to="/campaigns?campaign=prove-your-portfolio"
-                    className="inline-flex items-center justify-center gap-2.5 w-full sm:w-auto px-4 sm:px-5 py-2 bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-cyan-500/10 border border-purple-500/20 rounded-full shadow-lg shadow-purple-500/5 backdrop-blur-sm overflow-hidden"
-                  >
-                    <div className="flex items-center justify-center w-6 h-6 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full transition-all duration-300">
-                      <Gem size={14} className="text-white" strokeWidth={3} />
-                    </div>
-                    <span
-                      className={`text-xs sm:text-sm font-semibold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent transition-all duration-500`}
-                    >
-                      Prove Portfolio
-                    </span>
-                  </NavLink>
-                  <NavLink
                     to="/campaigns?campaign=volume-league"
                     className="inline-flex items-center justify-center gap-2.5 w-full sm:w-auto px-4 sm:px-5 py-2 bg-gradient-to-r from-teal-500/10 via-cyan-500/10 to-emerald-500/10 border border-cyan-500/20 rounded-full shadow-lg shadow-cyan-500/5 backdrop-blur-sm overflow-hidden"
                   >
@@ -3966,19 +3953,37 @@ export function ChatPage() {
                       Volume League
                     </span>
                   </NavLink>
+                  <NavLink
+                    to="/campaigns?campaign=prove-your-portfolio"
+                    className="inline-flex items-center justify-center gap-2.5 w-full sm:w-auto px-4 sm:px-5 py-2 bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-cyan-500/10 border border-purple-500/20 rounded-full shadow-lg shadow-purple-500/5 backdrop-blur-sm overflow-hidden"
+                  >
+                    <div className="flex items-center justify-center w-6 h-6 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full transition-all duration-300">
+                      <Gem size={14} className="text-white" strokeWidth={3} />
+                    </div>
+                    <span
+                      className={`text-xs sm:text-sm font-semibold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent transition-all duration-500`}
+                    >
+                      Prove Portfolio
+                    </span>
+                  </NavLink>
                 </div>
                 <div className="mb-8 grid grid-cols-2 md:grid-cols-3 gap-2.5">
                   {[
                     "Build Quick Portfolio",
+                    "Prime Picks",
                     "Build a Portfolio - Guided",
                     "Explain narratives",
                     "Trending Tokens",
-                    "How should I invest $100?",
+                    // "How should I invest $100?",
                     "Start guided chat",
-                  ].map((suggestion) => (
+                  ].map((suggestion, index) => (
                     <button
                       key={suggestion}
-                      onClick={() => handleSuggestionClick(suggestion)}
+                      onClick={() =>
+                        index === 1
+                          ? navigate("/prime-picks")
+                          : handleSuggestionClick(suggestion)
+                      }
                       disabled={isReadOnly || messagesRemaining === 0}
                       className="w-full text-center px-3 sm:px-4 py-2 bg-white shadow border border-white text-xs sm:text-sm font-medium leading-tight hover:bg-white/90 hover:shadow-lg hover:border hover:border-gray-200/50 transition-all duration-200 rounded-full disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-white"
                     >
