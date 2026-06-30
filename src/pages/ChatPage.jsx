@@ -3893,15 +3893,33 @@ export function ChatPage() {
         {currentMessages.length === 0 &&
           !quickWizardOpen &&
           !binanceWizardOpen && (
-            <div className="h-full flex items-center justify-center px-6">
-              <div className="text-center max-w-2xl relative">
-                <StatsBanner />
+            <div className="h-full flex sm:items-center justify-center px-6">
+              <div className="text-center max-w-4xl w-full relative">
+                 <StatsBanner />
+                <div className="relative hidden lg:flex flex-col gap-3 sm:-top-14 top-auto">
+                  <h3 className="font-bold text-xl text-gray-900 flex items-center gap-2">
+                    <div
+                      className={`relative events-page-status-tag-live px-2 flex items-center justify-center gap-0`}
+                    >
+                      <div
+                        className="pulsatingDot"
+                        style={{
+                          width: 7,
+                          height: 7,
+                          marginRight: 5,
+                        }}
+                      ></div>
+
+                      <span className="">Campaigns</span>
+                    </div>{" "}
+                  </h3>
+
                   <CampaignSlider
                     className="mb-5"
                     disabled={isReadOnly || messagesRemaining === 0}
                     onBinanceClick={handleBinanceCampaignClick}
                   />
-              
+                </div>
                 <h2 className="text-3xl font-bold mb-4">Hello, I'm AlloX</h2>
 
                 <p className="text-gray-600 mb-6">
@@ -3932,7 +3950,7 @@ export function ChatPage() {
                     >
                       Binance Campaign
                     </span>
-                  </button> 
+                  </button>
                   <NavLink
                     to="/campaigns?campaign=volume-league"
                     className="inline-flex items-center justify-center gap-2.5 w-full sm:w-auto px-4 sm:px-5 py-2 bg-gradient-to-r from-teal-500/10 via-cyan-500/10 to-emerald-500/10 border border-cyan-500/20 rounded-full shadow-lg shadow-cyan-500/5 backdrop-blur-sm overflow-hidden"
@@ -5090,7 +5108,44 @@ export function ChatPage() {
                     </ChatBubble>
                   )}
 
+                  {/* {showBinanceBoosterWalletWarning && (
+                    <div className="max-w-[80%] flex flex-col gap-2 text-xs bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3">
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle
+                          size={16}
+                          className="shrink-0 mt-0.5 text-red-700"
+                        />
+                        <p>
+                          The connected wallet isn&apos;t eligible for this
+                          campaign. Please switch to Binance MPC Wallet.
+                        </p>
+                      </div>
+                      <a
+                        href={BINANCE_WALLET_ADDRESS_HELP_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-red-800 underline underline-offset-2 hover:text-red-950 pl-6"
+                      >
+                        Can&apos;t find that address?
+                      </a>
+                    </div>
+                  )}
 
+                  {showBinanceCampaignIneligibleWarning && (
+                    <div className="max-w-[78%] flex flex-col gap-2 text-xs bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3">
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle
+                          size={16}
+                          className="shrink-0 mt-0.5 text-red-700"
+                        />
+                        <p>
+                          You can create a portfolio, but it won&apos;t be
+                          eligible for the Binance campaign rewards. Connect
+                          with Binance MPC Wallet to participate.
+                        </p>
+                      </div>
+                    </div>
+                  )} */}
                 </>
               )}
 
