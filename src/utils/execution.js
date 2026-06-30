@@ -732,7 +732,7 @@ export function createWagmiExecutionTxEnv(chain = "BSC") {
     },
     sendTransaction: async ({ to, data, value, nonce, gas }) => {
       // Mobile WalletConnect can drop callback responses while Chrome is in
-      // the background (Binance/MetaMask deep-link). Race wallet callback with
+      // the background (WalletConnect / mobile wallet deep-link). Race wallet callback with
       // chain log detection so execution can continue even if callback is lost.
       return sendWithChainFallback({
         to,

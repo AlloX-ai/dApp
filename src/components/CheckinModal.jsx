@@ -14,6 +14,7 @@ import {
   Sparkles,
   Package,
   ChevronDown,
+  HelpCircle,
 } from "lucide-react";
 
 import { useConnection, useSwitchChain } from "wagmi";
@@ -25,6 +26,8 @@ import {
   switchPrivyEmbeddedToChain,
 } from "../utils/privyWalletUtils";
 import { useAuth } from "../hooks/useAuth";
+import { useBinanceCampaignCheckin } from "../hooks/useBinanceCampaignCheckin";
+import { BinanceCampaignCheckinNotice } from "./BinanceCampaignCheckinNotice";
 
 const PREFERRED_CHAIN_STORAGE_KEY = "walletPreferredChainId";
 
@@ -115,9 +118,12 @@ export function CheckinModal({
   const sessionSource = useSelector((state) => state.wallet.sessionSource);
   const { wallets } = useWallets();
   const { isAuthenticated } = useAuth();
+  const {
+    shouldShowCampaignCheckin,
+    progress: binanceCampaignCheckinProgress,
+  } = useBinanceCampaignCheckin();
   const isSolana = walletType === "solana";
-  const isPrivySession =
-    sessionSource === "privy" || walletType === "privy";
+  const isPrivySession = sessionSource === "privy" || walletType === "privy";
   const isOpenState = open ?? isOpen ?? false;
   const { connector } = useConnection();
   const switchChain = useSwitchChain();
@@ -127,6 +133,13 @@ export function CheckinModal({
   const [chainDropdownOpen, setChainDropdownOpen] = useState(false);
   const [selectedChainId, setSelectedChainId] = useState(SOLANA_CHAIN_ID);
   const [isSwitchingChain, setIsSwitchingChain] = useState(false);
+  const [showBinanceCheckinInfo, setShowBinanceCheckinInfo] = useState(false);
+
+  useEffect(() => {
+    if (!isOpenState) {
+      setShowBinanceCheckinInfo(false);
+    }
+  }, [isOpenState]);
 
   // Sync selected chain when modal opens or wallet changes
   useEffect(() => {
@@ -147,7 +160,9 @@ export function CheckinModal({
     () => mapStatusToWeekDays(status?.rewards),
     [status?.rewards],
   );
-  const totalPointsCollected = isAuthenticated ? (status?.totalPointsEarned ?? 0) : 0;
+  const totalPointsCollected = isAuthenticated
+    ? (status?.totalPointsEarned ?? 0)
+    : 0;
   const { totalPoints: rawTotalPoints } = useTotalPoints();
   const totalPoints = isAuthenticated ? rawTotalPoints : 0;
   const giftsCollected = isAuthenticated
@@ -210,7 +225,9 @@ export function CheckinModal({
     if (isPrivySession) {
       const embedded = getPrivyEmbedded(wallets);
       if (!embedded) {
-        toast.error("Embedded wallet not ready. Refresh the page or sign in again.");
+        toast.error(
+          "Embedded wallet not ready. Refresh the page or sign in again.",
+        );
         setChainDropdownOpen(false);
         return;
       }
@@ -232,7 +249,9 @@ export function CheckinModal({
 
     // EVM path – wagmi (MetaMask, etc.)
     if (!switchChain.mutateAsync) {
-      toast.error("Unable to switch chain. Please try reconnecting your wallet.");
+      toast.error(
+        "Unable to switch chain. Please try reconnecting your wallet.",
+      );
       return;
     }
     if (!connector) {
@@ -384,8 +403,17 @@ export function CheckinModal({
                   </p>
                 </div>
 
+                {/* {shouldShowCampaignCheckin && (
+                  <div className="mb-4 sm:mb-6">
+                    <BinanceCampaignCheckinNotice
+                      progress={binanceCampaignCheckinProgress}
+                      compact
+                    />
+                  </div>
+                )} */}
+
                 {/* Stats */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
+                <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-6 sm:mb-8">
                   <div className="glass-card p-4 border border-white/60">
                     <div className="text-sm text-gray-600 mb-1">
                       Total Points
@@ -409,6 +437,43 @@ export function CheckinModal({
                     </div>
                     <div className="text-2xl font-bold">
                       {giftsCollected} / 7
+                    </div>
+                  </div>
+                  <div className="glass-card p-4 border border-white/60 relative">
+                    <div className="text-sm text-gray-600 mb-1">
+                      Binance Check-in
+                    </div>
+                    <div className="text-2xl font-bold">
+                      {giftsCollected} / 14
+                    </div>
+                    <div
+                      className="absolute top-2 right-1"
+                      // onMouseEnter={() => setShowBinanceCheckinInfo(true)}
+                      // onMouseLeave={() => setShowBinanceCheckinInfo(false)}
+                      onClick={() =>
+                        setShowBinanceCheckinInfo(!showBinanceCheckinInfo)
+                      }
+                    >
+                      <button
+                        type="button"
+                        aria-label="Binance check-in requirements"
+                        className="border border-gray-200 bg-white rounded-full px-1 py-1 hover:bg-gray-100 transition-colors flex items-center gap-2 text-xs whitespace-nowrap"
+                      >
+                        <HelpCircle size={14} className="text-blue-600" />
+                        <span className="font-xs">More info</span>
+                      </button>
+                      {showBinanceCheckinInfo && (
+                        <div className="absolute right-0 top-full mt-2 w-80 p-4 bg-white rounded-xl shadow-lg border border-gray-200 z-50">
+                          <div className="space-y-2 text-sm text-gray-700">
+                            <p>
+                              Sign in to AlloX for any 14 days within the
+                              campaign period. Sign on-chain message on each of
+                              those days. Check-ins do not need to be
+                              consecutive.
+                            </p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -579,79 +644,84 @@ export function CheckinModal({
                     )}
 
                     {/* Chain selector — only shown when authenticated */}
-                    {isAuthenticated && <div className="w-full mb-4">
-                      <label className="block text-xs font-semibold text-gray-500 mb-2">
-                        Claim on
-                      </label>
-                      <div className="relative">
-                        <button
-                          type="button"
-                          disabled={isSwitchingChain}
-                          onClick={() => setChainDropdownOpen((o) => !o)}
-                          className="w-full flex items-center justify-between gap-2 px-4 py-2.5 rounded-xl border border-gray-200 bg-white/80 hover:bg-gray-50/80 transition-colors text-sm disabled:opacity-60"
-                        >
-                          <span className="flex items-center gap-2">
-                            <img
-                              src={selectedChain.icon}
-                              alt=""
-                              className="h-5 w-5 rounded-full"
-                            />
-                            <span className="font-medium text-gray-900">
-                              {selectedChain.name}
+                    {isAuthenticated && (
+                      <div className="w-full mb-4">
+                        <label className="block text-xs font-semibold text-gray-500 mb-2">
+                          Claim on
+                        </label>
+                        <div className="relative">
+                          <button
+                            type="button"
+                            disabled={isSwitchingChain}
+                            onClick={() => setChainDropdownOpen((o) => !o)}
+                            className="w-full flex items-center justify-between gap-2 px-4 py-2.5 rounded-xl border border-gray-200 bg-white/80 hover:bg-gray-50/80 transition-colors text-sm disabled:opacity-60"
+                          >
+                            <span className="flex items-center gap-2">
+                              <img
+                                src={selectedChain.icon}
+                                alt=""
+                                className="h-5 w-5 rounded-full"
+                              />
+                              <span className="font-medium text-gray-900">
+                                {selectedChain.name}
+                              </span>
                             </span>
-                          </span>
-                          <ChevronDown
-                            size={16}
-                            className={`text-gray-500 transition-transform ${chainDropdownOpen ? "rotate-180" : ""}`}
-                          />
-                        </button>
-                        {chainDropdownOpen && (
-                          <>
-                            <div
-                              className="fixed inset-0 z-10"
-                              onClick={() => setChainDropdownOpen(false)}
-                              aria-hidden="true"
+                            <ChevronDown
+                              size={16}
+                              className={`text-gray-500 transition-transform ${chainDropdownOpen ? "rotate-180" : ""}`}
                             />
-                            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg py-1 z-20 max-h-48 overflow-y-auto">
-                              {(isPrivySession
-                                ? CHECKIN_CHAINS.filter(
-                                    (c) => c.chainId !== SOLANA_CHAIN_ID,
-                                  )
-                                : CHECKIN_CHAINS
-                              )
-                                .filter((items) => {
-                                  return items.name !== selectedChain.name;
-                                })
-                                .map((chain) => (
-                                <button
-                                  key={chain.chainId}
-                                  type="button"
-                                  disabled={isSwitchingChain}
-                                  onClick={() => handleChainSelect(chain)}
-                                  className={`w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors ${
-                                    selectedChainId === chain.chainId
-                                      ? "bg-purple-50 text-purple-700 font-medium"
-                                      : "hover:bg-gray-50 text-gray-700"
-                                  }`}
-                                >
-                                  <img
-                                    src={chain.icon}
-                                    alt=""
-                                    className="h-5 w-5 rounded-full"
-                                  />
-                                  {chain.name}
-                                </button>
-                              ))}
-                            </div>
-                          </>
-                        )}
+                          </button>
+                          {chainDropdownOpen && (
+                            <>
+                              <div
+                                className="fixed inset-0 z-10"
+                                onClick={() => setChainDropdownOpen(false)}
+                                aria-hidden="true"
+                              />
+                              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg py-1 z-20 max-h-48 overflow-y-auto">
+                                {(isPrivySession
+                                  ? CHECKIN_CHAINS.filter(
+                                      (c) => c.chainId !== SOLANA_CHAIN_ID,
+                                    )
+                                  : CHECKIN_CHAINS
+                                )
+                                  .filter((items) => {
+                                    return items.name !== selectedChain.name;
+                                  })
+                                  .map((chain) => (
+                                    <button
+                                      key={chain.chainId}
+                                      type="button"
+                                      disabled={isSwitchingChain}
+                                      onClick={() => handleChainSelect(chain)}
+                                      className={`w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors ${
+                                        selectedChainId === chain.chainId
+                                          ? "bg-purple-50 text-purple-700 font-medium"
+                                          : "hover:bg-gray-50 text-gray-700"
+                                      }`}
+                                    >
+                                      <img
+                                        src={chain.icon}
+                                        alt=""
+                                        className="h-5 w-5 rounded-full"
+                                      />
+                                      {chain.name}
+                                    </button>
+                                  ))}
+                              </div>
+                            </>
+                          )}
+                        </div>
                       </div>
-                    </div>}
+                    )}
 
                     {/* Claim Button or Status */}
                     {!isAuthenticated ? (
                       <button
-                        onClick={() => { dispatch(setWalletModal(true)); onClose(); }}
+                        onClick={() => {
+                          dispatch(setWalletModal(true));
+                          onClose();
+                        }}
                         className="w-full px-8 py-3 rounded-xl font-semibold transition-all shadow-lg bg-black text-white hover:shadow-xl hover:scale-105"
                       >
                         Connect Wallet
@@ -812,8 +882,9 @@ export function CheckinModal({
                   {status?.secondsUntilReset != null &&
                     status.secondsUntilReset > 0 && (
                       <p className="mt-1 text-xs text-gray-800">
-                        Daily bonus <span className="text-red-500 font-bold">resets</span> after you claim it for 7 days. Then a
-                        new cycle begins
+                        Daily bonus{" "}
+                        <span className="text-red-500 font-bold">resets</span>{" "}
+                        after you claim it for 7 days. Then a new cycle begins
                       </p>
                     )}
                 </div>

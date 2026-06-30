@@ -66,7 +66,6 @@ import { erc20Abi, formatEther, formatUnits } from "viem";
 import { AnimatePresence, motion } from "motion/react";
 import ChatMoreInfoModal from "../components/ChatMoreInfoModal";
 import { SellPortfolioModal } from "../components/SellPortfolioModal";
-import { CampaignSlider } from "../components/CampaignSlider";
 import { CampaignBinanceErrorBanner } from "../components/CampaignBinanceErrorBanner";
 import { StatsBanner } from "../components/StatsBanner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -103,13 +102,6 @@ import {
   switchPrivyEmbeddedToChain,
 } from "../utils/privyWalletUtils";
 import { isBinanceWalletConnection } from "../utils/binanceWallet";
-import {
-  parseCustomAmountUsd,
-  isDecimalAmountInput,
-  QUICK_PRESET_AMOUNTS_USD,
-} from "../utils/customAmountInput";
-import { BinanceCampaignCheckinNotice } from "../components/BinanceCampaignCheckinNotice";
-import { useBinanceCampaignCheckin } from "../hooks/useBinanceCampaignCheckin";
 
 const BNB_CHAIN_SWITCH = {
   chainId: 56,
@@ -220,7 +212,7 @@ const NARRATIVE_MODAL_OPTIONS = [
   },
 ];
 
-export function ChatPage() {
+export function ChatPage2() {
   const dispatch = useDispatch();
   const location = useLocation();
   const navigate = useNavigate();
@@ -303,8 +295,6 @@ export function ChatPage() {
   });
   const [executionPrompt, setExecutionPrompt] = useState(null);
   const executionPromptResolverRef = useRef(null);
-  const mobileTopPanelRef = useRef(null);
-  const [mobileTopPanelHeight, setMobileTopPanelHeight] = useState(60);
 
   // Quick portfolio wizard (form-based UX)
 
@@ -415,10 +405,6 @@ export function ChatPage() {
     !isBinanceWalletConnected &&
     !showBinanceBoosterWalletWarning;
 
-  const isBinanceCampaignRoute = location.pathname === "/bwcampaign";
-  const { shouldShowCampaignCheckin, progress: binanceCampaignCheckinProgress } =
-    useBinanceCampaignCheckin();
-
   const resetBinanceWizard = useCallback(() => {
     setBinanceError("");
     setBinanceCampaignError(null);
@@ -498,10 +484,8 @@ export function ChatPage() {
     return Number.isFinite(parsed) && parsed > 0 ? parsed : 0.5;
   }, [chatSlippageSetting]);
 
-  // Route-driven wizard intents use a query param + sessionStorage handshake
-  // so they survive StrictMode and the replace-state cleanup step.
+  // Prove Portfolio "Create" → `/?qw=<id>` + sessionStorage handshake (survives StrictMode + replace state).
   const QUICK_WIZARD_INTENT_PARAM = "qw";
-  const BINANCE_WIZARD_INTENT_PARAM = "bw";
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const intentId = params.get(QUICK_WIZARD_INTENT_PARAM);
@@ -538,45 +522,6 @@ export function ChatPage() {
     location.search,
     isConnected,
     openQuickWizard,
-    navigate,
-  ]);
-
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const intentId = params.get(BINANCE_WIZARD_INTENT_PARAM);
-    if (!intentId) return;
-    const sessionKey = `allox:bwIntent:${intentId}`;
-    if (sessionStorage.getItem(sessionKey) !== "1") return;
-
-    if (!isConnected) {
-      setShowWalletPrompt(true);
-      return;
-    }
-
-    openBinanceWizard();
-
-    const frame = requestAnimationFrame(() => {
-      try {
-        sessionStorage.removeItem(sessionKey);
-      } catch {
-        /* ignore */
-      }
-      params.delete(BINANCE_WIZARD_INTENT_PARAM);
-      const nextSearch = params.toString();
-      navigate(
-        {
-          pathname: location.pathname,
-          search: nextSearch ? `?${nextSearch}` : "",
-        },
-        { replace: true },
-      );
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [
-    location.pathname,
-    location.search,
-    isConnected,
-    openBinanceWizard,
     navigate,
   ]);
 
@@ -1143,47 +1088,6 @@ export function ChatPage() {
   const showChainBalancesPanel =
     !isSolanaWalletSession &&
     SUPPORTED_ONCHAIN_CHAIN_IDS.includes(Number(walletChainId));
-  const showMobileCampaigns =
-    currentMessages.length === 0 && !quickWizardOpen && !binanceWizardOpen;
-  const showMobileTopPanels =
-    isConnected &&
-    !isReadOnly &&
-    (showMobileCampaigns || showChainBalancesPanel);
-  const mobilePanelExpanded =
-    showMobileCampaigns && showChainBalancesPanel && !isBalancesCollapsed;
-  const mobilePanelMinHeight = mobilePanelExpanded ? "min-h-[220px]" : "";
-
-  const handleBinanceCampaignClick = useCallback(() => {
-    if (isReadOnly || messagesRemaining === 0) return;
-    if (!isConnected) {
-      setShowWalletPrompt(true);
-      return;
-    }
-    openBinanceWizard();
-  }, [isConnected, isReadOnly, messagesRemaining, openBinanceWizard]);
-
-  useEffect(() => {
-    const node = mobileTopPanelRef.current;
-    if (!node || !showMobileTopPanels) {
-      setMobileTopPanelHeight(0);
-      return undefined;
-    }
-
-    const updateHeight = () => {
-      setMobileTopPanelHeight(node.offsetHeight);
-    };
-
-    updateHeight();
-    const observer = new ResizeObserver(updateHeight);
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [
-    chainBalances.rows.length,
-    isBalancesCollapsed,
-    showChainBalancesPanel,
-    showMobileCampaigns,
-    showMobileTopPanels,
-  ]);
 
   const renderChainBalancesContent = (compact = false) => {
     if (!isConnected) {
@@ -3860,34 +3764,70 @@ export function ChatPage() {
 
   return (
     <div className="flex-1 flex flex-col">
-      {showMobileCampaigns && (
-        <div
-          className={`sm:hidden mb-3 glass-card flex flex-col border border-gray-200/50 bg-white/85 p-3 shadow-md backdrop-blur-lg ${mobilePanelMinHeight}`}
-        >
-          <h3 className="font-bold text-sm text-gray-900 flex items-center gap-2">
-            <div
-              className={`relative events-page-status-tag-live px-2 flex items-center justify-center gap-0`}
-            >
-              <div
-                className="pulsatingDot"
-                style={{
-                  width: 7,
-                  height: 7,
-                  marginRight: 5,
-                }}
-              ></div>
+      {isConnected && !isReadOnly && showChainBalancesPanel && (
+        <>
+          <div
+            className={
+              isBalancesCollapsed ? "h-15 lg:hidden" : "h-15 lg:hidden"
+            }
+          />
+          <div className="fixed top-20 left-0 right-0 z-30 px-3 sm:px-6 lg:hidden">
+            <div className="mx-auto w-full max-w-250">
+              <div className="glass-card border border-gray-200/50 bg-white/85 p-3 shadow-md backdrop-blur-lg">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className="truncate text-sm font-bold text-gray-900">
+                      {chainBalances.chainLabel} balances
+                    </h3>
+                    {!isBalancesCollapsed && chainBalances.rows.length > 0 && (
+                      <p className="mt-1 text-[11px] text-gray-500">
+                        Swipe to view all tokens
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1">
+                    {!isBalancesCollapsed && (
+                      <button
+                        type="button"
+                        onClick={() => void chainBalancesQuery.refetch()}
+                        disabled={
+                          !isConnected ||
+                          isReadOnly ||
+                          !showChainBalancesPanel ||
+                          chainBalancesQuery.isFetching
+                        }
+                        className="rounded-full p-1.5 text-gray-500 hover:bg-black/5 hover:text-green-600 disabled:opacity-50"
+                        aria-label="Refresh balances"
+                      >
+                        <RefreshCcw className="h-4 w-4" />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setIsBalancesCollapsed((p) => !p)}
+                      className="rounded-full p-1.5 text-gray-500 hover:bg-black/5 hover:text-gray-700"
+                      aria-label={
+                        isBalancesCollapsed
+                          ? "Expand balances"
+                          : "Collapse balances"
+                      }
+                    >
+                      {isBalancesCollapsed ? (
+                        <ChevronDown className="h-4 w-4" />
+                      ) : (
+                        <ChevronUp className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
 
-              <span className="">Campaigns</span>
-            </div>{" "}
-          </h3>
-          <div className="mt-3 flex-1">
-            <CampaignSlider
-              matchedHeight
-              disabled={isReadOnly || messagesRemaining === 0}
-              onBinanceClick={handleBinanceCampaignClick}
-            />
+                {!isBalancesCollapsed && (
+                  <div className="mt-3">{renderChainBalancesContent(true)}</div>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
+        </>
       )}
       <div ref={chatScrollRef} className="flex-1 flex flex-col overflow-y-auto">
         {currentMessages.length === 0 &&
@@ -3896,18 +3836,13 @@ export function ChatPage() {
             <div className="h-full flex items-center justify-center px-6">
               <div className="text-center max-w-2xl relative">
                 <StatsBanner />
-                  <CampaignSlider
-                    className="mb-5"
-                    disabled={isReadOnly || messagesRemaining === 0}
-                    onBinanceClick={handleBinanceCampaignClick}
-                  />
-              
+
                 <h2 className="text-3xl font-bold mb-4">Hello, I'm AlloX</h2>
 
                 <p className="text-gray-600 mb-6">
                   I can help you discover, execute, and manage your portfolio.
                 </p>
-                <div className="flex flex-col items-stretch sm:flex-row sm:items-center justify-center gap-3 mb-4">
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-4">
                   <button
                     type="button"
                     onClick={() => {
@@ -3919,7 +3854,7 @@ export function ChatPage() {
                       openBinanceWizard();
                     }}
                     disabled={isReadOnly || messagesRemaining === 0}
-                    className="inline-flex items-center justify-center gap-2.5 w-full sm:w-auto px-4 sm:px-5 py-2 bg-gradient-to-r from-orange-500/10 via-amber-500/10 to-yellow-500/10 border border-orange-500/20 rounded-full shadow-lg shadow-orange-500/5 backdrop-blur-sm overflow-hidden disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="inline-flex items-center gap-2.5 px-5 py-2 bg-gradient-to-r from-orange-500/10 via-amber-500/10 to-yellow-500/10 border border-orange-500/20 rounded-full shadow-lg shadow-orange-500/5 backdrop-blur-sm overflow-hidden disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     <div className="flex items-center justify-center w-6 h-6 transition-all duration-300">
                       <img
@@ -3928,61 +3863,39 @@ export function ChatPage() {
                       />
                     </div>
                     <span
-                      className={`text-xs sm:text-sm font-semibold bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent transition-all duration-500`}
+                      className={`text-sm font-semibold bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent transition-all duration-500`}
                     >
                       Binance Campaign
                     </span>
-                  </button> 
+                  </button>
                   <NavLink
-                    to="/campaigns?campaign=volume-league"
-                    className="inline-flex items-center justify-center gap-2.5 w-full sm:w-auto px-4 sm:px-5 py-2 bg-gradient-to-r from-teal-500/10 via-cyan-500/10 to-emerald-500/10 border border-cyan-500/20 rounded-full shadow-lg shadow-cyan-500/5 backdrop-blur-sm overflow-hidden"
-                  >
-                    <div className="flex items-center justify-center w-6 h-6 bg-gradient-to-br from-teal-500 to-cyan-500 rounded-full transition-all duration-300">
-                      <TrendingUp
-                        size={14}
-                        className="text-white"
-                        strokeWidth={3}
-                      />
-                    </div>
-                    <span
-                      className={`text-xs sm:text-sm font-semibold bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent transition-all duration-500`}
-                    >
-                      Volume League
-                    </span>
-                  </NavLink>
-                  <NavLink
-                    to="/campaigns?campaign=prove-your-portfolio"
-                    className="inline-flex items-center justify-center gap-2.5 w-full sm:w-auto px-4 sm:px-5 py-2 bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-cyan-500/10 border border-purple-500/20 rounded-full shadow-lg shadow-purple-500/5 backdrop-blur-sm overflow-hidden"
+                    to="/prime-picks"
+                    className="inline-flex items-center gap-2.5 px-5 py-2 bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-cyan-500/10 border border-purple-500/20 rounded-full shadow-lg shadow-purple-500/5 backdrop-blur-sm overflow-hidden"
                   >
                     <div className="flex items-center justify-center w-6 h-6 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full transition-all duration-300">
                       <Gem size={14} className="text-white" strokeWidth={3} />
                     </div>
                     <span
-                      className={`text-xs sm:text-sm font-semibold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent transition-all duration-500`}
+                      className={`text-sm font-semibold bg-linear-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent transition-all duration-500`}
                     >
-                      Prove Portfolio
+                      Prime Picks
                     </span>
                   </NavLink>
                 </div>
-                <div className="mb-8 grid grid-cols-2 md:grid-cols-3 gap-2.5">
+                <div className="mb-8 grid grid-cols-2 md:grid-cols-3 gap-2">
                   {[
                     "Build Quick Portfolio",
-                    "Prime Picks",
                     "Build a Portfolio - Guided",
                     "Explain narratives",
                     "Trending Tokens",
-                    // "How should I invest $100?",
+                    "How should I invest $100?",
                     "Start guided chat",
-                  ].map((suggestion, index) => (
+                  ].map((suggestion) => (
                     <button
                       key={suggestion}
-                      onClick={() =>
-                        index === 1
-                          ? navigate("/prime-picks")
-                          : handleSuggestionClick(suggestion)
-                      }
+                      onClick={() => handleSuggestionClick(suggestion)}
                       disabled={isReadOnly || messagesRemaining === 0}
-                      className="w-full text-center px-3 sm:px-4 py-2 bg-white shadow border border-white text-xs sm:text-sm font-medium leading-tight hover:bg-white/90 hover:shadow-lg hover:border hover:border-gray-200/50 transition-all duration-200 rounded-full disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-white"
+                      className="px-3 sm:px-4 py-2 bg-white shadow border border-white text-xs sm:text-sm font-medium hover:bg-white/90 hover:shadow-lg hover:border hover:border-gray-200/50 transition-all duration-200 rounded-full disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-white"
                     >
                       {suggestion}
                     </button>
@@ -3997,155 +3910,108 @@ export function ChatPage() {
         <aside className="w-60 shrink-0 hidden lg:block fixed right-7">
           <div className="sticky top-24">
             <AnimatePresence initial={false}>
-              {(quickWizardOpen || binanceWizardOpen) && (
+              {showRecentPortfoliosPanel && recentPortfolios.length > 0 && (
                 <motion.div
-                  key="wizard-campaign-slider"
+                  key="recent-portfolios-card"
                   initial={{ opacity: 0, y: 10, height: 0 }}
                   animate={{ opacity: 1, y: 0, height: "auto" }}
                   exit={{ opacity: 0, y: -16, height: 0 }}
                   transition={{ duration: 0.24, ease: "easeInOut" }}
                   className="overflow-hidden"
                 >
-                  <div className="glass-card p-3 border border-gray-200/50 bg-white/40">
-                    <h3 className="font-bold text-lg text-gray-900 flex items-center gap-2">
-                      <div
-                        className={`relative events-page-status-tag-live px-2 flex items-center justify-center gap-0`}
-                      >
-                        <div
-                          className="pulsatingDot"
-                          style={{
-                            width: 7,
-                            height: 7,
-                            marginRight: 5,
-                          }}
-                        ></div>
+                  <div className="glass-card p-4 border border-gray-200/50 bg-white/40">
+                    <div className="flex items-center justify-between gap-2 mb-3">
+                      <h3 className="text-sm font-bold text-gray-900">
+                        Recent portfolios
+                      </h3>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setShowRecentPortfoliosPanel(false)}
+                          className="p-1 rounded-lg hover:bg-black/5 text-gray-500"
+                          aria-label="Hide recent portfolios"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    </div>
 
-                        <span className="">Campaigns</span>
-                      </div>{" "}
-                    </h3>
-                    <CampaignSlider
-                      variant="compact"
-                      disabled={isReadOnly || messagesRemaining === 0}
-                      onBinanceClick={() => {
-                        if (isReadOnly || messagesRemaining === 0) return;
-                        if (!isConnected) {
-                          setShowWalletPrompt(true);
-                          return;
-                        }
-                        openBinanceWizard();
-                      }}
-                    />
+                    {recentPortfoliosLoading ? (
+                      <div className="space-y-3">
+                        {[0, 1, 2].map((i) => (
+                          <div
+                            key={i}
+                            className="p-3 rounded-2xl border border-gray-200/60 bg-white/60 animate-pulse"
+                          >
+                            <div className="h-3 bg-gray-200/70 rounded w-2/3 mb-2" />
+                            <div className="h-2 bg-gray-200/60 rounded w-4/5 mb-2" />
+                            <div className="h-2 bg-gray-200/60 rounded w-1/2" />
+                          </div>
+                        ))}
+                      </div>
+                    ) : recentPortfolios.length > 0 ? (
+                      <div className="space-y-3">
+                        {recentPortfolios.map((p) => {
+                          const pid = p?.id;
+                          if (!pid) return null;
+                          const name = p?.name || "Portfolio";
+                          const displayId =
+                            String(pid).length > 12
+                              ? `${String(pid).slice(0, 6)}...${String(
+                                  pid,
+                                ).slice(-4)}`
+                              : String(pid);
+                          const totalValue =
+                            p?.totalCurrentValue ??
+                            p?.totalCurrentValueUsd ??
+                            p?.totalValue;
+
+                          return (
+                            <button
+                              key={String(pid)}
+                              type="button"
+                              disabled={messagesRemaining === 0}
+                              onClick={() =>
+                                sendChatMessage(
+                                  `Tell me more details about my portfolio with ID: ${pid}`,
+                                )
+                              }
+                              className="w-full text-left p-3 rounded-2xl border border-gray-200/60 bg-white/60 hover:bg-white/80 hover:border-gray-300 hover:shadow-md transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <div className="text-sm font-semibold text-gray-900 truncate">
+                                    {name}
+                                  </div>
+                                  <div className="text-[11px] text-gray-600 mt-1 truncate">
+                                    ID: {displayId}
+                                  </div>
+                                  {p?.riskProfile ? (
+                                    <div className="text-[11px] text-gray-600 mt-1">
+                                      Risk:{" "}
+                                      {String(p.riskProfile).replace(/_/g, " ")}
+                                    </div>
+                                  ) : null}
+                                </div>
+                              </div>
+
+                              {totalValue != null ? (
+                                <div className="mt-2 text-xs text-gray-700">
+                                  Value: {`$${Number(totalValue).toFixed(2)}`}
+                                </div>
+                              ) : null}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="text-xs text-gray-500">
+                        No portfolios yet.
+                      </div>
+                    )}
                   </div>
                 </motion.div>
               )}
-              {!quickWizardOpen &&
-                !binanceWizardOpen &&
-                showRecentPortfoliosPanel &&
-                recentPortfolios.length > 0 && (
-                  <motion.div
-                    key="recent-portfolios-card"
-                    initial={{ opacity: 0, y: 10, height: 0 }}
-                    animate={{ opacity: 1, y: 0, height: "auto" }}
-                    exit={{ opacity: 0, y: -16, height: 0 }}
-                    transition={{ duration: 0.24, ease: "easeInOut" }}
-                    className="overflow-hidden"
-                  >
-                    <div className="glass-card p-4 border border-gray-200/50 bg-white/40">
-                      <div className="flex items-center justify-between gap-2 mb-3">
-                        <h3 className="text-sm font-bold text-gray-900">
-                          Recent portfolios
-                        </h3>
-                        <div className="flex items-center gap-1 shrink-0">
-                          <button
-                            type="button"
-                            onClick={() => setShowRecentPortfoliosPanel(false)}
-                            className="p-1 rounded-lg hover:bg-black/5 text-gray-500"
-                            aria-label="Hide recent portfolios"
-                          >
-                            <X size={16} />
-                          </button>
-                        </div>
-                      </div>
-
-                      {recentPortfoliosLoading ? (
-                        <div className="space-y-3">
-                          {[0, 1, 2].map((i) => (
-                            <div
-                              key={i}
-                              className="p-3 rounded-2xl border border-gray-200/60 bg-white/60 animate-pulse"
-                            >
-                              <div className="h-3 bg-gray-200/70 rounded w-2/3 mb-2" />
-                              <div className="h-2 bg-gray-200/60 rounded w-4/5 mb-2" />
-                              <div className="h-2 bg-gray-200/60 rounded w-1/2" />
-                            </div>
-                          ))}
-                        </div>
-                      ) : recentPortfolios.length > 0 ? (
-                        <div className="space-y-3">
-                          {recentPortfolios.map((p) => {
-                            const pid = p?.id;
-                            if (!pid) return null;
-                            const name = p?.name || "Portfolio";
-                            const displayId =
-                              String(pid).length > 12
-                                ? `${String(pid).slice(0, 6)}...${String(
-                                    pid,
-                                  ).slice(-4)}`
-                                : String(pid);
-                            const totalValue =
-                              p?.totalCurrentValue ??
-                              p?.totalCurrentValueUsd ??
-                              p?.totalValue;
-
-                            return (
-                              <button
-                                key={String(pid)}
-                                type="button"
-                                disabled={messagesRemaining === 0}
-                                onClick={() =>
-                                  sendChatMessage(
-                                    `Tell me more details about my portfolio with ID: ${pid}`,
-                                  )
-                                }
-                                className="w-full text-left p-3 rounded-2xl border border-gray-200/60 bg-white/60 hover:bg-white/80 hover:border-gray-300 hover:shadow-md transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-                              >
-                                <div className="flex items-start justify-between gap-3">
-                                  <div className="min-w-0">
-                                    <div className="text-sm font-semibold text-gray-900 truncate">
-                                      {name}
-                                    </div>
-                                    <div className="text-[11px] text-gray-600 mt-1 truncate">
-                                      ID: {displayId}
-                                    </div>
-                                    {p?.riskProfile ? (
-                                      <div className="text-[11px] text-gray-600 mt-1">
-                                        Risk:{" "}
-                                        {String(p.riskProfile).replace(
-                                          /_/g,
-                                          " ",
-                                        )}
-                                      </div>
-                                    ) : null}
-                                  </div>
-                                </div>
-
-                                {totalValue != null ? (
-                                  <div className="mt-2 text-xs text-gray-700">
-                                    Value: {`$${Number(totalValue).toFixed(2)}`}
-                                  </div>
-                                ) : null}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <div className="text-xs text-gray-500">
-                          No portfolios yet.
-                        </div>
-                      )}
-                    </div>
-                  </motion.div>
-                )}
             </AnimatePresence>
             {showChainBalancesPanel && (
               <div className="mt-3 glass-card p-4 border border-gray-200/50 bg-white/40">
@@ -4639,13 +4505,6 @@ export function ChatPage() {
                             )}
                           </>
                         )}
-  <BinanceCampaignCheckinNotice
-                        progress={
-                          shouldShowCampaignCheckin
-                            ? binanceCampaignCheckinProgress
-                            : null
-                        }
-                      />
 
                       <div className="space-y-3 sm:space-y-4">
                         <div className="rounded-2xl bg-white/70 border border-gray-200/60 p-3 sm:p-4 shadow-sm">
@@ -4689,9 +4548,8 @@ export function ChatPage() {
                               onClick={() =>
                                 setBinanceForm((p) => ({
                                   ...p,
-                                  amountUsd: parseCustomAmountUsd(
-                                    p.customAmountUsdText,
-                                  ),
+                                  amountUsd: null,
+                                  customAmountUsdText: "",
                                 }))
                               }
                               disabled={
@@ -4715,27 +4573,18 @@ export function ChatPage() {
                             Custom amount (USD)
                           </label>
                           <input
-                            type="text"
-                            inputMode="decimal"
-                            autoComplete="off"
-                            maxLength={12}
+                            type="number"
+                            min={BINANCE_CAMPAIGN_MIN_AMOUNT_USD}
+                            maxLength={8}
                             value={binanceForm.customAmountUsdText}
-                            placeholder={`$ e.g. 750 (min $${BINANCE_CAMPAIGN_MIN_AMOUNT_USD})`}
+                            placeholder={`$ e.g. 750`}
                             onChange={(e) => {
                               const raw = e.target.value;
-                              if (!isDecimalAmountInput(raw)) return;
                               setBinanceForm((p) => ({
                                 ...p,
                                 customAmountUsdText: raw,
-                                amountUsd: parseCustomAmountUsd(raw),
-                              }));
-                            }}
-                            onBlur={() => {
-                              setBinanceForm((p) => ({
-                                ...p,
-                                amountUsd: parseCustomAmountUsd(
-                                  p.customAmountUsdText,
-                                ),
+                                amountUsd:
+                                  raw.trim() === "" ? null : Number(raw),
                               }));
                             }}
                             disabled={binanceIsGenerating || binanceIsExecuting}
@@ -5090,7 +4939,6 @@ export function ChatPage() {
                     </ChatBubble>
                   )}
 
-
                 </>
               )}
 
@@ -5295,10 +5143,8 @@ export function ChatPage() {
                           How much would you like to invest?
                         </div>
                         <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 mb-3">
-                          {QUICK_PRESET_AMOUNTS_USD.map((amt) => {
-                            const selected =
-                              quickForm.amountUsd === amt &&
-                              quickForm.customAmountUsdText === "";
+                          {[5, 100, 500].map((amt) => {
+                            const selected = quickForm.amountUsd === amt;
                             return (
                               <button
                                 key={amt}
@@ -5326,18 +5172,12 @@ export function ChatPage() {
                             onClick={() =>
                               setQuickForm((p) => ({
                                 ...p,
-                                amountUsd: parseCustomAmountUsd(
-                                  p.customAmountUsdText,
-                                ),
+                                amountUsd: null,
                               }))
                             }
                             disabled={quickIsGenerating || quickIsExecuting}
                             className={
-                              quickForm.customAmountUsdText !== "" ||
-                              (quickForm.amountUsd != null &&
-                                !QUICK_PRESET_AMOUNTS_USD.includes(
-                                  quickForm.amountUsd,
-                                ))
+                              quickForm.amountUsd == null
                                 ? "px-4 py-2.5 bg-gray-900 text-white border border-gray-900 rounded-xl text-sm font-medium hover:bg-gray-800 shadow-sm"
                                 : "px-4 py-2.5 bg-white/80 border border-gray-200 rounded-xl text-sm font-medium hover:bg-white hover:border-gray-300"
                             }
@@ -5349,27 +5189,17 @@ export function ChatPage() {
                           Custom amount (USD)
                         </label>
                         <input
-                          type="text"
-                          inputMode="decimal"
-                          autoComplete="off"
-                          maxLength={12}
+                          type="number"
+                          min="1"
+                          maxLength={8}
                           value={quickForm.customAmountUsdText}
                           placeholder="$ e.g. 250"
                           onChange={(e) => {
                             const raw = e.target.value;
-                            if (!isDecimalAmountInput(raw)) return;
                             setQuickForm((p) => ({
                               ...p,
                               customAmountUsdText: raw,
-                              amountUsd: parseCustomAmountUsd(raw),
-                            }));
-                          }}
-                          onBlur={() => {
-                            setQuickForm((p) => ({
-                              ...p,
-                              amountUsd: parseCustomAmountUsd(
-                                p.customAmountUsdText,
-                              ),
+                              amountUsd: raw.trim() === "" ? null : Number(raw),
                             }));
                           }}
                           disabled={quickIsGenerating || quickIsExecuting}

@@ -33,6 +33,7 @@ import getFormattedNumber from "../hooks/get-formatted-number";
 import { useSocial } from "../hooks/useSocial";
 import { useGemsStatus } from "../hooks/useGemsStatus";
 import { getTierStyle } from "../utils/gemsTier";
+import { getBinanceBoosterAddrFromLocation } from "../utils/binanceCampaign";
 
 // Custom X (Twitter) Logo Component
 function XLogo({ className }) {
@@ -63,7 +64,9 @@ export function PointsPage() {
   const [showWelcomeGiftModal, setShowWelcomeGiftModal] = useState(false);
   const [claiming, setClaiming] = useState(false);
   const [claimError, setClaimError] = useState(null);
-  const { isConnected } = useSelector((state) => state.wallet);
+  const { isConnected, address: walletAddress } = useSelector(
+    (state) => state.wallet,
+  );
 
   const html = document.querySelector("html");
 
@@ -293,16 +296,34 @@ export function PointsPage() {
   }, []);
 
   useEffect(() => {
-    if (location.hash !== "#daily-bonus") return;
+    if (!String(location.hash || "").startsWith("#daily-bonus")) return;
+    const boosterAddr = getBinanceBoosterAddrFromLocation(
+      location.search,
+      location.hash,
+    );
+    const matchesBoosterAddress =
+      !!boosterAddr &&
+      !!walletAddress &&
+      walletAddress.toLowerCase() === boosterAddr;
+
+    if (boosterAddr && !matchesBoosterAddress) return;
 
     if (!isConnected) {
-      dispatch(setWalletModal(true));
+      // dispatch(setWalletModal(true));
+      dispatch(openCheckinModal());
     } else {
       dispatch(openCheckinModal());
     }
 
     // navigate({ pathname: "/rewards", hash: "" }, { replace: true });
-  }, [location.hash, isConnected, dispatch, navigate]);
+  }, [
+    location.hash,
+    location.search,
+    isConnected,
+    walletAddress,
+    dispatch,
+    navigate,
+  ]);
 
   return (
     <div className="space-y-6 flex-1 px-6 py-8 portfolio-wrapper ms-auto w-full overflow-y-auto">

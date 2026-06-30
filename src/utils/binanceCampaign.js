@@ -185,18 +185,224 @@ export function buildBinanceExecutionFromGenerate({ meta, basket, quote }) {
   };
 }
 
+/** Binance Wallet campaign — daily check-in qualification (any 14 days in 30-day window). */
+export const BINANCE_CAMPAIGN_REQUIRED_CHECKINS = 14;
+export const BINANCE_CAMPAIGN_PERIOD_DAYS = 30;
+
+export const BINANCE_CAMPAIGN_CHECKIN_NOTICE =
+  "For the Binance Wallet campaign, complete 14 daily check-ins within the 30-day campaign period to qualify for rewards.";
+
+export const BINANCE_CAMPAIGN_CHECKIN_NOTICE_DETAIL =
+  "The 14 check-ins do not need to be consecutive.";
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+function toUtcDateKey(value) {
+  if (value == null || value === "") return null;
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value.trim())) {
+    return value.trim();
+  }
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString().slice(0, 10);
+}
+
+function addUtcDays(dateKey, days) {
+  const date = new Date(`${dateKey}T00:00:00.000Z`);
+  if (Number.isNaN(date.getTime())) return null;
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function resolveCampaignWindow({
+  campaignStartAt,
+  campaignEndAt,
+  periodDays = BINANCE_CAMPAIGN_PERIOD_DAYS,
+} = {}) {
+  const endKey =
+    toUtcDateKey(campaignEndAt) ?? toUtcDateKey(new Date().toISOString());
+  const startKey =
+    toUtcDateKey(campaignStartAt) ??
+    (endKey ? addUtcDays(endKey, -(periodDays - 1)) : null);
+  if (!startKey || !endKey) {
+    return { startKey: null, endKey: null };
+  }
+  return { startKey, endKey };
+}
+
+function normalizeCheckinHistoryEntries(history) {
+  const items = Array.isArray(history)
+    ? history
+    : history?.checkIns ??
+      history?.history ??
+      history?.items ??
+      history?.entries ??
+      [];
+  if (!Array.isArray(items)) return [];
+  return items;
+}
+
+/**
+ * Count unique daily check-ins within the campaign window.
+ * Days do not need to be consecutive.
+ */
+export function countCampaignCheckinsInWindow(
+  history,
+  {
+    campaignStartAt,
+    campaignEndAt,
+    periodDays = BINANCE_CAMPAIGN_PERIOD_DAYS,
+  } = {},
+) {
+  const { startKey, endKey } = resolveCampaignWindow({
+    campaignStartAt,
+    campaignEndAt,
+    periodDays,
+  });
+  if (!startKey || !endKey) return 0;
+
+  const uniqueDays = new Set();
+  for (const item of normalizeCheckinHistoryEntries(history)) {
+    const dayKey =
+      toUtcDateKey(item?.date) ??
+      toUtcDateKey(item?.checkInDate) ??
+      toUtcDateKey(item?.checkedInAt) ??
+      toUtcDateKey(item?.timestamp) ??
+      toUtcDateKey(item?.createdAt);
+    if (!dayKey) continue;
+    if (dayKey >= startKey && dayKey <= endKey) {
+      uniqueDays.add(dayKey);
+    }
+  }
+  return uniqueDays.size;
+}
+
+export function isBinanceCampaignCheckinQualified(
+  completed,
+  required = BINANCE_CAMPAIGN_REQUIRED_CHECKINS,
+) {
+  return Number(completed) >= Number(required);
+}
+
+/**
+ * Normalize Binance campaign check-in progress from `/checkin/status` (or history fallback).
+ */
+export function parseBinanceCampaignCheckinProgress({
+  checkinStatus,
+  checkinHistory,
+} = {}) {
+  const campaign =
+    checkinStatus?.binanceCampaign ??
+    checkinStatus?.binanceWalletCampaign ??
+    checkinStatus?.campaign ??
+    null;
+
+  const requiredCheckIns = Number(
+    campaign?.requiredCheckIns ??
+      campaign?.requiredDays ??
+      checkinStatus?.binanceCampaignRequiredCheckIns ??
+      BINANCE_CAMPAIGN_REQUIRED_CHECKINS,
+  );
+
+  const periodDays = Number(
+    campaign?.periodDays ??
+      campaign?.campaignPeriodDays ??
+      checkinStatus?.binanceCampaignPeriodDays ??
+      BINANCE_CAMPAIGN_PERIOD_DAYS,
+  );
+
+  const campaignStartAt =
+    campaign?.campaignStartAt ??
+    campaign?.startAt ??
+    campaign?.startsAt ??
+    checkinStatus?.binanceCampaignStartAt ??
+    null;
+
+  const campaignEndAt =
+    campaign?.campaignEndAt ??
+    campaign?.endAt ??
+    campaign?.endsAt ??
+    checkinStatus?.binanceCampaignEndAt ??
+    null;
+
+  const completedFromApi = Number(
+    campaign?.checkInsCompleted ??
+      campaign?.completedCheckIns ??
+      campaign?.checkInsInPeriod ??
+      campaign?.totalCheckIns ??
+      checkinStatus?.binanceCampaignCheckInsCompleted,
+  );
+
+  const completed = Number.isFinite(completedFromApi)
+    ? completedFromApi
+    : countCampaignCheckinsInWindow(checkinHistory, {
+        campaignStartAt,
+        campaignEndAt,
+        periodDays,
+      });
+
+  const qualified =
+    campaign?.qualified === true ||
+    campaign?.isQualified === true ||
+    isBinanceCampaignCheckinQualified(completed, requiredCheckIns);
+
+  const { startKey, endKey } = resolveCampaignWindow({
+    campaignStartAt,
+    campaignEndAt,
+    periodDays,
+  });
+
+  let daysRemainingInPeriod = null;
+  if (endKey) {
+    const todayKey = toUtcDateKey(new Date().toISOString());
+    const endMs = new Date(`${endKey}T00:00:00.000Z`).getTime();
+    const todayMs = new Date(`${todayKey}T00:00:00.000Z`).getTime();
+    daysRemainingInPeriod = Math.max(
+      0,
+      Math.floor((endMs - todayMs) / MS_PER_DAY) + 1,
+    );
+  }
+
+  return {
+    completed,
+    requiredCheckIns,
+    periodDays,
+    qualified,
+    campaignStartAt: startKey,
+    campaignEndAt: endKey,
+    daysRemainingInPeriod,
+    checkInsRemaining: Math.max(0, requiredCheckIns - completed),
+  };
+}
+
 export const BINANCE_BOOSTER_ADDR_STORAGE_KEY = "binance_booster_addr";
 export const BINANCE_BOOSTER_ADDR_PARAM = "binanceBoosterVerAddr";
 export const BINANCE_WALLET_ADDRESS_HELP_URL =
   "https://www.binance.com/en/support/faq/detail/ebfa9f504ec548968bf0c1ed591a3eaa";
 
-/** Persist campaign keyless wallet from `?binanceBoosterVerAddr=` (any page load). */
-export function persistBinanceBoosterAddrFromSearch(search) {
-  const params = new URLSearchParams(search || "");
-  const raw = params.get(BINANCE_BOOSTER_ADDR_PARAM)?.trim();
+export function getBinanceBoosterAddrFromLocation(search = "", hash = "") {
+  const searchParams = new URLSearchParams(search || "");
+  const fromSearch = searchParams.get(BINANCE_BOOSTER_ADDR_PARAM)?.trim();
+  if (fromSearch) return fromSearch.toLowerCase();
+
+  const normalizedHash = String(hash || "").replace(/^#/, "");
+  const hashQueryIndex = normalizedHash.indexOf("?");
+  if (hashQueryIndex >= 0) {
+    const hashQuery = normalizedHash.slice(hashQueryIndex + 1);
+    const hashParams = new URLSearchParams(hashQuery);
+    const fromHash = hashParams.get(BINANCE_BOOSTER_ADDR_PARAM)?.trim();
+    if (fromHash) return fromHash.toLowerCase();
+  }
+
+  return null;
+}
+
+/** Persist campaign keyless wallet from URL (search or hash query). */
+export function persistBinanceBoosterAddrFromLocation(search, hash) {
+  const raw = getBinanceBoosterAddrFromLocation(search, hash);
   if (!raw) return;
   try {
-    localStorage.setItem(BINANCE_BOOSTER_ADDR_STORAGE_KEY, raw.toLowerCase());
+    localStorage.setItem(BINANCE_BOOSTER_ADDR_STORAGE_KEY, raw);
   } catch {
     /* ignore */
   }
@@ -208,6 +414,87 @@ export function getStoredBinanceBoosterAddr() {
   } catch {
     return null;
   }
+}
+
+export function isCampaignBinanceEndpoint(endpoint) {
+  return (
+    typeof endpoint === "string" && /^\/campaigns\/binance(?:\/|$)/.test(endpoint)
+  );
+}
+
+/** Structured error from any `/campaigns/binance/*` error response. */
+export function parseCampaignBinanceError(errOrData) {
+  if (!errOrData) return null;
+
+  const preset = errOrData?.campaignError;
+  if (preset && typeof preset === "object") {
+    return preset;
+  }
+
+  const data = errOrData?.data ?? errOrData;
+  const error = data?.error;
+  if (!error || typeof error !== "object" || (!error.message && !error.code)) {
+    return null;
+  }
+
+  const retryAfterSeconds = Number(error.retryAfterSeconds);
+  return {
+    code: error.code ?? null,
+    message: error.message ?? "Something went wrong. Please try again.",
+    eta: error.eta ?? null,
+    retryAfterSeconds: Number.isFinite(retryAfterSeconds)
+      ? retryAfterSeconds
+      : null,
+    requestId: error.requestId ?? null,
+    timestamp: error.timestamp ?? null,
+  };
+}
+
+const CAMPAIGN_BINANCE_RETRY_MAX_ATTEMPTS = 20;
+
+/**
+ * Call a `/campaigns/binance/*` endpoint; show structured errors via `onCampaignError`
+ * and auto-retry when `error.retryAfterSeconds` is present.
+ */
+export async function campaignBinanceApiCall(
+  apiCallFn,
+  endpoint,
+  options = {},
+  { onCampaignError } = {},
+) {
+  for (let attempt = 0; attempt < CAMPAIGN_BINANCE_RETRY_MAX_ATTEMPTS; attempt++) {
+    try {
+      const result = await apiCallFn(endpoint, options);
+      onCampaignError?.(null, { isRetrying: false });
+      return result;
+    } catch (err) {
+      const campaignError = parseCampaignBinanceError(err);
+      if (!campaignError) throw err;
+
+      const retrySec = campaignError.retryAfterSeconds;
+      const canRetry =
+        retrySec != null &&
+        retrySec > 0 &&
+        attempt < CAMPAIGN_BINANCE_RETRY_MAX_ATTEMPTS - 1;
+
+      onCampaignError?.(campaignError, {
+        isRetrying: canRetry,
+        retryInSeconds: canRetry ? retrySec : null,
+      });
+
+      if (!canRetry) {
+        throw {
+          ...err,
+          campaignError,
+          message: campaignError.message,
+        };
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, retrySec * 1000));
+    }
+  }
+
+  throw new Error("Campaign request failed after multiple retries.");
 }
 
 export function getBinanceMissingSelections(form) {

@@ -12,6 +12,7 @@ import { WalletModal } from "./components/WalletModal";
 import { LaunchSidebar } from "./components/LaunchSidebar";
 import { Header } from "./components/Header";
 import { ChatPage } from "./pages/ChatPage";
+import { ChatPage2 } from "./pages/ChatPage2";
 import { PortfolioPage } from "./pages/PortfolioPage";
 import { TradingPage } from "./pages/TradingPage";
 import { StakingPage } from "./pages/StakingPage";
@@ -28,12 +29,14 @@ import {
   watchAccount,
   watchConnections,
 } from "@wagmi/core";
+import { subscribeWalletConnectForceConnect } from "./utils/walletConnectForceConnect";
+import { resolveSemanticWalletType } from "./utils/resolveSemanticWalletType";
+
 import {
   isBinanceConnectorLike,
   restoreBinanceSessionMarkerFromPersistence,
 } from "./utils/binanceWallet";
-import { subscribeWalletConnectForceConnect } from "./utils/walletConnectForceConnect";
-import { resolveSemanticWalletType } from "./utils/resolveSemanticWalletType";
+
 import {
   clearBinanceWalletSession,
   clearPersistedWalletProvider,
@@ -97,7 +100,15 @@ import { MaintenancePage } from "./pages/MaintenancePage";
 import { TopPortfoliosPage } from "./pages/TopPortfoliosPage";
 import { WatchlistPage } from "./pages/WatchlistPage";
 import { PrimePicks } from "./pages/PrimePicks";
-import { persistBinanceBoosterAddrFromSearch } from "./utils/binanceCampaign";
+import {
+  BINANCE_BOOSTER_ADDR_PARAM,
+  BINANCE_WALLET_ADDRESS_HELP_URL,
+  getBinanceBoosterAddrFromLocation,
+  getStoredBinanceBoosterAddr,
+  persistBinanceBoosterAddrFromLocation,
+} from "./utils/binanceCampaign";
+import { BinanceBoosterWalletModal } from "./components/BinanceBoosterWalletModal";
+import { isBinanceWalletConnection } from "./utils/binanceWallet";
 
 const MAINTENANCE_MODE = false;
 
@@ -196,8 +207,14 @@ function LaunchAppLayout() {
     walletType,
     checkinModal,
     chainId,
+    sessionSource,
   } = useSelector((state) => state.wallet);
   const [fundModalOpen, setFundModalOpen] = useState(false);
+  const [binanceBoosterAddr, setBinanceBoosterAddr] = useState(() =>
+    getStoredBinanceBoosterAddr(),
+  );
+  const [dismissedBinanceWalletWarningKey, setDismissedBinanceWalletWarningKey] =
+    useState(null);
   const { token, user, logout, ensureAuthenticated } = useAuth();
   const {
     login,
@@ -214,8 +231,54 @@ function LaunchAppLayout() {
   const privyVerifyCooldownUntilRef = useRef(0);
 
   useEffect(() => {
-    persistBinanceBoosterAddrFromSearch(location.search);
-  }, [location.search]);
+    persistBinanceBoosterAddrFromLocation(location.search, location.hash);
+    setBinanceBoosterAddr(getStoredBinanceBoosterAddr());
+  }, [location.search, location.hash]);
+  const hasBinanceBoosterAddrParam = !!getBinanceBoosterAddrFromLocation(
+    location.search,
+    location.hash,
+  );
+
+  const isBinanceWalletConnected = isBinanceWalletConnection({
+    connector,
+    walletType,
+    sessionSource,
+    isWalletConnected: isConnected,
+  });
+  const showBinanceBoosterWalletWarning =
+    isConnected &&
+    !!binanceBoosterAddr &&
+    !!address &&
+    address.toLowerCase() !== binanceBoosterAddr;
+  const isRewardsDailyBonusBoosterMatch =
+    location.pathname === "/rewards" &&
+    String(location.hash || "").startsWith("#daily-bonus") &&
+    !!binanceBoosterAddr &&
+    !!address &&
+    address.toLowerCase() === binanceBoosterAddr;
+  const showBinanceCampaignIneligibleWarning =
+    isConnected &&
+    !isRewardsDailyBonusBoosterMatch &&
+    !isBinanceWalletConnected &&
+    !showBinanceBoosterWalletWarning;
+  const binanceWalletWarningVariant = showBinanceBoosterWalletWarning
+    ? "wrong-address"
+    : showBinanceCampaignIneligibleWarning
+      ? "ineligible-wallet"
+      : null;
+  const activeBinanceWalletWarningKey =
+    hasBinanceBoosterAddrParam && binanceWalletWarningVariant
+      ? `${location.pathname}:${binanceWalletWarningVariant}:${address || ""}:${binanceBoosterAddr || ""}`
+      : null;
+  const showBinanceWalletWarningModal =
+    !!activeBinanceWalletWarningKey &&
+    dismissedBinanceWalletWarningKey !== activeBinanceWalletWarningKey;
+
+  useEffect(() => {
+    if (!activeBinanceWalletWarningKey) {
+      setDismissedBinanceWalletWarningKey(null);
+    }
+  }, [activeBinanceWalletWarningKey]);
 
   const attemptWalletAuthentication = useCallback(
     async ({
@@ -508,10 +571,8 @@ function LaunchAppLayout() {
     //   console.warn("Solana wallet disconnect:", e);
     // }
     // }
-    // else
-    if (connector) {
-      await disconnect(wagmiClient, { connector });
-    }
+    // Ensure all wagmi connector sessions are cleared (v3 keeps per-connector connections).
+    await disconnectAllEvmWagmi();
     dispatch(setAddress(null));
     dispatch(setChainId(null));
     dispatch(setIsConnected(false));
@@ -523,7 +584,7 @@ function LaunchAppLayout() {
     dispatch(clearCheckin());
     // Fully clear auth state (token + user) across the app (includes Privy logout via bridge)
     await logout();
-  });
+  }, [dispatch, disconnectSolana, logout]);
 
   useEffect(() => {
     const points = user?.season1?.points;
@@ -667,20 +728,35 @@ function LaunchAppLayout() {
     );
 
     if (connector) {
-      connect(wagmiClient, { connector })
-        .then(() => {
-          clearBinanceWalletSession();
-          clearPersistedWalletProvider();
-          const type = option.walletType === "metamask" ? "metamask" : "evm";
-          dispatch(setWalletType(type));
-          persistWalletType(type);
-          dispatch(setIsConnected(true));
-          dispatch(setSessionSource("wallet"));
-        })
-        .catch((err) => {
+      try {
+        // Defensive cleanup for stale connector state before reconnect.
+        await disconnectAllEvmWagmi();
+        await connect(wagmiClient, { connector });
+        const type = option.walletType === "metamask" ? "metamask" : "evm";
+        dispatch(setWalletType(type));
+        persistWalletType(type);
+        dispatch(setIsConnected(true));
+        dispatch(setSessionSource("wallet"));
+      } catch (err) {
+        const message = String(err?.message || "").toLowerCase();
+        if (message.includes("already connected")) {
+          try {
+            await disconnect(wagmiClient, { connector });
+            await connect(wagmiClient, { connector });
+            const type = option.walletType === "metamask" ? "metamask" : "evm";
+            dispatch(setWalletType(type));
+            persistWalletType(type);
+            dispatch(setIsConnected(true));
+            dispatch(setSessionSource("wallet"));
+            return;
+          } catch (retryErr) {
+            console.error("Wallet reconnect after stale session failed:", retryErr);
+          }
+        } else {
           console.error("Wallet connection error:", err);
-          toast.error("Failed to connect wallet. Please try again.");
-        });
+        }
+        toast.error("Failed to connect wallet. Please try again.");
+      }
     } else {
       toast.error(
         option.name +
@@ -747,6 +823,15 @@ function LaunchAppLayout() {
         fetchStatus={fetchCheckinStatus}
         addOptimisticCheckinPoints={addOptimisticCheckinPoints}
         loading={checkinLoading}
+      />
+      <BinanceBoosterWalletModal
+        isOpen={showBinanceWalletWarningModal}
+        onClose={() =>
+          setDismissedBinanceWalletWarningKey(activeBinanceWalletWarningKey)
+        }
+        expectedAddress={binanceBoosterAddr}
+        helpUrl={BINANCE_WALLET_ADDRESS_HELP_URL}
+        variant={binanceWalletWarningVariant}
       />
     </div>
   );
@@ -835,19 +920,32 @@ function BetaAccessLayout() {
       c.name.toLowerCase().includes(option.name.toLowerCase()),
     );
     if (connector) {
-      connect(wagmiClient, { connector })
-        .then(() => {
-          clearBinanceWalletSession();
-          clearPersistedWalletProvider();
-          const type = option.walletType === "metamask" ? "metamask" : "evm";
-          dispatch(setWalletType(type));
-          persistWalletType(type);
-          dispatch(setSessionSource("wallet"));
-        })
-        .catch((err) => {
+      try {
+        await disconnectAllEvmWagmi();
+        await connect(wagmiClient, { connector });
+        const type = option.walletType === "metamask" ? "metamask" : "evm";
+        dispatch(setWalletType(type));
+        persistWalletType(type);
+        dispatch(setSessionSource("wallet"));
+      } catch (err) {
+        const message = String(err?.message || "").toLowerCase();
+        if (message.includes("already connected")) {
+          try {
+            await disconnect(wagmiClient, { connector });
+            await connect(wagmiClient, { connector });
+            const type = option.walletType === "metamask" ? "metamask" : "evm";
+            dispatch(setWalletType(type));
+            persistWalletType(type);
+            dispatch(setSessionSource("wallet"));
+            return;
+          } catch (retryErr) {
+            console.error("Wallet reconnect after stale session failed:", retryErr);
+          }
+        } else {
           console.error("Wallet connection error:", err);
-          toast.error("Failed to connect wallet. Please try again.");
-        });
+        }
+        toast.error("Failed to connect wallet. Please try again.");
+      }
     } else {
       toast.error(
         option.name +
@@ -1218,10 +1316,7 @@ function App() {
           <Route path="/staking" element={<StakingPage />} />
           <Route path="/history" element={<HistoryPage />} />
           <Route path="/referrals" element={<ReferralsPage />} />
-          <Route
-            path="/binance-volume-campaign"
-            element={<BinanceVolumeCampaignPage />}
-          />
+          <Route path="/bwcampaign" element={<ChatPage2 />} />
         </Route>
       </Routes>
       {showModal && (
