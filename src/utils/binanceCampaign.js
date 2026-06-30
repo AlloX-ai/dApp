@@ -14,6 +14,9 @@ export const BINANCE_CAMPAIGN_SOURCE = "binance_campaign";
 export const BINANCE_CAMPAIGN_GENERATE_PATH =
   "/campaigns/binance/portfolio/generate";
 
+export const VOLUME_LEAGUE_CAMPAIGN_GENERATE_PATH =
+  "/campaigns/volume-league/portfolio/generate";
+
 export const BINANCE_CAMPAIGN_SOURCE_TOKENS = ["USDT", "USDC", "BNB"];
 
 /** Reward tiers — min portfolio volume (USD) per Binance campaign lucky draw */
@@ -36,6 +39,24 @@ export const PRIME_PICKS_INCLUDED_TOKENS = [
   { symbol: "LINK", iconColor: "bg-blue-700", logo: 'https://cdn.allox.ai/allox/tokens/linkToken.png' },
   { symbol: "UNI", iconColor: "bg-pink-400", logo: 'https://cdn.allox.ai/allox/tokens/uniToken.png' },
   { symbol: "ASTER", iconColor: "bg-purple-500", logo: 'https://cdn.allox.ai/allox/tokens/asterToken.png' },
+];
+
+export const BINANCE_DISPLAY_POOL_TOKENS = [
+  {
+    symbol: "AERO",
+    iconColor: "bg-sky-400",
+    logo: "https://cdn.allox.ai/allox/tokens/aero.svg",
+  },
+  {
+    symbol: "SHIB",
+    iconColor: "bg-orange-400",
+    logo: "https://cdn.allox.ai/allox/tokens/shib.svg",
+  },
+  {
+    symbol: "USDT",
+    iconColor: "bg-emerald-400",
+    logo: "https://cdn.allox.ai/allox/tokens/usdt.svg",
+  },
 ];
 
 export const PRIME_PICKS_PORTFOLIO_SIZE = 3;
@@ -138,6 +159,7 @@ export function parseBinanceGenerateResponse(response) {
       sourceToken: data.sourceToken || "USDT",
       totalInvestment: data.totalInvestment ?? null,
       perTokenAllocationUsd,
+      campaignSource: data.campaignSource ?? null,
     },
   };
 }
@@ -157,6 +179,7 @@ export function buildBinanceExecutionFromGenerate({ meta, basket, quote }) {
       sourceToken: meta.sourceToken,
       totalInvestment: meta.totalInvestment,
       source: BINANCE_CAMPAIGN_SOURCE,
+      campaignSource: meta.campaignSource ?? null,
     },
     quote,
   };
