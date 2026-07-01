@@ -248,7 +248,7 @@ export function TokenDetailPage() {
         className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6 transition-colors"
       >
         <ArrowLeft className="w-4 h-4" />
-        Back to Trending
+        {fromPortfolio ? "Back to Portfolio" : "Back to Trending"}
       </button>
 
       {loading ? (
