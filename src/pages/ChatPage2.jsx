@@ -3895,7 +3895,7 @@ export function ChatPage2() {
           !quickWizardOpen &&
           !binanceWizardOpen && (
             <div className="h-full flex sm:items-center justify-center px-6">
-              <div className="text-center max-w-4xl w-full relative">
+              <div className="text-center max-w-3xl w-full relative">
                 <StatsBanner />
                 <div className="relative hidden lg:flex flex-col gap-3 sm:-top-14 top-auto">
                   <h3 className="font-bold text-xl text-gray-900 flex items-center gap-2">
