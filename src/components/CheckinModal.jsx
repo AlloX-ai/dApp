@@ -441,7 +441,7 @@ export function CheckinModal({
                   </div>
                   <div className="glass-card p-4 border border-white/60 relative">
                     <div className="text-sm text-gray-600 mb-1">
-                      Binance Check-in
+                      Binance Claim
                     </div>
                     <div className="text-2xl font-bold">
                       {giftsCollected} / 14
@@ -466,10 +466,9 @@ export function CheckinModal({
                         <div className="absolute right-0 top-full mt-2 w-80 p-4 bg-white rounded-xl shadow-lg border border-gray-200 z-50">
                           <div className="space-y-2 text-sm text-gray-700">
                             <p>
-                              Sign in to AlloX for any 14 days within the
-                              campaign period. Sign on-chain message on each of
-                              those days. Check-ins do not need to be
-                              consecutive.
+                              Claim Daily Bonus 14 times during the 30-day
+                              campaign. Sign on-chain message on each of those
+                              days. Check-ins do not need to be consecutive.
                             </p>
                           </div>
                         </div>
