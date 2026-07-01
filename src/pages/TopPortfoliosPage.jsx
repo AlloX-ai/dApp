@@ -147,9 +147,13 @@ export function TopPortfoliosPage() {
 
   const goToToken = (symbol) => {
     if (!symbol) return;
-    navigate(
-      `/trending?token=${encodeURIComponent(String(symbol).toUpperCase())}`,
-    );
+    const params = new URLSearchParams();
+    params.set("token", String(symbol).toUpperCase());
+    params.set("from", "top-portfolios");
+    if (selectedPortfolioId) {
+      params.set("portfolioId", selectedPortfolioId);
+    }
+    navigate(`/trending?${params.toString()}`);
   };
 
   const goToNarrative = (narrative) => {
