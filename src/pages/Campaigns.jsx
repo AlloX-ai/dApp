@@ -132,14 +132,14 @@ export function CampaignsPage() {
                       Total Rewards
                     </div>
                     <div className="font-bold text-base text-gray-900 flex items-center gap-1">
-                      <span>$300,000 ALLOX</span>
+                      <span>10,000,000 ALLOX</span>
                     </div>
                   </div>
                   <div className="bg-white/60 backdrop-blur-sm rounded-xl p-3">
                     <div className="text-xs text-gray-600 mb-1">Duration</div>
                     <div className="font-bold text-gray-900 flex items-center gap-1">
                       <Calendar className="w-4 h-4 text-blue-600" />
-                      Jun 15 - Jul 15
+                      Jul 02 - Aug 01
                     </div>
                   </div>
                 </div>

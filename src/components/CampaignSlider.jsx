@@ -15,9 +15,10 @@ const SLIDES = [
   {
     id: "binance",
     title: "Binance Campaign",
-    description: "Exclusive campaign on Binance Wallet with $300,000 rewards",
+    description:
+      "Exclusive campaign on Binance Wallet with 10,000,000 ALLOX rewards",
     badge: "ACTIVE",
-    footer: "Jun 15 - Jul 15",
+    footer: "Jul 02 - Aug 01",
     route: "binance",
     bg: "linear-gradient(135deg, #0d1117 0%, #161b22 60%, #1a2332 100%)",
     border: "rgba(240,185,11,0.25)",
@@ -299,7 +300,9 @@ export function CampaignSlider({
                   >
                     {slide.title}
                   </div>
-                  <div className="mt-1.5 text-sm font-bold text-white">
+                  <div
+                    className={`mt-1.5 ${variant === "compact" ? "text-xs" : "text-sm"} font-bold text-white`}
+                  >
                     {slide.id === "volume-league" ? (
                       <>
                         Earn{" "}
