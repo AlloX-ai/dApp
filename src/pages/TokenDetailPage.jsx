@@ -27,8 +27,28 @@ export function TokenDetailPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const symbol = searchParams.get("token")?.trim()?.toUpperCase() || "";
-  const fromPortfolio = searchParams.get("from") === "portfolio";
-  const fromPortfolioId = searchParams.get("portfolioId") || null;
+  const fromSource = searchParams.get("from");
+  const contextPortfolioId = searchParams.get("portfolioId") || null;
+
+  const backNavigation = (() => {
+    if (fromSource === "portfolio") {
+      return {
+        label: "Back to Portfolio",
+        to: contextPortfolioId
+          ? `/portfolio?portfolio=${contextPortfolioId}`
+          : "/portfolio",
+      };
+    }
+    if (fromSource === "top-portfolios") {
+      return {
+        label: "Back to Top Portfolios",
+        to: contextPortfolioId
+          ? `/top-portfolios?portfolio=${encodeURIComponent(contextPortfolioId)}`
+          : "/top-portfolios",
+      };
+    }
+    return { label: "Back to Trending", to: "/trending" };
+  })();
   const { ensureAuthenticated, logout } = useAuth();
 
   const [tokenData, setTokenData] = useState(null);
@@ -130,13 +150,7 @@ export function TokenDetailPage() {
   }, [symbol, ensureAuthenticated, logout]);
 
   const handleBack = () => {
-    if (fromPortfolio && fromPortfolioId) {
-      navigate(`/portfolio?portfolio=${fromPortfolioId}`);
-    } else if (fromPortfolio) {
-      navigate("/portfolio");
-    } else {
-      navigate("/trending");
-    }
+    navigate(backNavigation.to);
   };
 
   const handleAddToWatchlist = async () => {
@@ -231,7 +245,7 @@ export function TokenDetailPage() {
           className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6"
         >
           <ArrowLeft className="w-4 h-4" />
-          {fromPortfolio ? "Back to Portfolio" : "Back to Trending"}
+          {backNavigation.label}
         </button>
         <p className="text-gray-600">
           No token specified. Use the search or click a token.
@@ -248,7 +262,7 @@ export function TokenDetailPage() {
         className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6 transition-colors"
       >
         <ArrowLeft className="w-4 h-4" />
-        {fromPortfolio ? "Back to Portfolio" : "Back to Trending"}
+        {backNavigation.label}
       </button>
 
       {loading ? (
