@@ -52,7 +52,7 @@ export function CampaignsPage() {
     } catch {
       /* ignore */
     }
-    navigate(`/?bw=${intentId}`);
+    navigate(`/bwcampaign?bw=${intentId}`);
   };
 
   // Countdown timer for Allocation Race (until 17:00 UTC on 29/05/2026)
@@ -149,40 +149,41 @@ export function CampaignsPage() {
                   </span>
                   <ChevronRight className="w-5 h-5 text-amber-600 group-hover:translate-x-1 transition-transform" />
                 </div>
-          </div>
-        </button>
-                 <button
-          onClick={() => setSearchParams({ campaign: "volume-league" })}
-          className="glass-card overflow-hidden text-left hover:shadow-2xl transition-all duration-300 group relative"
-        >
-
-            <div className="relative h-48 w-full overflow-hidden sm:top-[-11px]">
+              </div>
+            </button>
+            {/* <button
+              onClick={() => setSearchParams({ campaign: "volume-league" })}
+              className="glass-card overflow-hidden text-left hover:shadow-2xl transition-all duration-300 group relative"
+            >
+              <div className="relative h-48 w-full overflow-hidden sm:top-[-11px]">
                 <ImageWithFallback
                   src={volumeLeague}
                   alt="Volume League"
                   className="w-full h-full object-cover brightness-85 transition-[filter] duration-500 ease-in-out group-hover:brightness-115"
-                />
+                /> */}
                 {/* Gradient Overlay */}
-                <div className="absolute inset-0 " />
+                {/* <div className="absolute inset-0 " /> */}
 
                 {/* Badge on Banner */}
-                <div className="absolute top-4 right-4 bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold shadow-lg">
+                {/* <div className="absolute top-4 right-4 bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold shadow-lg">
                   ACTIVE
-                </div>
+                </div> */}
 
                 {/* Icon on Banner */}
-           <div className="absolute top-4 left-4 bg-cyan-500/20 backdrop-blur-sm text-cyan-200 px-3 py-1 rounded-full text-xs font-semibold border border-cyan-400/30">
-              Weekly Rewards
-            </div>
-              </div>
+                {/* <div className="absolute top-4 left-4 bg-cyan-500/20 backdrop-blur-sm text-cyan-200 px-3 py-1 rounded-full text-xs font-semibold border border-cyan-400/30">
+                  Weekly Rewards
+                </div>
+              </div> */}
 
-
-
-       
-          <div className="p-8">
-            <h3 className="text-2xl font-bold text-gray-900 mb-2">Volume League</h3>
-            <p className="text-gray-600 mb-6">Generate volume, climb tier brackets, and earn weekly guaranteed rewards.</p>
-           <div className="flex flex-col sm:flex-row gap-2 sm:items-center justify-between mb-6">
+              {/* <div className="p-8">
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                  Volume League
+                </h3>
+                <p className="text-gray-600 mb-6">
+                  Generate volume, climb tier brackets, and earn weekly
+                  guaranteed rewards.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-2 sm:items-center justify-between mb-6">
                   <div className="bg-white/60 backdrop-blur-sm rounded-xl p-3">
                     <div className="text-xs text-gray-600 mb-1">
                       Total Rewards
@@ -210,7 +211,7 @@ export function CampaignsPage() {
                   <ChevronRight className="w-5 h-5 text-amber-600 group-hover:translate-x-1 transition-transform" />
                 </div>
               </div>
-            </button>
+            </button> */}
             {/* Trading Competition Card */}
             <button
               onClick={() => {

@@ -416,8 +416,10 @@ export function ChatPage() {
     !showBinanceBoosterWalletWarning;
 
   const isBinanceCampaignRoute = location.pathname === "/bwcampaign";
-  const { shouldShowCampaignCheckin, progress: binanceCampaignCheckinProgress } =
-    useBinanceCampaignCheckin();
+  const {
+    shouldShowCampaignCheckin,
+    progress: binanceCampaignCheckinProgress,
+  } = useBinanceCampaignCheckin();
 
   const resetBinanceWizard = useCallback(() => {
     setBinanceError("");
@@ -1963,8 +1965,7 @@ export function ChatPage() {
       }));
     } catch (e) {
       if (e?.status === 401) logout();
-      const campaignError =
-        e?.campaignError ?? parseCampaignBinanceError(e);
+      const campaignError = e?.campaignError ?? parseCampaignBinanceError(e);
       if (campaignError) {
         setBinanceCampaignError(campaignError);
         setBinanceCampaignRetrying(false);
@@ -3895,7 +3896,7 @@ export function ChatPage() {
           !binanceWizardOpen && (
             <div className="h-full flex sm:items-center justify-center px-6">
               <div className="text-center max-w-4xl w-full relative">
-                 <StatsBanner />
+                <StatsBanner />
                 <div className="relative hidden lg:flex flex-col gap-3 sm:-top-14 top-auto">
                   <h3 className="font-bold text-xl text-gray-900 flex items-center gap-2">
                     <div
@@ -3951,7 +3952,7 @@ export function ChatPage() {
                       Binance Campaign
                     </span>
                   </button>
-                  <NavLink
+                  {/* <NavLink
                     to="/campaigns?campaign=volume-league"
                     className="inline-flex items-center justify-center gap-2.5 w-full sm:w-auto px-4 sm:px-5 py-2 bg-gradient-to-r from-teal-500/10 via-cyan-500/10 to-emerald-500/10 border border-cyan-500/20 rounded-full shadow-lg shadow-cyan-500/5 backdrop-blur-sm overflow-hidden"
                   >
@@ -3967,7 +3968,7 @@ export function ChatPage() {
                     >
                       Volume League
                     </span>
-                  </NavLink>
+                  </NavLink> */}
                   <NavLink
                     to="/campaigns?campaign=prove-your-portfolio"
                     className="inline-flex items-center justify-center gap-2.5 w-full sm:w-auto px-4 sm:px-5 py-2 bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-cyan-500/10 border border-purple-500/20 rounded-full shadow-lg shadow-purple-500/5 backdrop-blur-sm overflow-hidden"
@@ -4657,13 +4658,13 @@ export function ChatPage() {
                             )}
                           </>
                         )}
-  <BinanceCampaignCheckinNotice
+                      {/* <BinanceCampaignCheckinNotice
                         progress={
                           shouldShowCampaignCheckin
                             ? binanceCampaignCheckinProgress
                             : null
                         }
-                      />
+                      /> */}
 
                       <div className="space-y-3 sm:space-y-4">
                         <div className="rounded-2xl bg-white/70 border border-gray-200/60 p-3 sm:p-4 shadow-sm">

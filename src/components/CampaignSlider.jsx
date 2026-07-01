@@ -25,19 +25,19 @@ const SLIDES = [
     Icon: Gem,
   },
 
-  {
-    id: "volume-league",
-    title: "Volume League",
-    description:
-      "Earn guaranteed rewards with simple steps from the $500,000 pool",
-    badge: "NEW",
-    footer: "$500,000 Pool",
-    route: "/campaigns?campaign=volume-league",
-    bg: "linear-gradient(135deg, #05101f 0%, #0a1f3d 50%, #0d2d5e 100%)",
-    border: "rgba(59,130,246,0.35)",
-    accent: "#60a5fa",
-    Icon: BarChart2,
-  },
+  // {
+  //   id: "volume-league",
+  //   title: "Volume League",
+  //   description:
+  //     "Earn guaranteed rewards with simple steps from the $500,000 pool",
+  //   badge: "NEW",
+  //   footer: "$500,000 Pool",
+  //   route: "/campaigns?campaign=volume-league",
+  //   bg: "linear-gradient(135deg, #05101f 0%, #0a1f3d 50%, #0d2d5e 100%)",
+  //   border: "rgba(59,130,246,0.35)",
+  //   accent: "#60a5fa",
+  //   Icon: BarChart2,
+  // },
   {
     id: "prove-your-portfolio",
     title: "Prove Your Portfolio",
@@ -73,7 +73,7 @@ function useSlidesToShow(variant) {
     const width = window.innerWidth;
     if (width < 640) return 1;
     if (width < 1024) return 2;
-    return 3;
+    return 2;
   }, [variant]);
 
   const [slidesToShow, setSlidesToShow] = useState(getCount);
