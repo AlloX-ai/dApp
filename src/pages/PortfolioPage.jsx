@@ -121,6 +121,28 @@ const getChainInfo = (chain) => {
   return CHAIN_INFO[key] || { label: key, icon: null };
 };
 
+const collectTokenLogos = (items) => {
+  const map = {};
+  (Array.isArray(items) ? items : []).forEach((item) => {
+    const symbol = String(item?.symbol || item?.name || "")
+      .trim()
+      .toUpperCase();
+    const logo = item?.logo ?? item?.logoUrl ?? item?.image ?? item?.icon ?? null;
+    if (symbol && logo && !map[symbol]) {
+      map[symbol] = logo;
+    }
+  });
+  return map;
+};
+
+const extractSellTokenLogosFromPortfolioInfo = (response) => {
+  const portfolioPayload = response?.portfolio || response || {};
+  return {
+    ...collectTokenLogos(portfolioPayload?.positions),
+    ...collectTokenLogos(response?.positions),
+  };
+};
+
 export function PortfolioPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -525,11 +547,30 @@ export function PortfolioPage() {
     navigate,
   ]);
 
-  const openSellModal = useCallback((target) => {
-    if (!target?.portfolioId) return;
-    setSellTarget(target);
-    setIsSellModalOpen(true);
-  }, []);
+  const openSellModal = useCallback(
+    async (target) => {
+      if (!target?.portfolioId) return;
+
+      let tokenLogos = target?.tokenLogos || {};
+      try {
+        await ensureAuthenticated();
+        const portfolioResponse = await getPortfolioInfo(target.portfolioId);
+        tokenLogos = {
+          ...extractSellTokenLogosFromPortfolioInfo(portfolioResponse),
+          ...tokenLogos,
+        };
+      } catch (error) {
+        if (error?.status === 401) {
+          logout();
+          return;
+        }
+      }
+
+      setSellTarget({ ...target, tokenLogos });
+      setIsSellModalOpen(true);
+    },
+    [ensureAuthenticated, getPortfolioInfo, logout],
+  );
 
   const closeSellModal = useCallback(() => {
     setIsSellModalOpen(false);
@@ -1362,6 +1403,7 @@ export function PortfolioPage() {
                                                         activePortfolio.id,
                                                       symbol: String(symbol),
                                                       title: `${symbol} in ${activePortfolio.name || "Portfolio"}`,
+                                                      logo: logo || null,
                                                     });
                                                   }}
                                                   className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-lg border border-emerald-200 text-emerald-700 hover:bg-emerald-50 shrink-0"

@@ -94,6 +94,7 @@ import { useSocial } from "./hooks/useSocial";
 import { CongratsModal } from "./components/CongratsModal";
 import { AIChatWidget } from "./components/AiChatWidget";
 import { CampaignsPage } from "./pages/Campaigns";
+import { BinanceVolumeCampaignPage } from "./pages/BinanceVolumeCampaign";
 import { PrivyFundHubModal } from "./components/PrivyFundHubModal";
 import { MaintenancePage } from "./pages/MaintenancePage";
 import { TopPortfoliosPage } from "./pages/TopPortfoliosPage";
@@ -1163,6 +1164,7 @@ function WalletSync() {
             clearTimeoutId = null;
           }
           const activeConnection = connections[0];
+          
           if (activeConnection.accounts[0]) {
             if (isBinanceConnectorLike(activeConnection.connector)) {
               markBinanceWalletSession();
