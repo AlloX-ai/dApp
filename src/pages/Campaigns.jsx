@@ -100,12 +100,12 @@ export function CampaignsPage() {
           <div className="grid xl:grid-cols-2 gap-6">
             <button
               onClick={handleBinanceCampaignCardClick}
-              className="glass-card overflow-hidden text-left hover:shadow-2xl transition-all duration-300 group relative"
+              className="glass-card overflow-hidden text-left hover:shadow-2xl transition-all duration-300 group relative flex flex-col justify-between"
             >
               <div className="relative h-48 w-full overflow-hidden">
                 <ImageWithFallback
                   src={binanceWalletCampaign}
-                  alt="Volume League"
+                  alt="BW-Campaign"
                   className="w-full h-full object-cover brightness-85 transition-[filter] duration-500 ease-in-out group-hover:brightness-115"
                 />
                 {/* Gradient Overlay */}
@@ -153,7 +153,7 @@ export function CampaignsPage() {
             </button>
             {/* <button
               onClick={() => setSearchParams({ campaign: "volume-league" })}
-              className="glass-card overflow-hidden text-left hover:shadow-2xl transition-all duration-300 group relative"
+              className="glass-card overflow-hidden text-left hover:shadow-2xl transition-all duration-300 group relative flex flex-col justify-between"
             >
               <div className="relative h-48 w-full overflow-hidden sm:top-[-11px]">
                 <ImageWithFallback
@@ -161,21 +161,21 @@ export function CampaignsPage() {
                   alt="Volume League"
                   className="w-full h-full object-cover brightness-85 transition-[filter] duration-500 ease-in-out group-hover:brightness-115"
                 /> */}
-                {/* Gradient Overlay */}
-                {/* <div className="absolute inset-0 " /> */}
+            {/* Gradient Overlay */}
+            {/* <div className="absolute inset-0 " /> */}
 
-                {/* Badge on Banner */}
-                {/* <div className="absolute top-4 right-4 bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold shadow-lg">
+            {/* Badge on Banner */}
+            {/* <div className="absolute top-4 right-4 bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold shadow-lg">
                   ACTIVE
                 </div> */}
 
-                {/* Icon on Banner */}
-                {/* <div className="absolute top-4 left-4 bg-cyan-500/20 backdrop-blur-sm text-cyan-200 px-3 py-1 rounded-full text-xs font-semibold border border-cyan-400/30">
+            {/* Icon on Banner */}
+            {/* <div className="absolute top-4 left-4 bg-cyan-500/20 backdrop-blur-sm text-cyan-200 px-3 py-1 rounded-full text-xs font-semibold border border-cyan-400/30">
                   Weekly Rewards
                 </div>
               </div> */}
 
-              {/* <div className="p-8">
+            {/* <div className="p-8">
                 <h3 className="text-2xl font-bold text-gray-900 mb-2">
                   Volume League
                 </h3>
@@ -217,13 +217,13 @@ export function CampaignsPage() {
               onClick={() => {
                 setSearchParams({ campaign: "prove-your-portfolio" });
               }}
-              className="glass-card overflow-hidden text-left hover:shadow-2xl transition-all duration-300 group relative"
+              className="glass-card overflow-hidden text-left hover:shadow-2xl transition-all duration-300 group relative flex flex-col justify-between"
             >
               {/* Banner Image */}
               <div className="relative h-48 w-full overflow-hidden">
                 <ImageWithFallback
-                  src={tcBanner}
-                  alt="Trading Competition"
+                  src={pypBanner}
+                  alt="Prove Your Portfolio"
                   className="w-full h-full object-cover brightness-85 transition-[filter] duration-500 ease-in-out group-hover:brightness-115"
                 />
                 {/* Gradient Overlay */}
@@ -254,10 +254,10 @@ export function CampaignsPage() {
                       Total Rewards
                     </div>
                     <div className="font-bold text-gray-900 flex items-center gap-1">
-                      <span>$500,000</span>
+                      <span>$50,000</span>
                       <span className="text-sm font-semibold text-gray-700 flex items-center">
                         (<Gem className="w-4 h-4 text-purple-600" />
-                        100,000)
+                        10,000)
                       </span>
                     </div>
                   </div>
@@ -283,12 +283,12 @@ export function CampaignsPage() {
               onClick={() => {
                 setSearchParams({ campaign: "allocation-race" });
               }}
-              className="glass-card overflow-hidden text-left hover:shadow-2xl transition-all duration-300 group relative"
+              className="glass-card overflow-hidden text-left hover:shadow-2xl transition-all duration-300 group relative flex flex-col justify-between"
             >
               {/* Banner Image */}
               <div className="relative h-48 w-full overflow-hidden">
                 <ImageWithFallback
-                  src={pypBanner}
+                  src={tcBanner}
                   alt="Prove Your Portfolio"
                   className="w-full h-full object-cover brightness-85 transition-[filter] duration-500 ease-in-out group-hover:brightness-115"
                 />
@@ -331,10 +331,10 @@ export function CampaignsPage() {
                       Total Rewards
                     </div>
                     <div className="font-bold text-gray-900 flex items-center gap-1">
-                      <span>$50,000</span>
+                      <span>$500,000</span>
                       <span className="text-sm font-semibold text-gray-700 flex items-center">
                         (<Gem className="w-4 h-4 text-purple-600" />
-                        10,000)
+                        100,000)
                       </span>
                     </div>
                   </div>
@@ -377,7 +377,7 @@ export function CampaignsPage() {
               onClick={() => {
                 setSearchParams({ campaign: "spring-series" });
               }}
-              className="glass-card overflow-hidden text-left hover:shadow-2xl transition-all duration-300 group relative"
+              className="glass-card overflow-hidden text-left hover:shadow-2xl transition-all duration-300 group relative flex flex-col justify-between"
             >
               {/* Banner Image */}
               <div className="relative h-48 w-full overflow-hidden">
