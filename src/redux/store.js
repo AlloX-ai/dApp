@@ -8,6 +8,7 @@ import checkinReducer from "./slices/checkinSlice";
 import socialReducer from "./slices/socialSlice";
 import chatbotReducer from "./slices/chatbotSlice";
 import tradingReducer from "./slices/tradingSlice";
+import volumeReducer from "./slices/volumeSlice";
 
 export const store = configureStore({
   reducer: {
@@ -20,6 +21,7 @@ export const store = configureStore({
     social: socialReducer,
     chatbot: chatbotReducer,
     trading: tradingReducer,
+    volume: volumeReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({ serializableCheck: false }),
