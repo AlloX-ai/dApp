@@ -98,8 +98,11 @@ export function CampaignsPage() {
 
           {/* Campaign Cards Grid */}
           <div className="grid xl:grid-cols-2 gap-6">
-            <button
-              onClick={handleBinanceCampaignCardClick}
+            <a
+              href="https://web3.binance.com/en/booster/47/5104555967354361344?chain=bsc"
+              target="_blank"
+              rel="noreferrer"
+              // onClick={handleBinanceCampaignCardClick}
               className="glass-card overflow-hidden text-left hover:shadow-2xl transition-all duration-300 group relative flex flex-col justify-between"
             >
               <div className="relative h-48 w-full overflow-hidden">
@@ -150,7 +153,7 @@ export function CampaignsPage() {
                   <ChevronRight className="w-5 h-5 text-amber-600 group-hover:translate-x-1 transition-transform" />
                 </div>
               </div>
-            </button>
+            </a>
             {/* <button
               onClick={() => setSearchParams({ campaign: "volume-league" })}
               className="glass-card overflow-hidden text-left hover:shadow-2xl transition-all duration-300 group relative flex flex-col justify-between"
